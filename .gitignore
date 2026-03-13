@@ -4,7 +4,13 @@ frontend/dist/
 backend/**/bin/
 backend/**/obj/
 *.db
+*.db-shm
+*.db-wal
 .vscode/
+backend/.vs/
+backend/**/Properties/launchSettings.json
+frontend/tsconfig.tsbuildinfo
+frontend/src/**/*.js
 frontend/.env
 frontend/.env.*
 backend/**/appsettings.Development.json
