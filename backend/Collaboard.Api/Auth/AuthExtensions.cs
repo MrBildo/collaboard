@@ -31,7 +31,7 @@ public static class AuthExtensions
         }
 
         context.Items[nameof(BoardUser)] = user;
-        return roles.Contains(user.Role) ? null : Results.Forbid();
+        return roles.Contains(user.Role) ? null : Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 
     public static BoardUser CurrentUser(this HttpContext context) => (BoardUser)context.Items[nameof(BoardUser)]!;

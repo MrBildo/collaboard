@@ -191,7 +191,7 @@ api.MapDelete("/comments/{id:guid}", async (BoardDbContext db, HttpContext http,
     var comment = await db.Comments.FindAsync(id);
     if (comment is null) return Results.NotFound();
     var user = http.CurrentUser();
-    if (comment.UserId != user.Id && user.Role != UserRole.Administrator) return Results.Forbid();
+    if (comment.UserId != user.Id && user.Role != UserRole.Administrator) return Results.StatusCode(StatusCodes.Status403Forbidden);
     db.Comments.Remove(comment);
     await db.SaveChangesAsync();
     return Results.NoContent();
@@ -219,7 +219,7 @@ api.MapPost("/cards/{id:guid}/attachments", async (BoardDbContext db, HttpContex
     db.Attachments.Add(attachment);
     await db.SaveChangesAsync();
     return Results.Created($"/api/v1/cards/{id}/attachments/{attachment.Id}", new { attachment.Id, attachment.FileName });
-});
+}).DisableAntiforgery();
 
 api.MapGet("/attachments/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id) =>
 {
@@ -244,3 +244,5 @@ api.MapDelete("/attachments/{id:guid}", async (BoardDbContext db, HttpContext ht
 app.MapAgentManifest();
 
 app.Run();
+
+public partial class Program { }
