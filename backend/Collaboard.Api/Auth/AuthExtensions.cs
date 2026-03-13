@@ -1,4 +1,5 @@
 using Collaboard.Api.Models;
+
 using Microsoft.EntityFrameworkCore;
 
 namespace Collaboard.Api.Auth;
@@ -11,19 +12,14 @@ public static class AuthExtensions
     public static async Task<BoardUser?> ResolveUserAsync(this HttpContext context, BoardDbContext db)
     {
         var apiKey = context.Request.Headers[ApiKeyHeader].ToString();
-        var expectedApiKey = context.RequestServices.GetRequiredService<IConfiguration>["Security:ApiKey"];
+        var expectedApiKey = context.RequestServices.GetRequiredService<IConfiguration>().GetValue<string>("Security:ApiKey");
         if (string.IsNullOrWhiteSpace(apiKey) || !string.Equals(apiKey, expectedApiKey, StringComparison.Ordinal))
         {
             return null;
         }
 
         var userKey = context.Request.Headers[UserKeyHeader].ToString();
-        if (string.IsNullOrWhiteSpace(userKey))
-        {
-            return null;
-        }
-
-        return await db.Users.SingleOrDefaultAsync(x => x.AuthKey == userKey);
+        return string.IsNullOrWhiteSpace(userKey) ? null : await db.Users.SingleOrDefaultAsync(x => x.AuthKey == userKey);
     }
 
     public static async Task<IResult?> RequireRoleAsync(this HttpContext context, BoardDbContext db, params UserRole[] roles)

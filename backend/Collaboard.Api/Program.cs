@@ -3,11 +3,10 @@ using Collaboard.Api.Auth;
 using Collaboard.Api.Mcp;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
-using Ulid;
-
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
+builder.Services.AddCors();
 builder.Services.AddDbContext<BoardDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Board") ?? "Data Source=collaboard.db"));
 
@@ -39,6 +38,10 @@ using (var scope = app.Services.CreateScope())
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.UseCors(policy => policy
+        .AllowAnyOrigin()
+        .AllowAnyMethod()
+        .AllowAnyHeader());
 }
 
 var api = app.MapGroup("/api/v1");
@@ -137,12 +140,12 @@ api.MapPatch("/cards/{id:guid}", async (BoardDbContext db, HttpContext http, Gui
     var card = await db.Cards.FindAsync(id);
     if (card is null) return Results.NotFound();
 
-    card.Name = patch.Name;
-    card.DescriptionMarkdown = patch.DescriptionMarkdown;
-    card.Status = patch.Status;
-    card.Size = patch.Size;
-    card.LaneId = patch.LaneId;
-    card.Position = patch.Position;
+    if (!string.IsNullOrEmpty(patch.Name)) card.Name = patch.Name;
+    if (!string.IsNullOrEmpty(patch.DescriptionMarkdown)) card.DescriptionMarkdown = patch.DescriptionMarkdown;
+    if (patch.Status is not null) card.Status = patch.Status;
+    if (!string.IsNullOrEmpty(patch.Size)) card.Size = patch.Size;
+    if (patch.LaneId != Guid.Empty) card.LaneId = patch.LaneId;
+    if (patch.Position != 0) card.Position = patch.Position;
     card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
     card.LastUpdatedByUserId = http.CurrentUser().Id;
     await db.SaveChangesAsync();
