@@ -15,6 +15,9 @@ frontend/.env
 frontend/.env.*
 backend/**/appsettings.Development.json
 
+# Aspire local state
+.aspire/
+
 # Claude Code local settings
 .claude/*
 !.claude/skills/
