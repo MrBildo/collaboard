@@ -9,6 +9,7 @@ backend/**/obj/
 .vscode/
 backend/.vs/
 backend/**/Properties/launchSettings.json
+!backend/Collaboard.AppHost/Properties/launchSettings.json
 frontend/tsconfig.tsbuildinfo
 frontend/src/**/*.js
 frontend/.env
