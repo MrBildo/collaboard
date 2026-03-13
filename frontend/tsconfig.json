@@ -6,7 +6,11 @@
     "jsx": "react-jsx",
     "strict": true,
     "types": ["vite/client", "vitest"],
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["src"]
 }
