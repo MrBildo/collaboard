@@ -9,11 +9,15 @@ backend/**/obj/
 .vscode/
 backend/.vs/
 backend/**/Properties/launchSettings.json
+!backend/Collaboard.AppHost/Properties/launchSettings.json
 frontend/tsconfig.tsbuildinfo
 frontend/src/**/*.js
 frontend/.env
 frontend/.env.*
 backend/**/appsettings.Development.json
+
+# Aspire local state
+.aspire/
 
 # Claude Code local settings
 .claude/*

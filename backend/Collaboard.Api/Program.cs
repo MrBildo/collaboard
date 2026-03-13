@@ -5,6 +5,8 @@ using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
+builder.AddServiceDefaults();
+
 builder.Services.AddOpenApi();
 builder.Services.AddCors();
 builder.Services.AddDbContext<BoardDbContext>(options =>
@@ -242,6 +244,8 @@ api.MapDelete("/attachments/{id:guid}", async (BoardDbContext db, HttpContext ht
 });
 
 app.MapAgentManifest();
+
+app.MapDefaultEndpoints();
 
 app.Run();
 

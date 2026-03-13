@@ -23,33 +23,42 @@ Kanban board web application — .NET Minimal API backend + React SPA frontend. 
 - Arrange-Act-Assert pattern
 - Test file naming: `*.Tests.cs`
 
+**Orchestration**
+- Aspire 13.1 (AppHost + ServiceDefaults)
+- OpenTelemetry (logging, tracing, metrics via service defaults)
+- Aspire Dashboard (dev-time observability)
+
 ## Build & Run
 
-### Backend
-```powershell
-cd backend/Collaboard.Api
-dotnet run
-```
-Runs on `http://localhost:58343`. Requires `appsettings.Development.json` with `Security:ApiKey`.
+### Prerequisites
+- .NET 10 SDK
+- Node.js 22+
+- Docker Desktop (for Aspire orchestration)
+- Aspire CLI (optional): `irm https://aspire.dev/install.ps1 | iex`
 
-### Frontend
+### Local Development (Recommended)
 ```powershell
-cd frontend
-npm install
-npm run dev
+dotnet run --project backend/Collaboard.AppHost
 ```
-Runs on `http://localhost:5173` with Vite proxy to backend.
+Launches both API and frontend with the Aspire dashboard. The dashboard URL is printed to the console on startup — it provides structured logs, traces, metrics, and resource management.
 
-### Both
-```powershell
-.\start.ps1
-```
+The API gets a dynamic port (no more hardcoded 58343). The frontend gets a dynamic port. Aspire handles service discovery between them.
+
+Requires `appsettings.Development.json` in `backend/Collaboard.Api/` with `Security:ApiKey`.
 
 ### Tests
 ```powershell
 cd backend
 dotnet test
 ```
+
+### Frontend Only (no Aspire)
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+Vite dev server on port 5173 with proxy to localhost:58343 (requires API running separately).
 
 ## Auth Model
 

@@ -12,4 +12,7 @@
     <PackageReference Include="ModelContextProtocol" Version="0.1.0-preview.6" />
     <PackageReference Include="Ulid" Version="1.4.1" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Collaboard.ServiceDefaults\Collaboard.ServiceDefaults.csproj" />
+  </ItemGroup>
 </Project>
