@@ -1,4 +1,7 @@
 import axios from 'axios';
+import type { CardItem, Lane } from '@/types';
+
+export type { CardItem, Lane };
 
 export const api = axios.create({
   baseURL: '/api/v1',
@@ -7,18 +10,6 @@ export const api = axios.create({
     'X-User-Key': import.meta.env.VITE_USER_KEY ?? '',
   },
 });
-
-export type Lane = { id: string; name: string; position: number };
-export type CardItem = {
-  id: string;
-  number: number;
-  name: string;
-  descriptionMarkdown: string;
-  laneId: string;
-  position: number;
-  status?: string;
-  size: string;
-};
 
 export async function fetchBoard(): Promise<{ lanes: Lane[]; cards: CardItem[] }> {
   const { data } = await api.get('/board');
