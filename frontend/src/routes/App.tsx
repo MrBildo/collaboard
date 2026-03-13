@@ -1,16 +1,17 @@
-import { DndContext, DragEndEvent } from '@dnd-kit/core';
-import { useQuery } from '@tanstack/react-query';
+import { DndContext, DragEndEvent, useDraggable, useDroppable } from '@dnd-kit/core';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { ThemeToggle } from '../components/ThemeToggle';
-import { CardItem, fetchBoard, Lane } from '../lib/api';
+import { api, CardItem, fetchBoard, Lane } from '../lib/api';
 
 export function App() {
+  const queryClient = useQueryClient();
   const boardQuery = useQuery({ queryKey: ['board'], queryFn: fetchBoard });
-  const [localCards, setLocalCards] = useState<CardItem[]>([]);
 
   const lanes = boardQuery.data?.lanes ?? [];
-  const cards = localCards.length ? localCards : (boardQuery.data?.cards ?? []);
+  const cards = boardQuery.data?.cards ?? [];
 
   const byLane = useMemo(() => {
     const map = new Map<string, CardItem[]>();
@@ -25,13 +26,18 @@ export function App() {
     const overLaneId = event.over?.id ? String(event.over.id) : null;
     if (!overLaneId) return;
 
-    setLocalCards((prev) => {
-      const source = (prev.length ? prev : cards).map((card) => ({ ...card }));
-      const card = source.find((x) => x.id === cardId);
-      if (!card) return source;
-      card.laneId = overLaneId;
-      return source;
+    const card = cards.find((c) => c.id === cardId);
+    if (!card || card.laneId === overLaneId) return;
+
+    queryClient.setQueryData<{ lanes: Lane[]; cards: CardItem[] }>(['board'], (old) => {
+      if (!old) return old;
+      return {
+        ...old,
+        cards: old.cards.map((c) => (c.id === cardId ? { ...c, laneId: overLaneId } : c)),
+      };
     });
+
+    api.patch(`/cards/${cardId}`, { laneId: overLaneId });
   };
 
   return (
@@ -52,23 +58,49 @@ export function App() {
 }
 
 function LaneColumn({ lane, cards }: { lane: Lane; cards: CardItem[] }) {
+  const { setNodeRef, isOver } = useDroppable({ id: lane.id });
+
   return (
-    <article id={lane.id} className="rounded-lg border bg-white p-3 shadow dark:bg-slate-900">
+    <article
+      ref={setNodeRef}
+      className={clsx(
+        'rounded-lg border bg-white p-3 shadow dark:bg-slate-900',
+        isOver && 'ring-2 ring-blue-400',
+      )}
+    >
       <h2 className="mb-3 font-semibold">{lane.name}</h2>
       <div className="space-y-3">
         {cards.map((card) => (
-          <div
-            key={card.id}
-            id={card.id}
-            className={clsx('rounded border p-2', card.status === 'Blocked' ? 'border-red-500' : 'border-slate-300')}
-          >
-            <p className="text-xs text-slate-500">#{card.number}</p>
-            <h3 className="font-medium">{card.name}</h3>
-            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{card.descriptionMarkdown}</p>
-            <p className="mt-2 text-xs">Size: {card.size}</p>
-          </div>
+          <DraggableCard key={card.id} card={card} />
         ))}
       </div>
     </article>
+  );
+}
+
+function DraggableCard({ card }: { card: CardItem }) {
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: card.id });
+  const style = transform
+    ? { transform: `translate(${transform.x}px, ${transform.y}px)` }
+    : undefined;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      {...attributes}
+      className={clsx(
+        'cursor-grab rounded border bg-white p-2 dark:bg-slate-800',
+        card.status === 'Blocked' ? 'border-red-500' : 'border-slate-300 dark:border-slate-600',
+      )}
+    >
+      <p className="text-xs text-slate-500">#{card.number}</p>
+      <h3 className="font-medium">{card.name}</h3>
+      <ReactMarkdown className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+        {card.descriptionMarkdown}
+      </ReactMarkdown>
+      <p className="mt-2 text-xs">Size: {card.size}</p>
+    </div>
   );
 }
