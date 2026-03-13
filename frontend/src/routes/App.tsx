@@ -4,7 +4,8 @@ import clsx from 'clsx';
 import { useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { ThemeToggle } from '../components/ThemeToggle';
-import { api, CardItem, fetchBoard, Lane } from '../lib/api';
+import { api, fetchBoard } from '@/lib/api';
+import type { CardItem, Lane } from '@/types';
 
 export function App() {
   const queryClient = useQueryClient();
