@@ -14,3 +14,16 @@ frontend/src/**/*.js
 frontend/.env
 frontend/.env.*
 backend/**/appsettings.Development.json
+
+# Claude Code local settings
+.claude/*
+!.claude/skills/
+**/.claude/settings.local.json
+
+# Agent workspace (local only)
+.agents/
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
