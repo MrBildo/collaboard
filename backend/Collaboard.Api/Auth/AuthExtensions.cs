@@ -11,7 +11,7 @@ public static class AuthExtensions
     public static async Task<BoardUser?> ResolveUserAsync(this HttpContext context, BoardDbContext db)
     {
         var apiKey = context.Request.Headers[ApiKeyHeader].ToString();
-        var expectedApiKey = context.RequestServices.GetRequiredService<IConfiguration>["Security:ApiKey"];
+        var expectedApiKey = context.RequestServices.GetRequiredService<IConfiguration>().GetValue<string>("Security:ApiKey");
         if (string.IsNullOrWhiteSpace(apiKey) || !string.Equals(apiKey, expectedApiKey, StringComparison.Ordinal))
         {
             return null;
