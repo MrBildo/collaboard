@@ -1,4 +1,5 @@
 using Collaboard.Api.Models;
+
 using Microsoft.EntityFrameworkCore;
 
 namespace Collaboard.Api.Auth;
@@ -18,12 +19,7 @@ public static class AuthExtensions
         }
 
         var userKey = context.Request.Headers[UserKeyHeader].ToString();
-        if (string.IsNullOrWhiteSpace(userKey))
-        {
-            return null;
-        }
-
-        return await db.Users.SingleOrDefaultAsync(x => x.AuthKey == userKey);
+        return string.IsNullOrWhiteSpace(userKey) ? null : await db.Users.SingleOrDefaultAsync(x => x.AuthKey == userKey);
     }
 
     public static async Task<IResult?> RequireRoleAsync(this HttpContext context, BoardDbContext db, params UserRole[] roles)
