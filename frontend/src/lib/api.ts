@@ -16,6 +16,12 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Auth
+export async function fetchMe(): Promise<{ id: string; name: string; role: number }> {
+  const { data } = await api.get('/auth/me');
+  return data;
+}
+
 // Board
 export async function fetchBoard(): Promise<{ lanes: Lane[]; cards: CardItem[] }> {
   const { data } = await api.get('/board');

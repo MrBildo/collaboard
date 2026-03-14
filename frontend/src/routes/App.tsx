@@ -9,7 +9,7 @@ import { CreateCardDialog } from '@/components/CreateCardDialog';
 import { LoginScreen } from '@/components/LoginScreen';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { fetchBoard, fetchCardAttachments, fetchCardLabels, fetchComments, fetchUsers, reorderCard } from '@/lib/api';
+import { fetchBoard, fetchCardAttachments, fetchCardLabels, fetchComments, fetchMe, fetchUsers, reorderCard } from '@/lib/api';
 import { isLoggedIn, setUserKey, clearUserKey } from '@/lib/auth';
 import { useBoardEvents } from '@/lib/useBoardEvents';
 import { cn } from '@/lib/utils';
@@ -34,6 +34,14 @@ export function App() {
   }, [queryClient]);
 
   const boardQuery = useQuery({ queryKey: ['board'], queryFn: fetchBoard, retry: 2, staleTime: 30_000, enabled: loggedIn, refetchOnWindowFocus: false });
+  const meQuery = useQuery({
+    queryKey: ['me'],
+    queryFn: fetchMe,
+    enabled: loggedIn,
+    staleTime: Infinity,
+  });
+  const currentUserId = meQuery.data?.id;
+  const currentUserRole = meQuery.data?.role;
   const adminCheck = useQuery({
     queryKey: ['adminCheck'],
     queryFn: () => fetchUsers().then(() => true),
@@ -258,7 +266,7 @@ export function App() {
         </DragOverlay>
       </DndContext>
 
-      <CardDetailSheet card={selectedCard} open={detailOpen} onOpenChange={setDetailOpen} />
+      <CardDetailSheet card={selectedCard} open={detailOpen} onOpenChange={setDetailOpen} currentUserId={currentUserId} currentUserRole={currentUserRole} />
 
       <CreateCardDialog lanes={lanes} open={createOpen} onOpenChange={setCreateOpen} defaultLaneId={createLaneId} />
 

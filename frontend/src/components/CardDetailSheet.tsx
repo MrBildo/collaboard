@@ -30,15 +30,17 @@ type CardDetailSheetProps = {
   card: CardItem | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  currentUserId?: string;
+  currentUserRole?: number;
 };
 
-export function CardDetailSheet({ card, open, onOpenChange }: CardDetailSheetProps) {
+export function CardDetailSheet({ card, open, onOpenChange, currentUserId, currentUserRole }: CardDetailSheetProps) {
   if (!card) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[90vh] !w-[80vw] !max-w-[80vw] flex-col overflow-hidden p-0">
-        <CardDetailForm key={card.id} card={card} onOpenChange={onOpenChange} />
+        <CardDetailForm key={card.id} card={card} onOpenChange={onOpenChange} currentUserId={currentUserId} currentUserRole={currentUserRole} />
       </DialogContent>
     </Dialog>
   );
@@ -47,9 +49,13 @@ export function CardDetailSheet({ card, open, onOpenChange }: CardDetailSheetPro
 function CardDetailForm({
   card,
   onOpenChange,
+  currentUserId,
+  currentUserRole,
 }: {
   card: CardItem;
   onOpenChange: (open: boolean) => void;
+  currentUserId?: string;
+  currentUserRole?: number;
 }) {
   const queryClient = useQueryClient();
 
@@ -58,6 +64,8 @@ function CardDetailForm({
   const [size, setSize] = useState(card.size);
   const [editingDescription, setEditingDescription] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const canDelete = currentUserRole === 0 || (currentUserRole === 1 && card.createdByUserId === currentUserId);
 
   const directoryQuery = useQuery({
     queryKey: ['userDirectory'],
@@ -249,9 +257,13 @@ function CardDetailForm({
 
       {/* Footer */}
       <div className="flex items-center justify-between border-t px-6 py-3">
-        <Button variant="destructive" size="sm" onClick={handleDelete} disabled={deleteMutation.isPending}>
-          {confirmDelete ? 'Confirm delete' : 'Delete'}
-        </Button>
+        {canDelete ? (
+          <Button variant="destructive" size="sm" onClick={handleDelete} disabled={deleteMutation.isPending}>
+            {confirmDelete ? 'Confirm delete' : 'Delete'}
+          </Button>
+        ) : (
+          <div />
+        )}
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
             Cancel
