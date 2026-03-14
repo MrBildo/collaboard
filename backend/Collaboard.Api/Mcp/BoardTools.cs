@@ -7,7 +7,7 @@ using ModelContextProtocol.Server;
 namespace Collaboard.Api.Mcp;
 
 [McpServerToolType]
-public sealed class BoardTools(BoardDbContext db, McpAuthService auth)
+public sealed class BoardTools(BoardDbContext db, McpAuthService auth, IHttpContextAccessor httpContextAccessor)
 {
     private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
@@ -29,27 +29,29 @@ public sealed class BoardTools(BoardDbContext db, McpAuthService auth)
     }
 
     [McpServerTool(Name = "get_api_info", ReadOnly = true, Destructive = false)]
-    [Description("Get information about the REST API for operations not available via MCP tools (e.g., file uploads).")]
-    public static string GetApiInfo() =>
-        """
-        Collaboard REST API (for operations not available via MCP):
+    [Description("Get the REST API base URL and documentation for operations not available via MCP (e.g., file downloads).")]
+    public string GetApiInfo()
+    {
+        var request = httpContextAccessor.HttpContext?.Request;
+        var baseUrl = request is not null
+            ? $"{request.Scheme}://{request.Host}/api/v1"
+            : "http://localhost/api/v1";
 
-        Base URL: Use the same host as the MCP server, under /api/v1/
-        Auth: Include header "X-User-Key: <your-auth-key>" on all requests.
-
-        File Attachments (not available via MCP — use REST):
-          Upload:   POST /api/v1/cards/{cardId}/attachments  (multipart/form-data, field: "file")
-          Download: GET  /api/v1/attachments/{id}
-          List:     Available via MCP tool "get_attachments"
-          Delete:   Available via MCP tool "delete_attachment"
-
-        Other REST-only endpoints:
-          PATCH /api/v1/cards/{id}         — partial update with JSON body
-          GET   /api/v1/board              — full board state
-          GET   /api/v1/users/directory    — list user names (all roles)
-
-        All card/lane/label/comment operations are available via MCP tools.
-        """;
+        return "Collaboard REST API\n\n"
+            + $"Base URL: {baseUrl}\n"
+            + "Auth: Include header \"X-User-Key: <your-auth-key>\" on all requests.\n\n"
+            + "File Attachments:\n"
+            + "  Upload (small files, images): MCP tool \"upload_attachment\" (base64-encoded content)\n"
+            + $"  Upload (large files, CSVs, PDFs): POST {baseUrl}/cards/<cardId>/attachments (multipart/form-data, field: \"file\")\n"
+            + $"  Download: GET {baseUrl}/attachments/<id> (returns file with Content-Disposition)\n"
+            + "  List: Available via MCP tool \"get_attachments\"\n"
+            + "  Delete: Available via MCP tool \"delete_attachment\"\n\n"
+            + "Other REST endpoints (also available via MCP tools):\n"
+            + $"  GET  {baseUrl}/board — full board state\n"
+            + $"  GET  {baseUrl}/users/directory — list user names\n"
+            + $"  PATCH {baseUrl}/cards/<id> — partial card update\n\n"
+            + "All card/lane/label/comment operations are available via MCP tools.";
+    }
 
     [McpServerTool(Name = "get_lanes", ReadOnly = true, Destructive = false)]
     [Description("Get all lanes (columns) on the board, ordered by position.")]
