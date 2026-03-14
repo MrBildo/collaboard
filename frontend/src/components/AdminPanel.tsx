@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import {
   Select,
   SelectContent,
@@ -19,14 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   createLabel,
   createLane,
@@ -55,14 +48,14 @@ const ROLE_MAP: Record<number, string> = {
 export function AdminPanel({ open, onOpenChange }: AdminPanelProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto p-6">
         <DialogHeader>
           <DialogTitle>Admin Panel</DialogTitle>
           <DialogDescription>Manage lanes, users, and labels.</DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="lanes">
-          <TabsList>
+        <Tabs defaultValue="lanes" className="mt-2 flex flex-col gap-4">
+          <TabsList variant="line" className="w-full justify-start gap-2 border-b pb-2">
             <TabsTrigger value="lanes">Lanes</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="labels">Labels</TabsTrigger>
@@ -169,105 +162,99 @@ function LanesTab() {
   const lanes = lanesQuery.data ?? [];
 
   return (
-    <div className="flex flex-col gap-4 pt-4">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Position</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {lanes.map((lane) => (
-            <TableRow key={lane.id}>
-              <TableCell>
-                {editingId === lane.id ? (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        {lanes.map((lane) => (
+          <div key={lane.id} className="flex items-center justify-between rounded-lg border px-4 py-3">
+            {editingId === lane.id ? (
+              <>
+                <div className="flex flex-1 items-center gap-2">
                   <Input
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
                     className="h-7"
+                    placeholder="Lane name"
                   />
-                ) : (
-                  lane.name
-                )}
-              </TableCell>
-              <TableCell>
-                {editingId === lane.id ? (
                   <Input
                     type="number"
                     value={editPosition}
                     onChange={(e) => setEditPosition(e.target.value)}
                     className="h-7 w-20"
+                    placeholder="Position"
                   />
-                ) : (
-                  lane.position
-                )}
-              </TableCell>
-              <TableCell className="text-right">
-                {editingId === lane.id ? (
-                  <div className="flex justify-end gap-1">
-                    <Button size="xs" onClick={saveEdit} disabled={updateMutation.isPending}>
-                      Save
-                    </Button>
-                    <Button size="xs" variant="outline" onClick={() => setEditingId(null)}>
-                      Cancel
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex justify-end gap-1">
-                    <Button
-                      size="xs"
-                      variant="outline"
-                      onClick={() => startEdit(lane.id, lane.name, lane.position)}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      size="xs"
-                      variant="destructive"
-                      onClick={() => handleDelete(lane.id)}
-                      disabled={deleteMutation.isPending}
-                    >
-                      {confirmDeleteId === lane.id ? 'Confirm' : 'Delete'}
-                    </Button>
-                  </div>
-                )}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+                </div>
+                <div className="ml-2 flex gap-1">
+                  <Button size="xs" onClick={saveEdit} disabled={updateMutation.isPending}>
+                    Save
+                  </Button>
+                  <Button size="xs" variant="outline" onClick={() => setEditingId(null)}>
+                    Cancel
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-3">
+                  <span className="font-medium">{lane.name}</span>
+                  <Badge variant="secondary">pos {lane.position}</Badge>
+                </div>
+                <div className="flex gap-1">
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    onClick={() => startEdit(lane.id, lane.name, lane.position)}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="destructive"
+                    onClick={() => handleDelete(lane.id)}
+                    disabled={deleteMutation.isPending}
+                  >
+                    {confirmDeleteId === lane.id ? 'Confirm' : 'Delete'}
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
 
       {deleteError && <p className="text-sm text-destructive">{deleteError}</p>}
 
-      <div className="flex items-end gap-2 border-t pt-4">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="lane-name">Name</Label>
-          <Input
-            id="lane-name"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder="Lane name"
-          />
+      <Separator />
+
+      <div>
+        <h3 className="mb-3 text-sm font-medium">Add Lane</h3>
+        <div className="flex items-end gap-2">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="lane-name">Name</Label>
+            <Input
+              id="lane-name"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="e.g. In Progress"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="lane-position">Position</Label>
+            <Input
+              id="lane-position"
+              type="number"
+              value={newPosition}
+              onChange={(e) => setNewPosition(e.target.value)}
+              placeholder="0"
+              className="w-20"
+            />
+          </div>
+          <Button
+            onClick={handleCreate}
+            disabled={createMutation.isPending || !newName.trim() || !newPosition}
+          >
+            {createMutation.isPending ? 'Adding...' : 'Add Lane'}
+          </Button>
         </div>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="lane-position">Position</Label>
-          <Input
-            id="lane-position"
-            type="number"
-            value={newPosition}
-            onChange={(e) => setNewPosition(e.target.value)}
-            placeholder="0"
-            className="w-20"
-          />
-        </div>
-        <Button
-          onClick={handleCreate}
-          disabled={createMutation.isPending || !newName.trim() || !newPosition}
-        >
-          {createMutation.isPending ? 'Adding...' : 'Add Lane'}
-        </Button>
       </div>
     </div>
   );
@@ -323,42 +310,32 @@ function UsersTab() {
   const users = usersQuery.data ?? [];
 
   return (
-    <div className="flex flex-col gap-4 pt-4">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Role</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {users.map((user) => (
-            <TableRow key={user.id}>
-              <TableCell>{user.name}</TableCell>
-              <TableCell>{ROLE_MAP[user.role] ?? `Role ${user.role}`}</TableCell>
-              <TableCell>
-                <Badge variant={user.isActive ? 'secondary' : 'destructive'}>
-                  {user.isActive ? 'Active' : 'Inactive'}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-right">
-                {user.isActive && (
-                  <Button
-                    size="xs"
-                    variant="destructive"
-                    onClick={() => handleDeactivate(user.id)}
-                    disabled={deactivateMutation.isPending}
-                  >
-                    {confirmDeactivateId === user.id ? 'Confirm' : 'Deactivate'}
-                  </Button>
-                )}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        {users.map((user) => (
+          <div key={user.id} className="flex items-center justify-between rounded-lg border px-4 py-3">
+            <div className="flex items-center gap-3">
+              <span className="font-medium">{user.name}</span>
+              <Badge variant="secondary">{ROLE_MAP[user.role] ?? `Role ${user.role}`}</Badge>
+              <Badge variant={user.isActive ? 'outline' : 'destructive'}>
+                {user.isActive ? 'Active' : 'Inactive'}
+              </Badge>
+            </div>
+            <div className="flex gap-1">
+              {user.isActive && (
+                <Button
+                  size="xs"
+                  variant="destructive"
+                  onClick={() => handleDeactivate(user.id)}
+                  disabled={deactivateMutation.isPending}
+                >
+                  {confirmDeactivateId === user.id ? 'Confirm' : 'Deactivate'}
+                </Button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
 
       {createdKey && (
         <div className="rounded-lg border bg-muted/30 p-3">
@@ -377,32 +354,37 @@ function UsersTab() {
         </div>
       )}
 
-      <div className="flex items-end gap-2 border-t pt-4">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="user-name">Name</Label>
-          <Input
-            id="user-name"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder="User name"
-          />
+      <Separator />
+
+      <div>
+        <h3 className="mb-3 text-sm font-medium">Add User</h3>
+        <div className="flex items-end gap-2">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="user-name">Name</Label>
+            <Input
+              id="user-name"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="e.g. Jane Doe"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Role</Label>
+            <Select value={newRole} onValueChange={(v) => v && setNewRole(v)}>
+              <SelectTrigger className="w-36">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">Administrator</SelectItem>
+                <SelectItem value="1">HumanUser</SelectItem>
+                <SelectItem value="2">AgentUser</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button onClick={handleCreate} disabled={createMutation.isPending || !newName.trim()}>
+            {createMutation.isPending ? 'Adding...' : 'Add User'}
+          </Button>
         </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>Role</Label>
-          <Select value={newRole} onValueChange={(v) => v && setNewRole(v)}>
-            <SelectTrigger className="w-36">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="0">Administrator</SelectItem>
-              <SelectItem value="1">HumanUser</SelectItem>
-              <SelectItem value="2">AgentUser</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <Button onClick={handleCreate} disabled={createMutation.isPending || !newName.trim()}>
-          {createMutation.isPending ? 'Adding...' : 'Add User'}
-        </Button>
       </div>
     </div>
   );
@@ -484,102 +466,95 @@ function LabelsTab() {
   const labels = labelsQuery.data ?? [];
 
   return (
-    <div className="flex flex-col gap-4 pt-4">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Color</TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {labels.map((label) => (
-            <TableRow key={label.id}>
-              <TableCell>
-                {editingId === label.id ? (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        {labels.map((label) => (
+          <div key={label.id} className="flex items-center justify-between rounded-lg border px-4 py-3">
+            {editingId === label.id ? (
+              <>
+                <div className="flex flex-1 items-center gap-2">
                   <input
                     type="color"
                     value={editColor}
                     onChange={(e) => setEditColor(e.target.value)}
                     className="h-7 w-10 cursor-pointer rounded border-0"
                   />
-                ) : (
-                  <div
-                    className="h-5 w-8 rounded"
-                    style={{ backgroundColor: label.color ?? '#6b7280' }}
-                  />
-                )}
-              </TableCell>
-              <TableCell>
-                {editingId === label.id ? (
                   <Input
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
                     className="h-7"
+                    placeholder="Label name"
                   />
-                ) : (
-                  label.name
-                )}
-              </TableCell>
-              <TableCell className="text-right">
-                {editingId === label.id ? (
-                  <div className="flex justify-end gap-1">
-                    <Button size="xs" onClick={saveEdit} disabled={updateMutation.isPending}>
-                      Save
-                    </Button>
-                    <Button size="xs" variant="outline" onClick={() => setEditingId(null)}>
-                      Cancel
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex justify-end gap-1">
-                    <Button
-                      size="xs"
-                      variant="outline"
-                      onClick={() => startEdit(label.id, label.name, label.color)}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      size="xs"
-                      variant="destructive"
-                      onClick={() => handleDelete(label.id)}
-                      disabled={deleteMutation.isPending}
-                    >
-                      {confirmDeleteId === label.id ? 'Confirm' : 'Delete'}
-                    </Button>
-                  </div>
-                )}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+                </div>
+                <div className="ml-2 flex gap-1">
+                  <Button size="xs" onClick={saveEdit} disabled={updateMutation.isPending}>
+                    Save
+                  </Button>
+                  <Button size="xs" variant="outline" onClick={() => setEditingId(null)}>
+                    Cancel
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-3">
+                  <span
+                    className="inline-block h-4 w-4 rounded-full"
+                    style={{ backgroundColor: label.color ?? '#6b7280' }}
+                  />
+                  <span className="font-medium">{label.name}</span>
+                </div>
+                <div className="flex gap-1">
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    onClick={() => startEdit(label.id, label.name, label.color)}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="destructive"
+                    onClick={() => handleDelete(label.id)}
+                    disabled={deleteMutation.isPending}
+                  >
+                    {confirmDeleteId === label.id ? 'Confirm' : 'Delete'}
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
 
-      <div className="flex items-end gap-2 border-t pt-4">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="label-name">Name</Label>
-          <Input
-            id="label-name"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder="Label name"
-          />
+      <Separator />
+
+      <div>
+        <h3 className="mb-3 text-sm font-medium">Add Label</h3>
+        <div className="flex items-end gap-2">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="label-name">Name</Label>
+            <Input
+              id="label-name"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="e.g. Bug"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="label-color">Color</Label>
+            <input
+              id="label-color"
+              type="color"
+              value={newColor}
+              onChange={(e) => setNewColor(e.target.value)}
+              className="h-8 w-12 cursor-pointer rounded border-0"
+            />
+          </div>
+          <Button onClick={handleCreate} disabled={createMutation.isPending || !newName.trim()}>
+            {createMutation.isPending ? 'Adding...' : 'Add Label'}
+          </Button>
         </div>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="label-color">Color</Label>
-          <input
-            id="label-color"
-            type="color"
-            value={newColor}
-            onChange={(e) => setNewColor(e.target.value)}
-            className="h-8 w-12 cursor-pointer rounded border-0"
-          />
-        </div>
-        <Button onClick={handleCreate} disabled={createMutation.isPending || !newName.trim()}>
-          {createMutation.isPending ? 'Adding...' : 'Add Label'}
-        </Button>
       </div>
     </div>
   );

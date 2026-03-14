@@ -108,7 +108,7 @@ export function CardComments({ cardId }: CardCommentsProps) {
             </div>
           ) : (
             <>
-              <div className="prose prose-sm dark:prose-invert max-w-none break-words">
+              <div className="prose prose-sm prose-invert max-w-none break-words">
                 <ReactMarkdown>{comment.contentMarkdown}</ReactMarkdown>
               </div>
               <div className="mt-2 flex items-center justify-between">

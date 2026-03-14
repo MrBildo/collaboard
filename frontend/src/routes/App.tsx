@@ -2,7 +2,6 @@ import { DndContext, DragEndEvent, useDraggable, useDroppable } from '@dnd-kit/c
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { AdminPanel } from '@/components/AdminPanel';
-import { ThemeToggle } from '@/components/ThemeToggle';
 import { CardDetailSheet } from '@/components/CardDetailSheet';
 import { CreateCardDialog } from '@/components/CreateCardDialog';
 import { Badge } from '@/components/ui/badge';
@@ -58,15 +57,22 @@ export function App() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-100 p-4 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+    <main className="min-h-screen bg-background p-4 text-foreground">
       <header className="mb-6 flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Collaboard</h1>
+        <img
+            src="/collaboard-logo.png"
+            alt="Collaboard"
+            className="h-28 w-auto"
+            style={{
+              maskImage: 'radial-gradient(ellipse 90% 80% at center, black 40%, transparent 100%)',
+              WebkitMaskImage: 'radial-gradient(ellipse 90% 80% at center, black 40%, transparent 100%)',
+            }}
+          />
         <div className="flex items-center gap-2">
           <Button onClick={() => setCreateOpen(true)}>New Card</Button>
           <Button variant="outline" onClick={() => setAdminOpen(true)}>
             Admin
           </Button>
-          <ThemeToggle />
         </div>
       </header>
       <DndContext onDragEnd={onDragEnd}>
@@ -117,8 +123,8 @@ function LaneColumn({
     <article
       ref={setNodeRef}
       className={cn(
-        'rounded-lg border bg-white p-3 shadow dark:bg-slate-900',
-        isOver && 'ring-2 ring-blue-400',
+        'rounded-lg border bg-card p-3 shadow',
+        isOver && 'ring-2 ring-primary/40',
       )}
     >
       <h2 className="mb-3 font-semibold">{lane.name}</h2>
@@ -161,12 +167,12 @@ function DraggableCard({
       {...attributes}
       onClick={() => onCardClick(card)}
       className={cn(
-        'cursor-grab rounded border bg-white p-2 dark:bg-slate-800',
-        isBlocked ? 'border-red-500 ring-1 ring-red-300' : 'border-slate-300 dark:border-slate-600',
+        'cursor-grab rounded-md border bg-card p-2 hover:shadow-md',
+        isBlocked ? 'border-destructive ring-1 ring-destructive/30' : 'border-border',
       )}
     >
       <div className="flex items-start justify-between gap-1">
-        <p className="text-xs text-slate-500">#{card.number}</p>
+        <p className="text-xs text-muted-foreground">#{card.number}</p>
         <Badge variant="outline" className="text-[10px]">
           {card.size}
         </Badge>
@@ -174,7 +180,7 @@ function DraggableCard({
       <h3 className="mt-0.5 font-medium">{card.name}</h3>
 
       {descriptionPreview && (
-        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{descriptionPreview}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{descriptionPreview}</p>
       )}
 
       {isBlocked && (
