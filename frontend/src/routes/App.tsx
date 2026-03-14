@@ -1,6 +1,8 @@
-import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, MouseSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
+import { DndContext, DragEndEvent, DragOverEvent, DragOverlay, DragStartEvent, MouseSensor, TouchSensor, closestCorners, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { AdminPanel } from '@/components/AdminPanel';
 import { CardDetailSheet } from '@/components/CardDetailSheet';
 import { CreateCardDialog } from '@/components/CreateCardDialog';
@@ -11,6 +13,15 @@ import { api, fetchBoard, fetchCardAttachments, fetchCardLabels, fetchComments, 
 import { isLoggedIn, setUserKey, clearUserKey } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 import type { CardItem, Lane } from '@/types';
+
+type BoardData = { lanes: Lane[]; cards: CardItem[] };
+
+function calculatePosition(laneCards: CardItem[], dropIndex: number): number {
+  if (laneCards.length === 0) return 0;
+  if (dropIndex <= 0) return laneCards[0].position - 10;
+  if (dropIndex >= laneCards.length) return laneCards[laneCards.length - 1].position + 10;
+  return (laneCards[dropIndex - 1].position + laneCards[dropIndex].position) / 2;
+}
 
 export function App() {
   const queryClient = useQueryClient();
@@ -47,8 +58,13 @@ export function App() {
   const [createLaneId, setCreateLaneId] = useState<string | undefined>(undefined);
   const [adminOpen, setAdminOpen] = useState(false);
 
+  // Track the lane the dragged card came from so we can restore on cancel
+  const dragSourceLaneRef = useRef<string | null>(null);
+
   const lanes = useMemo(() => boardQuery.data?.lanes ?? [], [boardQuery.data]);
   const cards = useMemo(() => boardQuery.data?.cards ?? [], [boardQuery.data]);
+
+  const laneIds = useMemo(() => new Set(lanes.map((l) => l.id)), [lanes]);
 
   const byLane = useMemo(() => {
     const map = new Map<string, CardItem[]>();
@@ -59,30 +75,144 @@ export function App() {
   }, [lanes, cards]);
 
   const onDragStart = (event: DragStartEvent) => {
-    setActiveCardId(String(event.active.id));
+    const cardId = String(event.active.id);
+    setActiveCardId(cardId);
+    const card = cards.find((c) => c.id === cardId);
+    dragSourceLaneRef.current = card?.laneId ?? null;
+  };
+
+  const onDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeId = String(active.id);
+    const overId = String(over.id);
+
+    // Find which lane the active card is currently in (from query cache)
+    const currentData = queryClient.getQueryData<BoardData>(['board']);
+    if (!currentData) return;
+
+    const activeCard = currentData.cards.find((c) => c.id === activeId);
+    if (!activeCard) return;
+
+    // Determine the target lane
+    let targetLaneId: string;
+    if (laneIds.has(overId)) {
+      targetLaneId = overId;
+    } else {
+      const overCard = currentData.cards.find((c) => c.id === overId);
+      if (!overCard) return;
+      targetLaneId = overCard.laneId;
+    }
+
+    // Only update if moving to a different lane
+    if (activeCard.laneId === targetLaneId) return;
+
+    queryClient.setQueryData<BoardData>(['board'], (old) => {
+      if (!old) return old;
+
+      // Remove card from old lane, add to new lane
+      const updatedCards = old.cards.map((c) =>
+        c.id === activeId ? { ...c, laneId: targetLaneId } : c,
+      );
+
+      return { ...old, cards: updatedCards };
+    });
   };
 
   const onDragEnd = (event: DragEndEvent) => {
-    const cardId = String(event.active.id);
-    const overLaneId = event.over?.id ? String(event.over.id) : null;
+    const { active, over } = event;
+    const cardId = String(active.id);
 
-    if (!overLaneId || !cards.find((c) => c.id === cardId && c.laneId !== overLaneId)) {
+    if (!over) {
+      // Cancelled — restore original lane
+      if (dragSourceLaneRef.current) {
+        queryClient.setQueryData<BoardData>(['board'], (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            cards: old.cards.map((c) =>
+              c.id === cardId ? { ...c, laneId: dragSourceLaneRef.current! } : c,
+            ),
+          };
+        });
+      }
       setActiveCardId(null);
+      dragSourceLaneRef.current = null;
       return;
     }
 
-    // Optimistic update BEFORE clearing active — both in same sync batch
-    queryClient.setQueryData<{ lanes: Lane[]; cards: CardItem[] }>(['board'], (old) => {
+    const overId = String(over.id);
+    const currentData = queryClient.getQueryData<BoardData>(['board']);
+    if (!currentData) {
+      setActiveCardId(null);
+      dragSourceLaneRef.current = null;
+      return;
+    }
+
+    const activeCard = currentData.cards.find((c) => c.id === cardId);
+    if (!activeCard) {
+      setActiveCardId(null);
+      dragSourceLaneRef.current = null;
+      return;
+    }
+
+    // Determine target lane
+    let targetLaneId: string;
+    if (laneIds.has(overId)) {
+      targetLaneId = overId;
+    } else {
+      const overCard = currentData.cards.find((c) => c.id === overId);
+      targetLaneId = overCard?.laneId ?? activeCard.laneId;
+    }
+
+    // Get sorted cards in the target lane (excluding the active card)
+    const targetLaneCards = currentData.cards
+      .filter((c) => c.laneId === targetLaneId && c.id !== cardId)
+      .sort((a, b) => a.position - b.position);
+
+    // Calculate drop index
+    let dropIndex: number;
+    if (laneIds.has(overId)) {
+      // Dropped on the lane itself — append at end
+      dropIndex = targetLaneCards.length;
+    } else {
+      // Dropped on a card — find its index in the filtered list
+      const overIndex = targetLaneCards.findIndex((c) => c.id === overId);
+      dropIndex = overIndex === -1 ? targetLaneCards.length : overIndex;
+    }
+
+    const newPosition = calculatePosition(targetLaneCards, dropIndex);
+
+    const sourceLaneId = dragSourceLaneRef.current;
+    const laneChanged = targetLaneId !== sourceLaneId;
+    const positionChanged = activeCard.position !== newPosition;
+
+    if (!laneChanged && !positionChanged) {
+      setActiveCardId(null);
+      dragSourceLaneRef.current = null;
+      return;
+    }
+
+    // Optimistic update
+    queryClient.setQueryData<BoardData>(['board'], (old) => {
       if (!old) return old;
       return {
         ...old,
-        cards: old.cards.map((c) => (c.id === cardId ? { ...c, laneId: overLaneId } : c)),
+        cards: old.cards.map((c) =>
+          c.id === cardId ? { ...c, laneId: targetLaneId, position: newPosition } : c,
+        ),
       };
     });
     setActiveCardId(null);
+    dragSourceLaneRef.current = null;
 
-    // Fire-and-forget patch, then sync
-    api.patch(`/cards/${cardId}`, { laneId: overLaneId }).then(() => {
+    // Build patch payload — only send changed fields
+    const patch: Record<string, unknown> = {};
+    if (laneChanged) patch.laneId = targetLaneId;
+    patch.position = newPosition;
+
+    api.patch(`/cards/${cardId}`, patch).then(() => {
       queryClient.invalidateQueries({ queryKey: ['board'] });
     });
   };
@@ -128,7 +258,13 @@ export function App() {
       {boardQuery.isLoading && (
         <p className="py-8 text-center text-muted-foreground">Loading board...</p>
       )}
-      <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={onDragStart}
+        onDragOver={onDragOver}
+        onDragEnd={onDragEnd}
+      >
         <section
           className="grid grid-cols-1 gap-4 md:grid-cols-3"
           style={
@@ -179,6 +315,7 @@ function LaneColumn({
   activeCardId: string | null;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: lane.id });
+  const cardIds = useMemo(() => cards.map((c) => c.id), [cards]);
 
   return (
     <article
@@ -198,16 +335,18 @@ function LaneColumn({
           +
         </button>
       </div>
-      <div className="space-y-3">
-        {cards.map((card) => (
-          <DraggableCard key={card.id} card={card} onCardClick={onCardClick} isDragging={card.id === activeCardId} />
-        ))}
-      </div>
+      <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
+        <div className="space-y-3">
+          {cards.map((card) => (
+            <SortableCard key={card.id} card={card} onCardClick={onCardClick} isDragging={card.id === activeCardId} />
+          ))}
+        </div>
+      </SortableContext>
     </article>
   );
 }
 
-function DraggableCard({
+function SortableCard({
   card,
   onCardClick,
   isDragging,
@@ -216,7 +355,11 @@ function DraggableCard({
   onCardClick: (card: CardItem) => void;
   isDragging: boolean;
 }) {
-  const { attributes, listeners, setNodeRef } = useDraggable({ id: card.id });
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: card.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
   const labelsQuery = useQuery({
     queryKey: ['cardLabels', card.id],
     queryFn: () => fetchCardLabels(card.id),
@@ -240,6 +383,7 @@ function DraggableCard({
   return (
     <div
       ref={setNodeRef}
+      style={style}
       {...listeners}
       {...attributes}
       onClick={() => onCardClick(card)}
