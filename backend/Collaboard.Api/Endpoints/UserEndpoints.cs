@@ -114,6 +114,18 @@ internal static class UserEndpoints
             return Results.NoContent();
         });
 
+        group.MapGet("/auth/me", async (BoardDbContext db, HttpContext http) =>
+        {
+            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.HumanUser, UserRole.AgentUser);
+            if (forbidden is not null)
+            {
+                return forbidden;
+            }
+
+            var user = http.CurrentUser();
+            return Results.Ok(new { user.Id, user.Name, user.Role });
+        });
+
         return group;
     }
 }
