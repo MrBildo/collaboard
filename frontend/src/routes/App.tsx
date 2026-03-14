@@ -59,7 +59,15 @@ export function App() {
   return (
     <main className="min-h-screen bg-background p-4 text-foreground">
       <header className="mb-6 flex items-center justify-between">
-        <img src="/collaboard-logo.png" alt="Collaboard" className="h-10" />
+        <img
+            src="/collaboard-logo.png"
+            alt="Collaboard"
+            className="h-28 w-auto"
+            style={{
+              maskImage: 'radial-gradient(ellipse 90% 80% at center, black 40%, transparent 100%)',
+              WebkitMaskImage: 'radial-gradient(ellipse 90% 80% at center, black 40%, transparent 100%)',
+            }}
+          />
         <div className="flex items-center gap-2">
           <Button onClick={() => setCreateOpen(true)}>New Card</Button>
           <Button variant="outline" onClick={() => setAdminOpen(true)}>
