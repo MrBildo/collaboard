@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
   Dialog,
   DialogContent,
@@ -216,7 +217,7 @@ function CardDetailForm({
             ) : (
               <div className="prose prose-sm prose-invert max-w-none rounded-md border bg-muted/20 p-4 text-sm text-foreground">
                 {description ? (
-                  <ReactMarkdown>{description}</ReactMarkdown>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{description}</ReactMarkdown>
                 ) : (
                   <p className="italic text-muted-foreground">No description yet. Click Edit to add one.</p>
                 )}

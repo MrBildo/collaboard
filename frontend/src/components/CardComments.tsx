@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { createComment, deleteComment, fetchComments, fetchUserDirectory, updateComment } from '@/lib/api';
@@ -118,7 +119,7 @@ export function CardComments({ cardId }: CardCommentsProps) {
           ) : (
             <>
               <div className="prose prose-sm prose-invert max-w-none break-words">
-                <ReactMarkdown>{comment.contentMarkdown}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{comment.contentMarkdown}</ReactMarkdown>
               </div>
               <div className="mt-2 flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">
