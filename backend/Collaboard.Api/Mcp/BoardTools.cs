@@ -9,8 +9,6 @@ namespace Collaboard.Api.Mcp;
 [McpServerToolType]
 public sealed class BoardTools(BoardDbContext db, McpAuthService auth, IHttpContextAccessor httpContextAccessor)
 {
-    private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-
     [McpServerTool(Name = "get_board", ReadOnly = true, Destructive = false)]
     [Description("Get the full kanban board including all lanes and their cards, ordered by position.")]
     public async Task<string> GetBoardAsync(
@@ -25,7 +23,7 @@ public sealed class BoardTools(BoardDbContext db, McpAuthService auth, IHttpCont
 
         var lanes = await db.Lanes.OrderBy(l => l.Position).ToListAsync(ct);
         var cards = await db.Cards.OrderBy(c => c.LaneId).ThenBy(c => c.Position).ToListAsync(ct);
-        return JsonSerializer.Serialize(new { lanes, cards }, _jsonOptions);
+        return JsonSerializer.Serialize(new { lanes, cards }, JsonSerializerOptions.Web);
     }
 
     [McpServerTool(Name = "get_api_info", ReadOnly = true, Destructive = false)]
@@ -66,6 +64,6 @@ public sealed class BoardTools(BoardDbContext db, McpAuthService auth, IHttpCont
         }
 
         var lanes = await db.Lanes.OrderBy(l => l.Position).ToListAsync(ct);
-        return JsonSerializer.Serialize(lanes, _jsonOptions);
+        return JsonSerializer.Serialize(lanes, JsonSerializerOptions.Web);
     }
 }

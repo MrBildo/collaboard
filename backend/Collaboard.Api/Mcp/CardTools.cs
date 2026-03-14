@@ -10,7 +10,7 @@ namespace Collaboard.Api.Mcp;
 [McpServerToolType]
 public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEventBroadcaster broadcaster)
 {
-    private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    private static readonly string[] _validSizes = ["S", "M", "L", "XL"];
 
     [McpServerTool(Name = "create_card", Destructive = false)]
     [Description("Create a new card on the kanban board.")]
@@ -28,9 +28,8 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             return error;
         }
 
-        var validSizes = new[] { "S", "M", "L", "XL" };
         var cardSize = size ?? "M";
-        if (!validSizes.Contains(cardSize))
+        if (!_validSizes.Contains(cardSize))
         {
             return "Error: Size must be one of: S, M, L, XL";
         }
@@ -61,7 +60,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         db.Cards.Add(card);
         await db.SaveChangesAsync(ct);
         broadcaster.Publish("board-updated");
-        return JsonSerializer.Serialize(card, _jsonOptions);
+        return JsonSerializer.Serialize(card, JsonSerializerOptions.Web);
     }
 
     [McpServerTool(Name = "move_card", Destructive = false)]
@@ -161,8 +160,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
 
         if (size is not null)
         {
-            var validSizes = new[] { "S", "M", "L", "XL" };
-            if (!validSizes.Contains(size))
+            if (!_validSizes.Contains(size))
             {
                 return "Error: Size must be one of: S, M, L, XL";
             }
@@ -174,7 +172,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
         broadcaster.Publish("board-updated");
-        return JsonSerializer.Serialize(card, _jsonOptions);
+        return JsonSerializer.Serialize(card, JsonSerializerOptions.Web);
     }
 
     [McpServerTool(Name = "get_card", ReadOnly = true, Destructive = false)]
@@ -202,6 +200,6 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             .Join(db.Labels, cl => cl.LabelId, l => l.Id, (_, l) => l)
             .ToListAsync(ct);
 
-        return JsonSerializer.Serialize(new { card, comments, labels }, _jsonOptions);
+        return JsonSerializer.Serialize(new { card, comments, labels }, JsonSerializerOptions.Web);
     }
 }

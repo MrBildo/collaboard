@@ -10,8 +10,6 @@ namespace Collaboard.Api.Mcp;
 [McpServerToolType]
 public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEventBroadcaster broadcaster)
 {
-    private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-
     [McpServerTool(Name = "get_labels", ReadOnly = true, Destructive = false)]
     [Description("Get all available labels.")]
     public async Task<string> GetLabelsAsync(
@@ -25,7 +23,7 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
         }
 
         var labels = await db.Labels.OrderBy(l => l.Name).ToListAsync(ct);
-        return JsonSerializer.Serialize(labels, _jsonOptions);
+        return JsonSerializer.Serialize(labels, JsonSerializerOptions.Web);
     }
 
     [McpServerTool(Name = "add_label_to_card", Destructive = false)]
