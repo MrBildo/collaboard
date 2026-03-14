@@ -8,9 +8,11 @@ import { createComment, deleteComment, fetchComments, fetchUserDirectory, update
 
 type CardCommentsProps = {
   cardId: string;
+  currentUserId?: string;
+  currentUserRole?: number;
 };
 
-export function CardComments({ cardId }: CardCommentsProps) {
+export function CardComments({ cardId, currentUserId, currentUserRole }: CardCommentsProps) {
   const queryClient = useQueryClient();
 
   const directoryQuery = useQuery({
@@ -130,21 +132,25 @@ export function CardComments({ cardId }: CardCommentsProps) {
                   {new Date(comment.lastUpdatedAtUtc).toLocaleString()}
                 </span>
                 <div className="flex gap-1">
-                  <Button
-                    size="xs"
-                    variant="ghost"
-                    onClick={() => handleEdit(comment.id, comment.contentMarkdown)}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="destructive"
-                    onClick={() => handleDelete(comment.id)}
-                    disabled={deleteMutation.isPending}
-                  >
-                    {confirmDeleteId === comment.id ? 'Confirm' : 'Delete'}
-                  </Button>
+                  {(currentUserRole === 0 || comment.userId === currentUserId) && (
+                    <>
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        onClick={() => handleEdit(comment.id, comment.contentMarkdown)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        size="xs"
+                        variant="destructive"
+                        onClick={() => handleDelete(comment.id)}
+                        disabled={deleteMutation.isPending}
+                      >
+                        {confirmDeleteId === comment.id ? 'Confirm' : 'Delete'}
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             </>
