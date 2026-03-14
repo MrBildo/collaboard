@@ -587,6 +587,242 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     }
 
     [Fact]
+    public async Task ReorderCard_SameLane_MovesToNewIndex()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var cardIds = new List<Guid>();
+        for (var i = 0; i < 3; i++)
+        {
+            var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+            {
+                name = $"Reorder Same Lane Card {i}",
+                descriptionMarkdown = "",
+                size = "M",
+                laneId,
+                position = i * 10
+            });
+            createResponse.EnsureSuccessStatusCode();
+            var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+            cardIds.Add(created.GetProperty("id").GetGuid());
+        }
+
+        // Act — move last card (index 2) to index 0
+        var response = await _client.PostAsJsonAsync($"/api/v1/cards/{cardIds[2]}/reorder", new
+        {
+            laneId,
+            index = 0
+        });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var board = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var cards = board.GetProperty("cards");
+        var reorderedCards = new List<JsonElement>();
+        foreach (var c in cards.EnumerateArray())
+        {
+            if (c.GetProperty("laneId").GetGuid() == laneId && cardIds.Contains(c.GetProperty("id").GetGuid()))
+            {
+                reorderedCards.Add(c);
+            }
+        }
+
+        reorderedCards.Count.ShouldBe(3);
+        reorderedCards[0].GetProperty("id").GetGuid().ShouldBe(cardIds[2]);
+        reorderedCards[0].GetProperty("position").GetInt32().ShouldBeLessThan(reorderedCards[1].GetProperty("position").GetInt32());
+    }
+
+    [Fact]
+    public async Task ReorderCard_CrossLane_MovesToTargetLane()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var sourceLaneId = await GetLaneIdByIndexAsync(0);
+        var targetLaneId = await GetLaneIdByIndexAsync(1);
+
+        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+        {
+            name = "Cross Lane Reorder Card",
+            descriptionMarkdown = "",
+            size = "M",
+            laneId = sourceLaneId,
+            position = NextPosition()
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        // Act — move to target lane at index 0
+        var response = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/reorder", new
+        {
+            laneId = targetLaneId,
+            index = 0
+        });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var board = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var cards = board.GetProperty("cards");
+        JsonElement? movedCard = null;
+        foreach (var c in cards.EnumerateArray())
+        {
+            if (c.GetProperty("id").GetGuid() == cardId)
+            {
+                movedCard = c;
+                break;
+            }
+        }
+
+        movedCard.ShouldNotBeNull();
+        movedCard.Value.GetProperty("laneId").GetGuid().ShouldBe(targetLaneId);
+    }
+
+    [Fact]
+    public async Task ReorderCard_ToEmptyLane_Works()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var sourceLaneId = await GetFirstLaneIdAsync();
+
+        // Create a new empty lane
+        var laneResponse = await _client.PostAsJsonAsync("/api/v1/lanes", new
+        {
+            name = $"Empty Lane {Guid.NewGuid()}",
+            position = NextPosition()
+        });
+        laneResponse.EnsureSuccessStatusCode();
+        var lane = await laneResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var emptyLaneId = lane.GetProperty("id").GetGuid();
+
+        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+        {
+            name = "Card To Empty Lane",
+            descriptionMarkdown = "",
+            size = "M",
+            laneId = sourceLaneId,
+            position = NextPosition()
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        // Act — move to empty lane at index 0
+        var response = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/reorder", new
+        {
+            laneId = emptyLaneId,
+            index = 0
+        });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var board = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var cards = board.GetProperty("cards");
+        JsonElement? movedCard = null;
+        foreach (var c in cards.EnumerateArray())
+        {
+            if (c.GetProperty("id").GetGuid() == cardId)
+            {
+                movedCard = c;
+                break;
+            }
+        }
+
+        movedCard.ShouldNotBeNull();
+        movedCard.Value.GetProperty("laneId").GetGuid().ShouldBe(emptyLaneId);
+        movedCard.Value.GetProperty("position").GetInt32().ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task ReorderCard_NonexistentCard_Returns404()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+        var bogusId = Guid.NewGuid();
+
+        // Act
+        var response = await _client.PostAsJsonAsync($"/api/v1/cards/{bogusId}/reorder", new
+        {
+            laneId,
+            index = 0
+        });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task ReorderCard_NonexistentLane_Returns400()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+        {
+            name = "Card For Bad Lane Reorder",
+            descriptionMarkdown = "",
+            size = "M",
+            laneId,
+            position = NextPosition()
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/reorder", new
+        {
+            laneId = Guid.NewGuid(),
+            index = 0
+        });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task ReorderCard_ReturnsFullBoard()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+        {
+            name = "Full Board Reorder Card",
+            descriptionMarkdown = "",
+            size = "M",
+            laneId,
+            position = NextPosition()
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/reorder", new
+        {
+            laneId,
+            index = 0
+        });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var board = await response.Content.ReadFromJsonAsync<JsonElement>();
+        board.TryGetProperty("lanes", out var lanes).ShouldBeTrue();
+        board.TryGetProperty("cards", out var cards).ShouldBeTrue();
+        lanes.GetArrayLength().ShouldBeGreaterThan(0);
+        cards.GetArrayLength().ShouldBeGreaterThan(0);
+    }
+
+    [Fact]
     public async Task PatchCard_WithLabelIds_ReplacesLabels()
     {
         // Arrange
