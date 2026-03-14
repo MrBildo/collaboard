@@ -36,7 +36,7 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
             Id = Guid.NewGuid(),
             CardId = cardId,
             UserId = user!.Id,
-            ContentMarkdown = content,
+            ContentMarkdown = content.Replace("\\n", "\n"),
             LastUpdatedAtUtc = DateTimeOffset.UtcNow,
         };
         db.Comments.Add(comment);
