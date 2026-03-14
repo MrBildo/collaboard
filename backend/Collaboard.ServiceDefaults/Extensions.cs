@@ -12,8 +12,8 @@ namespace Microsoft.Extensions.Hosting;
 
 public static class Extensions
 {
-    private const string HealthEndpointPath = "/health";
-    private const string AlivenessEndpointPath = "/alive";
+    private const string _healthEndpointPath = "/health";
+    private const string _alivenessEndpointPath = "/alive";
 
     public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder)
         where TBuilder : IHostApplicationBuilder
@@ -50,8 +50,8 @@ public static class Extensions
                 tracing.AddSource(builder.Environment.ApplicationName)
                     .AddAspNetCoreInstrumentation(options =>
                         options.Filter = context =>
-                            !context.Request.Path.StartsWithSegments(HealthEndpointPath)
-                            && !context.Request.Path.StartsWithSegments(AlivenessEndpointPath))
+                            !context.Request.Path.StartsWithSegments(_healthEndpointPath)
+                            && !context.Request.Path.StartsWithSegments(_alivenessEndpointPath))
                     .AddHttpClientInstrumentation();
             });
 
@@ -85,12 +85,13 @@ public static class Extensions
     {
         if (app.Environment.IsDevelopment())
         {
-            app.MapHealthChecks(HealthEndpointPath);
-            app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
+            app.MapHealthChecks(_healthEndpointPath);
+            app.MapHealthChecks(_alivenessEndpointPath, new HealthCheckOptions
             {
                 Predicate = r => r.Tags.Contains("live")
             });
         }
+
         return app;
     }
 }

@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Collaboard.Api;
 
-public sealed class BoardDbContext(DbContextOptions<BoardDbContext> options) : DbContext(options)
+public class BoardDbContext(DbContextOptions<BoardDbContext> options) : DbContext(options)
 {
     public DbSet<BoardUser> Users => Set<BoardUser>();
     public DbSet<Lane> Lanes => Set<Lane>();

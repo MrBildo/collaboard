@@ -5,7 +5,7 @@ Kanban board web application — .NET Minimal API backend + React SPA frontend. 
 ## Tech Stack
 
 **Backend**
-- .NET 10 / C# — ASP.NET Minimal API (single Program.cs)
+- .NET 10 / C# — ASP.NET Minimal API (Program.cs + endpoint group classes in `Endpoints/`)
 - Entity Framework Core — SQLite provider
 - Auth: custom header-based (`X-Api-Key` + `X-User-Key`), no ASP.NET auth middleware
 
@@ -19,7 +19,7 @@ Kanban board web application — .NET Minimal API backend + React SPA frontend. 
 - Axios (HTTP client)
 
 **Testing**
-- xUnit — integration tests via WebApplicationFactory + in-memory SQLite
+- xUnit + Shouldly — integration tests via WebApplicationFactory + in-memory SQLite
 - Arrange-Act-Assert pattern
 - Test file naming: `*.Tests.cs`
 
@@ -116,7 +116,7 @@ Instance-local workspace (gitignored). Run `/bootstrap` to create on fresh clone
 ### C# Style
 - File-scoped namespaces (required)
 - Primary constructors where appropriate
-- `sealed` on concrete classes
+- No `sealed` as blanket convention — only use when inheritance would be genuinely harmful
 - Pattern matching: `is null`, `is not null`
 - No XML doc comments — comment only complex business logic
 - `var` for all local variables where type is apparent
@@ -127,6 +127,12 @@ Instance-local workspace (gitignored). Run `/bootstrap` to create on fresh clone
 - Collection expressions: `[]` instead of `new List<>()`
 - Expression-bodied members for one-liners
 - `.editorconfig` enforced — run `dotnet format` before committing
+
+### Endpoint Structure
+- Endpoints are organized in static classes under `backend/Collaboard.Api/Endpoints/`
+- Each resource has its own file: `BoardEndpoints.cs`, `UserEndpoints.cs`, etc.
+- Extension methods on `RouteGroupBuilder` map to `api.MapXxxEndpoints()`
+- Program.cs is a thin composition root (builder, services, middleware, endpoint registration)
 
 ### Frontend Style
 - Functional components with hooks
@@ -149,7 +155,7 @@ Instance-local workspace (gitignored). Run `/bootstrap` to create on fresh clone
 - All changes via feature branch + PR
 
 ### Testing
-- xUnit with WebApplicationFactory (real in-memory SQLite, no mocking)
+- xUnit with Shouldly assertions (WebApplicationFactory, real in-memory SQLite, no mocking)
 - Arrange-Act-Assert pattern
 - Test classes per resource: `*EndpointTests.Tests.cs`
 - Shared infrastructure: `Infrastructure/CollaboardApiFactory.cs`, `TestAuthHelper.cs`

@@ -2,22 +2,18 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Collaboard.Api.Tests.Infrastructure;
+using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-public class McpEndpointTests : IClassFixture<CollaboardApiFactory>
+public class McpEndpointTests(CollaboardApiFactory factory) : IClassFixture<CollaboardApiFactory>
 {
-    private readonly HttpClient _client;
+    private readonly HttpClient _client = factory.CreateClient();
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    private static readonly JsonSerializerOptions _jsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
-
-    public McpEndpointTests(CollaboardApiFactory factory)
-    {
-        _client = factory.CreateClient();
-    }
 
     [Fact]
     public async Task GetMcp_Returns200WithExpectedManifestShape()
@@ -30,16 +26,16 @@ public class McpEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.GetAsync("/mcp");
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
-        Assert.Equal("collaboard", json.GetProperty("name").GetString());
-        Assert.Equal("modelcontextprotocol", json.GetProperty("protocol").GetString());
-        Assert.True(json.TryGetProperty("description", out var descProp));
-        Assert.False(string.IsNullOrWhiteSpace(descProp.GetString()));
-        Assert.True(json.TryGetProperty("tools", out var toolsProp));
-        Assert.Equal(JsonValueKind.Array, toolsProp.ValueKind);
-        Assert.True(toolsProp.GetArrayLength() > 0);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        json.GetProperty("name").GetString().ShouldBe("collaboard");
+        json.GetProperty("protocol").GetString().ShouldBe("modelcontextprotocol");
+        json.TryGetProperty("description", out var descProp).ShouldBeTrue();
+        descProp.GetString().ShouldNotBeNullOrWhiteSpace();
+        json.TryGetProperty("tools", out var toolsProp).ShouldBeTrue();
+        toolsProp.ValueKind.ShouldBe(JsonValueKind.Array);
+        toolsProp.GetArrayLength().ShouldBeGreaterThan(0);
     }
 
     [Fact]
@@ -56,9 +52,9 @@ public class McpEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.GetAsync("/mcp");
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
-        Assert.Equal("collaboard", json.GetProperty("name").GetString());
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        json.GetProperty("name").GetString().ShouldBe("collaboard");
     }
 }

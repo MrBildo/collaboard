@@ -2,9 +2,9 @@ using Collaboard.Api;
 using Collaboard.Api.Models;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Collaboard.Api.Tests.Infrastructure;
@@ -30,7 +30,10 @@ public class CollaboardApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
         {
             var descriptor = services.SingleOrDefault(
                 d => d.ServiceType == typeof(DbContextOptions<BoardDbContext>));
-            if (descriptor != null) services.Remove(descriptor);
+            if (descriptor is not null)
+            {
+                services.Remove(descriptor);
+            }
 
             _connection = new SqliteConnection("Data Source=:memory:");
             _connection.Open();
