@@ -33,6 +33,79 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     }
 
     [Fact]
+    public async Task GetCards_ReturnsAllCards()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        // Create a card to ensure at least one exists
+        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+        {
+            name = "GetCards Test Card",
+            descriptionMarkdown = "",
+            size = "M",
+            laneId,
+            position = NextPosition()
+        });
+        createResponse.EnsureSuccessStatusCode();
+
+        // Act
+        var response = await _client.GetAsync("/api/v1/cards");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+        cards.ShouldNotBeNull();
+        cards.ShouldNotBeEmpty();
+    }
+
+    [Fact]
+    public async Task GetCardById_Returns200()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+        {
+            name = "GetById Card",
+            descriptionMarkdown = "Find me",
+            size = "S",
+            laneId,
+            position = NextPosition()
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/cards/{cardId}");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var card = await response.Content.ReadFromJsonAsync<JsonElement>();
+        card.GetProperty("id").GetGuid().ShouldBe(cardId);
+        card.GetProperty("name").GetString().ShouldBe("GetById Card");
+    }
+
+    [Fact]
+    public async Task GetCardById_NonexistentCard_Returns404()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var bogusId = Guid.NewGuid();
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/cards/{bogusId}");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public async Task PostCard_AsHumanUser_Returns201WithAutoNumberAndTimestamps()
     {
         // Arrange

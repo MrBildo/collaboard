@@ -8,6 +8,26 @@ internal static class AttachmentEndpoints
 {
     public static RouteGroupBuilder MapAttachmentEndpoints(this RouteGroupBuilder group)
     {
+        group.MapGet("/cards/{id:guid}/attachments", async (BoardDbContext db, HttpContext http, Guid id) =>
+        {
+            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
+            if (forbidden is not null)
+            {
+                return forbidden;
+            }
+
+            if (!await db.Cards.AnyAsync(x => x.Id == id))
+            {
+                return Results.NotFound();
+            }
+
+            var attachments = await db.Attachments
+                .Where(x => x.CardId == id)
+                .Select(x => new { x.Id, x.FileName, x.ContentType, x.AddedByUserId, x.AddedAtUtc })
+                .ToListAsync();
+            return Results.Ok(attachments);
+        });
+
         group.MapPost("/cards/{id:guid}/attachments", async (BoardDbContext db, HttpContext http, Guid id, IFormFile file) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);

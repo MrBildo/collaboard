@@ -11,6 +11,24 @@ internal static class CardEndpoints
 
     public static RouteGroupBuilder MapCardEndpoints(this RouteGroupBuilder group)
     {
+        group.MapGet("/cards", async (BoardDbContext db, HttpContext http) =>
+        {
+            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
+            return forbidden is not null ? forbidden : Results.Ok(await db.Cards.OrderBy(x => x.LaneId).ThenBy(x => x.Position).ToListAsync());
+        });
+
+        group.MapGet("/cards/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id) =>
+        {
+            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
+            if (forbidden is not null)
+            {
+                return forbidden;
+            }
+
+            var card = await db.Cards.FindAsync(id);
+            return card is null ? Results.NotFound() : Results.Ok(card);
+        });
+
         group.MapPost("/cards", async (BoardDbContext db, HttpContext http, CardItem request) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);

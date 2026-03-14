@@ -13,6 +13,125 @@ public class LaneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     private readonly HttpClient _client = factory.CreateClient();
 
     [Fact]
+    public async Task GetLanes_ReturnsOrderedList()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        // Act
+        var response = await _client.GetAsync("/api/v1/lanes");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var lanes = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+        lanes.ShouldNotBeNull();
+        lanes.ShouldNotBeEmpty();
+
+        // Verify ordering by position
+        for (var i = 1; i < lanes.Length; i++)
+        {
+            lanes[i].GetProperty("position").GetInt32()
+                .ShouldBeGreaterThanOrEqualTo(lanes[i - 1].GetProperty("position").GetInt32());
+        }
+    }
+
+    [Fact]
+    public async Task GetLaneById_Returns200()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var createResponse = await _client.PostAsJsonAsync("/api/v1/lanes", new { name = "GetById Lane", position = 200 });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var laneId = created.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/lanes/{laneId}");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var lane = await response.Content.ReadFromJsonAsync<JsonElement>();
+        lane.GetProperty("id").GetGuid().ShouldBe(laneId);
+        lane.GetProperty("name").GetString().ShouldBe("GetById Lane");
+    }
+
+    [Fact]
+    public async Task GetLaneById_NonexistentLane_Returns404()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var bogusId = Guid.NewGuid();
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/lanes/{bogusId}");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task PatchLane_UpdatesName_Returns200()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var createResponse = await _client.PostAsJsonAsync("/api/v1/lanes", new { name = "PatchNameBefore", position = 201 });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var laneId = created.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.PatchAsJsonAsync($"/api/v1/lanes/{laneId}", new { name = "PatchNameAfter" });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var lane = await response.Content.ReadFromJsonAsync<JsonElement>();
+        lane.GetProperty("name").GetString().ShouldBe("PatchNameAfter");
+    }
+
+    [Fact]
+    public async Task PatchLane_UpdatesPosition_Returns200()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var createResponse = await _client.PostAsJsonAsync("/api/v1/lanes", new { name = "PatchPosLane", position = 202 });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var laneId = created.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.PatchAsJsonAsync($"/api/v1/lanes/{laneId}", new { position = 999 });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var lane = await response.Content.ReadFromJsonAsync<JsonElement>();
+        lane.GetProperty("position").GetInt32().ShouldBe(999);
+    }
+
+    [Fact]
+    public async Task PatchLane_ConflictingPosition_Returns409()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var lane1Response = await _client.PostAsJsonAsync("/api/v1/lanes", new { name = "ConflictLane1", position = 300 });
+        lane1Response.EnsureSuccessStatusCode();
+
+        var lane2Response = await _client.PostAsJsonAsync("/api/v1/lanes", new { name = "ConflictLane2", position = 301 });
+        lane2Response.EnsureSuccessStatusCode();
+        var lane2 = await lane2Response.Content.ReadFromJsonAsync<JsonElement>();
+        var lane2Id = lane2.GetProperty("id").GetGuid();
+
+        // Act — try to move lane2 to position 300, which is taken by lane1
+        var response = await _client.PatchAsJsonAsync($"/api/v1/lanes/{lane2Id}", new { position = 300 });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
     public async Task PostLane_AsAdmin_Returns201WithCorrectFields()
     {
         // Arrange

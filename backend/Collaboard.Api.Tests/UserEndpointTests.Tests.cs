@@ -127,6 +127,86 @@ public class UserEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     }
 
     [Fact]
+    public async Task GetUserById_AsAdmin_Returns200()
+    {
+        // Arrange
+        var user = await TestAuthHelper.CreateUserAsync(_client, _factory, "GetById Target", UserRole.HumanUser);
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/users/{user.Id}");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        json.GetProperty("id").GetGuid().ShouldBe(user.Id);
+        json.GetProperty("name").GetString().ShouldBe("GetById Target");
+    }
+
+    [Fact]
+    public async Task GetUserById_NonexistentUser_Returns404()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var bogusId = Guid.NewGuid();
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/users/{bogusId}");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task PatchUser_UpdatesName_Returns200()
+    {
+        // Arrange
+        var user = await TestAuthHelper.CreateUserAsync(_client, _factory, "PatchNameBefore", UserRole.HumanUser);
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        // Act
+        var response = await _client.PatchAsJsonAsync($"/api/v1/users/{user.Id}", new { name = "PatchNameAfter" });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        json.GetProperty("name").GetString().ShouldBe("PatchNameAfter");
+    }
+
+    [Fact]
+    public async Task PatchUser_UpdatesRole_Returns200()
+    {
+        // Arrange
+        var user = await TestAuthHelper.CreateUserAsync(_client, _factory, "PatchRoleTarget", UserRole.HumanUser);
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        // Act
+        var response = await _client.PatchAsJsonAsync($"/api/v1/users/{user.Id}", new { role = (int)UserRole.AgentUser });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        json.GetProperty("role").GetInt32().ShouldBe((int)UserRole.AgentUser);
+    }
+
+    [Fact]
+    public async Task PatchUser_NonexistentUser_Returns404()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var bogusId = Guid.NewGuid();
+
+        // Act
+        var response = await _client.PatchAsJsonAsync($"/api/v1/users/{bogusId}", new { name = "Ghost" });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public async Task DeactivateUser_AsAdmin_Returns204()
     {
         // Arrange
