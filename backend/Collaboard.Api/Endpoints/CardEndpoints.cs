@@ -213,6 +213,13 @@ internal static class CardEndpoints
                 return Results.NotFound();
             }
 
+            // Humans can only delete their own cards; admins can delete any
+            var user = http.CurrentUser();
+            if (user.Role != UserRole.Administrator && card.CreatedByUserId != user.Id)
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
             db.Cards.Remove(card);
             await db.SaveChangesAsync();
             broadcaster.Publish("board-updated");
