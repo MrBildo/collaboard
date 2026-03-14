@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Collaboard.Api.Auth;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
@@ -6,6 +7,8 @@ namespace Collaboard.Api.Endpoints;
 
 internal static class CardEndpoints
 {
+    private static readonly string[] _validSizes = ["S", "M", "L", "XL"];
+
     public static RouteGroupBuilder MapCardEndpoints(this RouteGroupBuilder group)
     {
         group.MapPost("/cards", async (BoardDbContext db, HttpContext http, CardItem request) =>
@@ -14,6 +17,18 @@ internal static class CardEndpoints
             if (forbidden is not null)
             {
                 return forbidden;
+            }
+
+            if (!string.IsNullOrEmpty(request.Size))
+            {
+                if (!_validSizes.Contains(request.Size))
+                {
+                    return Results.BadRequest("Size must be one of: S, M, L, XL");
+                }
+            }
+            else
+            {
+                request.Size = "M";
             }
 
             var now = DateTimeOffset.UtcNow;
@@ -25,7 +40,7 @@ internal static class CardEndpoints
                 Number = nextNumber,
                 Name = request.Name,
                 DescriptionMarkdown = request.DescriptionMarkdown,
-                Status = request.Status,
+                Blocked = request.Blocked,
                 Size = request.Size,
                 LaneId = request.LaneId,
                 Position = request.Position,
@@ -39,7 +54,7 @@ internal static class CardEndpoints
             return Results.Created($"/api/v1/cards/{card.Id}", card);
         });
 
-        group.MapPatch("/cards/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, CardItem patch) =>
+        group.MapPatch("/cards/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, JsonElement patch) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
             if (forbidden is not null)
@@ -53,34 +68,50 @@ internal static class CardEndpoints
                 return Results.NotFound();
             }
 
-            if (!string.IsNullOrEmpty(patch.Name))
+            if (patch.TryGetProperty("name", out var name))
             {
-                card.Name = patch.Name;
+                card.Name = name.GetString()!;
             }
 
-            if (!string.IsNullOrEmpty(patch.DescriptionMarkdown))
+            if (patch.TryGetProperty("descriptionMarkdown", out var desc))
             {
-                card.DescriptionMarkdown = patch.DescriptionMarkdown;
+                card.DescriptionMarkdown = desc.GetString()!;
             }
 
-            if (patch.Status is not null)
+            if (patch.TryGetProperty("blocked", out var blocked))
             {
-                card.Status = patch.Status;
+                card.Blocked = blocked.ValueKind == JsonValueKind.Null ? null : blocked.GetString();
             }
 
-            if (!string.IsNullOrEmpty(patch.Size))
+            if (patch.TryGetProperty("size", out var size))
             {
-                card.Size = patch.Size;
+                var sizeVal = size.GetString()!;
+                if (!_validSizes.Contains(sizeVal))
+                {
+                    return Results.BadRequest("Size must be one of: S, M, L, XL");
+                }
+
+                card.Size = sizeVal;
             }
 
-            if (patch.LaneId != Guid.Empty)
+            if (patch.TryGetProperty("laneId", out var lane))
             {
-                card.LaneId = patch.LaneId;
+                card.LaneId = lane.GetGuid();
             }
 
-            if (patch.Position != 0)
+            if (patch.TryGetProperty("position", out var pos))
             {
-                card.Position = patch.Position;
+                card.Position = pos.GetInt32();
+            }
+
+            if (patch.TryGetProperty("labelIds", out var labelIds))
+            {
+                var existingLabels = await db.CardLabels.Where(x => x.CardId == id).ToListAsync();
+                db.CardLabels.RemoveRange(existingLabels);
+                foreach (var labelIdElement in labelIds.EnumerateArray())
+                {
+                    db.CardLabels.Add(new CardLabel { CardId = id, LabelId = labelIdElement.GetGuid() });
+                }
             }
 
             card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
