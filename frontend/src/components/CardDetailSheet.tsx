@@ -90,7 +90,6 @@ function CardDetailForm({
       queryClient.invalidateQueries({ queryKey: ['cardLabels', card.id] });
       queryClient.invalidateQueries({ queryKey: ['board'] });
     },
-    onError: (err) => console.error('Failed to add label:', err),
   });
 
   const removeLabelMutation = useMutation({
@@ -99,7 +98,6 @@ function CardDetailForm({
       queryClient.invalidateQueries({ queryKey: ['cardLabels', card.id] });
       queryClient.invalidateQueries({ queryKey: ['board'] });
     },
-    onError: (err) => console.error('Failed to remove label:', err),
   });
 
   const updateMutation = useMutation({
