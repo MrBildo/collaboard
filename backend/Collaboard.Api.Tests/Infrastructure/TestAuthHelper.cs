@@ -5,17 +5,15 @@ namespace Collaboard.Api.Tests.Infrastructure;
 
 public static class TestAuthHelper
 {
-    public static void SetAuth(HttpClient client, string apiKey, string userKey)
+    public static void SetAuth(HttpClient client, string userKey)
     {
-        client.DefaultRequestHeaders.Remove("X-Api-Key");
         client.DefaultRequestHeaders.Remove("X-User-Key");
-        client.DefaultRequestHeaders.Add("X-Api-Key", apiKey);
         client.DefaultRequestHeaders.Add("X-User-Key", userKey);
     }
 
     public static void SetAdminAuth(HttpClient client, CollaboardApiFactory factory)
     {
-        SetAuth(client, CollaboardApiFactory.TestApiKey, factory.AdminAuthKey);
+        SetAuth(client, factory.AdminAuthKey);
     }
 
     public static async Task<BoardUser> CreateUserAsync(

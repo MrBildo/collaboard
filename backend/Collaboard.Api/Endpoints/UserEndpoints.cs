@@ -34,6 +34,25 @@ internal static class UserEndpoints
             return forbidden is not null ? forbidden : Results.Ok(await db.Users.OrderBy(x => x.Name).ToListAsync());
         });
 
+        group.MapPatch("/users/{id:guid}/deactivate", async (BoardDbContext db, HttpContext http, Guid id) =>
+        {
+            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
+            if (forbidden is not null)
+            {
+                return forbidden;
+            }
+
+            var user = await db.Users.FindAsync(id);
+            if (user is null)
+            {
+                return Results.NotFound();
+            }
+
+            user.IsActive = false;
+            await db.SaveChangesAsync();
+            return Results.NoContent();
+        });
+
         return group;
     }
 }

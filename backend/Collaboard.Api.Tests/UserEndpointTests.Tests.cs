@@ -44,7 +44,7 @@ public class UserEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     {
         // Arrange
         var human = await TestAuthHelper.CreateUserAsync(_client, _factory, "Human Forbidden Post", UserRole.HumanUser);
-        TestAuthHelper.SetAuth(_client, CollaboardApiFactory.TestApiKey, human.AuthKey);
+        TestAuthHelper.SetAuth(_client, human.AuthKey);
         var payload = new { name = "Should Not Create", role = (int)UserRole.HumanUser };
 
         // Act
@@ -59,7 +59,7 @@ public class UserEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     {
         // Arrange
         var agent = await TestAuthHelper.CreateUserAsync(_client, _factory, "Agent Forbidden Post", UserRole.AgentUser);
-        TestAuthHelper.SetAuth(_client, CollaboardApiFactory.TestApiKey, agent.AuthKey);
+        TestAuthHelper.SetAuth(_client, agent.AuthKey);
         var payload = new { name = "Should Not Create", role = (int)UserRole.HumanUser };
 
         // Act
@@ -91,7 +91,7 @@ public class UserEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     {
         // Arrange
         var human = await TestAuthHelper.CreateUserAsync(_client, _factory, "Human Forbidden Get", UserRole.HumanUser);
-        TestAuthHelper.SetAuth(_client, CollaboardApiFactory.TestApiKey, human.AuthKey);
+        TestAuthHelper.SetAuth(_client, human.AuthKey);
 
         // Act
         var response = await _client.GetAsync("/api/v1/users");
@@ -101,12 +101,10 @@ public class UserEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     }
 
     [Fact]
-    public async Task Request_MissingApiKey_Returns401()
+    public async Task Request_MissingUserKey_Returns401()
     {
         // Arrange
-        _client.DefaultRequestHeaders.Remove("X-Api-Key");
         _client.DefaultRequestHeaders.Remove("X-User-Key");
-        _client.DefaultRequestHeaders.Add("X-User-Key", _factory.AdminAuthKey);
 
         // Act
         var response = await _client.GetAsync("/api/v1/users");
@@ -116,10 +114,10 @@ public class UserEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     }
 
     [Fact]
-    public async Task Request_WrongApiKey_Returns401()
+    public async Task Request_InvalidUserKey_Returns401()
     {
         // Arrange
-        TestAuthHelper.SetAuth(_client, "wrong-api-key", _factory.AdminAuthKey);
+        TestAuthHelper.SetAuth(_client, "nonexistent-user-key");
 
         // Act
         var response = await _client.GetAsync("/api/v1/users");
@@ -129,13 +127,44 @@ public class UserEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     }
 
     [Fact]
-    public async Task Request_ValidApiKeyButInvalidUserKey_Returns401()
+    public async Task DeactivateUser_AsAdmin_Returns204()
     {
         // Arrange
-        TestAuthHelper.SetAuth(_client, CollaboardApiFactory.TestApiKey, "nonexistent-user-key");
+        var user = await TestAuthHelper.CreateUserAsync(_client, _factory, "ToDeactivate", UserRole.HumanUser);
+        TestAuthHelper.SetAdminAuth(_client, _factory);
 
         // Act
-        var response = await _client.GetAsync("/api/v1/users");
+        var response = await _client.PatchAsync($"/api/v1/users/{user.Id}/deactivate", null);
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    public async Task DeactivateUser_AsNonAdmin_Returns403()
+    {
+        // Arrange
+        var human = await TestAuthHelper.CreateUserAsync(_client, _factory, "NonAdminDeactivator", UserRole.HumanUser);
+        TestAuthHelper.SetAuth(_client, human.AuthKey);
+
+        // Act
+        var response = await _client.PatchAsync($"/api/v1/users/{human.Id}/deactivate", null);
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task DeactivateUser_DeactivatedUser_CannotAuthenticate()
+    {
+        // Arrange
+        var user = await TestAuthHelper.CreateUserAsync(_client, _factory, "WillBeDeactivated", UserRole.HumanUser);
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        await _client.PatchAsync($"/api/v1/users/{user.Id}/deactivate", null);
+
+        // Act — try to use the deactivated user's auth key
+        TestAuthHelper.SetAuth(_client, user.AuthKey);
+        var response = await _client.GetAsync("/api/v1/board");
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);

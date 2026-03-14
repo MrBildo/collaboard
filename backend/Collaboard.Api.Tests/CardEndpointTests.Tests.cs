@@ -37,7 +37,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     {
         // Arrange
         var user = await TestAuthHelper.CreateUserAsync(_client, _factory, "HumanCardCreator", UserRole.HumanUser);
-        TestAuthHelper.SetAuth(_client, CollaboardApiFactory.TestApiKey, user.AuthKey);
+        TestAuthHelper.SetAuth(_client, user.AuthKey);
         var laneId = await GetFirstLaneIdAsync();
 
         var request = new
@@ -98,7 +98,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     {
         // Arrange
         var agent = await TestAuthHelper.CreateUserAsync(_client, _factory, "AgentCardCreator", UserRole.AgentUser);
-        TestAuthHelper.SetAuth(_client, CollaboardApiFactory.TestApiKey, agent.AuthKey);
+        TestAuthHelper.SetAuth(_client, agent.AuthKey);
         var laneId = await GetFirstLaneIdAsync();
 
         var request = new
@@ -266,7 +266,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     {
         // Arrange
         var human = await TestAuthHelper.CreateUserAsync(_client, _factory, "HumanDeleter", UserRole.HumanUser);
-        TestAuthHelper.SetAuth(_client, CollaboardApiFactory.TestApiKey, human.AuthKey);
+        TestAuthHelper.SetAuth(_client, human.AuthKey);
         var laneId = await GetFirstLaneIdAsync();
 
         var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
@@ -310,7 +310,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         var cardId = created.GetProperty("id").GetGuid();
 
         var agent = await TestAuthHelper.CreateUserAsync(_client, _factory, "AgentNoDelete", UserRole.AgentUser);
-        TestAuthHelper.SetAuth(_client, CollaboardApiFactory.TestApiKey, agent.AuthKey);
+        TestAuthHelper.SetAuth(_client, agent.AuthKey);
 
         // Act
         var response = await _client.DeleteAsync($"/api/v1/cards/{cardId}");
