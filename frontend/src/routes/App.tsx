@@ -191,7 +191,7 @@ export function App() {
   }
 
   return (
-    <main className="min-h-screen bg-background p-4 text-foreground">
+    <main className="flex h-screen flex-col bg-background p-4 text-foreground">
       <header className="mb-6 flex items-center justify-between">
         <img
             src="/collaboard-logo.png"
@@ -230,7 +230,7 @@ export function App() {
         onDragEnd={onDragEnd}
       >
         <section
-          className="grid grid-cols-1 gap-4 md:grid-cols-3"
+          className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-3"
           style={
             lanes.length > 0
               ? { gridTemplateColumns: `repeat(${lanes.length}, minmax(0, 1fr))` }
@@ -285,22 +285,25 @@ function LaneColumn({
     <article
       ref={setNodeRef}
       className={cn(
-        'rounded-lg border border-border/60 bg-card p-4 shadow-md border-t-2 border-t-primary/50',
+        'flex flex-col overflow-hidden rounded-lg border border-border/60 bg-card p-4 shadow-md border-t-2 border-t-primary/50',
         isOver && 'ring-2 ring-primary/40',
       )}
     >
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex shrink-0 items-center justify-between">
         <h2 className="font-semibold">{lane.name}</h2>
         <button
           type="button"
           onClick={onAddCard}
-          className="flex h-9 w-9 items-center justify-center rounded-md border text-2xl font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          className="flex h-7 w-7 items-center justify-center rounded-md border text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
         >
-          +
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="8" y1="3" x2="8" y2="13" />
+            <line x1="3" y1="8" x2="13" y2="8" />
+          </svg>
         </button>
       </div>
       <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
-        <div className="space-y-3">
+        <div className="flex-1 space-y-3 overflow-y-auto">
           {cards.map((card) => (
             <SortableCard key={card.id} card={card} onCardClick={onCardClick} isDragging={card.id === activeCardId} />
           ))}
