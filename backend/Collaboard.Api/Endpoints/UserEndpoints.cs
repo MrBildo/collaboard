@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Collaboard.Api.Auth;
+using Collaboard.Api.Events;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,7 +10,7 @@ internal static class UserEndpoints
 {
     public static RouteGroupBuilder MapUserEndpoints(this RouteGroupBuilder group)
     {
-        group.MapPost("/users", async (BoardDbContext db, HttpContext http, BoardUser request) =>
+        group.MapPost("/users", async (BoardDbContext db, HttpContext http, BoardUser request, BoardEventBroadcaster broadcaster) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
             if (forbidden is not null)
@@ -26,6 +27,7 @@ internal static class UserEndpoints
             };
             db.Users.Add(user);
             await db.SaveChangesAsync();
+            broadcaster.Publish("board-updated");
             return Results.Created($"/api/v1/users/{user.Id}", user);
         });
 
@@ -63,7 +65,7 @@ internal static class UserEndpoints
             return Results.Ok(users);
         });
 
-        group.MapPatch("/users/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, JsonElement patch) =>
+        group.MapPatch("/users/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, JsonElement patch, BoardEventBroadcaster broadcaster) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
             if (forbidden is not null)
@@ -88,10 +90,11 @@ internal static class UserEndpoints
             }
 
             await db.SaveChangesAsync();
+            broadcaster.Publish("board-updated");
             return Results.Ok(user);
         });
 
-        group.MapPatch("/users/{id:guid}/deactivate", async (BoardDbContext db, HttpContext http, Guid id) =>
+        group.MapPatch("/users/{id:guid}/deactivate", async (BoardDbContext db, HttpContext http, Guid id, BoardEventBroadcaster broadcaster) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
             if (forbidden is not null)
@@ -107,6 +110,7 @@ internal static class UserEndpoints
 
             user.IsActive = false;
             await db.SaveChangesAsync();
+            broadcaster.Publish("board-updated");
             return Results.NoContent();
         });
 

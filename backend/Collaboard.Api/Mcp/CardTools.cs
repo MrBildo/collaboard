@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
+using Collaboard.Api.Events;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
 using ModelContextProtocol.Server;
@@ -7,7 +8,7 @@ using ModelContextProtocol.Server;
 namespace Collaboard.Api.Mcp;
 
 [McpServerToolType]
-public sealed class CardTools(BoardDbContext db)
+public sealed class CardTools(BoardDbContext db, BoardEventBroadcaster broadcaster)
 {
     private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
@@ -52,6 +53,7 @@ public sealed class CardTools(BoardDbContext db)
         };
         db.Cards.Add(card);
         await db.SaveChangesAsync(ct);
+        broadcaster.Publish("board-updated");
         return JsonSerializer.Serialize(card, _jsonOptions);
     }
 
@@ -107,6 +109,7 @@ public sealed class CardTools(BoardDbContext db)
 
         card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
+        broadcaster.Publish("board-updated");
         return $"Card '{card.Name}' moved to lane at index {index}.";
     }
 
@@ -148,6 +151,7 @@ public sealed class CardTools(BoardDbContext db)
 
         card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
+        broadcaster.Publish("board-updated");
         return JsonSerializer.Serialize(card, _jsonOptions);
     }
 

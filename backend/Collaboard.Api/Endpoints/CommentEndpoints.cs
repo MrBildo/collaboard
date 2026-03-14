@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Collaboard.Api.Auth;
+using Collaboard.Api.Events;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,7 +27,7 @@ internal static class CommentEndpoints
             return Results.Ok(comments.OrderBy(x => x.LastUpdatedAtUtc).ToList());
         });
 
-        group.MapPost("/cards/{id:guid}/comments", async (BoardDbContext db, HttpContext http, Guid id, CardComment request) =>
+        group.MapPost("/cards/{id:guid}/comments", async (BoardDbContext db, HttpContext http, Guid id, CardComment request, BoardEventBroadcaster broadcaster) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
             if (forbidden is not null)
@@ -49,10 +50,11 @@ internal static class CommentEndpoints
             };
             db.Comments.Add(comment);
             await db.SaveChangesAsync();
+            broadcaster.Publish("board-updated");
             return Results.Created($"/api/v1/cards/{id}/comments/{comment.Id}", comment);
         });
 
-        group.MapDelete("/comments/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id) =>
+        group.MapDelete("/comments/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, BoardEventBroadcaster broadcaster) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
             if (forbidden is not null)
@@ -74,10 +76,11 @@ internal static class CommentEndpoints
 
             db.Comments.Remove(comment);
             await db.SaveChangesAsync();
+            broadcaster.Publish("board-updated");
             return Results.NoContent();
         });
 
-        group.MapPatch("/comments/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, JsonElement patch) =>
+        group.MapPatch("/comments/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, JsonElement patch, BoardEventBroadcaster broadcaster) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
             if (forbidden is not null)
@@ -104,6 +107,7 @@ internal static class CommentEndpoints
 
             comment.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
             await db.SaveChangesAsync();
+            broadcaster.Publish("board-updated");
             return Results.Ok(comment);
         });
 
