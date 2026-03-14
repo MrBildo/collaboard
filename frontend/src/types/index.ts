@@ -40,3 +40,11 @@ export type BoardUser = {
   authKey: string;
   isActive: boolean;
 };
+
+export type AttachmentMeta = {
+  id: string;
+  fileName: string;
+  contentType: string;
+  addedByUserId: string;
+  addedAtUtc: string;
+};

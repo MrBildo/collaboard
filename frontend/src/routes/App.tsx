@@ -1,6 +1,7 @@
 import { DndContext, DragEndEvent, useDraggable, useDroppable } from '@dnd-kit/core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
+import { AdminPanel } from '@/components/AdminPanel';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { CardDetailSheet } from '@/components/CardDetailSheet';
 import { CreateCardDialog } from '@/components/CreateCardDialog';
@@ -18,6 +19,7 @@ export function App() {
   const [selectedCard, setSelectedCard] = useState<CardItem | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
 
   const lanes = useMemo(() => boardQuery.data?.lanes ?? [], [boardQuery.data]);
   const cards = useMemo(() => boardQuery.data?.cards ?? [], [boardQuery.data]);
@@ -61,6 +63,9 @@ export function App() {
         <h1 className="text-3xl font-bold">Collaboard</h1>
         <div className="flex items-center gap-2">
           <Button onClick={() => setCreateOpen(true)}>New Card</Button>
+          <Button variant="outline" onClick={() => setAdminOpen(true)}>
+            Admin
+          </Button>
           <ThemeToggle />
         </div>
       </header>
@@ -86,17 +91,11 @@ export function App() {
         </section>
       </DndContext>
 
-      <CardDetailSheet
-        card={selectedCard}
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-      />
+      <CardDetailSheet card={selectedCard} open={detailOpen} onOpenChange={setDetailOpen} />
 
-      <CreateCardDialog
-        lanes={lanes}
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-      />
+      <CreateCardDialog lanes={lanes} open={createOpen} onOpenChange={setCreateOpen} />
+
+      <AdminPanel open={adminOpen} onOpenChange={setAdminOpen} />
     </main>
   );
 }
@@ -125,12 +124,7 @@ function LaneColumn({
       <h2 className="mb-3 font-semibold">{lane.name}</h2>
       <div className="space-y-3">
         {cards.map((card) => (
-          <DraggableCard
-            key={card.id}
-            card={card}
-            labels={labels}
-            onCardClick={onCardClick}
-          />
+          <DraggableCard key={card.id} card={card} labels={labels} onCardClick={onCardClick} />
         ))}
       </div>
     </article>
@@ -157,7 +151,7 @@ function DraggableCard({
   const descriptionPreview =
     card.descriptionMarkdown && card.descriptionMarkdown.length > 80
       ? card.descriptionMarkdown.slice(0, 80) + '...'
-      : card.descriptionMarkdown ?? '';
+      : (card.descriptionMarkdown ?? '');
 
   return (
     <div
@@ -168,9 +162,7 @@ function DraggableCard({
       onClick={() => onCardClick(card)}
       className={cn(
         'cursor-grab rounded border bg-white p-2 dark:bg-slate-800',
-        isBlocked
-          ? 'border-red-500 ring-1 ring-red-300'
-          : 'border-slate-300 dark:border-slate-600',
+        isBlocked ? 'border-red-500 ring-1 ring-red-300' : 'border-slate-300 dark:border-slate-600',
       )}
     >
       <div className="flex items-start justify-between gap-1">
@@ -182,9 +174,7 @@ function DraggableCard({
       <h3 className="mt-0.5 font-medium">{card.name}</h3>
 
       {descriptionPreview && (
-        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-          {descriptionPreview}
-        </p>
+        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{descriptionPreview}</p>
       )}
 
       {isBlocked && (
@@ -200,11 +190,7 @@ function DraggableCard({
               key={label.id}
               variant="secondary"
               className="text-[10px]"
-              style={
-                label.color
-                  ? { backgroundColor: label.color, color: '#fff' }
-                  : undefined
-              }
+              style={label.color ? { backgroundColor: label.color, color: '#fff' } : undefined}
             >
               {label.name}
             </Badge>
