@@ -1,5 +1,6 @@
 using Collaboard.Api;
 using Collaboard.Api.Endpoints;
+using Collaboard.Api.Events;
 using Collaboard.Api.Mcp;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
@@ -11,6 +12,8 @@ builder.Services.AddOpenApi();
 builder.Services.AddCors();
 builder.Services.AddDbContext<BoardDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Board") ?? "Data Source=collaboard.db"));
+
+builder.Services.AddSingleton<BoardEventBroadcaster>();
 
 builder.Services
     .AddMcpServer()
@@ -64,6 +67,8 @@ api.MapCardEndpoints();
 api.MapLabelEndpoints();
 api.MapCommentEndpoints();
 api.MapAttachmentEndpoints();
+
+app.MapEventEndpoints();
 
 app.MapMcp();
 

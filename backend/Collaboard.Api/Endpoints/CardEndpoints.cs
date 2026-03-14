@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Collaboard.Api.Auth;
+using Collaboard.Api.Events;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -29,7 +30,7 @@ internal static class CardEndpoints
             return card is null ? Results.NotFound() : Results.Ok(card);
         });
 
-        group.MapPost("/cards", async (BoardDbContext db, HttpContext http, CardItem request) =>
+        group.MapPost("/cards", async (BoardDbContext db, HttpContext http, CardItem request, BoardEventBroadcaster broadcaster) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
             if (forbidden is not null)
@@ -68,10 +69,11 @@ internal static class CardEndpoints
             };
             db.Cards.Add(card);
             await db.SaveChangesAsync();
+            broadcaster.Publish("board-updated");
             return Results.Created($"/api/v1/cards/{card.Id}", card);
         });
 
-        group.MapPatch("/cards/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, JsonElement patch) =>
+        group.MapPatch("/cards/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, JsonElement patch, BoardEventBroadcaster broadcaster) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
             if (forbidden is not null)
@@ -129,10 +131,11 @@ internal static class CardEndpoints
             card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
             card.LastUpdatedByUserId = http.CurrentUser().Id;
             await db.SaveChangesAsync();
+            broadcaster.Publish("board-updated");
             return Results.Ok(card);
         });
 
-        group.MapPost("/cards/{id:guid}/reorder", async (BoardDbContext db, HttpContext http, Guid id, JsonElement body) =>
+        group.MapPost("/cards/{id:guid}/reorder", async (BoardDbContext db, HttpContext http, Guid id, JsonElement body, BoardEventBroadcaster broadcaster) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
             if (forbidden is not null)
@@ -189,13 +192,14 @@ internal static class CardEndpoints
             card.LastUpdatedByUserId = http.CurrentUser().Id;
 
             await db.SaveChangesAsync();
+            broadcaster.Publish("board-updated");
 
             var lanes = await db.Lanes.OrderBy(l => l.Position).ToListAsync();
             var cards = await db.Cards.OrderBy(c => c.LaneId).ThenBy(c => c.Position).ToListAsync();
             return Results.Ok(new { lanes, cards });
         });
 
-        group.MapDelete("/cards/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id) =>
+        group.MapDelete("/cards/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, BoardEventBroadcaster broadcaster) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.HumanUser);
             if (forbidden is not null)
@@ -211,6 +215,7 @@ internal static class CardEndpoints
 
             db.Cards.Remove(card);
             await db.SaveChangesAsync();
+            broadcaster.Publish("board-updated");
             return Results.NoContent();
         });
 

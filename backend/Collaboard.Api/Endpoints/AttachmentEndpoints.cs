@@ -1,4 +1,5 @@
 using Collaboard.Api.Auth;
+using Collaboard.Api.Events;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -28,7 +29,7 @@ internal static class AttachmentEndpoints
             return Results.Ok(attachments);
         });
 
-        group.MapPost("/cards/{id:guid}/attachments", async (BoardDbContext db, HttpContext http, Guid id, IFormFile file) =>
+        group.MapPost("/cards/{id:guid}/attachments", async (BoardDbContext db, HttpContext http, Guid id, IFormFile file, BoardEventBroadcaster broadcaster) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
             if (forbidden is not null)
@@ -55,6 +56,7 @@ internal static class AttachmentEndpoints
             };
             db.Attachments.Add(attachment);
             await db.SaveChangesAsync();
+            broadcaster.Publish("board-updated");
             return Results.Created($"/api/v1/cards/{id}/attachments/{attachment.Id}", new { attachment.Id, attachment.FileName });
         }).DisableAntiforgery();
 
@@ -70,7 +72,7 @@ internal static class AttachmentEndpoints
             return attachment is null ? Results.NotFound() : Results.File(attachment.Payload, attachment.ContentType, attachment.FileName);
         });
 
-        group.MapDelete("/attachments/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id) =>
+        group.MapDelete("/attachments/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, BoardEventBroadcaster broadcaster) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.HumanUser);
             if (forbidden is not null)
@@ -86,6 +88,7 @@ internal static class AttachmentEndpoints
 
             db.Attachments.Remove(attachment);
             await db.SaveChangesAsync();
+            broadcaster.Publish("board-updated");
             return Results.NoContent();
         });
 

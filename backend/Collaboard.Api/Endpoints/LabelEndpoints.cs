@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Collaboard.Api.Auth;
+using Collaboard.Api.Events;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,7 +22,7 @@ internal static class LabelEndpoints
             return Results.Ok(labels);
         });
 
-        group.MapPost("/labels", async (BoardDbContext db, HttpContext http, Label request) =>
+        group.MapPost("/labels", async (BoardDbContext db, HttpContext http, Label request, BoardEventBroadcaster broadcaster) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
             if (forbidden is not null)
@@ -42,10 +43,11 @@ internal static class LabelEndpoints
             };
             db.Labels.Add(label);
             await db.SaveChangesAsync();
+            broadcaster.Publish("board-updated");
             return Results.Created($"/api/v1/labels/{label.Id}", label);
         });
 
-        group.MapPatch("/labels/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, JsonElement patch) =>
+        group.MapPatch("/labels/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, JsonElement patch, BoardEventBroadcaster broadcaster) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
             if (forbidden is not null)
@@ -70,10 +72,11 @@ internal static class LabelEndpoints
             }
 
             await db.SaveChangesAsync();
+            broadcaster.Publish("board-updated");
             return Results.Ok(label);
         });
 
-        group.MapDelete("/labels/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id) =>
+        group.MapDelete("/labels/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, BoardEventBroadcaster broadcaster) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
             if (forbidden is not null)
@@ -91,6 +94,7 @@ internal static class LabelEndpoints
             db.CardLabels.RemoveRange(cardLabels);
             db.Labels.Remove(label);
             await db.SaveChangesAsync();
+            broadcaster.Publish("board-updated");
             return Results.NoContent();
         });
 
@@ -115,7 +119,7 @@ internal static class LabelEndpoints
             return Results.Ok(labels);
         });
 
-        group.MapPost("/cards/{id:guid}/labels", async (BoardDbContext db, HttpContext http, Guid id, JsonElement body) =>
+        group.MapPost("/cards/{id:guid}/labels", async (BoardDbContext db, HttpContext http, Guid id, JsonElement body, BoardEventBroadcaster broadcaster) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
             if (forbidden is not null)
@@ -142,10 +146,11 @@ internal static class LabelEndpoints
             var cardLabel = new CardLabel { CardId = id, LabelId = labelId };
             db.CardLabels.Add(cardLabel);
             await db.SaveChangesAsync();
+            broadcaster.Publish("board-updated");
             return Results.Created($"/api/v1/cards/{id}/labels/{labelId}", cardLabel);
         });
 
-        group.MapDelete("/cards/{id:guid}/labels/{labelId:guid}", async (BoardDbContext db, HttpContext http, Guid id, Guid labelId) =>
+        group.MapDelete("/cards/{id:guid}/labels/{labelId:guid}", async (BoardDbContext db, HttpContext http, Guid id, Guid labelId, BoardEventBroadcaster broadcaster) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
             if (forbidden is not null)
@@ -161,6 +166,7 @@ internal static class LabelEndpoints
 
             db.CardLabels.Remove(cardLabel);
             await db.SaveChangesAsync();
+            broadcaster.Publish("board-updated");
             return Results.NoContent();
         });
 

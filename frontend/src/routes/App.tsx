@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { fetchBoard, fetchCardAttachments, fetchCardLabels, fetchComments, fetchUsers, reorderCard } from '@/lib/api';
 import { isLoggedIn, setUserKey, clearUserKey } from '@/lib/auth';
+import { useBoardEvents } from '@/lib/useBoardEvents';
 import { cn } from '@/lib/utils';
 import type { CardItem, Lane } from '@/types';
 
@@ -19,6 +20,7 @@ type BoardData = { lanes: Lane[]; cards: CardItem[] };
 export function App() {
   const queryClient = useQueryClient();
   const [loggedIn, setLoggedIn] = useState(isLoggedIn());
+  useBoardEvents(loggedIn);
 
   const handleLogin = useCallback((key: string) => {
     setUserKey(key);

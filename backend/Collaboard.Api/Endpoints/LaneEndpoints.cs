@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Collaboard.Api.Auth;
+using Collaboard.Api.Events;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,7 +28,7 @@ internal static class LaneEndpoints
             return lane is null ? Results.NotFound() : Results.Ok(lane);
         });
 
-        group.MapPost("/lanes", async (BoardDbContext db, HttpContext http, Lane request) =>
+        group.MapPost("/lanes", async (BoardDbContext db, HttpContext http, Lane request, BoardEventBroadcaster broadcaster) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
             if (forbidden is not null)
@@ -38,10 +39,11 @@ internal static class LaneEndpoints
             var lane = new Lane { Id = Guid.NewGuid(), Name = request.Name, Position = request.Position };
             db.Lanes.Add(lane);
             await db.SaveChangesAsync();
+            broadcaster.Publish("board-updated");
             return Results.Created($"/api/v1/lanes/{lane.Id}", lane);
         });
 
-        group.MapDelete("/lanes/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id) =>
+        group.MapDelete("/lanes/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, BoardEventBroadcaster broadcaster) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
             if (forbidden is not null)
@@ -62,10 +64,11 @@ internal static class LaneEndpoints
 
             db.Lanes.Remove(lane);
             await db.SaveChangesAsync();
+            broadcaster.Publish("board-updated");
             return Results.NoContent();
         });
 
-        group.MapPatch("/lanes/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, JsonElement patch) =>
+        group.MapPatch("/lanes/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, JsonElement patch, BoardEventBroadcaster broadcaster) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
             if (forbidden is not null)
@@ -96,6 +99,7 @@ internal static class LaneEndpoints
             }
 
             await db.SaveChangesAsync();
+            broadcaster.Publish("board-updated");
             return Results.Ok(lane);
         });
 
