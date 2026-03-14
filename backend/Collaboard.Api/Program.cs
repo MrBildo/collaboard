@@ -12,6 +12,11 @@ builder.Services.AddCors();
 builder.Services.AddDbContext<BoardDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Board") ?? "Data Source=collaboard.db"));
 
+builder.Services
+    .AddMcpServer()
+    .WithHttpTransport()
+    .WithToolsFromAssembly();
+
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
@@ -60,7 +65,7 @@ api.MapLabelEndpoints();
 api.MapCommentEndpoints();
 api.MapAttachmentEndpoints();
 
-app.MapAgentManifest();
+app.MapMcp();
 
 app.MapDefaultEndpoints();
 
