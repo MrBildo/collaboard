@@ -13,7 +13,7 @@ public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, Boar
     private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
     [McpServerTool(Name = "get_attachments", ReadOnly = true, Destructive = false)]
-    [Description("Get all attachments on a card (metadata only, no file content).")]
+    [Description("Get all attachments on a card (metadata only, no file content). To upload attachments, use the REST API: POST /api/v1/cards/{cardId}/attachments with multipart/form-data. To download, GET /api/v1/attachments/{id} with X-User-Key header.")]
     public async Task<string> GetAttachmentsAsync(
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the card")] Guid cardId,
