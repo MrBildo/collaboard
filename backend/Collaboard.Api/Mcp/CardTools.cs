@@ -196,7 +196,8 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             return "Error: Card not found.";
         }
 
-        var comments = await db.Comments.Where(c => c.CardId == cardId).OrderBy(c => c.LastUpdatedAtUtc).ToListAsync(ct);
+        var comments = await db.Comments.Where(c => c.CardId == cardId).ToListAsync(ct);
+        comments.Sort((a, b) => a.LastUpdatedAtUtc.CompareTo(b.LastUpdatedAtUtc));
         var labels = await db.CardLabels.Where(cl => cl.CardId == cardId)
             .Join(db.Labels, cl => cl.LabelId, l => l.Id, (_, l) => l)
             .ToListAsync(ct);
