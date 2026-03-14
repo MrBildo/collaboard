@@ -417,16 +417,14 @@ function SortableCard({
 
 function CardOverlay({ card }: { card: CardItem }) {
   return (
-    <div
-      className="w-64 rounded-md border border-border bg-card p-2 shadow-xl"
-    >
-      <div className="flex items-start justify-between gap-1">
-        <p className="text-xs text-muted-foreground">#{card.number}</p>
-        <Badge variant="outline" className="text-[10px]">
-          {card.size}
-        </Badge>
+    <div className="rounded-md border border-border bg-card p-3 shadow-xl">
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="text-base font-semibold leading-snug">{card.name}</h3>
+        <Badge variant="outline" className="mt-0.5 shrink-0 text-[10px]">{card.size}</Badge>
       </div>
-      <h3 className="mt-0.5 font-medium">{card.name}</h3>
+      <div className="mt-2 text-xs text-muted-foreground">
+        <span>#{card.number}</span>
+      </div>
     </div>
   );
 }
