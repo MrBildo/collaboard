@@ -7,7 +7,7 @@ using ModelContextProtocol.Server;
 namespace Collaboard.Api.Mcp;
 
 [McpServerToolType]
-public sealed class CommentTools(BoardDbContext db)
+public sealed class CommentTools(BoardDbContext db, McpAuthService auth)
 {
     private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
@@ -18,6 +18,12 @@ public sealed class CommentTools(BoardDbContext db)
         [Description("The comment text (Markdown supported)")] string content,
         CancellationToken ct = default)
     {
+        var (user, error) = await auth.RequireUserAsync(ct);
+        if (error is not null)
+        {
+            return error;
+        }
+
         if (!await db.Cards.AnyAsync(c => c.Id == cardId, ct))
         {
             return "Error: Card not found.";
@@ -27,7 +33,7 @@ public sealed class CommentTools(BoardDbContext db)
         {
             Id = Guid.NewGuid(),
             CardId = cardId,
-            UserId = Guid.Empty,
+            UserId = user!.Id,
             ContentMarkdown = content,
             LastUpdatedAtUtc = DateTimeOffset.UtcNow,
         };
@@ -42,6 +48,12 @@ public sealed class CommentTools(BoardDbContext db)
         [Description("The ID (guid) of the card")] Guid cardId,
         CancellationToken ct = default)
     {
+        var (user, error) = await auth.RequireUserAsync(ct);
+        if (error is not null)
+        {
+            return error;
+        }
+
         if (!await db.Cards.AnyAsync(c => c.Id == cardId, ct))
         {
             return "Error: Card not found.";

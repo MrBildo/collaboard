@@ -7,7 +7,7 @@ using ModelContextProtocol.Server;
 namespace Collaboard.Api.Mcp;
 
 [McpServerToolType]
-public sealed class LabelTools(BoardDbContext db)
+public sealed class LabelTools(BoardDbContext db, McpAuthService auth)
 {
     private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
@@ -15,6 +15,12 @@ public sealed class LabelTools(BoardDbContext db)
     [Description("Get all available labels.")]
     public async Task<string> GetLabelsAsync(CancellationToken ct)
     {
+        var (user, error) = await auth.RequireUserAsync(ct);
+        if (error is not null)
+        {
+            return error;
+        }
+
         var labels = await db.Labels.OrderBy(l => l.Name).ToListAsync(ct);
         return JsonSerializer.Serialize(labels, _jsonOptions);
     }
@@ -26,6 +32,12 @@ public sealed class LabelTools(BoardDbContext db)
         [Description("The ID (guid) of the label to add")] Guid labelId,
         CancellationToken ct = default)
     {
+        var (user, error) = await auth.RequireUserAsync(ct);
+        if (error is not null)
+        {
+            return error;
+        }
+
         if (!await db.Cards.AnyAsync(c => c.Id == cardId, ct))
         {
             return "Error: Card not found.";
@@ -53,6 +65,12 @@ public sealed class LabelTools(BoardDbContext db)
         [Description("The ID (guid) of the label to remove")] Guid labelId,
         CancellationToken ct = default)
     {
+        var (user, error) = await auth.RequireUserAsync(ct);
+        if (error is not null)
+        {
+            return error;
+        }
+
         var cardLabel = await db.CardLabels.FirstOrDefaultAsync(cl => cl.CardId == cardId && cl.LabelId == labelId, ct);
         if (cardLabel is null)
         {

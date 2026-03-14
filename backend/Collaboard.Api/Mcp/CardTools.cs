@@ -7,7 +7,7 @@ using ModelContextProtocol.Server;
 namespace Collaboard.Api.Mcp;
 
 [McpServerToolType]
-public sealed class CardTools(BoardDbContext db)
+public sealed class CardTools(BoardDbContext db, McpAuthService auth)
 {
     private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
@@ -20,6 +20,12 @@ public sealed class CardTools(BoardDbContext db)
         [Description("Size: S, M, L, or XL. Defaults to M")] string? size = null,
         CancellationToken ct = default)
     {
+        var (user, error) = await auth.RequireUserAsync(ct);
+        if (error is not null)
+        {
+            return error;
+        }
+
         var validSizes = new[] { "S", "M", "L", "XL" };
         var cardSize = size ?? "M";
         if (!validSizes.Contains(cardSize))
@@ -47,8 +53,8 @@ public sealed class CardTools(BoardDbContext db)
             Position = maxPosition + 10,
             CreatedAtUtc = now,
             LastUpdatedAtUtc = now,
-            CreatedByUserId = Guid.Empty,
-            LastUpdatedByUserId = Guid.Empty,
+            CreatedByUserId = user!.Id,
+            LastUpdatedByUserId = user.Id,
         };
         db.Cards.Add(card);
         await db.SaveChangesAsync(ct);
@@ -63,6 +69,12 @@ public sealed class CardTools(BoardDbContext db)
         [Description("The 0-based index position in the target lane")] int index,
         CancellationToken ct = default)
     {
+        var (user, error) = await auth.RequireUserAsync(ct);
+        if (error is not null)
+        {
+            return error;
+        }
+
         var card = await db.Cards.FindAsync([cardId], ct);
         if (card is null)
         {
@@ -105,6 +117,7 @@ public sealed class CardTools(BoardDbContext db)
             }
         }
 
+        card.LastUpdatedByUserId = user!.Id;
         card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
         return $"Card '{card.Name}' moved to lane at index {index}.";
@@ -119,6 +132,12 @@ public sealed class CardTools(BoardDbContext db)
         [Description("New size: S, M, L, or XL (optional)")] string? size = null,
         CancellationToken ct = default)
     {
+        var (user, error) = await auth.RequireUserAsync(ct);
+        if (error is not null)
+        {
+            return error;
+        }
+
         var card = await db.Cards.FindAsync([cardId], ct);
         if (card is null)
         {
@@ -146,6 +165,7 @@ public sealed class CardTools(BoardDbContext db)
             card.Size = size;
         }
 
+        card.LastUpdatedByUserId = user!.Id;
         card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
         return JsonSerializer.Serialize(card, _jsonOptions);
@@ -157,6 +177,12 @@ public sealed class CardTools(BoardDbContext db)
         [Description("The ID (guid) of the card")] Guid cardId,
         CancellationToken ct = default)
     {
+        var (user, error) = await auth.RequireUserAsync(ct);
+        if (error is not null)
+        {
+            return error;
+        }
+
         var card = await db.Cards.FindAsync([cardId], ct);
         if (card is null)
         {
