@@ -1,4 +1,4 @@
-import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, useDraggable, useDroppable } from '@dnd-kit/core';
+import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, MouseSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { AdminPanel } from '@/components/AdminPanel';
@@ -14,6 +14,10 @@ export function App() {
   const queryClient = useQueryClient();
   const boardQuery = useQuery({ queryKey: ['board'], queryFn: fetchBoard, retry: 2, staleTime: 30_000 });
   const labelsQuery = useQuery({ queryKey: ['labels'], queryFn: fetchLabels });
+
+  const mouseSensor = useSensor(MouseSensor, { activationConstraint: { distance: 8 } });
+  const touchSensor = useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } });
+  const sensors = useSensors(mouseSensor, touchSensor);
 
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [selectedCard, setSelectedCard] = useState<CardItem | null>(null);
@@ -95,7 +99,7 @@ export function App() {
       {boardQuery.isLoading && (
         <p className="py-8 text-center text-muted-foreground">Loading board...</p>
       )}
-      <DndContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
+      <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
         <section
           className="grid grid-cols-1 gap-4 md:grid-cols-3"
           style={
@@ -205,18 +209,18 @@ function DraggableCard({
       {...attributes}
       onClick={() => onCardClick(card)}
       className={cn(
-        'cursor-grab rounded-md border bg-card p-2 hover:shadow-md',
+        'cursor-pointer rounded-md border bg-card p-2.5 hover:shadow-md',
         isBlocked ? 'border-destructive ring-1 ring-destructive/30' : 'border-border',
         isDragging && 'opacity-0',
       )}
     >
-      <div className="flex items-start justify-between gap-1">
-        <p className="text-xs text-muted-foreground">#{card.number}</p>
-        <Badge variant="outline" className="text-[10px]">
-          {card.size}
-        </Badge>
-      </div>
-      <h3 className="mt-0.5 font-medium">{card.name}</h3>
+        <div className="flex items-start justify-between gap-1">
+          <p className="text-xs text-muted-foreground">#{card.number}</p>
+          <Badge variant="outline" className="text-[10px]">
+            {card.size}
+          </Badge>
+        </div>
+        <h3 className="mt-0.5 font-medium">{card.name}</h3>
 
       {descriptionPreview && (
         <p className="mt-1 text-xs text-muted-foreground">{descriptionPreview}</p>

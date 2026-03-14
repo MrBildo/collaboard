@@ -59,6 +59,14 @@ export async function fetchCardLabels(cardId: string): Promise<Label[]> {
   return data;
 }
 
+export async function addCardLabel(cardId: string, labelId: string): Promise<void> {
+  await api.post(`/cards/${cardId}/labels`, { labelId });
+}
+
+export async function removeCardLabel(cardId: string, labelId: string): Promise<void> {
+  await api.delete(`/cards/${cardId}/labels/${labelId}`);
+}
+
 // Comments
 export async function fetchComments(cardId: string): Promise<CardComment[]> {
   const { data } = await api.get(`/cards/${cardId}/comments`);
