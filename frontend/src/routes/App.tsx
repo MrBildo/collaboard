@@ -1,26 +1,20 @@
 import { DndContext, DragEndEvent, DragOverEvent, DragOverlay, DragStartEvent, MouseSensor, TouchSensor, closestCorners, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AdminPanel } from '@/components/AdminPanel';
 import { CardDetailSheet } from '@/components/CardDetailSheet';
 import { CreateCardDialog } from '@/components/CreateCardDialog';
 import { LoginScreen } from '@/components/LoginScreen';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { api, fetchBoard, fetchCardAttachments, fetchCardLabels, fetchComments, fetchUsers } from '@/lib/api';
+import { fetchBoard, fetchCardAttachments, fetchCardLabels, fetchComments, fetchUsers, reorderCard } from '@/lib/api';
 import { isLoggedIn, setUserKey, clearUserKey } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 import type { CardItem, Lane } from '@/types';
 
 type BoardData = { lanes: Lane[]; cards: CardItem[] };
-
-function findLaneId(id: string, cards: CardItem[], laneIds: Set<string>): string | null {
-  if (laneIds.has(id)) return id;
-  const card = cards.find((c) => c.id === id);
-  return card?.laneId ?? null;
-}
 
 export function App() {
   const queryClient = useQueryClient();
@@ -37,7 +31,7 @@ export function App() {
     setLoggedIn(false);
   }, [queryClient]);
 
-  const boardQuery = useQuery({ queryKey: ['board'], queryFn: fetchBoard, retry: 2, staleTime: 30_000, enabled: loggedIn });
+  const boardQuery = useQuery({ queryKey: ['board'], queryFn: fetchBoard, retry: 2, staleTime: 30_000, enabled: loggedIn, refetchOnWindowFocus: false });
   const adminCheck = useQuery({
     queryKey: ['adminCheck'],
     queryFn: () => fetchUsers().then(() => true),
@@ -57,24 +51,48 @@ export function App() {
   const [createLaneId, setCreateLaneId] = useState<string | undefined>(undefined);
   const [adminOpen, setAdminOpen] = useState(false);
 
-  const dragSnapshotRef = useRef<BoardData | null>(null);
+  const dragPhaseRef = useRef<'idle' | 'dragging' | 'settling'>('idle');
 
   const lanes = useMemo(() => boardQuery.data?.lanes ?? [], [boardQuery.data]);
-  const cards = useMemo(() => boardQuery.data?.cards ?? [], [boardQuery.data]);
+  const serverCards = useMemo(() => boardQuery.data?.cards ?? [], [boardQuery.data]);
+
+  const [localCards, setLocalCards] = useState<CardItem[]>([]);
+
+  useEffect(() => {
+    if (dragPhaseRef.current === 'idle' && serverCards.length > 0) {
+      setLocalCards([...serverCards].sort((a, b) => a.position - b.position));
+    }
+  }, [serverCards]);
 
   const laneIds = useMemo(() => new Set(lanes.map((l) => l.id)), [lanes]);
 
   const byLane = useMemo(() => {
     const map = new Map<string, CardItem[]>();
     lanes.forEach((lane) => map.set(lane.id, []));
-    cards.forEach((card) => map.get(card.laneId)?.push(card));
-    map.forEach((list) => list.sort((a, b) => a.position - b.position));
+    localCards.forEach((card) => map.get(card.laneId)?.push(card));
     return map;
-  }, [lanes, cards]);
+  }, [lanes, localCards]);
+
+  const reorderMutation = useMutation({
+    mutationFn: (vars: { cardId: string; laneId: string; index: number }) =>
+      reorderCard(vars.cardId, vars.laneId, vars.index),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['board'] });
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['board'], data);
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ['board'] });
+    },
+    onSettled: () => {
+      dragPhaseRef.current = 'idle';
+    },
+  });
 
   const onDragStart = (event: DragStartEvent) => {
+    dragPhaseRef.current = 'dragging';
     setActiveCardId(String(event.active.id));
-    dragSnapshotRef.current = queryClient.getQueryData<BoardData>(['board']) ?? null;
   };
 
   const onDragOver = (event: DragOverEvent) => {
@@ -84,53 +102,53 @@ export function App() {
     const activeId = String(active.id);
     const overId = String(over.id);
 
-    const currentData = queryClient.getQueryData<BoardData>(['board']);
-    if (!currentData) return;
+    setLocalCards((prev) => {
+      const activeIdx = prev.findIndex((c) => c.id === activeId);
+      if (activeIdx === -1) return prev;
 
-    const activeLaneId = findLaneId(activeId, currentData.cards, laneIds);
-    const overLaneId = findLaneId(overId, currentData.cards, laneIds);
-    if (!activeLaneId || !overLaneId || activeLaneId === overLaneId) return;
+      const activeCard = prev[activeIdx];
+      const activeLaneId = activeCard.laneId;
+      const overLaneId = laneIds.has(overId)
+        ? overId
+        : prev.find((c) => c.id === overId)?.laneId ?? null;
 
-    queryClient.setQueryData<BoardData>(['board'], (old) => {
-      if (!old) return old;
+      if (!overLaneId) return prev;
 
-      const activeCard = old.cards.find((c) => c.id === activeId);
-      if (!activeCard) return old;
+      // Same-lane reorder
+      if (activeLaneId === overLaneId) {
+        if (laneIds.has(overId)) return prev; // hovering over own lane container — no-op
+        const laneCards = prev.filter((c) => c.laneId === activeLaneId);
+        const oldIdx = laneCards.findIndex((c) => c.id === activeId);
+        const newIdx = laneCards.findIndex((c) => c.id === overId);
+        if (oldIdx === -1 || newIdx === -1 || oldIdx === newIdx) return prev;
 
-      // Get target lane cards (excluding the active card)
-      const overLaneCards = old.cards
-        .filter((c) => c.laneId === overLaneId && c.id !== activeId)
-        .sort((a, b) => a.position - b.position);
+        const reordered = arrayMove(laneCards, oldIdx, newIdx);
+        const reorderedIds = new Set(reordered.map((c) => c.id));
+        const rest = prev.filter((c) => !reorderedIds.has(c.id));
+        return [...rest, ...reordered];
+      }
 
-      // Find insertion index
+      // Cross-lane move
+      const overLaneCards = prev.filter((c) => c.laneId === overLaneId && c.id !== activeId);
+
       let newIndex = overLaneCards.length; // default: append
       if (!laneIds.has(overId)) {
         const overIndex = overLaneCards.findIndex((c) => c.id === overId);
         if (overIndex >= 0) {
-          const isBelowOver = active.rect.current.translated &&
+          const isBelowOver =
+            active.rect.current.translated &&
             active.rect.current.translated.top > over.rect.top + over.rect.height;
           newIndex = isBelowOver ? overIndex + 1 : overIndex;
         }
       }
 
-      // Calculate a position value that places the card at newIndex
-      let newPosition: number;
-      if (overLaneCards.length === 0) {
-        newPosition = 0;
-      } else if (newIndex <= 0) {
-        newPosition = overLaneCards[0].position - 10;
-      } else if (newIndex >= overLaneCards.length) {
-        newPosition = overLaneCards[overLaneCards.length - 1].position + 10;
-      } else {
-        newPosition = Math.round((overLaneCards[newIndex - 1].position + overLaneCards[newIndex].position) / 2);
-      }
+      const movedCard = { ...activeCard, laneId: overLaneId };
+      const withoutActive = prev.filter((c) => c.id !== activeId);
+      const targetLaneCards = withoutActive.filter((c) => c.laneId === overLaneId);
+      const otherCards = withoutActive.filter((c) => c.laneId !== overLaneId);
 
-      return {
-        ...old,
-        cards: old.cards.map((c) =>
-          c.id === activeId ? { ...c, laneId: overLaneId, position: newPosition } : c,
-        ),
-      };
+      targetLaneCards.splice(newIndex, 0, movedCard);
+      return [...otherCards, ...targetLaneCards];
     });
   };
 
@@ -139,89 +157,28 @@ export function App() {
     const cardId = String(active.id);
 
     if (!over) {
-      // Cancel — restore from snapshot
-      if (dragSnapshotRef.current) {
-        queryClient.setQueryData<BoardData>(['board'], dragSnapshotRef.current);
-      }
+      // Cancel — reset local cards from server
+      dragPhaseRef.current = 'idle';
+      setLocalCards([...serverCards].sort((a, b) => a.position - b.position));
       setActiveCardId(null);
-      dragSnapshotRef.current = null;
       return;
     }
 
-    const overId = String(over.id);
-    const currentData = queryClient.getQueryData<BoardData>(['board']);
-    if (!currentData) {
+    // Compute target lane and index from localCards (onDragOver already positioned it)
+    const card = localCards.find((c) => c.id === cardId);
+    if (!card) {
+      dragPhaseRef.current = 'idle';
       setActiveCardId(null);
-      dragSnapshotRef.current = null;
       return;
     }
 
-    const activeCard = currentData.cards.find((c) => c.id === cardId);
-    if (!activeCard) {
-      setActiveCardId(null);
-      dragSnapshotRef.current = null;
-      return;
-    }
+    const targetLaneId = card.laneId;
+    const laneCards = localCards.filter((c) => c.laneId === targetLaneId);
+    const index = laneCards.findIndex((c) => c.id === cardId);
 
-    const targetLaneId = activeCard.laneId; // onDragOver already moved it if cross-lane
-
-    // Get the lane's cards sorted by position
-    const laneCards = currentData.cards
-      .filter((c) => c.laneId === targetLaneId)
-      .sort((a, b) => a.position - b.position);
-
-    const activeIndex = laneCards.findIndex((c) => c.id === cardId);
-    let overIndex = laneCards.findIndex((c) => c.id === overId);
-
-    // If over is a lane ID (not a card), keep current position
-    if (overIndex === -1 && laneIds.has(overId)) {
-      overIndex = activeIndex;
-    }
-
-    // Same-lane reorder via arrayMove if indices differ
-    if (overIndex !== -1 && activeIndex !== overIndex) {
-      const reordered = arrayMove(laneCards, activeIndex, overIndex);
-
-      // Recalculate positions for the reordered cards
-      const updatedIds = new Map<string, number>();
-      reordered.forEach((card, i) => {
-        updatedIds.set(card.id, i * 10);
-      });
-
-      queryClient.setQueryData<BoardData>(['board'], (old) => {
-        if (!old) return old;
-        return {
-          ...old,
-          cards: old.cards.map((c) =>
-            updatedIds.has(c.id) ? { ...c, position: updatedIds.get(c.id)! } : c,
-          ),
-        };
-      });
-    }
-
-    // Get final position for the API call
-    const finalData = queryClient.getQueryData<BoardData>(['board']);
-    const finalCard = finalData?.cards.find((c) => c.id === cardId);
-    const snapshot = dragSnapshotRef.current;
-    const originalCard = snapshot?.cards.find((c) => c.id === cardId);
-
+    dragPhaseRef.current = 'settling';
+    reorderMutation.mutate({ cardId, laneId: targetLaneId, index: index === -1 ? 0 : index });
     setActiveCardId(null);
-    dragSnapshotRef.current = null;
-
-    if (!finalCard || !originalCard) return;
-
-    // Only PATCH if something changed
-    const laneChanged = finalCard.laneId !== originalCard.laneId;
-    const positionChanged = finalCard.position !== originalCard.position;
-    if (!laneChanged && !positionChanged) return;
-
-    const patch: Record<string, unknown> = {};
-    if (laneChanged) patch.laneId = finalCard.laneId;
-    patch.position = finalCard.position;
-
-    api.patch(`/cards/${cardId}`, patch).then(() => {
-      queryClient.invalidateQueries({ queryKey: ['board'] });
-    });
   };
 
   const handleCardClick = (card: CardItem) => {
@@ -294,7 +251,7 @@ export function App() {
         </section>
         <DragOverlay>
           {activeCardId ? (
-            <CardOverlay card={cards.find((c) => c.id === activeCardId)!} />
+            <CardOverlay card={localCards.find((c) => c.id === activeCardId)!} />
           ) : null}
         </DragOverlay>
       </DndContext>

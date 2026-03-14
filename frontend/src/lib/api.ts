@@ -54,6 +54,15 @@ export async function deleteCard(id: string): Promise<void> {
   await api.delete(`/cards/${id}`);
 }
 
+export async function reorderCard(
+  id: string,
+  laneId: string,
+  index: number,
+): Promise<{ lanes: Lane[]; cards: CardItem[] }> {
+  const { data } = await api.post(`/cards/${id}/reorder`, { laneId, index });
+  return data;
+}
+
 // Labels
 export async function fetchLabels(): Promise<Label[]> {
   const { data } = await api.get('/labels');
