@@ -3,19 +3,14 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Collaboard.Api.Models;
 using Collaboard.Api.Tests.Infrastructure;
+using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-public class LaneEndpointTests : IClassFixture<CollaboardApiFactory>
+public class LaneEndpointTests(CollaboardApiFactory factory) : IClassFixture<CollaboardApiFactory>
 {
-    private readonly CollaboardApiFactory _factory;
-    private readonly HttpClient _client;
-
-    public LaneEndpointTests(CollaboardApiFactory factory)
-    {
-        _factory = factory;
-        _client = factory.CreateClient();
-    }
+    private readonly CollaboardApiFactory _factory = factory;
+    private readonly HttpClient _client = factory.CreateClient();
 
     [Fact]
     public async Task PostLane_AsAdmin_Returns201WithCorrectFields()
@@ -28,12 +23,12 @@ public class LaneEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.PostAsJsonAsync("/api/v1/lanes", request);
 
         // Assert
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
 
         var lane = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("Review", lane.GetProperty("name").GetString());
-        Assert.Equal(3, lane.GetProperty("position").GetInt32());
-        Assert.NotEqual(Guid.Empty, lane.GetProperty("id").GetGuid());
+        lane.GetProperty("name").GetString().ShouldBe("Review");
+        lane.GetProperty("position").GetInt32().ShouldBe(3);
+        lane.GetProperty("id").GetGuid().ShouldNotBe(Guid.Empty);
     }
 
     [Fact]
@@ -48,7 +43,7 @@ public class LaneEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.PostAsJsonAsync("/api/v1/lanes", request);
 
         // Assert
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
     [Fact]
@@ -65,7 +60,7 @@ public class LaneEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.DeleteAsync($"/api/v1/lanes/{laneId}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
     }
 
     [Fact]
@@ -94,7 +89,7 @@ public class LaneEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.DeleteAsync($"/api/v1/lanes/{laneId}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
     }
 
     [Fact]
@@ -108,7 +103,7 @@ public class LaneEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.DeleteAsync($"/api/v1/lanes/{bogusId}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]
@@ -126,6 +121,6 @@ public class LaneEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.DeleteAsync($"/api/v1/lanes/{firstLaneId}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 }

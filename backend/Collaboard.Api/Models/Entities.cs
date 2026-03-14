@@ -9,7 +9,7 @@ public enum UserRole
     AgentUser,
 }
 
-public sealed class BoardUser
+public class BoardUser
 {
     public Guid Id { get; set; }
     [MaxLength(26)] public string AuthKey { get; set; } = string.Empty;
@@ -17,14 +17,14 @@ public sealed class BoardUser
     public UserRole Role { get; set; }
 }
 
-public sealed class Lane
+public class Lane
 {
     public Guid Id { get; set; }
     [MaxLength(80)] public string Name { get; set; } = string.Empty;
     public int Position { get; set; }
 }
 
-public sealed class CardItem
+public class CardItem
 {
     public Guid Id { get; set; }
     public long Number { get; set; }
@@ -40,7 +40,7 @@ public sealed class CardItem
     public DateTimeOffset LastUpdatedAtUtc { get; set; }
 }
 
-public sealed class CardComment
+public class CardComment
 {
     public Guid Id { get; set; }
     public Guid CardId { get; set; }
@@ -49,7 +49,7 @@ public sealed class CardComment
     public DateTimeOffset LastUpdatedAtUtc { get; set; }
 }
 
-public sealed class CardAttachment
+public class CardAttachment
 {
     public Guid Id { get; set; }
     public Guid CardId { get; set; }

@@ -3,21 +3,16 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Collaboard.Api.Models;
 using Collaboard.Api.Tests.Infrastructure;
+using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
+public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<CollaboardApiFactory>
 {
     private static int _nextPosition = 1000;
 
-    private readonly CollaboardApiFactory _factory;
-    private readonly HttpClient _client;
-
-    public CardEndpointTests(CollaboardApiFactory factory)
-    {
-        _factory = factory;
-        _client = factory.CreateClient();
-    }
+    private readonly CollaboardApiFactory _factory = factory;
+    private readonly HttpClient _client = factory.CreateClient();
 
     private static int NextPosition() => Interlocked.Increment(ref _nextPosition);
 
@@ -59,13 +54,13 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.PostAsJsonAsync("/api/v1/cards", request);
 
         // Assert
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
 
         var card = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.True(card.GetProperty("number").GetInt64() > 0);
-        Assert.Equal(user.Id, card.GetProperty("createdByUserId").GetGuid());
-        Assert.NotEqual(default, card.GetProperty("createdAtUtc").GetDateTimeOffset());
-        Assert.NotEqual(default, card.GetProperty("lastUpdatedAtUtc").GetDateTimeOffset());
+        card.GetProperty("number").GetInt64().ShouldBeGreaterThan(0);
+        card.GetProperty("createdByUserId").GetGuid().ShouldBe(user.Id);
+        card.GetProperty("createdAtUtc").GetDateTimeOffset().ShouldNotBe(default);
+        card.GetProperty("lastUpdatedAtUtc").GetDateTimeOffset().ShouldNotBe(default);
     }
 
     [Fact]
@@ -76,7 +71,7 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
         var laneId = await GetFirstLaneIdAsync();
 
         // Act
-        var numbers = new List<long>();
+        List<long> numbers = [];
         for (var i = 0; i < 3; i++)
         {
             var response = await _client.PostAsJsonAsync("/api/v1/cards", new
@@ -94,8 +89,8 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
         }
 
         // Assert
-        Assert.Equal(numbers[0] + 1, numbers[1]);
-        Assert.Equal(numbers[1] + 1, numbers[2]);
+        numbers[1].ShouldBe(numbers[0] + 1);
+        numbers[2].ShouldBe(numbers[1] + 1);
     }
 
     [Fact]
@@ -120,7 +115,7 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.PostAsJsonAsync("/api/v1/cards", request);
 
         // Assert
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
     }
 
     [Fact]
@@ -150,11 +145,11 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.PatchAsJsonAsync($"/api/v1/cards/{cardId}", new { name = "Updated Name" });
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var updated = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("Updated Name", updated.GetProperty("name").GetString());
-        Assert.True(updated.GetProperty("lastUpdatedAtUtc").GetDateTimeOffset() > originalTimestamp);
+        updated.GetProperty("name").GetString().ShouldBe("Updated Name");
+        updated.GetProperty("lastUpdatedAtUtc").GetDateTimeOffset().ShouldBeGreaterThan(originalTimestamp);
     }
 
     [Fact]
@@ -183,10 +178,10 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.PatchAsJsonAsync($"/api/v1/cards/{cardId}", new { laneId = targetLaneId });
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var updated = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal(targetLaneId, updated.GetProperty("laneId").GetGuid());
+        updated.GetProperty("laneId").GetGuid().ShouldBe(targetLaneId);
     }
 
     [Fact]
@@ -200,7 +195,7 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.PatchAsJsonAsync($"/api/v1/cards/{bogusId}", new { name = "Ghost" });
 
         // Assert
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]
@@ -229,14 +224,14 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.PatchAsJsonAsync($"/api/v1/cards/{cardId}", new { name = "Renamed Card" });
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var updated = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("Renamed Card", updated.GetProperty("name").GetString());
-        Assert.Equal(originalDescription, updated.GetProperty("descriptionMarkdown").GetString());
-        Assert.Equal("M", updated.GetProperty("size").GetString());
-        Assert.Equal(laneId, updated.GetProperty("laneId").GetGuid());
-        Assert.Equal(pos, updated.GetProperty("position").GetInt32());
+        updated.GetProperty("name").GetString().ShouldBe("Renamed Card");
+        updated.GetProperty("descriptionMarkdown").GetString().ShouldBe(originalDescription);
+        updated.GetProperty("size").GetString().ShouldBe("M");
+        updated.GetProperty("laneId").GetGuid().ShouldBe(laneId);
+        updated.GetProperty("position").GetInt32().ShouldBe(pos);
     }
 
     [Fact]
@@ -263,7 +258,7 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.DeleteAsync($"/api/v1/cards/{cardId}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
     }
 
     [Fact]
@@ -291,7 +286,7 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.DeleteAsync($"/api/v1/cards/{cardId}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
     }
 
     [Fact]
@@ -321,7 +316,7 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.DeleteAsync($"/api/v1/cards/{cardId}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
     [Fact]
@@ -335,6 +330,6 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.DeleteAsync($"/api/v1/cards/{bogusId}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 }
