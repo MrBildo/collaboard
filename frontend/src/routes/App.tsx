@@ -230,12 +230,12 @@ export function App() {
         onDragEnd={onDragEnd}
       >
         <section
-          className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-3"
-          style={
-            lanes.length > 0
-              ? { gridTemplateColumns: `repeat(${lanes.length}, minmax(0, 1fr))` }
-              : undefined
-          }
+          className="grid min-h-0 flex-1 gap-4 overflow-x-auto pb-2"
+          style={{
+            gridTemplateColumns: lanes.length > 0
+              ? `repeat(${lanes.length}, minmax(320px, 1fr))`
+              : undefined,
+          }}
           aria-label="Kanban board"
         >
           {lanes.map((lane) => (
@@ -303,7 +303,7 @@ function LaneColumn({
         </button>
       </div>
       <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
-        <div className="flex-1 space-y-3 overflow-y-auto">
+        <div className="flex-1 space-y-3 overflow-y-auto pr-3">
           {cards.map((card) => (
             <SortableCard key={card.id} card={card} onCardClick={onCardClick} isDragging={card.id === activeCardId} />
           ))}
