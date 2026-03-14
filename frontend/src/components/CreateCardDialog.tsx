@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Dialog,
@@ -26,15 +26,22 @@ type CreateCardDialogProps = {
   lanes: Lane[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  defaultLaneId?: string;
 };
 
-export function CreateCardDialog({ lanes, open, onOpenChange }: CreateCardDialogProps) {
+export function CreateCardDialog({ lanes, open, onOpenChange, defaultLaneId }: CreateCardDialogProps) {
   const queryClient = useQueryClient();
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [size, setSize] = useState('M');
-  const [laneId, setLaneId] = useState(lanes[0]?.id ?? '');
+  const [laneId, setLaneId] = useState(defaultLaneId ?? lanes[0]?.id ?? '');
+
+  useEffect(() => {
+    if (open) {
+      setLaneId(defaultLaneId ?? lanes[0]?.id ?? '');
+    }
+  }, [open, defaultLaneId, lanes]);
 
   // Fetch board data to calculate next position
   const boardQuery = useQuery({
@@ -70,7 +77,7 @@ export function CreateCardDialog({ lanes, open, onOpenChange }: CreateCardDialog
     setName('');
     setDescription('');
     setSize('M');
-    setLaneId(lanes[0]?.id ?? '');
+    setLaneId(defaultLaneId ?? lanes[0]?.id ?? '');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -134,7 +141,9 @@ export function CreateCardDialog({ lanes, open, onOpenChange }: CreateCardDialog
               <Label>Lane</Label>
               <Select value={laneId} onValueChange={(v) => v && setLaneId(v)}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select lane">
+                    {lanes.find((l) => l.id === laneId)?.name ?? 'Select lane'}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {lanes.map((lane) => (

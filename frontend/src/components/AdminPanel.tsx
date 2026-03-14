@@ -41,8 +41,8 @@ type AdminPanelProps = {
 
 const ROLE_MAP: Record<number, string> = {
   0: 'Administrator',
-  1: 'HumanUser',
-  2: 'AgentUser',
+  1: 'Human',
+  2: 'Agent',
 };
 
 export function AdminPanel({ open, onOpenChange }: AdminPanelProps) {
@@ -98,6 +98,9 @@ function LanesTab() {
       queryClient.invalidateQueries({ queryKey: ['board'] });
       setNewName('');
       setNewPosition('');
+    },
+    onError: (err) => {
+      setDeleteError(err instanceof Error ? err.message : 'Failed to create lane.');
     },
   });
 
@@ -249,6 +252,7 @@ function LanesTab() {
             />
           </div>
           <Button
+            type="button"
             onClick={handleCreate}
             disabled={createMutation.isPending || !newName.trim() || !newPosition}
           >
@@ -371,13 +375,13 @@ function UsersTab() {
           <div className="flex flex-col gap-1.5">
             <Label>Role</Label>
             <Select value={newRole} onValueChange={(v) => v && setNewRole(v)}>
-              <SelectTrigger className="w-36">
-                <SelectValue />
+              <SelectTrigger className="w-40">
+                <SelectValue>{ROLE_MAP[parseInt(newRole, 10)] ?? newRole}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="0">Administrator</SelectItem>
-                <SelectItem value="1">HumanUser</SelectItem>
-                <SelectItem value="2">AgentUser</SelectItem>
+                <SelectItem value="1">Human</SelectItem>
+                <SelectItem value="2">Agent</SelectItem>
               </SelectContent>
             </Select>
           </div>

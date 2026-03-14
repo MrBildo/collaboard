@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { api, deleteAttachment, fetchCardAttachments, uploadAttachment } from '@/lib/api';
+import { api, deleteAttachment, fetchCardAttachments, fetchUserDirectory, uploadAttachment } from '@/lib/api';
 import type { AttachmentMeta } from '@/types';
 
 type CardAttachmentsProps = {
@@ -12,6 +12,14 @@ export function CardAttachments({ cardId }: CardAttachmentsProps) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  const directoryQuery = useQuery({
+    queryKey: ['userDirectory'],
+    queryFn: fetchUserDirectory,
+    staleTime: 60_000,
+  });
+  const userName = (id: string) =>
+    directoryQuery.data?.find((u) => u.id === id)?.name ?? 'Unknown';
 
   const attachmentsQuery = useQuery({
     queryKey: ['attachments', cardId],
@@ -87,7 +95,7 @@ export function CardAttachments({ cardId }: CardAttachmentsProps) {
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{attachment.fileName}</p>
             <p className="text-xs text-muted-foreground">
-              {attachment.contentType} &middot; {new Date(attachment.addedAtUtc).toLocaleString()}
+              {userName(attachment.addedByUserId)} &middot; {new Date(attachment.addedAtUtc).toLocaleString()}
             </p>
           </div>
           <div className="ml-2 flex shrink-0 gap-1">

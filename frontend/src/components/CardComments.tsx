@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { createComment, deleteComment, fetchComments, updateComment } from '@/lib/api';
+import { createComment, deleteComment, fetchComments, fetchUserDirectory, updateComment } from '@/lib/api';
 
 type CardCommentsProps = {
   cardId: string;
@@ -11,6 +11,15 @@ type CardCommentsProps = {
 
 export function CardComments({ cardId }: CardCommentsProps) {
   const queryClient = useQueryClient();
+
+  const directoryQuery = useQuery({
+    queryKey: ['userDirectory'],
+    queryFn: fetchUserDirectory,
+    staleTime: 60_000,
+  });
+  const userMap = new Map<string, string>(
+    (directoryQuery.data ?? []).map((u) => [u.id, u.name]),
+  );
   const [newComment, setNewComment] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
@@ -113,6 +122,10 @@ export function CardComments({ cardId }: CardCommentsProps) {
               </div>
               <div className="mt-2 flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">
+                    {userMap.get(comment.userId) ?? 'Unknown'}
+                  </span>
+                  {' · '}
                   {new Date(comment.lastUpdatedAtUtc).toLocaleString()}
                 </span>
                 <div className="flex gap-1">
