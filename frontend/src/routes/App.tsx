@@ -1,19 +1,40 @@
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, MouseSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { AdminPanel } from '@/components/AdminPanel';
 import { CardDetailSheet } from '@/components/CardDetailSheet';
 import { CreateCardDialog } from '@/components/CreateCardDialog';
+import { LoginScreen } from '@/components/LoginScreen';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { api, fetchBoard, fetchLabels } from '@/lib/api';
+import { api, fetchBoard, fetchCardAttachments, fetchCardLabels, fetchComments, fetchUsers } from '@/lib/api';
+import { isLoggedIn, setUserKey, clearUserKey } from '@/lib/auth';
 import { cn } from '@/lib/utils';
-import type { CardItem, Label, Lane } from '@/types';
+import type { CardItem, Lane } from '@/types';
 
 export function App() {
   const queryClient = useQueryClient();
-  const boardQuery = useQuery({ queryKey: ['board'], queryFn: fetchBoard, retry: 2, staleTime: 30_000 });
-  const labelsQuery = useQuery({ queryKey: ['labels'], queryFn: fetchLabels });
+  const [loggedIn, setLoggedIn] = useState(isLoggedIn());
+
+  const handleLogin = useCallback((key: string) => {
+    setUserKey(key);
+    setLoggedIn(true);
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    clearUserKey();
+    queryClient.clear();
+    setLoggedIn(false);
+  }, [queryClient]);
+
+  const boardQuery = useQuery({ queryKey: ['board'], queryFn: fetchBoard, retry: 2, staleTime: 30_000, enabled: loggedIn });
+  const adminCheck = useQuery({
+    queryKey: ['adminCheck'],
+    queryFn: () => fetchUsers().then(() => true),
+    retry: false,
+    enabled: loggedIn,
+  });
+  const isAdmin = adminCheck.data === true;
 
   const mouseSensor = useSensor(MouseSensor, { activationConstraint: { distance: 8 } });
   const touchSensor = useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } });
@@ -28,7 +49,6 @@ export function App() {
 
   const lanes = useMemo(() => boardQuery.data?.lanes ?? [], [boardQuery.data]);
   const cards = useMemo(() => boardQuery.data?.cards ?? [], [boardQuery.data]);
-  const allLabels = useMemo(() => labelsQuery.data ?? [], [labelsQuery.data]);
 
   const byLane = useMemo(() => {
     const map = new Map<string, CardItem[]>();
@@ -72,6 +92,10 @@ export function App() {
     setDetailOpen(true);
   };
 
+  if (!loggedIn) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
+
   return (
     <main className="min-h-screen bg-background p-4 text-foreground">
       <header className="mb-6 flex items-center justify-between">
@@ -86,8 +110,13 @@ export function App() {
           />
         <div className="flex items-center gap-2">
           <Button onClick={() => { setCreateLaneId(undefined); setCreateOpen(true); }}>New Card</Button>
-          <Button variant="outline" onClick={() => setAdminOpen(true)}>
-            Admin
+          {isAdmin && (
+            <Button variant="outline" onClick={() => setAdminOpen(true)}>
+              Admin
+            </Button>
+          )}
+          <Button variant="ghost" onClick={handleLogout} className="text-muted-foreground">
+            Logout
           </Button>
         </div>
       </header>
@@ -114,7 +143,6 @@ export function App() {
               key={lane.id}
               lane={lane}
               cards={byLane.get(lane.id) ?? []}
-              labels={allLabels}
               onCardClick={handleCardClick}
               onAddCard={() => { setCreateLaneId(lane.id); setCreateOpen(true); }}
               activeCardId={activeCardId}
@@ -123,7 +151,7 @@ export function App() {
         </section>
         <DragOverlay>
           {activeCardId ? (
-            <CardOverlay card={cards.find((c) => c.id === activeCardId)!} labels={allLabels} />
+            <CardOverlay card={cards.find((c) => c.id === activeCardId)!} />
           ) : null}
         </DragOverlay>
       </DndContext>
@@ -140,14 +168,12 @@ export function App() {
 function LaneColumn({
   lane,
   cards,
-  labels,
   onCardClick,
   onAddCard,
   activeCardId,
 }: {
   lane: Lane;
   cards: CardItem[];
-  labels: Label[];
   onCardClick: (card: CardItem) => void;
   onAddCard: () => void;
   activeCardId: string | null;
@@ -174,7 +200,7 @@ function LaneColumn({
       </div>
       <div className="space-y-3">
         {cards.map((card) => (
-          <DraggableCard key={card.id} card={card} labels={labels} onCardClick={onCardClick} isDragging={card.id === activeCardId} />
+          <DraggableCard key={card.id} card={card} onCardClick={onCardClick} isDragging={card.id === activeCardId} />
         ))}
       </div>
     </article>
@@ -183,24 +209,33 @@ function LaneColumn({
 
 function DraggableCard({
   card,
-  labels,
   onCardClick,
   isDragging,
 }: {
   card: CardItem;
-  labels: Label[];
   onCardClick: (card: CardItem) => void;
   isDragging: boolean;
 }) {
   const { attributes, listeners, setNodeRef } = useDraggable({ id: card.id });
+  const labelsQuery = useQuery({
+    queryKey: ['cardLabels', card.id],
+    queryFn: () => fetchCardLabels(card.id),
+  });
+  const commentsQuery = useQuery({
+    queryKey: ['comments', card.id],
+    queryFn: () => fetchComments(card.id),
+    staleTime: 30_000,
+  });
+  const attachmentsQuery = useQuery({
+    queryKey: ['attachments', card.id],
+    queryFn: () => fetchCardAttachments(card.id),
+    staleTime: 30_000,
+  });
+  const labels = labelsQuery.data ?? [];
+  const commentCount = commentsQuery.data?.length ?? 0;
+  const attachmentCount = attachmentsQuery.data?.length ?? 0;
 
   const isBlocked = card.blocked != null && card.blocked.trim() !== '';
-
-  // Truncate description for preview
-  const descriptionPreview =
-    card.descriptionMarkdown && card.descriptionMarkdown.length > 80
-      ? card.descriptionMarkdown.slice(0, 80) + '...'
-      : (card.descriptionMarkdown ?? '');
 
   return (
     <div
@@ -209,31 +244,50 @@ function DraggableCard({
       {...attributes}
       onClick={() => onCardClick(card)}
       className={cn(
-        'cursor-pointer rounded-md border bg-card p-2.5 hover:shadow-md',
+        'cursor-pointer rounded-md border bg-card p-3 hover:shadow-md',
         isBlocked ? 'border-destructive ring-1 ring-destructive/30' : 'border-border',
         isDragging && 'opacity-0',
       )}
     >
-        <div className="flex items-start justify-between gap-1">
-          <p className="text-xs text-muted-foreground">#{card.number}</p>
-          <Badge variant="outline" className="text-[10px]">
-            {card.size}
-          </Badge>
-        </div>
-        <h3 className="mt-0.5 font-medium">{card.name}</h3>
-
-      {descriptionPreview && (
-        <p className="mt-1 text-xs text-muted-foreground">{descriptionPreview}</p>
-      )}
+      {/* Title + Size */}
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="text-base font-semibold leading-snug">{card.name}</h3>
+        <Badge variant="outline" className="mt-0.5 shrink-0 text-[10px]">{card.size}</Badge>
+      </div>
 
       {isBlocked && (
-        <Badge variant="destructive" className="mt-1.5">
-          Blocked: {card.blocked}
+        <Badge variant="destructive" className="mt-1.5 text-[10px]">
+          Blocked
         </Badge>
       )}
 
+      {/* Bottom row — metadata */}
+      <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
+        <span>#{card.number}</span>
+
+        {commentCount > 0 && (
+          <span className="flex items-center gap-0.5" title={`${commentCount} comments`}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            {commentCount}
+          </span>
+        )}
+
+        {attachmentCount > 0 && (
+          <span className="flex items-center gap-0.5" title={`${attachmentCount} attachments`}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+            </svg>
+            {attachmentCount}
+          </span>
+        )}
+
+      </div>
+
+      {/* Labels */}
       {labels.length > 0 && (
-        <div className="mt-1.5 flex flex-wrap gap-1">
+        <div className="mt-2 flex flex-wrap gap-1">
           {labels.map((label) => (
             <Badge
               key={label.id}
@@ -250,7 +304,7 @@ function DraggableCard({
   );
 }
 
-function CardOverlay({ card, labels }: { card: CardItem; labels: Label[] }) {
+function CardOverlay({ card }: { card: CardItem }) {
   const isBlocked = card.blocked != null && card.blocked.trim() !== '';
 
   return (

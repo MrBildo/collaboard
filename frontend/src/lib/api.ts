@@ -1,13 +1,19 @@
 import axios from 'axios';
 import type { AttachmentMeta, BoardUser, CardComment, CardItem, Label, Lane } from '@/types';
+import { getUserKey } from '@/lib/auth';
 
 export type { AttachmentMeta, BoardUser, CardComment, CardItem, Label, Lane };
 
 export const api = axios.create({
   baseURL: '/api/v1',
-  headers: {
-    'X-User-Key': import.meta.env.VITE_USER_KEY ?? '',
-  },
+});
+
+api.interceptors.request.use((config) => {
+  const key = getUserKey();
+  if (key) {
+    config.headers['X-User-Key'] = key;
+  }
+  return config;
 });
 
 // Board
@@ -111,6 +117,11 @@ export async function deleteAttachment(id: string): Promise<void> {
 // Users (admin)
 export async function fetchUsers(): Promise<BoardUser[]> {
   const { data } = await api.get('/users');
+  return data;
+}
+
+export async function fetchUserDirectory(): Promise<{ id: string; name: string }[]> {
+  const { data } = await api.get('/users/directory');
   return data;
 }
 

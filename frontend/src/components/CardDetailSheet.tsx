@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/select';
 import { CardComments } from '@/components/CardComments';
 import { CardAttachments } from '@/components/CardAttachments';
-import { addCardLabel, deleteCard, fetchCardLabels, fetchLabels, removeCardLabel, updateCard } from '@/lib/api';
+import { addCardLabel, deleteCard, fetchCardLabels, fetchLabels, fetchUserDirectory, removeCardLabel, updateCard } from '@/lib/api';
 import type { CardItem } from '@/types';
 
 type CardDetailSheetProps = {
@@ -59,6 +59,14 @@ function CardDetailForm({
   const [blocked, setBlocked] = useState(card.blocked ?? '');
   const [editingDescription, setEditingDescription] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const directoryQuery = useQuery({
+    queryKey: ['userDirectory'],
+    queryFn: fetchUserDirectory,
+    staleTime: 60_000,
+  });
+  const userName = (id: string) =>
+    directoryQuery.data?.find((u) => u.id === id)?.name ?? 'Unknown';
 
   const labelsQuery = useQuery({
     queryKey: ['cardLabels', card.id],
@@ -135,7 +143,7 @@ function CardDetailForm({
   return (
     <>
       {/* Header */}
-      <DialogHeader className="px-6 pt-6">
+      <DialogHeader className="px-6 pt-6 pb-0">
         <DialogDescription className="text-xs">#{card.number}</DialogDescription>
         <div className="flex items-start gap-3">
           <div className="flex-1">
@@ -145,22 +153,47 @@ function CardDetailForm({
               className="border-none bg-transparent px-0 text-xl font-semibold shadow-none focus-visible:ring-0"
             />
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <Select value={size} onValueChange={(v) => v && setSize(v)}>
-              <SelectTrigger className="w-20">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="S">S</SelectItem>
-                <SelectItem value="M">M</SelectItem>
-                <SelectItem value="L">L</SelectItem>
-                <SelectItem value="XL">XL</SelectItem>
-              </SelectContent>
-            </Select>
-            {isBlocked && (
-              <Badge variant="destructive">Blocked</Badge>
-            )}
-          </div>
+          {isBlocked && (
+            <Badge variant="destructive">Blocked</Badge>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-3 pt-2">
+          <Select value={size} onValueChange={(v) => v && setSize(v)}>
+            <SelectTrigger className="w-20">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="S">S</SelectItem>
+              <SelectItem value="M">M</SelectItem>
+              <SelectItem value="L">L</SelectItem>
+              <SelectItem value="XL">XL</SelectItem>
+            </SelectContent>
+          </Select>
+          {(allLabelsQuery.data ?? []).map((label) => {
+            const isAssigned = labels.some((l) => l.id === label.id);
+            return (
+              <button
+                key={label.id}
+                type="button"
+                onClick={() => {
+                  if (isAssigned) {
+                    removeLabelMutation.mutate(label.id);
+                  } else {
+                    addLabelMutation.mutate(label.id);
+                  }
+                }}
+                className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium transition-opacity hover:opacity-80"
+                style={{
+                  backgroundColor: isAssigned ? (label.color ?? '#6b7280') : 'transparent',
+                  color: isAssigned ? '#fff' : (label.color ?? '#9ca3af'),
+                  borderColor: label.color ?? '#6b7280',
+                  opacity: isAssigned ? 1 : 0.5,
+                }}
+              >
+                {label.name}
+              </button>
+            );
+          })}
         </div>
       </DialogHeader>
 
@@ -168,40 +201,6 @@ function CardDetailForm({
       <div className="flex flex-1 gap-0 overflow-hidden">
         {/* Left column — details */}
         <div className="flex-1 overflow-y-auto border-r px-6 py-4">
-          {/* Labels */}
-          {(allLabelsQuery.data ?? []).length > 0 && (
-            <div className="mb-4">
-              <Label className="mb-1.5 text-xs text-muted-foreground">Labels</Label>
-              <div className="flex flex-wrap gap-1.5">
-                {(allLabelsQuery.data ?? []).map((label) => {
-                  const isAssigned = labels.some((l) => l.id === label.id);
-                  return (
-                    <button
-                      key={label.id}
-                      type="button"
-                      onClick={() => {
-                        if (isAssigned) {
-                          removeLabelMutation.mutate(label.id);
-                        } else {
-                          addLabelMutation.mutate(label.id);
-                        }
-                      }}
-                      className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-opacity hover:opacity-80"
-                      style={{
-                        backgroundColor: isAssigned ? (label.color ?? '#6b7280') : 'transparent',
-                        color: isAssigned ? '#fff' : (label.color ?? '#9ca3af'),
-                        borderColor: label.color ?? '#6b7280',
-                        opacity: isAssigned ? 1 : 0.5,
-                      }}
-                    >
-                      {label.name}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
           {/* Blocked reason */}
           <div className="mb-4">
             <Label htmlFor="card-blocked" className="mb-1.5 text-xs text-muted-foreground">
@@ -259,8 +258,8 @@ function CardDetailForm({
 
           {/* Metadata */}
           <div className="mt-4 text-xs text-muted-foreground">
-            <p>Created: {new Date(card.createdAtUtc).toLocaleString()}</p>
-            <p>Updated: {new Date(card.lastUpdatedAtUtc).toLocaleString()}</p>
+            <p>Created by {userName(card.createdByUserId)} · {new Date(card.createdAtUtc).toLocaleString()}</p>
+            <p>Updated by {userName(card.lastUpdatedByUserId)} · {new Date(card.lastUpdatedAtUtc).toLocaleString()}</p>
           </div>
         </div>
 
