@@ -193,13 +193,18 @@ public class AttachmentEndpointTests(CollaboardApiFactory factory) : IClassFixtu
     }
 
     [Fact]
-    public async Task DeleteAttachment_AsHumanUser_Returns204()
+    public async Task DeleteAttachment_OwnAttachment_Returns204()
     {
-        // Arrange
+        // Arrange — human uploads their own attachment
         var cardId = await CreateCardAsync();
-        var attachmentId = await UploadAttachmentAsync(cardId);
         var human = await TestAuthHelper.CreateUserAsync(_client, _factory, "Human Deleter", UserRole.HumanUser);
         TestAuthHelper.SetAuth(_client, human.AuthKey);
+
+        var upload = CreateFileUpload();
+        var uploadResponse = await _client.PostAsync($"/api/v1/cards/{cardId}/attachments", upload);
+        uploadResponse.EnsureSuccessStatusCode();
+        var uploadJson = await uploadResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var attachmentId = uploadJson.GetProperty("id").GetGuid();
 
         // Act
         var response = await _client.DeleteAsync($"/api/v1/attachments/{attachmentId}");
