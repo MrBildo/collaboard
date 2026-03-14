@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
   Select,
@@ -56,7 +55,6 @@ function CardDetailForm({
   const [name, setName] = useState(card.name);
   const [description, setDescription] = useState(card.descriptionMarkdown ?? '');
   const [size, setSize] = useState(card.size);
-  const [blocked, setBlocked] = useState(card.blocked ?? '');
   const [editingDescription, setEditingDescription] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -119,9 +117,6 @@ function CardDetailForm({
     if (description !== (card.descriptionMarkdown ?? '')) patch.descriptionMarkdown = description;
     if (size !== card.size) patch.size = size;
 
-    const blockedValue = blocked.trim() === '' ? null : blocked.trim();
-    if (blockedValue !== (card.blocked ?? null)) patch.blocked = blockedValue;
-
     if (Object.keys(patch).length > 0) {
       updateMutation.mutate(patch);
     } else {
@@ -138,7 +133,6 @@ function CardDetailForm({
   };
 
   const labels = labelsQuery.data ?? [];
-  const isBlocked = blocked.trim() !== '';
 
   return (
     <>
@@ -153,9 +147,6 @@ function CardDetailForm({
               className="border-none bg-transparent px-0 text-xl font-semibold shadow-none focus-visible:ring-0"
             />
           </div>
-          {isBlocked && (
-            <Badge variant="destructive">Blocked</Badge>
-          )}
         </div>
         <div className="flex flex-wrap items-center gap-3 pt-2">
           <Select value={size} onValueChange={(v) => v && setSize(v)}>
@@ -201,21 +192,6 @@ function CardDetailForm({
       <div className="flex flex-1 gap-0 overflow-hidden">
         {/* Left column — details */}
         <div className="flex-1 overflow-y-auto border-r px-6 py-4">
-          {/* Blocked reason */}
-          <div className="mb-4">
-            <Label htmlFor="card-blocked" className="mb-1.5 text-xs text-muted-foreground">
-              Blocked reason
-            </Label>
-            <Input
-              id="card-blocked"
-              value={blocked}
-              onChange={(e) => setBlocked(e.target.value)}
-              placeholder="Leave empty if not blocked"
-            />
-          </div>
-
-          <Separator className="my-4" />
-
           {/* Description */}
           <div className="mb-4">
             <div className="mb-2 flex items-center justify-between">

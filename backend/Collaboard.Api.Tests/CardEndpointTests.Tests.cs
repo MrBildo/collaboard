@@ -450,32 +450,6 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     }
 
     [Fact]
-    public async Task PostCard_WithBlocked_SetsReason()
-    {
-        // Arrange
-        TestAuthHelper.SetAdminAuth(_client, _factory);
-        var laneId = await GetFirstLaneIdAsync();
-
-        var request = new
-        {
-            name = "Blocked Card",
-            descriptionMarkdown = "",
-            blocked = "Waiting on external dependency",
-            size = "M",
-            laneId,
-            position = NextPosition()
-        };
-
-        // Act
-        var response = await _client.PostAsJsonAsync("/api/v1/cards", request);
-
-        // Assert
-        response.StatusCode.ShouldBe(HttpStatusCode.Created);
-        var card = await response.Content.ReadFromJsonAsync<JsonElement>();
-        card.GetProperty("blocked").GetString().ShouldBe("Waiting on external dependency");
-    }
-
-    [Fact]
     public async Task PatchCard_SetPositionToZero_Works()
     {
         // Arrange
@@ -501,63 +475,6 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         var updated = await response.Content.ReadFromJsonAsync<JsonElement>();
         updated.GetProperty("position").GetInt32().ShouldBe(0);
-    }
-
-    [Fact]
-    public async Task PatchCard_SetBlocked_SetsReason()
-    {
-        // Arrange
-        TestAuthHelper.SetAdminAuth(_client, _factory);
-        var laneId = await GetFirstLaneIdAsync();
-
-        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
-        {
-            name = "Will Be Blocked",
-            descriptionMarkdown = "",
-            size = "M",
-            laneId,
-            position = NextPosition()
-        });
-        createResponse.EnsureSuccessStatusCode();
-        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
-        var cardId = created.GetProperty("id").GetGuid();
-
-        // Act
-        var response = await _client.PatchAsJsonAsync($"/api/v1/cards/{cardId}", new { blocked = "Blocked by issue #42" });
-
-        // Assert
-        response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var updated = await response.Content.ReadFromJsonAsync<JsonElement>();
-        updated.GetProperty("blocked").GetString().ShouldBe("Blocked by issue #42");
-    }
-
-    [Fact]
-    public async Task PatchCard_ClearBlocked_SetsNull()
-    {
-        // Arrange
-        TestAuthHelper.SetAdminAuth(_client, _factory);
-        var laneId = await GetFirstLaneIdAsync();
-
-        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
-        {
-            name = "Was Blocked Card",
-            descriptionMarkdown = "",
-            blocked = "Initially blocked",
-            size = "M",
-            laneId,
-            position = NextPosition()
-        });
-        createResponse.EnsureSuccessStatusCode();
-        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
-        var cardId = created.GetProperty("id").GetGuid();
-
-        // Act
-        var response = await _client.PatchAsJsonAsync($"/api/v1/cards/{cardId}", new { blocked = (string?)null });
-
-        // Assert
-        response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var updated = await response.Content.ReadFromJsonAsync<JsonElement>();
-        updated.GetProperty("blocked").ValueKind.ShouldBe(JsonValueKind.Null);
     }
 
     [Fact]

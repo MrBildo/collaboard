@@ -31,7 +31,6 @@ public class CardItem
     public long Number { get; set; }
     [MaxLength(200)] public string Name { get; set; } = string.Empty;
     public string DescriptionMarkdown { get; set; } = string.Empty;
-    public string? Blocked { get; set; }
     [MaxLength(20)] public string Size { get; set; } = "M";
     public Guid LaneId { get; set; }
     public int Position { get; set; }

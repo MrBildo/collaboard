@@ -11,7 +11,6 @@ export type CardItem = {
   descriptionMarkdown: string;
   laneId: string;
   position: number;
-  blocked?: string | null;
   size: string;
   createdByUserId: string;
   createdAtUtc: string;

@@ -345,8 +345,6 @@ function SortableCard({
   const commentCount = commentsQuery.data?.length ?? 0;
   const attachmentCount = attachmentsQuery.data?.length ?? 0;
 
-  const isBlocked = card.blocked != null && card.blocked.trim() !== '';
-
   return (
     <div
       ref={setNodeRef}
@@ -355,8 +353,7 @@ function SortableCard({
       {...attributes}
       onClick={() => onCardClick(card)}
       className={cn(
-        'cursor-pointer rounded-md border bg-card p-3 hover:shadow-md',
-        isBlocked ? 'border-destructive ring-1 ring-destructive/30' : 'border-border',
+        'cursor-pointer rounded-md border border-border bg-card p-3 hover:shadow-md',
         isDragging && 'opacity-0',
       )}
     >
@@ -365,12 +362,6 @@ function SortableCard({
         <h3 className="text-base font-semibold leading-snug">{card.name}</h3>
         <Badge variant="outline" className="mt-0.5 shrink-0 text-[10px]">{card.size}</Badge>
       </div>
-
-      {isBlocked && (
-        <Badge variant="destructive" className="mt-1.5 text-[10px]">
-          Blocked
-        </Badge>
-      )}
 
       {/* Bottom row — metadata */}
       <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
@@ -416,14 +407,9 @@ function SortableCard({
 }
 
 function CardOverlay({ card }: { card: CardItem }) {
-  const isBlocked = card.blocked != null && card.blocked.trim() !== '';
-
   return (
     <div
-      className={cn(
-        'w-64 rounded-md border bg-card p-2 shadow-xl',
-        isBlocked ? 'border-destructive ring-1 ring-destructive/30' : 'border-border',
-      )}
+      className="w-64 rounded-md border border-border bg-card p-2 shadow-xl"
     >
       <div className="flex items-start justify-between gap-1">
         <p className="text-xs text-muted-foreground">#{card.number}</p>

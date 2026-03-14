@@ -58,7 +58,6 @@ internal static class CardEndpoints
                 Number = nextNumber,
                 Name = request.Name,
                 DescriptionMarkdown = request.DescriptionMarkdown,
-                Blocked = request.Blocked,
                 Size = request.Size,
                 LaneId = request.LaneId,
                 Position = request.Position,
@@ -94,11 +93,6 @@ internal static class CardEndpoints
             if (patch.TryGetProperty("descriptionMarkdown", out var desc))
             {
                 card.DescriptionMarkdown = desc.GetString()!;
-            }
-
-            if (patch.TryGetProperty("blocked", out var blocked))
-            {
-                card.Blocked = blocked.ValueKind == JsonValueKind.Null ? null : blocked.GetString();
             }
 
             if (patch.TryGetProperty("size", out var size))
