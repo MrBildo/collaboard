@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { fetchBoard, fetchCardAttachments, fetchCardLabels, fetchComments, fetchMe, fetchUsers, reorderCard } from '@/lib/api';
 import { isLoggedIn, setUserKey, clearUserKey } from '@/lib/auth';
-import { useBoardEvents } from '@/lib/useBoardEvents';
+import { useBoardEvents } from '@/lib/use-board-events';
 import { cn } from '@/lib/utils';
 import type { CardItem, Lane } from '@/types';
 
@@ -42,7 +42,7 @@ export function App() {
   const currentUserRole = meQuery.data?.role;
   const adminCheck = useQuery({
     queryKey: ['adminCheck'],
-    queryFn: () => fetchUsers().then(() => true),
+    queryFn: async () => { await fetchUsers(); return true; },
     retry: false,
     enabled: loggedIn,
   });
