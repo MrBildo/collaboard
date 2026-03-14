@@ -1,13 +1,19 @@
 import axios from 'axios';
 import type { AttachmentMeta, BoardUser, CardComment, CardItem, Label, Lane } from '@/types';
+import { getUserKey } from '@/lib/auth';
 
 export type { AttachmentMeta, BoardUser, CardComment, CardItem, Label, Lane };
 
 export const api = axios.create({
   baseURL: '/api/v1',
-  headers: {
-    'X-User-Key': import.meta.env.VITE_USER_KEY ?? '',
-  },
+});
+
+api.interceptors.request.use((config) => {
+  const key = getUserKey();
+  if (key) {
+    config.headers['X-User-Key'] = key;
+  }
+  return config;
 });
 
 // Board
@@ -31,7 +37,6 @@ export async function createCard(card: {
   name: string;
   descriptionMarkdown?: string;
   size?: string;
-  blocked?: string | null;
   laneId: string;
   position: number;
 }): Promise<CardItem> {
@@ -48,6 +53,15 @@ export async function deleteCard(id: string): Promise<void> {
   await api.delete(`/cards/${id}`);
 }
 
+export async function reorderCard(
+  id: string,
+  laneId: string,
+  index: number,
+): Promise<{ lanes: Lane[]; cards: CardItem[] }> {
+  const { data } = await api.post(`/cards/${id}/reorder`, { laneId, index });
+  return data;
+}
+
 // Labels
 export async function fetchLabels(): Promise<Label[]> {
   const { data } = await api.get('/labels');
@@ -57,6 +71,14 @@ export async function fetchLabels(): Promise<Label[]> {
 export async function fetchCardLabels(cardId: string): Promise<Label[]> {
   const { data } = await api.get(`/cards/${cardId}/labels`);
   return data;
+}
+
+export async function addCardLabel(cardId: string, labelId: string): Promise<void> {
+  await api.post(`/cards/${cardId}/labels`, { labelId });
+}
+
+export async function removeCardLabel(cardId: string, labelId: string): Promise<void> {
+  await api.delete(`/cards/${cardId}/labels/${labelId}`);
 }
 
 // Comments
@@ -103,6 +125,11 @@ export async function deleteAttachment(id: string): Promise<void> {
 // Users (admin)
 export async function fetchUsers(): Promise<BoardUser[]> {
   const { data } = await api.get('/users');
+  return data;
+}
+
+export async function fetchUserDirectory(): Promise<{ id: string; name: string }[]> {
+  const { data } = await api.get('/users/directory');
   return data;
 }
 

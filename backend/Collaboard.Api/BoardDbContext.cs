@@ -18,7 +18,7 @@ public class BoardDbContext(DbContextOptions<BoardDbContext> options) : DbContex
         builder.Entity<BoardUser>().HasIndex(x => x.AuthKey).IsUnique();
         builder.Entity<Lane>().HasIndex(x => x.Position).IsUnique();
         builder.Entity<CardItem>().HasIndex(x => x.Number).IsUnique();
-        builder.Entity<CardItem>().HasIndex(x => new { x.LaneId, x.Position }).IsUnique();
+        builder.Entity<CardItem>().HasIndex(x => new { x.LaneId, x.Position });
         builder.Entity<CardComment>().HasIndex(x => new { x.CardId, x.LastUpdatedAtUtc });
         builder.Entity<CardAttachment>().HasIndex(x => x.CardId);
         builder.Entity<Label>().HasIndex(x => x.Name).IsUnique();

@@ -58,7 +58,6 @@ internal static class CardEndpoints
                 Number = nextNumber,
                 Name = request.Name,
                 DescriptionMarkdown = request.DescriptionMarkdown,
-                Blocked = request.Blocked,
                 Size = request.Size,
                 LaneId = request.LaneId,
                 Position = request.Position,
@@ -96,11 +95,6 @@ internal static class CardEndpoints
                 card.DescriptionMarkdown = desc.GetString()!;
             }
 
-            if (patch.TryGetProperty("blocked", out var blocked))
-            {
-                card.Blocked = blocked.ValueKind == JsonValueKind.Null ? null : blocked.GetString();
-            }
-
             if (patch.TryGetProperty("size", out var size))
             {
                 var sizeVal = size.GetString()!;
@@ -136,6 +130,69 @@ internal static class CardEndpoints
             card.LastUpdatedByUserId = http.CurrentUser().Id;
             await db.SaveChangesAsync();
             return Results.Ok(card);
+        });
+
+        group.MapPost("/cards/{id:guid}/reorder", async (BoardDbContext db, HttpContext http, Guid id, JsonElement body) =>
+        {
+            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
+            if (forbidden is not null)
+            {
+                return forbidden;
+            }
+
+            var card = await db.Cards.FindAsync(id);
+            if (card is null)
+            {
+                return Results.NotFound();
+            }
+
+            var targetLaneId = body.GetProperty("laneId").GetGuid();
+            var targetIndex = body.GetProperty("index").GetInt32();
+
+            if (!await db.Lanes.AnyAsync(l => l.Id == targetLaneId))
+            {
+                return Results.BadRequest("Lane not found.");
+            }
+
+            var sourceLaneId = card.LaneId;
+
+            var targetCards = await db.Cards
+                .Where(c => c.LaneId == targetLaneId && c.Id != id)
+                .OrderBy(c => c.Position)
+                .ToListAsync();
+
+            targetIndex = Math.Clamp(targetIndex, 0, targetCards.Count);
+
+            targetCards.Insert(targetIndex, card);
+
+            for (var i = 0; i < targetCards.Count; i++)
+            {
+                targetCards[i].Position = i * 10;
+            }
+
+            if (sourceLaneId != targetLaneId)
+            {
+                card.LaneId = targetLaneId;
+
+                var sourceCards = await db.Cards
+                    .Where(c => c.LaneId == sourceLaneId && c.Id != id)
+                    .OrderBy(c => c.Position)
+                    .ToListAsync();
+
+                for (var i = 0; i < sourceCards.Count; i++)
+                {
+                    sourceCards[i].Position = i * 10;
+                }
+            }
+
+            card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
+            card.LastUpdatedByUserId = http.CurrentUser().Id;
+
+            await db.SaveChangesAsync();
+
+            var lanes = await db.Lanes.OrderBy(l => l.Position).ToListAsync();
+            var cards = await db.Cards.OrderBy(c => c.LaneId).ThenBy(c => c.Position).ToListAsync();
+            return Results.Ok(new { lanes, cards });
         });
 
         group.MapDelete("/cards/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id) =>
