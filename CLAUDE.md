@@ -77,11 +77,13 @@ All endpoints under `/api/v1/`:
 | Resource | Endpoints |
 |----------|-----------|
 | Board | `GET /board` |
-| Users | `GET /users`, `POST /users` |
-| Lanes | `POST /lanes`, `DELETE /lanes/{id}` |
-| Cards | `POST /cards`, `PATCH /cards/{id}`, `DELETE /cards/{id}` |
-| Comments | `POST /cards/{id}/comments`, `DELETE /comments/{id}` |
-| Attachments | `POST /cards/{id}/attachments`, `GET /attachments/{id}`, `DELETE /attachments/{id}` |
+| Users | `GET /users`, `GET /users/{id}`, `POST /users`, `PATCH /users/{id}`, `PATCH /users/{id}/deactivate` |
+| Lanes | `GET /lanes`, `GET /lanes/{id}`, `POST /lanes`, `PATCH /lanes/{id}`, `DELETE /lanes/{id}` |
+| Cards | `GET /cards`, `GET /cards/{id}`, `POST /cards`, `PATCH /cards/{id}`, `DELETE /cards/{id}` |
+| Comments | `GET /cards/{id}/comments`, `POST /cards/{id}/comments`, `PATCH /comments/{id}`, `DELETE /comments/{id}` |
+| Attachments | `GET /cards/{id}/attachments`, `POST /cards/{id}/attachments`, `GET /attachments/{id}`, `DELETE /attachments/{id}` |
+| Labels | `GET /labels`, `POST /labels`, `PATCH /labels/{id}`, `DELETE /labels/{id}` |
+| Card Labels | `GET /cards/{id}/labels`, `POST /cards/{id}/labels`, `DELETE /cards/{id}/labels/{labelId}` |
 | MCP | `GET /mcp` (stub manifest) |
 
 ## .agents/ Directory Structure
@@ -163,8 +165,6 @@ Instance-local workspace (gitignored). Run `/bootstrap` to create on fresh clone
 
 ## Known Issues
 
-- `PATCH /cards` cannot set position to 0 or laneId to empty guid (sentinel value bug in partial update logic)
-- `DELETE /comments` allows `AgentUser` — should restrict to own comments only
 - `/mcp` endpoint is a stub manifest, not real MCP tool implementations
 
 ## Skills
