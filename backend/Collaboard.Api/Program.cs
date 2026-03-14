@@ -26,6 +26,8 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
     await db.Database.EnsureCreatedAsync();
+    await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode = 'wal';");
+    await db.Database.ExecuteSqlRawAsync("PRAGMA busy_timeout = 5000;");
     if (!await db.Users.AnyAsync())
     {
         var adminAuthKey = app.Configuration.GetValue<string>("Admin:AuthKey")
