@@ -99,6 +99,9 @@ function LanesTab() {
       setNewName('');
       setNewPosition('');
     },
+    onError: (err) => {
+      setDeleteError(err instanceof Error ? err.message : 'Failed to create lane.');
+    },
   });
 
   const updateMutation = useMutation({
@@ -249,6 +252,7 @@ function LanesTab() {
             />
           </div>
           <Button
+            type="button"
             onClick={handleCreate}
             disabled={createMutation.isPending || !newName.trim() || !newPosition}
           >

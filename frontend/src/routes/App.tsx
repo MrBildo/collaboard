@@ -1,4 +1,4 @@
-import { DndContext, DragEndEvent, useDraggable, useDroppable } from '@dnd-kit/core';
+import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, useDraggable, useDroppable } from '@dnd-kit/core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { AdminPanel } from '@/components/AdminPanel';
@@ -12,12 +12,14 @@ import type { CardItem, Label, Lane } from '@/types';
 
 export function App() {
   const queryClient = useQueryClient();
-  const boardQuery = useQuery({ queryKey: ['board'], queryFn: fetchBoard });
+  const boardQuery = useQuery({ queryKey: ['board'], queryFn: fetchBoard, retry: 2, staleTime: 30_000 });
   const labelsQuery = useQuery({ queryKey: ['labels'], queryFn: fetchLabels });
 
+  const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [selectedCard, setSelectedCard] = useState<CardItem | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [createLaneId, setCreateLaneId] = useState<string | undefined>(undefined);
   const [adminOpen, setAdminOpen] = useState(false);
 
   const lanes = useMemo(() => boardQuery.data?.lanes ?? [], [boardQuery.data]);
@@ -32,14 +34,20 @@ export function App() {
     return map;
   }, [lanes, cards]);
 
+  const onDragStart = (event: DragStartEvent) => {
+    setActiveCardId(String(event.active.id));
+  };
+
   const onDragEnd = (event: DragEndEvent) => {
     const cardId = String(event.active.id);
     const overLaneId = event.over?.id ? String(event.over.id) : null;
-    if (!overLaneId) return;
 
-    const card = cards.find((c) => c.id === cardId);
-    if (!card || card.laneId === overLaneId) return;
+    if (!overLaneId || !cards.find((c) => c.id === cardId && c.laneId !== overLaneId)) {
+      setActiveCardId(null);
+      return;
+    }
 
+    // Optimistic update BEFORE clearing active — both in same sync batch
     queryClient.setQueryData<{ lanes: Lane[]; cards: CardItem[] }>(['board'], (old) => {
       if (!old) return old;
       return {
@@ -47,8 +55,12 @@ export function App() {
         cards: old.cards.map((c) => (c.id === cardId ? { ...c, laneId: overLaneId } : c)),
       };
     });
+    setActiveCardId(null);
 
-    api.patch(`/cards/${cardId}`, { laneId: overLaneId });
+    // Fire-and-forget patch, then sync
+    api.patch(`/cards/${cardId}`, { laneId: overLaneId }).then(() => {
+      queryClient.invalidateQueries({ queryKey: ['board'] });
+    });
   };
 
   const handleCardClick = (card: CardItem) => {
@@ -69,13 +81,21 @@ export function App() {
             }}
           />
         <div className="flex items-center gap-2">
-          <Button onClick={() => setCreateOpen(true)}>New Card</Button>
+          <Button onClick={() => { setCreateLaneId(undefined); setCreateOpen(true); }}>New Card</Button>
           <Button variant="outline" onClick={() => setAdminOpen(true)}>
             Admin
           </Button>
         </div>
       </header>
-      <DndContext onDragEnd={onDragEnd}>
+      {boardQuery.isError && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-center text-sm text-destructive">
+          Failed to load board. Check your auth key in <code>.env</code> and clear localStorage.
+        </div>
+      )}
+      {boardQuery.isLoading && (
+        <p className="py-8 text-center text-muted-foreground">Loading board...</p>
+      )}
+      <DndContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
         <section
           className="grid grid-cols-1 gap-4 md:grid-cols-3"
           style={
@@ -92,14 +112,21 @@ export function App() {
               cards={byLane.get(lane.id) ?? []}
               labels={allLabels}
               onCardClick={handleCardClick}
+              onAddCard={() => { setCreateLaneId(lane.id); setCreateOpen(true); }}
+              activeCardId={activeCardId}
             />
           ))}
         </section>
+        <DragOverlay>
+          {activeCardId ? (
+            <CardOverlay card={cards.find((c) => c.id === activeCardId)!} labels={allLabels} />
+          ) : null}
+        </DragOverlay>
       </DndContext>
 
       <CardDetailSheet card={selectedCard} open={detailOpen} onOpenChange={setDetailOpen} />
 
-      <CreateCardDialog lanes={lanes} open={createOpen} onOpenChange={setCreateOpen} />
+      <CreateCardDialog lanes={lanes} open={createOpen} onOpenChange={setCreateOpen} defaultLaneId={createLaneId} />
 
       <AdminPanel open={adminOpen} onOpenChange={setAdminOpen} />
     </main>
@@ -111,11 +138,15 @@ function LaneColumn({
   cards,
   labels,
   onCardClick,
+  onAddCard,
+  activeCardId,
 }: {
   lane: Lane;
   cards: CardItem[];
   labels: Label[];
   onCardClick: (card: CardItem) => void;
+  onAddCard: () => void;
+  activeCardId: string | null;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: lane.id });
 
@@ -123,14 +154,23 @@ function LaneColumn({
     <article
       ref={setNodeRef}
       className={cn(
-        'rounded-lg border bg-card p-3 shadow',
+        'rounded-lg border border-border/60 bg-card p-4 shadow-md border-t-2 border-t-primary/50',
         isOver && 'ring-2 ring-primary/40',
       )}
     >
-      <h2 className="mb-3 font-semibold">{lane.name}</h2>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="font-semibold">{lane.name}</h2>
+        <button
+          type="button"
+          onClick={onAddCard}
+          className="flex h-9 w-9 items-center justify-center rounded-md border text-2xl font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+        >
+          +
+        </button>
+      </div>
       <div className="space-y-3">
         {cards.map((card) => (
-          <DraggableCard key={card.id} card={card} labels={labels} onCardClick={onCardClick} />
+          <DraggableCard key={card.id} card={card} labels={labels} onCardClick={onCardClick} isDragging={card.id === activeCardId} />
         ))}
       </div>
     </article>
@@ -141,15 +181,14 @@ function DraggableCard({
   card,
   labels,
   onCardClick,
+  isDragging,
 }: {
   card: CardItem;
   labels: Label[];
   onCardClick: (card: CardItem) => void;
+  isDragging: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: card.id });
-  const style = transform
-    ? { transform: `translate(${transform.x}px, ${transform.y}px)` }
-    : undefined;
+  const { attributes, listeners, setNodeRef } = useDraggable({ id: card.id });
 
   const isBlocked = card.blocked != null && card.blocked.trim() !== '';
 
@@ -162,13 +201,13 @@ function DraggableCard({
   return (
     <div
       ref={setNodeRef}
-      style={style}
       {...listeners}
       {...attributes}
       onClick={() => onCardClick(card)}
       className={cn(
         'cursor-grab rounded-md border bg-card p-2 hover:shadow-md',
         isBlocked ? 'border-destructive ring-1 ring-destructive/30' : 'border-border',
+        isDragging && 'opacity-0',
       )}
     >
       <div className="flex items-start justify-between gap-1">
@@ -203,6 +242,27 @@ function DraggableCard({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function CardOverlay({ card, labels }: { card: CardItem; labels: Label[] }) {
+  const isBlocked = card.blocked != null && card.blocked.trim() !== '';
+
+  return (
+    <div
+      className={cn(
+        'w-64 rounded-md border bg-card p-2 shadow-xl',
+        isBlocked ? 'border-destructive ring-1 ring-destructive/30' : 'border-border',
+      )}
+    >
+      <div className="flex items-start justify-between gap-1">
+        <p className="text-xs text-muted-foreground">#{card.number}</p>
+        <Badge variant="outline" className="text-[10px]">
+          {card.size}
+        </Badge>
+      </div>
+      <h3 className="mt-0.5 font-medium">{card.name}</h3>
     </div>
   );
 }
