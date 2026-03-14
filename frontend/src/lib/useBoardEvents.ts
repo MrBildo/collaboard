@@ -14,6 +14,9 @@ export function useBoardEvents(enabled: boolean) {
     es.addEventListener('board-updated', () => {
       queryClient.invalidateQueries({ queryKey: ['board'] });
       queryClient.invalidateQueries({ queryKey: ['labels'] });
+      queryClient.invalidateQueries({ queryKey: ['cardLabels'] });
+      queryClient.invalidateQueries({ queryKey: ['comments'] });
+      queryClient.invalidateQueries({ queryKey: ['attachments'] });
       queryClient.invalidateQueries({ queryKey: ['userDirectory'] });
     });
 
