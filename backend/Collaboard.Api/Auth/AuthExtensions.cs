@@ -1,5 +1,4 @@
 using Collaboard.Api.Models;
-
 using Microsoft.EntityFrameworkCore;
 
 namespace Collaboard.Api.Auth;

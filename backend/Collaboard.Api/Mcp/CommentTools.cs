@@ -10,8 +10,6 @@ namespace Collaboard.Api.Mcp;
 [McpServerToolType]
 public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEventBroadcaster broadcaster)
 {
-    private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-
     [McpServerTool(Name = "add_comment", Destructive = false)]
     [Description("Add a comment to a card.")]
     public async Task<string> AddCommentAsync(
@@ -42,7 +40,7 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
         db.Comments.Add(comment);
         await db.SaveChangesAsync(ct);
         broadcaster.Publish("board-updated");
-        return JsonSerializer.Serialize(comment, _jsonOptions);
+        return JsonSerializer.Serialize(comment, JsonSerializerOptions.Web);
     }
 
     [McpServerTool(Name = "get_comments", ReadOnly = true, Destructive = false)]
@@ -68,6 +66,6 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
             .ToListAsync(ct);
         comments.Sort((a, b) => a.LastUpdatedAtUtc.CompareTo(b.LastUpdatedAtUtc));
 
-        return JsonSerializer.Serialize(comments, _jsonOptions);
+        return JsonSerializer.Serialize(comments, JsonSerializerOptions.Web);
     }
 }

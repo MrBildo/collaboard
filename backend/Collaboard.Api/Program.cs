@@ -17,7 +17,6 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<BoardEventBroadcaster>();
 builder.Services.AddScoped<McpAuthService>();
 
-
 builder.Services
     .AddMcpServer()
     .WithHttpTransport()
