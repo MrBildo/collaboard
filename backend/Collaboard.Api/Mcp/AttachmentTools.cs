@@ -67,4 +67,51 @@ public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, Boar
         broadcaster.Publish("board-updated");
         return $"Attachment '{attachment.FileName}' deleted.";
     }
+
+    [McpServerTool(Name = "upload_attachment", Destructive = false)]
+    [Description("Upload a file attachment to a card using base64-encoded content. Best for small files and images. For large files (CSVs, PDFs), use the REST API instead — call get_api_info for the URL.")]
+    public async Task<string> UploadAttachmentAsync(
+        [Description("Your auth key")] string authKey,
+        [Description("The ID (guid) of the card to attach the file to")] Guid cardId,
+        [Description("The file name (e.g., 'report.pdf')")] string fileName,
+        [Description("The base64-encoded file content")] string base64Content,
+        [Description("The MIME content type (e.g., 'application/pdf', 'image/png'). Defaults to 'application/octet-stream'")] string? contentType = null,
+        CancellationToken ct = default)
+    {
+        var (user, error) = await auth.RequireUserAsync(authKey, ct);
+        if (error is not null)
+        {
+            return error;
+        }
+
+        if (!await db.Cards.AnyAsync(c => c.Id == cardId, ct))
+        {
+            return "Error: Card not found.";
+        }
+
+        byte[] payload;
+        try
+        {
+            payload = Convert.FromBase64String(base64Content);
+        }
+        catch (FormatException)
+        {
+            return "Error: Invalid base64 content.";
+        }
+
+        var attachment = new CardAttachment
+        {
+            Id = Guid.NewGuid(),
+            CardId = cardId,
+            FileName = fileName,
+            ContentType = contentType ?? "application/octet-stream",
+            Payload = payload,
+            AddedByUserId = user!.Id,
+            AddedAtUtc = DateTimeOffset.UtcNow,
+        };
+        db.Attachments.Add(attachment);
+        await db.SaveChangesAsync(ct);
+        broadcaster.Publish("board-updated");
+        return JsonSerializer.Serialize(new { attachment.Id, attachment.FileName }, _jsonOptions);
+    }
 }
