@@ -10,6 +10,8 @@ public class BoardDbContext(DbContextOptions<BoardDbContext> options) : DbContex
     public DbSet<CardItem> Cards => Set<CardItem>();
     public DbSet<CardComment> Comments => Set<CardComment>();
     public DbSet<CardAttachment> Attachments => Set<CardAttachment>();
+    public DbSet<Label> Labels => Set<Label>();
+    public DbSet<CardLabel> CardLabels => Set<CardLabel>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -19,5 +21,7 @@ public class BoardDbContext(DbContextOptions<BoardDbContext> options) : DbContex
         builder.Entity<CardItem>().HasIndex(x => new { x.LaneId, x.Position }).IsUnique();
         builder.Entity<CardComment>().HasIndex(x => new { x.CardId, x.LastUpdatedAtUtc });
         builder.Entity<CardAttachment>().HasIndex(x => x.CardId);
+        builder.Entity<Label>().HasIndex(x => x.Name).IsUnique();
+        builder.Entity<CardLabel>().HasKey(x => new { x.CardId, x.LabelId });
     }
 }

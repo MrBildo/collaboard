@@ -121,7 +121,6 @@ public class BoardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
             descriptionMarkdown = "A card for testing",
             laneId = firstLaneId,
             position = 0,
-            status = "Open",
             size = "M",
         };
 

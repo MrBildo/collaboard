@@ -56,6 +56,7 @@ api.MapBoardEndpoints();
 api.MapUserEndpoints();
 api.MapLaneEndpoints();
 api.MapCardEndpoints();
+api.MapLabelEndpoints();
 api.MapCommentEndpoints();
 api.MapAttachmentEndpoints();
 

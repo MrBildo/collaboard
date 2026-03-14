@@ -80,7 +80,6 @@ public class LaneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "Prevents deletion",
             laneId,
             position = 0,
-            status = "Open",
             size = "M"
         });
         cardResponse.EnsureSuccessStatusCode();

@@ -31,7 +31,7 @@ public class CardItem
     public long Number { get; set; }
     [MaxLength(200)] public string Name { get; set; } = string.Empty;
     public string DescriptionMarkdown { get; set; } = string.Empty;
-    [MaxLength(40)] public string? Status { get; set; }
+    public string? Blocked { get; set; }
     [MaxLength(20)] public string Size { get; set; } = "M";
     public Guid LaneId { get; set; }
     public int Position { get; set; }
@@ -48,6 +48,19 @@ public class CardComment
     public Guid UserId { get; set; }
     public string ContentMarkdown { get; set; } = string.Empty;
     public DateTimeOffset LastUpdatedAtUtc { get; set; }
+}
+
+public class Label
+{
+    public Guid Id { get; set; }
+    [MaxLength(80)] public string Name { get; set; } = string.Empty;
+    [MaxLength(20)] public string? Color { get; set; }
+}
+
+public class CardLabel
+{
+    public Guid CardId { get; set; }
+    public Guid LabelId { get; set; }
 }
 
 public class CardAttachment
