@@ -14,6 +14,10 @@ builder.Services.AddDbContext<BoardDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Board") ?? "Data Source=collaboard.db"));
 
 builder.Services.AddSingleton<BoardEventBroadcaster>();
+builder.Services.AddScoped<McpAuthService>();
+
+builder.Services.AddSingleton<BoardEventBroadcaster>();
+
 
 builder.Services
     .AddMcpServer()

@@ -8,19 +8,26 @@ using ModelContextProtocol.Server;
 namespace Collaboard.Api.Mcp;
 
 [McpServerToolType]
-public sealed class CardTools(BoardDbContext db, BoardEventBroadcaster broadcaster)
+public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEventBroadcaster broadcaster)
 {
     private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
     [McpServerTool(Name = "create_card", Destructive = false)]
     [Description("Create a new card on the kanban board.")]
     public async Task<string> CreateCardAsync(
+        [Description("Your auth key")] string authKey,
         [Description("The title/name of the card")] string name,
         [Description("The ID (guid) of the lane to place the card in")] Guid laneId,
         [Description("Optional markdown description")] string? descriptionMarkdown = null,
         [Description("Size: S, M, L, or XL. Defaults to M")] string? size = null,
         CancellationToken ct = default)
     {
+        var (user, error) = await auth.RequireUserAsync(authKey, ct);
+        if (error is not null)
+        {
+            return error;
+        }
+
         var validSizes = new[] { "S", "M", "L", "XL" };
         var cardSize = size ?? "M";
         if (!validSizes.Contains(cardSize))
@@ -48,8 +55,8 @@ public sealed class CardTools(BoardDbContext db, BoardEventBroadcaster broadcast
             Position = maxPosition + 10,
             CreatedAtUtc = now,
             LastUpdatedAtUtc = now,
-            CreatedByUserId = Guid.Empty,
-            LastUpdatedByUserId = Guid.Empty,
+            CreatedByUserId = user!.Id,
+            LastUpdatedByUserId = user.Id,
         };
         db.Cards.Add(card);
         await db.SaveChangesAsync(ct);
@@ -60,11 +67,18 @@ public sealed class CardTools(BoardDbContext db, BoardEventBroadcaster broadcast
     [McpServerTool(Name = "move_card", Destructive = false)]
     [Description("Move a card to a different lane and/or position (index) within that lane.")]
     public async Task<string> MoveCardAsync(
+        [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the card to move")] Guid cardId,
         [Description("The ID (guid) of the target lane")] Guid laneId,
         [Description("The 0-based index position in the target lane")] int index,
         CancellationToken ct = default)
     {
+        var (user, error) = await auth.RequireUserAsync(authKey, ct);
+        if (error is not null)
+        {
+            return error;
+        }
+
         var card = await db.Cards.FindAsync([cardId], ct);
         if (card is null)
         {
@@ -78,7 +92,6 @@ public sealed class CardTools(BoardDbContext db, BoardEventBroadcaster broadcast
 
         var sourceLaneId = card.LaneId;
 
-        // Load target lane cards excluding the card being moved
         var targetCards = await db.Cards
             .Where(c => c.LaneId == laneId && c.Id != cardId)
             .OrderBy(c => c.Position)
@@ -107,6 +120,7 @@ public sealed class CardTools(BoardDbContext db, BoardEventBroadcaster broadcast
             }
         }
 
+        card.LastUpdatedByUserId = user!.Id;
         card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
         broadcaster.Publish("board-updated");
@@ -116,12 +130,19 @@ public sealed class CardTools(BoardDbContext db, BoardEventBroadcaster broadcast
     [McpServerTool(Name = "update_card", Destructive = false)]
     [Description("Update a card's name, description, or size.")]
     public async Task<string> UpdateCardAsync(
+        [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the card to update")] Guid cardId,
         [Description("New name/title (optional)")] string? name = null,
         [Description("New markdown description (optional)")] string? descriptionMarkdown = null,
         [Description("New size: S, M, L, or XL (optional)")] string? size = null,
         CancellationToken ct = default)
     {
+        var (user, error) = await auth.RequireUserAsync(authKey, ct);
+        if (error is not null)
+        {
+            return error;
+        }
+
         var card = await db.Cards.FindAsync([cardId], ct);
         if (card is null)
         {
@@ -149,6 +170,7 @@ public sealed class CardTools(BoardDbContext db, BoardEventBroadcaster broadcast
             card.Size = size;
         }
 
+        card.LastUpdatedByUserId = user!.Id;
         card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
         broadcaster.Publish("board-updated");
@@ -158,9 +180,16 @@ public sealed class CardTools(BoardDbContext db, BoardEventBroadcaster broadcast
     [McpServerTool(Name = "get_card", ReadOnly = true, Destructive = false)]
     [Description("Get a single card by its ID, including its comments and labels.")]
     public async Task<string> GetCardAsync(
+        [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the card")] Guid cardId,
         CancellationToken ct = default)
     {
+        var (_, error) = await auth.RequireUserAsync(authKey, ct);
+        if (error is not null)
+        {
+            return error;
+        }
+
         var card = await db.Cards.FindAsync([cardId], ct);
         if (card is null)
         {

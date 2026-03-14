@@ -8,17 +8,24 @@ using ModelContextProtocol.Server;
 namespace Collaboard.Api.Mcp;
 
 [McpServerToolType]
-public sealed class CommentTools(BoardDbContext db, BoardEventBroadcaster broadcaster)
+public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEventBroadcaster broadcaster)
 {
     private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
     [McpServerTool(Name = "add_comment", Destructive = false)]
     [Description("Add a comment to a card.")]
     public async Task<string> AddCommentAsync(
+        [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the card to comment on")] Guid cardId,
         [Description("The comment text (Markdown supported)")] string content,
         CancellationToken ct = default)
     {
+        var (user, error) = await auth.RequireUserAsync(authKey, ct);
+        if (error is not null)
+        {
+            return error;
+        }
+
         if (!await db.Cards.AnyAsync(c => c.Id == cardId, ct))
         {
             return "Error: Card not found.";
@@ -28,7 +35,7 @@ public sealed class CommentTools(BoardDbContext db, BoardEventBroadcaster broadc
         {
             Id = Guid.NewGuid(),
             CardId = cardId,
-            UserId = Guid.Empty,
+            UserId = user!.Id,
             ContentMarkdown = content,
             LastUpdatedAtUtc = DateTimeOffset.UtcNow,
         };
@@ -41,9 +48,16 @@ public sealed class CommentTools(BoardDbContext db, BoardEventBroadcaster broadc
     [McpServerTool(Name = "get_comments", ReadOnly = true, Destructive = false)]
     [Description("Get all comments on a card.")]
     public async Task<string> GetCommentsAsync(
+        [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the card")] Guid cardId,
         CancellationToken ct = default)
     {
+        var (_, error) = await auth.RequireUserAsync(authKey, ct);
+        if (error is not null)
+        {
+            return error;
+        }
+
         if (!await db.Cards.AnyAsync(c => c.Id == cardId, ct))
         {
             return "Error: Card not found.";
