@@ -14,11 +14,12 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth)
     [McpServerTool(Name = "add_comment", Destructive = false)]
     [Description("Add a comment to a card.")]
     public async Task<string> AddCommentAsync(
+        [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the card to comment on")] Guid cardId,
         [Description("The comment text (Markdown supported)")] string content,
         CancellationToken ct = default)
     {
-        var (user, error) = await auth.RequireUserAsync(ct);
+        var (user, error) = await auth.RequireUserAsync(authKey, ct);
         if (error is not null)
         {
             return error;
@@ -45,10 +46,11 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth)
     [McpServerTool(Name = "get_comments", ReadOnly = true, Destructive = false)]
     [Description("Get all comments on a card.")]
     public async Task<string> GetCommentsAsync(
+        [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the card")] Guid cardId,
         CancellationToken ct = default)
     {
-        var (user, error) = await auth.RequireUserAsync(ct);
+        var (_, error) = await auth.RequireUserAsync(authKey, ct);
         if (error is not null)
         {
             return error;

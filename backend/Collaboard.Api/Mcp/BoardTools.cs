@@ -13,9 +13,11 @@ public sealed class BoardTools(BoardDbContext db, McpAuthService auth)
 
     [McpServerTool(Name = "get_board", ReadOnly = true, Destructive = false)]
     [Description("Get the full kanban board including all lanes and their cards, ordered by position.")]
-    public async Task<string> GetBoardAsync(CancellationToken ct)
+    public async Task<string> GetBoardAsync(
+        [Description("Your auth key (X-User-Key)")] string authKey,
+        CancellationToken ct = default)
     {
-        var (user, error) = await auth.RequireUserAsync(ct);
+        var (_, error) = await auth.RequireUserAsync(authKey, ct);
         if (error is not null)
         {
             return error;
@@ -28,9 +30,11 @@ public sealed class BoardTools(BoardDbContext db, McpAuthService auth)
 
     [McpServerTool(Name = "get_lanes", ReadOnly = true, Destructive = false)]
     [Description("Get all lanes (columns) on the board, ordered by position.")]
-    public async Task<string> GetLanesAsync(CancellationToken ct)
+    public async Task<string> GetLanesAsync(
+        [Description("Your auth key (X-User-Key)")] string authKey,
+        CancellationToken ct = default)
     {
-        var (user, error) = await auth.RequireUserAsync(ct);
+        var (_, error) = await auth.RequireUserAsync(authKey, ct);
         if (error is not null)
         {
             return error;

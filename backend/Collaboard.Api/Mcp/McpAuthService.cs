@@ -1,29 +1,21 @@
-using Collaboard.Api.Auth;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace Collaboard.Api.Mcp;
 
-public class McpAuthService(IHttpContextAccessor httpContextAccessor, BoardDbContext db)
+public class McpAuthService(BoardDbContext db)
 {
-    public async Task<(BoardUser? User, string? Error)> RequireUserAsync(CancellationToken ct = default)
+    public async Task<(BoardUser? User, string? Error)> RequireUserAsync(string authKey, CancellationToken ct = default)
     {
-        var httpContext = httpContextAccessor.HttpContext;
-        if (httpContext is null)
+        if (string.IsNullOrWhiteSpace(authKey))
         {
-            return (null, "Error: No HTTP context available.");
+            return (null, "Error: authKey is required.");
         }
 
-        var userKey = httpContext.Request.Headers[AuthExtensions.UserKeyHeader].ToString();
-        if (string.IsNullOrWhiteSpace(userKey))
-        {
-            return (null, "Error: Authentication required. Provide X-User-Key header.");
-        }
-
-        var user = await db.Users.SingleOrDefaultAsync(x => x.AuthKey == userKey && x.IsActive, ct);
+        var user = await db.Users.SingleOrDefaultAsync(x => x.AuthKey == authKey && x.IsActive, ct);
         if (user is null)
         {
-            return (null, "Error: Invalid or inactive user key.");
+            return (null, "Error: Invalid or inactive auth key.");
         }
 
         return (user, null);

@@ -12,7 +12,6 @@ builder.Services.AddCors();
 builder.Services.AddDbContext<BoardDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Board") ?? "Data Source=collaboard.db"));
 
-builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<McpAuthService>();
 
 builder.Services
