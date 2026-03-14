@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
+using Collaboard.Api.Events;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
 using ModelContextProtocol.Server;
@@ -7,7 +8,7 @@ using ModelContextProtocol.Server;
 namespace Collaboard.Api.Mcp;
 
 [McpServerToolType]
-public sealed class LabelTools(BoardDbContext db, McpAuthService auth)
+public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEventBroadcaster broadcaster)
 {
     private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
@@ -58,6 +59,7 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth)
 
         db.CardLabels.Add(new CardLabel { CardId = cardId, LabelId = labelId });
         await db.SaveChangesAsync(ct);
+        broadcaster.Publish("board-updated");
         return "Label added successfully.";
     }
 
@@ -83,6 +85,7 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth)
 
         db.CardLabels.Remove(cardLabel);
         await db.SaveChangesAsync(ct);
+        broadcaster.Publish("board-updated");
         return "Label removed successfully.";
     }
 }

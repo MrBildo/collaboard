@@ -1,5 +1,6 @@
 using Collaboard.Api;
 using Collaboard.Api.Endpoints;
+using Collaboard.Api.Events;
 using Collaboard.Api.Mcp;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
@@ -12,7 +13,11 @@ builder.Services.AddCors();
 builder.Services.AddDbContext<BoardDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Board") ?? "Data Source=collaboard.db"));
 
+builder.Services.AddSingleton<BoardEventBroadcaster>();
 builder.Services.AddScoped<McpAuthService>();
+
+builder.Services.AddSingleton<BoardEventBroadcaster>();
+
 
 builder.Services
     .AddMcpServer()
@@ -25,6 +30,8 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
     await db.Database.EnsureCreatedAsync();
+    await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode = 'wal';");
+    await db.Database.ExecuteSqlRawAsync("PRAGMA busy_timeout = 5000;");
     if (!await db.Users.AnyAsync())
     {
         var adminAuthKey = app.Configuration.GetValue<string>("Admin:AuthKey")
@@ -66,6 +73,8 @@ api.MapCardEndpoints();
 api.MapLabelEndpoints();
 api.MapCommentEndpoints();
 api.MapAttachmentEndpoints();
+
+app.MapEventEndpoints();
 
 app.MapMcp();
 
