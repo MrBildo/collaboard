@@ -85,7 +85,7 @@ public class CommentEndpointTests(CollaboardApiFactory factory) : IClassFixture<
         // Arrange
         var cardId = await CreateCardAsync();
         var human = await TestAuthHelper.CreateUserAsync(_client, _factory, "Comment Owner", UserRole.HumanUser);
-        TestAuthHelper.SetAuth(_client, CollaboardApiFactory.TestApiKey, human.AuthKey);
+        TestAuthHelper.SetAuth(_client, human.AuthKey);
 
         var payload = new { contentMarkdown = "My comment to delete." };
         var createResponse = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", payload);
@@ -106,7 +106,7 @@ public class CommentEndpointTests(CollaboardApiFactory factory) : IClassFixture<
         // Arrange
         var cardId = await CreateCardAsync();
         var human = await TestAuthHelper.CreateUserAsync(_client, _factory, "Comment Author", UserRole.HumanUser);
-        TestAuthHelper.SetAuth(_client, CollaboardApiFactory.TestApiKey, human.AuthKey);
+        TestAuthHelper.SetAuth(_client, human.AuthKey);
 
         var payload = new { contentMarkdown = "Someone else's comment." };
         var createResponse = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", payload);
@@ -129,7 +129,7 @@ public class CommentEndpointTests(CollaboardApiFactory factory) : IClassFixture<
         // Arrange
         var cardId = await CreateCardAsync();
         var author = await TestAuthHelper.CreateUserAsync(_client, _factory, "Comment Author 2", UserRole.HumanUser);
-        TestAuthHelper.SetAuth(_client, CollaboardApiFactory.TestApiKey, author.AuthKey);
+        TestAuthHelper.SetAuth(_client, author.AuthKey);
 
         var payload = new { contentMarkdown = "Author's comment." };
         var createResponse = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", payload);
@@ -138,7 +138,7 @@ public class CommentEndpointTests(CollaboardApiFactory factory) : IClassFixture<
         var commentId = comment.GetProperty("id").GetGuid();
 
         var otherUser = await TestAuthHelper.CreateUserAsync(_client, _factory, "Other User", UserRole.HumanUser);
-        TestAuthHelper.SetAuth(_client, CollaboardApiFactory.TestApiKey, otherUser.AuthKey);
+        TestAuthHelper.SetAuth(_client, otherUser.AuthKey);
 
         // Act
         var response = await _client.DeleteAsync($"/api/v1/comments/{commentId}");

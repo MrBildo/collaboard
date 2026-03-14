@@ -15,6 +15,7 @@ public class BoardUser
     [MaxLength(26)] public string AuthKey { get; set; } = string.Empty;
     [MaxLength(80)] public string Name { get; set; } = string.Empty;
     public UserRole Role { get; set; }
+    public bool IsActive { get; set; } = true;
 }
 
 public class Lane

@@ -36,7 +36,7 @@ public class LaneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     {
         // Arrange
         var user = await TestAuthHelper.CreateUserAsync(_client, _factory, "HumanLaneTester", UserRole.HumanUser);
-        TestAuthHelper.SetAuth(_client, CollaboardApiFactory.TestApiKey, user.AuthKey);
+        TestAuthHelper.SetAuth(_client, user.AuthKey);
         var request = new { name = "Blocked", position = 4 };
 
         // Act
@@ -111,7 +111,7 @@ public class LaneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     {
         // Arrange
         var user = await TestAuthHelper.CreateUserAsync(_client, _factory, "HumanDeleter", UserRole.HumanUser);
-        TestAuthHelper.SetAuth(_client, CollaboardApiFactory.TestApiKey, user.AuthKey);
+        TestAuthHelper.SetAuth(_client, user.AuthKey);
 
         var boardResponse = await _client.GetAsync("/api/v1/board");
         var board = await boardResponse.Content.ReadFromJsonAsync<JsonElement>();

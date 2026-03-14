@@ -158,7 +158,7 @@ public class AttachmentEndpointTests(CollaboardApiFactory factory) : IClassFixtu
         var cardId = await CreateCardAsync();
         var attachmentId = await UploadAttachmentAsync(cardId);
         var human = await TestAuthHelper.CreateUserAsync(_client, _factory, "Human Deleter", UserRole.HumanUser);
-        TestAuthHelper.SetAuth(_client, CollaboardApiFactory.TestApiKey, human.AuthKey);
+        TestAuthHelper.SetAuth(_client, human.AuthKey);
 
         // Act
         var response = await _client.DeleteAsync($"/api/v1/attachments/{attachmentId}");
@@ -174,7 +174,7 @@ public class AttachmentEndpointTests(CollaboardApiFactory factory) : IClassFixtu
         var cardId = await CreateCardAsync();
         var attachmentId = await UploadAttachmentAsync(cardId);
         var agent = await TestAuthHelper.CreateUserAsync(_client, _factory, "Agent Forbidden Delete", UserRole.AgentUser);
-        TestAuthHelper.SetAuth(_client, CollaboardApiFactory.TestApiKey, agent.AuthKey);
+        TestAuthHelper.SetAuth(_client, agent.AuthKey);
 
         // Act
         var response = await _client.DeleteAsync($"/api/v1/attachments/{attachmentId}");

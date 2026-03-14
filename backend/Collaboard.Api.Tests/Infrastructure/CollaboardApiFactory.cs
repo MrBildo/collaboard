@@ -13,7 +13,7 @@ public class CollaboardApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
 {
     private SqliteConnection _connection = null!;
 
-    public const string TestApiKey = "test-api-key-for-integration";
+    public const string TestAdminAuthKey = "test-admin-auth-key-12345678";
     public string AdminAuthKey { get; private set; } = string.Empty;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -22,7 +22,7 @@ public class CollaboardApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Security:ApiKey"] = TestApiKey,
+                ["Admin:AuthKey"] = TestAdminAuthKey,
             });
         });
 

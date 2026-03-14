@@ -20,11 +20,14 @@ using (var scope = app.Services.CreateScope())
     await db.Database.EnsureCreatedAsync();
     if (!await db.Users.AnyAsync())
     {
+        var adminAuthKey = app.Configuration.GetValue<string>("Admin:AuthKey")
+            ?? Ulid.NewUlid().ToString();
+
         db.Users.Add(new BoardUser
         {
             Id = Guid.NewGuid(),
             Name = "Admin",
-            AuthKey = Ulid.NewUlid().ToString(),
+            AuthKey = adminAuthKey,
             Role = UserRole.Administrator,
         });
 
@@ -34,6 +37,8 @@ using (var scope = app.Services.CreateScope())
             new Lane { Id = Guid.NewGuid(), Name = "Done", Position = 2 }
         );
         await db.SaveChangesAsync();
+
+        app.Logger.LogInformation("Admin user seeded with auth key: {AuthKey}", adminAuthKey);
     }
 }
 

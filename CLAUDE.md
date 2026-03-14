@@ -7,7 +7,7 @@ Kanban board web application — .NET Minimal API backend + React SPA frontend. 
 **Backend**
 - .NET 10 / C# — ASP.NET Minimal API (Program.cs + endpoint group classes in `Endpoints/`)
 - Entity Framework Core — SQLite provider
-- Auth: custom header-based (`X-Api-Key` + `X-User-Key`), no ASP.NET auth middleware
+- Auth: custom header-based (`X-User-Key` only), no ASP.NET auth middleware
 
 **Frontend**
 - React 18 + TypeScript
@@ -63,9 +63,10 @@ Vite dev server on port 5173 with proxy to localhost:58343 (requires API running
 ## Auth Model
 
 Header-based authentication — no ASP.NET auth middleware:
-- `X-Api-Key` — shared ULID secret (configured in appsettings, gitignored)
-- `X-User-Key` — per-user ULID auth key (stored in `BoardUser` entity)
+- `X-User-Key` — per-user ULID auth key (stored in `BoardUser` entity), sole auth header
 - Roles: `Administrator`, `HumanUser`, `AgentUser`
+- `IsActive` flag on `BoardUser` — deactivated users get 401
+- Admin seed: uses `Admin:AuthKey` from config if set, else generates ULID and logs it
 - **Use `Results.StatusCode(403)` not `Results.Forbid()`** (no auth middleware registered)
 - `AgentUser` cannot delete cards or attachments
 

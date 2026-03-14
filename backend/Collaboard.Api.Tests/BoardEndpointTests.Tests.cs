@@ -41,7 +41,7 @@ public class BoardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
     {
         // Arrange
         var human = await TestAuthHelper.CreateUserAsync(_client, _factory, "Board Human", UserRole.HumanUser);
-        TestAuthHelper.SetAuth(_client, CollaboardApiFactory.TestApiKey, human.AuthKey);
+        TestAuthHelper.SetAuth(_client, human.AuthKey);
 
         // Act
         var response = await _client.GetAsync("/api/v1/board");
@@ -55,7 +55,7 @@ public class BoardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
     {
         // Arrange
         var agent = await TestAuthHelper.CreateUserAsync(_client, _factory, "Board Agent", UserRole.AgentUser);
-        TestAuthHelper.SetAuth(_client, CollaboardApiFactory.TestApiKey, agent.AuthKey);
+        TestAuthHelper.SetAuth(_client, agent.AuthKey);
 
         // Act
         var response = await _client.GetAsync("/api/v1/board");
@@ -68,7 +68,6 @@ public class BoardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
     public async Task GetBoard_Unauthenticated_Returns401()
     {
         // Arrange
-        _client.DefaultRequestHeaders.Remove("X-Api-Key");
         _client.DefaultRequestHeaders.Remove("X-User-Key");
 
         // Act
