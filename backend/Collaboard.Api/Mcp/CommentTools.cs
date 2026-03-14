@@ -65,8 +65,8 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
 
         var comments = await db.Comments
             .Where(c => c.CardId == cardId)
-            .OrderBy(c => c.LastUpdatedAtUtc)
             .ToListAsync(ct);
+        comments.Sort((a, b) => a.LastUpdatedAtUtc.CompareTo(b.LastUpdatedAtUtc));
 
         return JsonSerializer.Serialize(comments, _jsonOptions);
     }
