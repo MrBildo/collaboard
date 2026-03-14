@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Dialog,
@@ -36,12 +36,13 @@ export function CreateCardDialog({ lanes, open, onOpenChange, defaultLaneId }: C
   const [description, setDescription] = useState('');
   const [size, setSize] = useState('M');
   const [laneId, setLaneId] = useState(defaultLaneId ?? lanes[0]?.id ?? '');
-
-  useEffect(() => {
+  const [prevOpen, setPrevOpen] = useState(false);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (open) {
       setLaneId(defaultLaneId ?? lanes[0]?.id ?? '');
     }
-  }, [open, defaultLaneId, lanes]);
+  }
 
   // Fetch board data to calculate next position
   const boardQuery = useQuery({

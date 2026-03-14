@@ -2,7 +2,7 @@ import { DndContext, DragEndEvent, DragOverEvent, DragOverlay, DragStartEvent, M
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { AdminPanel } from '@/components/AdminPanel';
 import { CardDetailSheet } from '@/components/CardDetailSheet';
 import { CreateCardDialog } from '@/components/CreateCardDialog';
@@ -14,8 +14,6 @@ import { isLoggedIn, setUserKey, clearUserKey } from '@/lib/auth';
 import { useBoardEvents } from '@/lib/useBoardEvents';
 import { cn } from '@/lib/utils';
 import type { CardItem, Lane } from '@/types';
-
-type BoardData = { lanes: Lane[]; cards: CardItem[] };
 
 export function App() {
   const queryClient = useQueryClient();
@@ -61,18 +59,19 @@ export function App() {
   const [createLaneId, setCreateLaneId] = useState<string | undefined>(undefined);
   const [adminOpen, setAdminOpen] = useState(false);
 
-  const dragPhaseRef = useRef<'idle' | 'dragging' | 'settling'>('idle');
+  const [dragPhase, setDragPhase] = useState<'idle' | 'dragging' | 'settling'>('idle');
 
   const lanes = useMemo(() => boardQuery.data?.lanes ?? [], [boardQuery.data]);
   const serverCards = useMemo(() => boardQuery.data?.cards ?? [], [boardQuery.data]);
 
   const [localCards, setLocalCards] = useState<CardItem[]>([]);
-
-  useEffect(() => {
-    if (dragPhaseRef.current === 'idle' && serverCards.length > 0) {
+  const [prevServerCards, setPrevServerCards] = useState(serverCards);
+  if (serverCards !== prevServerCards) {
+    setPrevServerCards(serverCards);
+    if (dragPhase === 'idle' && serverCards.length > 0) {
       setLocalCards([...serverCards].sort((a, b) => a.position - b.position));
     }
-  }, [serverCards]);
+  }
 
   const laneIds = useMemo(() => new Set(lanes.map((l) => l.id)), [lanes]);
 
@@ -96,12 +95,12 @@ export function App() {
       queryClient.invalidateQueries({ queryKey: ['board'] });
     },
     onSettled: () => {
-      dragPhaseRef.current = 'idle';
+      setDragPhase('idle');
     },
   });
 
   const onDragStart = (event: DragStartEvent) => {
-    dragPhaseRef.current = 'dragging';
+    setDragPhase('dragging');
     setActiveCardId(String(event.active.id));
   };
 
@@ -168,7 +167,7 @@ export function App() {
 
     if (!over) {
       // Cancel — reset local cards from server
-      dragPhaseRef.current = 'idle';
+      setDragPhase('idle');
       setLocalCards([...serverCards].sort((a, b) => a.position - b.position));
       setActiveCardId(null);
       return;
@@ -177,7 +176,7 @@ export function App() {
     // Compute target lane and index from localCards (onDragOver already positioned it)
     const card = localCards.find((c) => c.id === cardId);
     if (!card) {
-      dragPhaseRef.current = 'idle';
+      setDragPhase('idle');
       setActiveCardId(null);
       return;
     }
@@ -186,7 +185,7 @@ export function App() {
     const laneCards = localCards.filter((c) => c.laneId === targetLaneId);
     const index = laneCards.findIndex((c) => c.id === cardId);
 
-    dragPhaseRef.current = 'settling';
+    setDragPhase('settling');
     reorderMutation.mutate({ cardId, laneId: targetLaneId, index: index === -1 ? 0 : index });
     setActiveCardId(null);
   };
