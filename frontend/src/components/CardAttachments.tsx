@@ -6,9 +6,11 @@ import type { AttachmentMeta } from '@/types';
 
 type CardAttachmentsProps = {
   cardId: string;
+  currentUserId?: string;
+  currentUserRole?: number;
 };
 
-export function CardAttachments({ cardId }: CardAttachmentsProps) {
+export function CardAttachments({ cardId, currentUserId, currentUserRole }: CardAttachmentsProps) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -102,14 +104,16 @@ export function CardAttachments({ cardId }: CardAttachmentsProps) {
             <Button size="xs" variant="outline" onClick={() => handleDownload(attachment)}>
               Download
             </Button>
-            <Button
-              size="xs"
-              variant="destructive"
-              onClick={() => handleDelete(attachment.id)}
-              disabled={deleteMutation.isPending}
-            >
-              {confirmDeleteId === attachment.id ? 'Confirm' : 'Delete'}
-            </Button>
+            {(currentUserRole === 0 || attachment.addedByUserId === currentUserId) && (
+              <Button
+                size="xs"
+                variant="destructive"
+                onClick={() => handleDelete(attachment.id)}
+                disabled={deleteMutation.isPending}
+              >
+                {confirmDeleteId === attachment.id ? 'Confirm' : 'Delete'}
+              </Button>
+            )}
           </div>
         </div>
       ))}

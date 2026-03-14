@@ -238,7 +238,7 @@ function CardDetailForm({
           {/* Attachments */}
           <div>
             <Label className="mb-2 text-xs text-muted-foreground">Attachments</Label>
-            <CardAttachments cardId={card.id} />
+            <CardAttachments cardId={card.id} currentUserId={currentUserId} currentUserRole={currentUserRole} />
           </div>
 
           {/* Metadata */}
@@ -251,7 +251,7 @@ function CardDetailForm({
         {/* Right column — comments */}
         <div className="flex w-[340px] shrink-0 flex-col overflow-y-auto px-5 py-4">
           <h3 className="mb-3 text-sm font-semibold">Comments</h3>
-          <CardComments cardId={card.id} />
+          <CardComments cardId={card.id} currentUserId={currentUserId} currentUserRole={currentUserRole} />
         </div>
       </div>
 
