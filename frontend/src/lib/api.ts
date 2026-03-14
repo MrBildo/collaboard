@@ -37,7 +37,6 @@ export async function createCard(card: {
   name: string;
   descriptionMarkdown?: string;
   size?: string;
-  blocked?: string | null;
   laneId: string;
   position: number;
 }): Promise<CardItem> {
