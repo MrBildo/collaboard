@@ -74,7 +74,7 @@ internal static class AttachmentEndpoints
 
         group.MapDelete("/attachments/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, BoardEventBroadcaster broadcaster) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.HumanUser);
+            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.HumanUser, UserRole.AgentUser);
             if (forbidden is not null)
             {
                 return forbidden;
@@ -84,6 +84,12 @@ internal static class AttachmentEndpoints
             if (attachment is null)
             {
                 return Results.NotFound();
+            }
+
+            var user = http.CurrentUser();
+            if (attachment.AddedByUserId != user.Id && user.Role != UserRole.Administrator)
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
 
             db.Attachments.Remove(attachment);
