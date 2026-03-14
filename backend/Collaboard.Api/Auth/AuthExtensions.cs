@@ -6,20 +6,14 @@ namespace Collaboard.Api.Auth;
 
 public static class AuthExtensions
 {
-    public const string ApiKeyHeader = "X-Api-Key";
     public const string UserKeyHeader = "X-User-Key";
 
     public static async Task<BoardUser?> ResolveUserAsync(this HttpContext context, BoardDbContext db)
     {
-        var apiKey = context.Request.Headers[ApiKeyHeader].ToString();
-        var expectedApiKey = context.RequestServices.GetRequiredService<IConfiguration>().GetValue<string>("Security:ApiKey");
-        if (string.IsNullOrWhiteSpace(apiKey) || !string.Equals(apiKey, expectedApiKey, StringComparison.Ordinal))
-        {
-            return null;
-        }
-
         var userKey = context.Request.Headers[UserKeyHeader].ToString();
-        return string.IsNullOrWhiteSpace(userKey) ? null : await db.Users.SingleOrDefaultAsync(x => x.AuthKey == userKey);
+        return string.IsNullOrWhiteSpace(userKey)
+            ? null
+            : await db.Users.SingleOrDefaultAsync(x => x.AuthKey == userKey && x.IsActive);
     }
 
     public static async Task<IResult?> RequireRoleAsync(this HttpContext context, BoardDbContext db, params UserRole[] roles)

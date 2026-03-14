@@ -3,13 +3,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Collaboard.Api;
 
-public sealed class BoardDbContext(DbContextOptions<BoardDbContext> options) : DbContext(options)
+public class BoardDbContext(DbContextOptions<BoardDbContext> options) : DbContext(options)
 {
     public DbSet<BoardUser> Users => Set<BoardUser>();
     public DbSet<Lane> Lanes => Set<Lane>();
     public DbSet<CardItem> Cards => Set<CardItem>();
     public DbSet<CardComment> Comments => Set<CardComment>();
     public DbSet<CardAttachment> Attachments => Set<CardAttachment>();
+    public DbSet<Label> Labels => Set<Label>();
+    public DbSet<CardLabel> CardLabels => Set<CardLabel>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -19,5 +21,7 @@ public sealed class BoardDbContext(DbContextOptions<BoardDbContext> options) : D
         builder.Entity<CardItem>().HasIndex(x => new { x.LaneId, x.Position }).IsUnique();
         builder.Entity<CardComment>().HasIndex(x => new { x.CardId, x.LastUpdatedAtUtc });
         builder.Entity<CardAttachment>().HasIndex(x => x.CardId);
+        builder.Entity<Label>().HasIndex(x => x.Name).IsUnique();
+        builder.Entity<CardLabel>().HasKey(x => new { x.CardId, x.LabelId });
     }
 }

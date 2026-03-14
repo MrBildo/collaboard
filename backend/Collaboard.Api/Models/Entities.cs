@@ -9,28 +9,29 @@ public enum UserRole
     AgentUser,
 }
 
-public sealed class BoardUser
+public class BoardUser
 {
     public Guid Id { get; set; }
     [MaxLength(26)] public string AuthKey { get; set; } = string.Empty;
     [MaxLength(80)] public string Name { get; set; } = string.Empty;
     public UserRole Role { get; set; }
+    public bool IsActive { get; set; } = true;
 }
 
-public sealed class Lane
+public class Lane
 {
     public Guid Id { get; set; }
     [MaxLength(80)] public string Name { get; set; } = string.Empty;
     public int Position { get; set; }
 }
 
-public sealed class CardItem
+public class CardItem
 {
     public Guid Id { get; set; }
     public long Number { get; set; }
     [MaxLength(200)] public string Name { get; set; } = string.Empty;
     public string DescriptionMarkdown { get; set; } = string.Empty;
-    [MaxLength(40)] public string? Status { get; set; }
+    public string? Blocked { get; set; }
     [MaxLength(20)] public string Size { get; set; } = "M";
     public Guid LaneId { get; set; }
     public int Position { get; set; }
@@ -40,7 +41,7 @@ public sealed class CardItem
     public DateTimeOffset LastUpdatedAtUtc { get; set; }
 }
 
-public sealed class CardComment
+public class CardComment
 {
     public Guid Id { get; set; }
     public Guid CardId { get; set; }
@@ -49,7 +50,20 @@ public sealed class CardComment
     public DateTimeOffset LastUpdatedAtUtc { get; set; }
 }
 
-public sealed class CardAttachment
+public class Label
+{
+    public Guid Id { get; set; }
+    [MaxLength(80)] public string Name { get; set; } = string.Empty;
+    [MaxLength(20)] public string? Color { get; set; }
+}
+
+public class CardLabel
+{
+    public Guid CardId { get; set; }
+    public Guid LabelId { get; set; }
+}
+
+public class CardAttachment
 {
     public Guid Id { get; set; }
     public Guid CardId { get; set; }

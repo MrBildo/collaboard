@@ -3,25 +3,20 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Collaboard.Api.Models;
 using Collaboard.Api.Tests.Infrastructure;
+using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-public class AttachmentEndpointTests : IClassFixture<CollaboardApiFactory>
+public class AttachmentEndpointTests(CollaboardApiFactory factory) : IClassFixture<CollaboardApiFactory>
 {
-    private readonly CollaboardApiFactory _factory;
-    private readonly HttpClient _client;
+    private readonly CollaboardApiFactory _factory = factory;
+    private readonly HttpClient _client = factory.CreateClient();
     private static int _nextPosition = 3000;
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    private static readonly JsonSerializerOptions _jsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
-
-    public AttachmentEndpointTests(CollaboardApiFactory factory)
-    {
-        _factory = factory;
-        _client = factory.CreateClient();
-    }
 
     private async Task<Guid> CreateCardAsync()
     {
@@ -29,7 +24,7 @@ public class AttachmentEndpointTests : IClassFixture<CollaboardApiFactory>
 
         var boardResponse = await _client.GetAsync("/api/v1/board");
         boardResponse.EnsureSuccessStatusCode();
-        var board = await boardResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        var board = await boardResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
         var laneId = board.GetProperty("lanes")[0].GetProperty("id").GetGuid();
 
         var cardPayload = new
@@ -42,7 +37,7 @@ public class AttachmentEndpointTests : IClassFixture<CollaboardApiFactory>
 
         var cardResponse = await _client.PostAsJsonAsync("/api/v1/cards", cardPayload);
         cardResponse.EnsureSuccessStatusCode();
-        var card = await cardResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        var card = await cardResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
         return card.GetProperty("id").GetGuid();
     }
 
@@ -61,8 +56,49 @@ public class AttachmentEndpointTests : IClassFixture<CollaboardApiFactory>
         var upload = CreateFileUpload();
         var response = await _client.PostAsync($"/api/v1/cards/{cardId}/attachments", upload);
         response.EnsureSuccessStatusCode();
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
         return json.GetProperty("id").GetGuid();
+    }
+
+    [Fact]
+    public async Task GetCardAttachments_ReturnsMetadataWithoutPayload()
+    {
+        // Arrange
+        var cardId = await CreateCardAsync();
+        await UploadAttachmentAsync(cardId);
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/cards/{cardId}/attachments");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var attachments = await response.Content.ReadFromJsonAsync<JsonElement[]>(_jsonOptions);
+        attachments.ShouldNotBeNull();
+        attachments.ShouldNotBeEmpty();
+
+        var first = attachments[0];
+        first.TryGetProperty("id", out _).ShouldBeTrue();
+        first.TryGetProperty("fileName", out _).ShouldBeTrue();
+        first.TryGetProperty("contentType", out _).ShouldBeTrue();
+        first.TryGetProperty("addedByUserId", out _).ShouldBeTrue();
+        first.TryGetProperty("addedAtUtc", out _).ShouldBeTrue();
+        first.TryGetProperty("payload", out _).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task GetCardAttachments_NonexistentCard_Returns404()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var fakeCardId = Guid.NewGuid();
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/cards/{fakeCardId}/attachments");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]
@@ -77,12 +113,12 @@ public class AttachmentEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.PostAsync($"/api/v1/cards/{cardId}/attachments", upload);
 
         // Assert
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
 
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
-        Assert.True(json.TryGetProperty("id", out var idProp));
-        Assert.NotEqual(Guid.Empty, idProp.GetGuid());
-        Assert.Equal("document.bin", json.GetProperty("fileName").GetString());
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        json.TryGetProperty("id", out var idProp).ShouldBeTrue();
+        idProp.GetGuid().ShouldNotBe(Guid.Empty);
+        json.GetProperty("fileName").GetString().ShouldBe("document.bin");
     }
 
     [Fact]
@@ -97,7 +133,7 @@ public class AttachmentEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.PostAsync($"/api/v1/cards/{fakeCardId}/attachments", upload);
 
         // Assert
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]
@@ -111,20 +147,20 @@ public class AttachmentEndpointTests : IClassFixture<CollaboardApiFactory>
 
         var uploadResponse = await _client.PostAsync($"/api/v1/cards/{cardId}/attachments", upload);
         uploadResponse.EnsureSuccessStatusCode();
-        var uploadJson = await uploadResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        var uploadJson = await uploadResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
         var attachmentId = uploadJson.GetProperty("id").GetGuid();
 
         // Act
         var response = await _client.GetAsync($"/api/v1/attachments/{attachmentId}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var downloadedBytes = await response.Content.ReadAsByteArrayAsync();
-        Assert.Equal(fileBytes, downloadedBytes);
-        Assert.Equal("application/octet-stream", response.Content.Headers.ContentType?.MediaType);
-        Assert.NotNull(response.Content.Headers.ContentDisposition);
-        Assert.Contains("payload.bin", response.Content.Headers.ContentDisposition.ToString());
+        downloadedBytes.ShouldBe(fileBytes);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/octet-stream");
+        response.Content.Headers.ContentDisposition.ShouldNotBeNull();
+        response.Content.Headers.ContentDisposition.ToString().ShouldContain("payload.bin");
     }
 
     [Fact]
@@ -138,7 +174,7 @@ public class AttachmentEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.GetAsync($"/api/v1/attachments/{fakeId}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]
@@ -153,7 +189,7 @@ public class AttachmentEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.DeleteAsync($"/api/v1/attachments/{attachmentId}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
     }
 
     [Fact]
@@ -163,13 +199,13 @@ public class AttachmentEndpointTests : IClassFixture<CollaboardApiFactory>
         var cardId = await CreateCardAsync();
         var attachmentId = await UploadAttachmentAsync(cardId);
         var human = await TestAuthHelper.CreateUserAsync(_client, _factory, "Human Deleter", UserRole.HumanUser);
-        TestAuthHelper.SetAuth(_client, CollaboardApiFactory.TestApiKey, human.AuthKey);
+        TestAuthHelper.SetAuth(_client, human.AuthKey);
 
         // Act
         var response = await _client.DeleteAsync($"/api/v1/attachments/{attachmentId}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
     }
 
     [Fact]
@@ -179,13 +215,13 @@ public class AttachmentEndpointTests : IClassFixture<CollaboardApiFactory>
         var cardId = await CreateCardAsync();
         var attachmentId = await UploadAttachmentAsync(cardId);
         var agent = await TestAuthHelper.CreateUserAsync(_client, _factory, "Agent Forbidden Delete", UserRole.AgentUser);
-        TestAuthHelper.SetAuth(_client, CollaboardApiFactory.TestApiKey, agent.AuthKey);
+        TestAuthHelper.SetAuth(_client, agent.AuthKey);
 
         // Act
         var response = await _client.DeleteAsync($"/api/v1/attachments/{attachmentId}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
     [Fact]
@@ -199,6 +235,6 @@ public class AttachmentEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.DeleteAsync($"/api/v1/attachments/{fakeId}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 }

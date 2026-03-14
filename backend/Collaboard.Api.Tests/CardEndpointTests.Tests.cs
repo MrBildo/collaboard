@@ -3,21 +3,16 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Collaboard.Api.Models;
 using Collaboard.Api.Tests.Infrastructure;
+using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
+public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<CollaboardApiFactory>
 {
     private static int _nextPosition = 1000;
 
-    private readonly CollaboardApiFactory _factory;
-    private readonly HttpClient _client;
-
-    public CardEndpointTests(CollaboardApiFactory factory)
-    {
-        _factory = factory;
-        _client = factory.CreateClient();
-    }
+    private readonly CollaboardApiFactory _factory = factory;
+    private readonly HttpClient _client = factory.CreateClient();
 
     private static int NextPosition() => Interlocked.Increment(ref _nextPosition);
 
@@ -38,18 +33,90 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
     }
 
     [Fact]
+    public async Task GetCards_ReturnsAllCards()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        // Create a card to ensure at least one exists
+        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+        {
+            name = "GetCards Test Card",
+            descriptionMarkdown = "",
+            size = "M",
+            laneId,
+            position = NextPosition()
+        });
+        createResponse.EnsureSuccessStatusCode();
+
+        // Act
+        var response = await _client.GetAsync("/api/v1/cards");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+        cards.ShouldNotBeNull();
+        cards.ShouldNotBeEmpty();
+    }
+
+    [Fact]
+    public async Task GetCardById_Returns200()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+        {
+            name = "GetById Card",
+            descriptionMarkdown = "Find me",
+            size = "S",
+            laneId,
+            position = NextPosition()
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/cards/{cardId}");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var card = await response.Content.ReadFromJsonAsync<JsonElement>();
+        card.GetProperty("id").GetGuid().ShouldBe(cardId);
+        card.GetProperty("name").GetString().ShouldBe("GetById Card");
+    }
+
+    [Fact]
+    public async Task GetCardById_NonexistentCard_Returns404()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var bogusId = Guid.NewGuid();
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/cards/{bogusId}");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public async Task PostCard_AsHumanUser_Returns201WithAutoNumberAndTimestamps()
     {
         // Arrange
         var user = await TestAuthHelper.CreateUserAsync(_client, _factory, "HumanCardCreator", UserRole.HumanUser);
-        TestAuthHelper.SetAuth(_client, CollaboardApiFactory.TestApiKey, user.AuthKey);
+        TestAuthHelper.SetAuth(_client, user.AuthKey);
         var laneId = await GetFirstLaneIdAsync();
 
         var request = new
         {
             name = "My First Card",
             descriptionMarkdown = "Some description",
-            status = "Open",
             size = "L",
             laneId,
             position = NextPosition()
@@ -59,13 +126,13 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.PostAsJsonAsync("/api/v1/cards", request);
 
         // Assert
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
 
         var card = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.True(card.GetProperty("number").GetInt64() > 0);
-        Assert.Equal(user.Id, card.GetProperty("createdByUserId").GetGuid());
-        Assert.NotEqual(default, card.GetProperty("createdAtUtc").GetDateTimeOffset());
-        Assert.NotEqual(default, card.GetProperty("lastUpdatedAtUtc").GetDateTimeOffset());
+        card.GetProperty("number").GetInt64().ShouldBeGreaterThan(0);
+        card.GetProperty("createdByUserId").GetGuid().ShouldBe(user.Id);
+        card.GetProperty("createdAtUtc").GetDateTimeOffset().ShouldNotBe(default);
+        card.GetProperty("lastUpdatedAtUtc").GetDateTimeOffset().ShouldNotBe(default);
     }
 
     [Fact]
@@ -76,14 +143,13 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
         var laneId = await GetFirstLaneIdAsync();
 
         // Act
-        var numbers = new List<long>();
+        List<long> numbers = [];
         for (var i = 0; i < 3; i++)
         {
             var response = await _client.PostAsJsonAsync("/api/v1/cards", new
             {
                 name = $"Sequential Card {i}",
                 descriptionMarkdown = "",
-                status = "Open",
                 size = "S",
                 laneId,
                 position = NextPosition()
@@ -94,8 +160,8 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
         }
 
         // Assert
-        Assert.Equal(numbers[0] + 1, numbers[1]);
-        Assert.Equal(numbers[1] + 1, numbers[2]);
+        numbers[1].ShouldBe(numbers[0] + 1);
+        numbers[2].ShouldBe(numbers[1] + 1);
     }
 
     [Fact]
@@ -103,14 +169,13 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
     {
         // Arrange
         var agent = await TestAuthHelper.CreateUserAsync(_client, _factory, "AgentCardCreator", UserRole.AgentUser);
-        TestAuthHelper.SetAuth(_client, CollaboardApiFactory.TestApiKey, agent.AuthKey);
+        TestAuthHelper.SetAuth(_client, agent.AuthKey);
         var laneId = await GetFirstLaneIdAsync();
 
         var request = new
         {
             name = "Agent Created Card",
             descriptionMarkdown = "Created by agent",
-            status = "Open",
             size = "M",
             laneId,
             position = NextPosition()
@@ -120,7 +185,7 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.PostAsJsonAsync("/api/v1/cards", request);
 
         // Assert
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
     }
 
     [Fact]
@@ -134,7 +199,6 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
         {
             name = "Original Name",
             descriptionMarkdown = "desc",
-            status = "Open",
             size = "M",
             laneId,
             position = NextPosition()
@@ -150,11 +214,11 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.PatchAsJsonAsync($"/api/v1/cards/{cardId}", new { name = "Updated Name" });
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var updated = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("Updated Name", updated.GetProperty("name").GetString());
-        Assert.True(updated.GetProperty("lastUpdatedAtUtc").GetDateTimeOffset() > originalTimestamp);
+        updated.GetProperty("name").GetString().ShouldBe("Updated Name");
+        updated.GetProperty("lastUpdatedAtUtc").GetDateTimeOffset().ShouldBeGreaterThan(originalTimestamp);
     }
 
     [Fact]
@@ -170,7 +234,6 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
         {
             name = "Movable Card",
             descriptionMarkdown = "will move",
-            status = "Open",
             size = "M",
             laneId = sourceLaneId,
             position = pos
@@ -183,10 +246,10 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.PatchAsJsonAsync($"/api/v1/cards/{cardId}", new { laneId = targetLaneId });
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var updated = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal(targetLaneId, updated.GetProperty("laneId").GetGuid());
+        updated.GetProperty("laneId").GetGuid().ShouldBe(targetLaneId);
     }
 
     [Fact]
@@ -200,7 +263,7 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.PatchAsJsonAsync($"/api/v1/cards/{bogusId}", new { name = "Ghost" });
 
         // Assert
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]
@@ -215,7 +278,6 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
         {
             name = "Stable Card",
             descriptionMarkdown = "Original description",
-            status = "Open",
             size = "M",
             laneId,
             position = pos
@@ -229,14 +291,14 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.PatchAsJsonAsync($"/api/v1/cards/{cardId}", new { name = "Renamed Card" });
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
         var updated = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("Renamed Card", updated.GetProperty("name").GetString());
-        Assert.Equal(originalDescription, updated.GetProperty("descriptionMarkdown").GetString());
-        Assert.Equal("M", updated.GetProperty("size").GetString());
-        Assert.Equal(laneId, updated.GetProperty("laneId").GetGuid());
-        Assert.Equal(pos, updated.GetProperty("position").GetInt32());
+        updated.GetProperty("name").GetString().ShouldBe("Renamed Card");
+        updated.GetProperty("descriptionMarkdown").GetString().ShouldBe(originalDescription);
+        updated.GetProperty("size").GetString().ShouldBe("M");
+        updated.GetProperty("laneId").GetGuid().ShouldBe(laneId);
+        updated.GetProperty("position").GetInt32().ShouldBe(pos);
     }
 
     [Fact]
@@ -250,7 +312,6 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
         {
             name = "Admin Delete Target",
             descriptionMarkdown = "",
-            status = "Open",
             size = "M",
             laneId,
             position = NextPosition()
@@ -263,7 +324,7 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.DeleteAsync($"/api/v1/cards/{cardId}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
     }
 
     [Fact]
@@ -271,14 +332,13 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
     {
         // Arrange
         var human = await TestAuthHelper.CreateUserAsync(_client, _factory, "HumanDeleter", UserRole.HumanUser);
-        TestAuthHelper.SetAuth(_client, CollaboardApiFactory.TestApiKey, human.AuthKey);
+        TestAuthHelper.SetAuth(_client, human.AuthKey);
         var laneId = await GetFirstLaneIdAsync();
 
         var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
         {
             name = "Human Delete Target",
             descriptionMarkdown = "",
-            status = "Open",
             size = "M",
             laneId,
             position = NextPosition()
@@ -291,7 +351,7 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.DeleteAsync($"/api/v1/cards/{cardId}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
     }
 
     [Fact]
@@ -305,7 +365,6 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
         {
             name = "Agent Cannot Delete This",
             descriptionMarkdown = "",
-            status = "Open",
             size = "M",
             laneId,
             position = NextPosition()
@@ -315,13 +374,13 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
         var cardId = created.GetProperty("id").GetGuid();
 
         var agent = await TestAuthHelper.CreateUserAsync(_client, _factory, "AgentNoDelete", UserRole.AgentUser);
-        TestAuthHelper.SetAuth(_client, CollaboardApiFactory.TestApiKey, agent.AuthKey);
+        TestAuthHelper.SetAuth(_client, agent.AuthKey);
 
         // Act
         var response = await _client.DeleteAsync($"/api/v1/cards/{cardId}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
     [Fact]
@@ -335,6 +394,243 @@ public class CardEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.DeleteAsync($"/api/v1/cards/{bogusId}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task PostCard_InvalidSize_Returns400()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var request = new
+        {
+            name = "Invalid Size Card",
+            descriptionMarkdown = "",
+            size = "XXL",
+            laneId,
+            position = NextPosition()
+        };
+
+        // Act
+        var response = await _client.PostAsJsonAsync("/api/v1/cards", request);
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Theory]
+    [InlineData("S")]
+    [InlineData("M")]
+    [InlineData("L")]
+    [InlineData("XL")]
+    public async Task PostCard_ValidSizes_AllAccepted(string size)
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var request = new
+        {
+            name = $"Card Size {size}",
+            descriptionMarkdown = "",
+            size,
+            laneId,
+            position = NextPosition()
+        };
+
+        // Act
+        var response = await _client.PostAsJsonAsync("/api/v1/cards", request);
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var card = await response.Content.ReadFromJsonAsync<JsonElement>();
+        card.GetProperty("size").GetString().ShouldBe(size);
+    }
+
+    [Fact]
+    public async Task PostCard_WithBlocked_SetsReason()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var request = new
+        {
+            name = "Blocked Card",
+            descriptionMarkdown = "",
+            blocked = "Waiting on external dependency",
+            size = "M",
+            laneId,
+            position = NextPosition()
+        };
+
+        // Act
+        var response = await _client.PostAsJsonAsync("/api/v1/cards", request);
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var card = await response.Content.ReadFromJsonAsync<JsonElement>();
+        card.GetProperty("blocked").GetString().ShouldBe("Waiting on external dependency");
+    }
+
+    [Fact]
+    public async Task PatchCard_SetPositionToZero_Works()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+        {
+            name = "Position Zero Card",
+            descriptionMarkdown = "",
+            size = "M",
+            laneId,
+            position = NextPosition()
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.PatchAsJsonAsync($"/api/v1/cards/{cardId}", new { position = 0 });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var updated = await response.Content.ReadFromJsonAsync<JsonElement>();
+        updated.GetProperty("position").GetInt32().ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task PatchCard_SetBlocked_SetsReason()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+        {
+            name = "Will Be Blocked",
+            descriptionMarkdown = "",
+            size = "M",
+            laneId,
+            position = NextPosition()
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.PatchAsJsonAsync($"/api/v1/cards/{cardId}", new { blocked = "Blocked by issue #42" });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var updated = await response.Content.ReadFromJsonAsync<JsonElement>();
+        updated.GetProperty("blocked").GetString().ShouldBe("Blocked by issue #42");
+    }
+
+    [Fact]
+    public async Task PatchCard_ClearBlocked_SetsNull()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+        {
+            name = "Was Blocked Card",
+            descriptionMarkdown = "",
+            blocked = "Initially blocked",
+            size = "M",
+            laneId,
+            position = NextPosition()
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.PatchAsJsonAsync($"/api/v1/cards/{cardId}", new { blocked = (string?)null });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var updated = await response.Content.ReadFromJsonAsync<JsonElement>();
+        updated.GetProperty("blocked").ValueKind.ShouldBe(JsonValueKind.Null);
+    }
+
+    [Fact]
+    public async Task PatchCard_InvalidSize_Returns400()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+        {
+            name = "Card For Invalid Size Patch",
+            descriptionMarkdown = "",
+            size = "M",
+            laneId,
+            position = NextPosition()
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.PatchAsJsonAsync($"/api/v1/cards/{cardId}", new { size = "XXL" });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task PatchCard_WithLabelIds_ReplacesLabels()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        // Create two labels
+        var label1Response = await _client.PostAsJsonAsync("/api/v1/labels", new { name = $"CardLabel1-{Guid.NewGuid()}", color = "red" });
+        label1Response.EnsureSuccessStatusCode();
+        var label1 = await label1Response.Content.ReadFromJsonAsync<JsonElement>();
+        var label1Id = label1.GetProperty("id").GetGuid();
+
+        var label2Response = await _client.PostAsJsonAsync("/api/v1/labels", new { name = $"CardLabel2-{Guid.NewGuid()}", color = "blue" });
+        label2Response.EnsureSuccessStatusCode();
+        var label2 = await label2Response.Content.ReadFromJsonAsync<JsonElement>();
+        var label2Id = label2.GetProperty("id").GetGuid();
+
+        // Create a card
+        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+        {
+            name = "Labeled Card",
+            descriptionMarkdown = "",
+            size = "M",
+            laneId,
+            position = NextPosition()
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        // Assign label1 via patch
+        var patchResponse1 = await _client.PatchAsJsonAsync($"/api/v1/cards/{cardId}", new { labelIds = new[] { label1Id } });
+        patchResponse1.EnsureSuccessStatusCode();
+
+        // Act — replace with label2 only
+        var patchResponse2 = await _client.PatchAsJsonAsync($"/api/v1/cards/{cardId}", new { labelIds = new[] { label2Id } });
+
+        // Assert
+        patchResponse2.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var labelsResponse = await _client.GetAsync($"/api/v1/cards/{cardId}/labels");
+        labelsResponse.EnsureSuccessStatusCode();
+        var labels = await labelsResponse.Content.ReadFromJsonAsync<JsonElement>();
+        labels.GetArrayLength().ShouldBe(1);
+        labels[0].GetProperty("id").GetGuid().ShouldBe(label2Id);
     }
 }

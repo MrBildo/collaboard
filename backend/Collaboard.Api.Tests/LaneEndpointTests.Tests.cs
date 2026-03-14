@@ -3,18 +3,132 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Collaboard.Api.Models;
 using Collaboard.Api.Tests.Infrastructure;
+using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-public class LaneEndpointTests : IClassFixture<CollaboardApiFactory>
+public class LaneEndpointTests(CollaboardApiFactory factory) : IClassFixture<CollaboardApiFactory>
 {
-    private readonly CollaboardApiFactory _factory;
-    private readonly HttpClient _client;
+    private readonly CollaboardApiFactory _factory = factory;
+    private readonly HttpClient _client = factory.CreateClient();
 
-    public LaneEndpointTests(CollaboardApiFactory factory)
+    [Fact]
+    public async Task GetLanes_ReturnsOrderedList()
     {
-        _factory = factory;
-        _client = factory.CreateClient();
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        // Act
+        var response = await _client.GetAsync("/api/v1/lanes");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var lanes = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+        lanes.ShouldNotBeNull();
+        lanes.ShouldNotBeEmpty();
+
+        // Verify ordering by position
+        for (var i = 1; i < lanes.Length; i++)
+        {
+            lanes[i].GetProperty("position").GetInt32()
+                .ShouldBeGreaterThanOrEqualTo(lanes[i - 1].GetProperty("position").GetInt32());
+        }
+    }
+
+    [Fact]
+    public async Task GetLaneById_Returns200()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var createResponse = await _client.PostAsJsonAsync("/api/v1/lanes", new { name = "GetById Lane", position = 200 });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var laneId = created.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/lanes/{laneId}");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var lane = await response.Content.ReadFromJsonAsync<JsonElement>();
+        lane.GetProperty("id").GetGuid().ShouldBe(laneId);
+        lane.GetProperty("name").GetString().ShouldBe("GetById Lane");
+    }
+
+    [Fact]
+    public async Task GetLaneById_NonexistentLane_Returns404()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var bogusId = Guid.NewGuid();
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/lanes/{bogusId}");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task PatchLane_UpdatesName_Returns200()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var createResponse = await _client.PostAsJsonAsync("/api/v1/lanes", new { name = "PatchNameBefore", position = 201 });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var laneId = created.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.PatchAsJsonAsync($"/api/v1/lanes/{laneId}", new { name = "PatchNameAfter" });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var lane = await response.Content.ReadFromJsonAsync<JsonElement>();
+        lane.GetProperty("name").GetString().ShouldBe("PatchNameAfter");
+    }
+
+    [Fact]
+    public async Task PatchLane_UpdatesPosition_Returns200()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var createResponse = await _client.PostAsJsonAsync("/api/v1/lanes", new { name = "PatchPosLane", position = 202 });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var laneId = created.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.PatchAsJsonAsync($"/api/v1/lanes/{laneId}", new { position = 999 });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var lane = await response.Content.ReadFromJsonAsync<JsonElement>();
+        lane.GetProperty("position").GetInt32().ShouldBe(999);
+    }
+
+    [Fact]
+    public async Task PatchLane_ConflictingPosition_Returns409()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var lane1Response = await _client.PostAsJsonAsync("/api/v1/lanes", new { name = "ConflictLane1", position = 300 });
+        lane1Response.EnsureSuccessStatusCode();
+
+        var lane2Response = await _client.PostAsJsonAsync("/api/v1/lanes", new { name = "ConflictLane2", position = 301 });
+        lane2Response.EnsureSuccessStatusCode();
+        var lane2 = await lane2Response.Content.ReadFromJsonAsync<JsonElement>();
+        var lane2Id = lane2.GetProperty("id").GetGuid();
+
+        // Act — try to move lane2 to position 300, which is taken by lane1
+        var response = await _client.PatchAsJsonAsync($"/api/v1/lanes/{lane2Id}", new { position = 300 });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
     }
 
     [Fact]
@@ -28,12 +142,12 @@ public class LaneEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.PostAsJsonAsync("/api/v1/lanes", request);
 
         // Assert
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
 
         var lane = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("Review", lane.GetProperty("name").GetString());
-        Assert.Equal(3, lane.GetProperty("position").GetInt32());
-        Assert.NotEqual(Guid.Empty, lane.GetProperty("id").GetGuid());
+        lane.GetProperty("name").GetString().ShouldBe("Review");
+        lane.GetProperty("position").GetInt32().ShouldBe(3);
+        lane.GetProperty("id").GetGuid().ShouldNotBe(Guid.Empty);
     }
 
     [Fact]
@@ -41,14 +155,14 @@ public class LaneEndpointTests : IClassFixture<CollaboardApiFactory>
     {
         // Arrange
         var user = await TestAuthHelper.CreateUserAsync(_client, _factory, "HumanLaneTester", UserRole.HumanUser);
-        TestAuthHelper.SetAuth(_client, CollaboardApiFactory.TestApiKey, user.AuthKey);
+        TestAuthHelper.SetAuth(_client, user.AuthKey);
         var request = new { name = "Blocked", position = 4 };
 
         // Act
         var response = await _client.PostAsJsonAsync("/api/v1/lanes", request);
 
         // Assert
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
     [Fact]
@@ -65,7 +179,7 @@ public class LaneEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.DeleteAsync($"/api/v1/lanes/{laneId}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
     }
 
     [Fact]
@@ -85,7 +199,6 @@ public class LaneEndpointTests : IClassFixture<CollaboardApiFactory>
             descriptionMarkdown = "Prevents deletion",
             laneId,
             position = 0,
-            status = "Open",
             size = "M"
         });
         cardResponse.EnsureSuccessStatusCode();
@@ -94,7 +207,7 @@ public class LaneEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.DeleteAsync($"/api/v1/lanes/{laneId}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
     }
 
     [Fact]
@@ -108,7 +221,7 @@ public class LaneEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.DeleteAsync($"/api/v1/lanes/{bogusId}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]
@@ -116,7 +229,7 @@ public class LaneEndpointTests : IClassFixture<CollaboardApiFactory>
     {
         // Arrange
         var user = await TestAuthHelper.CreateUserAsync(_client, _factory, "HumanDeleter", UserRole.HumanUser);
-        TestAuthHelper.SetAuth(_client, CollaboardApiFactory.TestApiKey, user.AuthKey);
+        TestAuthHelper.SetAuth(_client, user.AuthKey);
 
         var boardResponse = await _client.GetAsync("/api/v1/board");
         var board = await boardResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -126,6 +239,6 @@ public class LaneEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.DeleteAsync($"/api/v1/lanes/{firstLaneId}");
 
         // Assert
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 }

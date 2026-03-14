@@ -1,0 +1,266 @@
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
+using Collaboard.Api.Models;
+using Collaboard.Api.Tests.Infrastructure;
+using Shouldly;
+
+namespace Collaboard.Api.Tests;
+
+public class LabelEndpointTests(CollaboardApiFactory factory) : IClassFixture<CollaboardApiFactory>
+{
+    private static int _nextPosition = 5000;
+
+    private readonly CollaboardApiFactory _factory = factory;
+    private readonly HttpClient _client = factory.CreateClient();
+
+    private static int NextPosition() => Interlocked.Increment(ref _nextPosition);
+
+    private async Task<Guid> GetFirstLaneIdAsync()
+    {
+        var response = await _client.GetAsync("/api/v1/board");
+        response.EnsureSuccessStatusCode();
+        var board = await response.Content.ReadFromJsonAsync<JsonElement>();
+        return board.GetProperty("lanes")[0].GetProperty("id").GetGuid();
+    }
+
+    private async Task<Guid> CreateCardAsync(Guid laneId)
+    {
+        var response = await _client.PostAsJsonAsync("/api/v1/cards", new
+        {
+            name = $"Test Card {Guid.NewGuid()}",
+            descriptionMarkdown = "",
+            size = "M",
+            laneId,
+            position = NextPosition()
+        });
+        response.EnsureSuccessStatusCode();
+        var card = await response.Content.ReadFromJsonAsync<JsonElement>();
+        return card.GetProperty("id").GetGuid();
+    }
+
+    private async Task<(Guid Id, string Name)> CreateLabelAsync(string? name = null, string? color = null)
+    {
+        name ??= $"Label-{Guid.NewGuid()}";
+        var response = await _client.PostAsJsonAsync("/api/v1/labels", new { name, color });
+        response.EnsureSuccessStatusCode();
+        var label = await response.Content.ReadFromJsonAsync<JsonElement>();
+        return (label.GetProperty("id").GetGuid(), name);
+    }
+
+    [Fact]
+    public async Task GetLabels_ReturnsEmptyList()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        // Act
+        var response = await _client.GetAsync("/api/v1/labels");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var labels = await response.Content.ReadFromJsonAsync<JsonElement>();
+        labels.GetArrayLength().ShouldBeGreaterThanOrEqualTo(0);
+    }
+
+    [Fact]
+    public async Task PostLabel_AsAdmin_Returns201()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var labelName = $"Bug-{Guid.NewGuid()}";
+
+        // Act
+        var response = await _client.PostAsJsonAsync("/api/v1/labels", new { name = labelName, color = "red" });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var label = await response.Content.ReadFromJsonAsync<JsonElement>();
+        label.GetProperty("name").GetString().ShouldBe(labelName);
+        label.GetProperty("color").GetString().ShouldBe("red");
+        label.GetProperty("id").GetGuid().ShouldNotBe(Guid.Empty);
+    }
+
+    [Fact]
+    public async Task PostLabel_DuplicateName_Returns409()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var labelName = $"Duplicate-{Guid.NewGuid()}";
+        var firstResponse = await _client.PostAsJsonAsync("/api/v1/labels", new { name = labelName, color = "blue" });
+        firstResponse.EnsureSuccessStatusCode();
+
+        // Act
+        var response = await _client.PostAsJsonAsync("/api/v1/labels", new { name = labelName, color = "green" });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task PostLabel_AsNonAdmin_Returns403()
+    {
+        // Arrange
+        var human = await TestAuthHelper.CreateUserAsync(_client, _factory, "LabelHuman", UserRole.HumanUser);
+        TestAuthHelper.SetAuth(_client, human.AuthKey);
+
+        // Act
+        var response = await _client.PostAsJsonAsync("/api/v1/labels", new { name = $"Forbidden-{Guid.NewGuid()}", color = "red" });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task PatchLabel_UpdatesNameAndColor()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var (labelId, _) = await CreateLabelAsync(color: "red");
+
+        // Act
+        var response = await _client.PatchAsJsonAsync($"/api/v1/labels/{labelId}", new { name = $"Updated-{Guid.NewGuid()}", color = "green" });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var label = await response.Content.ReadFromJsonAsync<JsonElement>();
+        label.GetProperty("color").GetString().ShouldBe("green");
+    }
+
+    [Fact]
+    public async Task PatchLabel_NonexistentLabel_Returns404()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var bogusId = Guid.NewGuid();
+
+        // Act
+        var response = await _client.PatchAsJsonAsync($"/api/v1/labels/{bogusId}", new { name = "Ghost" });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task DeleteLabel_AsAdmin_Returns204()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var (labelId, _) = await CreateLabelAsync();
+
+        // Act
+        var response = await _client.DeleteAsync($"/api/v1/labels/{labelId}");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    public async Task DeleteLabel_RemovesFromCards()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+        var cardId = await CreateCardAsync(laneId);
+        var (labelId, _) = await CreateLabelAsync();
+
+        // Assign label to card
+        var assignResponse = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/labels", new { labelId });
+        assignResponse.EnsureSuccessStatusCode();
+
+        // Act — delete the label
+        var response = await _client.DeleteAsync($"/api/v1/labels/{labelId}");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+
+        // Verify label is removed from card
+        var labelsResponse = await _client.GetAsync($"/api/v1/cards/{cardId}/labels");
+        labelsResponse.EnsureSuccessStatusCode();
+        var labels = await labelsResponse.Content.ReadFromJsonAsync<JsonElement>();
+        labels.GetArrayLength().ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task GetCardLabels_ReturnsAssigned()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+        var cardId = await CreateCardAsync(laneId);
+        var (labelId, labelName) = await CreateLabelAsync(color: "purple");
+
+        var assignResponse = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/labels", new { labelId });
+        assignResponse.EnsureSuccessStatusCode();
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/cards/{cardId}/labels");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var labels = await response.Content.ReadFromJsonAsync<JsonElement>();
+        labels.GetArrayLength().ShouldBe(1);
+        labels[0].GetProperty("id").GetGuid().ShouldBe(labelId);
+        labels[0].GetProperty("name").GetString().ShouldBe(labelName);
+    }
+
+    [Fact]
+    public async Task PostCardLabel_AssignsLabel()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+        var cardId = await CreateCardAsync(laneId);
+        var (labelId, _) = await CreateLabelAsync();
+
+        // Act
+        var response = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/labels", new { labelId });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+    }
+
+    [Fact]
+    public async Task PostCardLabel_Duplicate_Returns409()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+        var cardId = await CreateCardAsync(laneId);
+        var (labelId, _) = await CreateLabelAsync();
+
+        var firstResponse = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/labels", new { labelId });
+        firstResponse.EnsureSuccessStatusCode();
+
+        // Act
+        var response = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/labels", new { labelId });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task DeleteCardLabel_RemovesAssignment()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+        var cardId = await CreateCardAsync(laneId);
+        var (labelId, _) = await CreateLabelAsync();
+
+        var assignResponse = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/labels", new { labelId });
+        assignResponse.EnsureSuccessStatusCode();
+
+        // Act
+        var response = await _client.DeleteAsync($"/api/v1/cards/{cardId}/labels/{labelId}");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+
+        // Verify label is no longer on the card
+        var labelsResponse = await _client.GetAsync($"/api/v1/cards/{cardId}/labels");
+        labelsResponse.EnsureSuccessStatusCode();
+        var labels = await labelsResponse.Content.ReadFromJsonAsync<JsonElement>();
+        labels.GetArrayLength().ShouldBe(0);
+    }
+}

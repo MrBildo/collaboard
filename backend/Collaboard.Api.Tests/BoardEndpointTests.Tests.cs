@@ -3,24 +3,19 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Collaboard.Api.Models;
 using Collaboard.Api.Tests.Infrastructure;
+using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-public class BoardEndpointTests : IClassFixture<CollaboardApiFactory>
+public class BoardEndpointTests(CollaboardApiFactory factory) : IClassFixture<CollaboardApiFactory>
 {
-    private readonly CollaboardApiFactory _factory;
-    private readonly HttpClient _client;
+    private readonly CollaboardApiFactory _factory = factory;
+    private readonly HttpClient _client = factory.CreateClient();
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    private static readonly JsonSerializerOptions _jsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
-
-    public BoardEndpointTests(CollaboardApiFactory factory)
-    {
-        _factory = factory;
-        _client = factory.CreateClient();
-    }
 
     [Fact]
     public async Task GetBoard_AsAdmin_Returns200WithLanesAndEmptyCards()
@@ -32,13 +27,13 @@ public class BoardEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.GetAsync("/api/v1/board");
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
-        Assert.True(json.TryGetProperty("lanes", out var lanes));
-        Assert.Equal(3, lanes.GetArrayLength());
-        Assert.True(json.TryGetProperty("cards", out var cards));
-        Assert.Equal(JsonValueKind.Array, cards.ValueKind);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        json.TryGetProperty("lanes", out var lanes).ShouldBeTrue();
+        lanes.GetArrayLength().ShouldBe(3);
+        json.TryGetProperty("cards", out var cards).ShouldBeTrue();
+        cards.ValueKind.ShouldBe(JsonValueKind.Array);
     }
 
     [Fact]
@@ -46,13 +41,13 @@ public class BoardEndpointTests : IClassFixture<CollaboardApiFactory>
     {
         // Arrange
         var human = await TestAuthHelper.CreateUserAsync(_client, _factory, "Board Human", UserRole.HumanUser);
-        TestAuthHelper.SetAuth(_client, CollaboardApiFactory.TestApiKey, human.AuthKey);
+        TestAuthHelper.SetAuth(_client, human.AuthKey);
 
         // Act
         var response = await _client.GetAsync("/api/v1/board");
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     [Fact]
@@ -60,27 +55,26 @@ public class BoardEndpointTests : IClassFixture<CollaboardApiFactory>
     {
         // Arrange
         var agent = await TestAuthHelper.CreateUserAsync(_client, _factory, "Board Agent", UserRole.AgentUser);
-        TestAuthHelper.SetAuth(_client, CollaboardApiFactory.TestApiKey, agent.AuthKey);
+        TestAuthHelper.SetAuth(_client, agent.AuthKey);
 
         // Act
         var response = await _client.GetAsync("/api/v1/board");
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     [Fact]
     public async Task GetBoard_Unauthenticated_Returns401()
     {
         // Arrange
-        _client.DefaultRequestHeaders.Remove("X-Api-Key");
         _client.DefaultRequestHeaders.Remove("X-User-Key");
 
         // Act
         var response = await _client.GetAsync("/api/v1/board");
 
         // Assert
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
@@ -93,22 +87,22 @@ public class BoardEndpointTests : IClassFixture<CollaboardApiFactory>
         var response = await _client.GetAsync("/api/v1/board");
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
         var lanes = json.GetProperty("lanes");
-        Assert.Equal(3, lanes.GetArrayLength());
+        lanes.GetArrayLength().ShouldBe(3);
 
         var lane0 = lanes[0];
         var lane1 = lanes[1];
         var lane2 = lanes[2];
 
-        Assert.Equal(0, lane0.GetProperty("position").GetInt32());
-        Assert.Equal("Backlog", lane0.GetProperty("name").GetString());
-        Assert.Equal(1, lane1.GetProperty("position").GetInt32());
-        Assert.Equal("In Progress", lane1.GetProperty("name").GetString());
-        Assert.Equal(2, lane2.GetProperty("position").GetInt32());
-        Assert.Equal("Done", lane2.GetProperty("name").GetString());
+        lane0.GetProperty("position").GetInt32().ShouldBe(0);
+        lane0.GetProperty("name").GetString().ShouldBe("Backlog");
+        lane1.GetProperty("position").GetInt32().ShouldBe(1);
+        lane1.GetProperty("name").GetString().ShouldBe("In Progress");
+        lane2.GetProperty("position").GetInt32().ShouldBe(2);
+        lane2.GetProperty("name").GetString().ShouldBe("Done");
     }
 
     [Fact]
@@ -118,7 +112,7 @@ public class BoardEndpointTests : IClassFixture<CollaboardApiFactory>
         TestAuthHelper.SetAdminAuth(_client, _factory);
 
         var boardResponse = await _client.GetAsync("/api/v1/board");
-        var boardJson = await boardResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        var boardJson = await boardResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
         var firstLaneId = boardJson.GetProperty("lanes")[0].GetProperty("id").GetGuid();
 
         var cardPayload = new
@@ -127,34 +121,34 @@ public class BoardEndpointTests : IClassFixture<CollaboardApiFactory>
             descriptionMarkdown = "A card for testing",
             laneId = firstLaneId,
             position = 0,
-            status = "Open",
             size = "M",
         };
 
         // Act
         var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", cardPayload);
-        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        createResponse.StatusCode.ShouldBe(HttpStatusCode.Created);
 
         var refreshedBoard = await _client.GetAsync("/api/v1/board");
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, refreshedBoard.StatusCode);
+        refreshedBoard.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var refreshedJson = await refreshedBoard.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        var refreshedJson = await refreshedBoard.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
         var cards = refreshedJson.GetProperty("cards");
-        Assert.True(cards.GetArrayLength() >= 1);
+        cards.GetArrayLength().ShouldBeGreaterThanOrEqualTo(1);
 
         var found = false;
         foreach (var card in cards.EnumerateArray())
         {
             if (card.GetProperty("name").GetString() == "Test Card")
             {
-                Assert.Equal("A card for testing", card.GetProperty("descriptionMarkdown").GetString());
-                Assert.Equal(firstLaneId, card.GetProperty("laneId").GetGuid());
+                card.GetProperty("descriptionMarkdown").GetString().ShouldBe("A card for testing");
+                card.GetProperty("laneId").GetGuid().ShouldBe(firstLaneId);
                 found = true;
                 break;
             }
         }
-        Assert.True(found, "Created card was not found in the board response.");
+
+        found.ShouldBeTrue("Created card was not found in the board response.");
     }
 }
