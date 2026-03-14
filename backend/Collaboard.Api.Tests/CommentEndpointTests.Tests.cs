@@ -42,6 +42,112 @@ public class CommentEndpointTests(CollaboardApiFactory factory) : IClassFixture<
     }
 
     [Fact]
+    public async Task GetComments_ReturnsCommentsForCard()
+    {
+        // Arrange
+        var cardId = await CreateCardAsync();
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "First comment" });
+        await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "Second comment" });
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/cards/{cardId}/comments");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var comments = await response.Content.ReadFromJsonAsync<JsonElement[]>(_jsonOptions);
+        comments.ShouldNotBeNull();
+        comments.Length.ShouldBeGreaterThanOrEqualTo(2);
+    }
+
+    [Fact]
+    public async Task GetComments_NonexistentCard_Returns404()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var fakeCardId = Guid.NewGuid();
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/cards/{fakeCardId}/comments");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task PatchComment_OwnComment_UpdatesContent()
+    {
+        // Arrange
+        var cardId = await CreateCardAsync();
+        var human = await TestAuthHelper.CreateUserAsync(_client, _factory, "Patch Comment Owner", UserRole.HumanUser);
+        TestAuthHelper.SetAuth(_client, human.AuthKey);
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "Original content" });
+        createResponse.EnsureSuccessStatusCode();
+        var comment = await createResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var commentId = comment.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.PatchAsJsonAsync($"/api/v1/comments/{commentId}", new { contentMarkdown = "Updated content" });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var updated = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        updated.GetProperty("contentMarkdown").GetString().ShouldBe("Updated content");
+    }
+
+    [Fact]
+    public async Task PatchComment_OtherUser_AsAdmin_Returns200()
+    {
+        // Arrange
+        var cardId = await CreateCardAsync();
+        var author = await TestAuthHelper.CreateUserAsync(_client, _factory, "Patch Comment Author", UserRole.HumanUser);
+        TestAuthHelper.SetAuth(_client, author.AuthKey);
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "Author's comment" });
+        createResponse.EnsureSuccessStatusCode();
+        var comment = await createResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var commentId = comment.GetProperty("id").GetGuid();
+
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        // Act
+        var response = await _client.PatchAsJsonAsync($"/api/v1/comments/{commentId}", new { contentMarkdown = "Admin edited" });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var updated = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        updated.GetProperty("contentMarkdown").GetString().ShouldBe("Admin edited");
+    }
+
+    [Fact]
+    public async Task PatchComment_OtherUser_AsNonAdmin_Returns403()
+    {
+        // Arrange
+        var cardId = await CreateCardAsync();
+        var author = await TestAuthHelper.CreateUserAsync(_client, _factory, "Patch Comment Author 2", UserRole.HumanUser);
+        TestAuthHelper.SetAuth(_client, author.AuthKey);
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "Author's comment" });
+        createResponse.EnsureSuccessStatusCode();
+        var comment = await createResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var commentId = comment.GetProperty("id").GetGuid();
+
+        var otherUser = await TestAuthHelper.CreateUserAsync(_client, _factory, "Other Patch User", UserRole.HumanUser);
+        TestAuthHelper.SetAuth(_client, otherUser.AuthKey);
+
+        // Act
+        var response = await _client.PatchAsJsonAsync($"/api/v1/comments/{commentId}", new { contentMarkdown = "Unauthorized edit" });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
     public async Task PostComment_OnExistingCard_Returns201()
     {
         // Arrange

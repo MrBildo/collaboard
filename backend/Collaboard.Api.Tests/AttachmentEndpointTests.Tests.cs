@@ -61,6 +61,47 @@ public class AttachmentEndpointTests(CollaboardApiFactory factory) : IClassFixtu
     }
 
     [Fact]
+    public async Task GetCardAttachments_ReturnsMetadataWithoutPayload()
+    {
+        // Arrange
+        var cardId = await CreateCardAsync();
+        await UploadAttachmentAsync(cardId);
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/cards/{cardId}/attachments");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var attachments = await response.Content.ReadFromJsonAsync<JsonElement[]>(_jsonOptions);
+        attachments.ShouldNotBeNull();
+        attachments.ShouldNotBeEmpty();
+
+        var first = attachments[0];
+        first.TryGetProperty("id", out _).ShouldBeTrue();
+        first.TryGetProperty("fileName", out _).ShouldBeTrue();
+        first.TryGetProperty("contentType", out _).ShouldBeTrue();
+        first.TryGetProperty("addedByUserId", out _).ShouldBeTrue();
+        first.TryGetProperty("addedAtUtc", out _).ShouldBeTrue();
+        first.TryGetProperty("payload", out _).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task GetCardAttachments_NonexistentCard_Returns404()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var fakeCardId = Guid.NewGuid();
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/cards/{fakeCardId}/attachments");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public async Task PostAttachment_OnExistingCard_Returns201()
     {
         // Arrange

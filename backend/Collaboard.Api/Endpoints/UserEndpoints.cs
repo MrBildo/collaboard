@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Collaboard.Api.Auth;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
@@ -28,10 +29,50 @@ internal static class UserEndpoints
             return Results.Created($"/api/v1/users/{user.Id}", user);
         });
 
+        group.MapGet("/users/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id) =>
+        {
+            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
+            if (forbidden is not null)
+            {
+                return forbidden;
+            }
+
+            var user = await db.Users.FindAsync(id);
+            return user is null ? Results.NotFound() : Results.Ok(user);
+        });
+
         group.MapGet("/users", async (BoardDbContext db, HttpContext http) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
             return forbidden is not null ? forbidden : Results.Ok(await db.Users.OrderBy(x => x.Name).ToListAsync());
+        });
+
+        group.MapPatch("/users/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, JsonElement patch) =>
+        {
+            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
+            if (forbidden is not null)
+            {
+                return forbidden;
+            }
+
+            var user = await db.Users.FindAsync(id);
+            if (user is null)
+            {
+                return Results.NotFound();
+            }
+
+            if (patch.TryGetProperty("name", out var name))
+            {
+                user.Name = name.GetString()!;
+            }
+
+            if (patch.TryGetProperty("role", out var role))
+            {
+                user.Role = (UserRole)role.GetInt32();
+            }
+
+            await db.SaveChangesAsync();
+            return Results.Ok(user);
         });
 
         group.MapPatch("/users/{id:guid}/deactivate", async (BoardDbContext db, HttpContext http, Guid id) =>
