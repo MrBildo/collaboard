@@ -740,6 +740,47 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     }
 
     [Fact]
+    public async Task ReorderCard_CrossBoard_Returns400()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createCardResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "Cross Board Reorder Card",
+            descriptionMarkdown = "",
+            size = "M",
+            laneId,
+            position = NextPosition()
+        });
+        createCardResponse.EnsureSuccessStatusCode();
+        var card = await createCardResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = card.GetProperty("id").GetGuid();
+
+        // Create a second board with a lane
+        var boardResponse = await _client.PostAsJsonAsync("/api/v1/boards", new { name = $"OtherBoard-{Guid.NewGuid()}" });
+        boardResponse.EnsureSuccessStatusCode();
+        var otherBoard = await boardResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var otherBoardId = otherBoard.GetProperty("id").GetGuid();
+
+        var otherLaneResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{otherBoardId}/lanes", new { name = "Other Lane", position = 0 });
+        otherLaneResponse.EnsureSuccessStatusCode();
+        var otherLane = await otherLaneResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var otherLaneId = otherLane.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/reorder", new
+        {
+            laneId = otherLaneId,
+            index = 0
+        });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
     public async Task PatchCard_WithLabelIds_ReplacesLabels()
     {
         // Arrange
