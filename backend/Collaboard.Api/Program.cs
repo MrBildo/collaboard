@@ -133,7 +133,7 @@ api.MapAttachmentEndpoints();
 
 app.MapEventEndpoints();
 
-app.MapMcp();
+app.MapMcp("/mcp");
 
 app.MapDefaultEndpoints();
 

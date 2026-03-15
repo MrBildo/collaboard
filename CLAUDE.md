@@ -123,7 +123,7 @@ All endpoints under `/api/v1/`:
 
 | Path | Notes |
 |------|-------|
-| /mcp | Stub manifest |
+| /mcp | Streamable HTTP transport — 19 tools across BoardTools, CardTools, CommentTools, AttachmentTools, LabelTools |
 
 ## .agents/ Directory Structure
 
@@ -201,10 +201,6 @@ Instance-local workspace (gitignored). Run `/bootstrap` to create on fresh clone
 - Arrange-Act-Assert pattern
 - Test classes per resource: `*EndpointTests.Tests.cs`
 - Shared infrastructure: `Infrastructure/CollaboardApiFactory.cs`, `TestAuthHelper.cs`
-
-## Known Issues
-
-- `/mcp` endpoint is a stub manifest, not real MCP tool implementations
 
 ## Skills
 
