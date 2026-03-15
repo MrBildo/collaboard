@@ -9,11 +9,11 @@ using Microsoft.EntityFrameworkCore;
 // --version flag
 if (args.Contains("--version"))
 {
-    var version = Assembly.GetExecutingAssembly()
+    var raw = Assembly.GetExecutingAssembly()
         .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
         ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString()
         ?? "0.0.0";
-    Console.WriteLine($"Collaboard {version}");
+    Console.WriteLine($"Collaboard {raw.Split('+')[0]}");
     return;
 }
 
@@ -126,10 +126,11 @@ var api = app.MapGroup("/api/v1");
 
 api.MapGet("/version", () =>
 {
-    var version = Assembly.GetExecutingAssembly()
+    var raw = Assembly.GetExecutingAssembly()
         .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
         ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString()
         ?? "0.0.0";
+    var version = raw.Split('+')[0];
     return Results.Ok(new { version });
 });
 
