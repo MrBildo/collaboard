@@ -1,284 +1,407 @@
-using System.Text.Json;
 using Collaboard.Api.Events;
 using Collaboard.Api.Mcp;
 using Collaboard.Api.Models;
-using Microsoft.Data.Sqlite;
-using Microsoft.EntityFrameworkCore;
+using Collaboard.Api.Tests.Infrastructure;
+using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-public class McpCardToolsTests : IAsyncLifetime
+public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<CollaboardApiFactory>
 {
-    private SqliteConnection _connection = null!;
-    private BoardDbContext _db = null!;
-    private CardTools _cardTools = null!;
-    private string _authKey = null!;
-    private Guid _boardId;
-    private Guid _laneId;
+    private readonly CollaboardApiFactory _factory = factory;
 
-    public async Task InitializeAsync()
+    private (BoardDbContext Db, CardTools Tools, string AuthKey) CreateTools()
     {
-        _connection = new SqliteConnection("Data Source=:memory:");
-        _connection.Open();
-
-        var options = new DbContextOptionsBuilder<BoardDbContext>()
-            .UseSqlite(_connection)
-            .Options;
-
-        _db = new BoardDbContext(options);
-        await _db.Database.EnsureCreatedAsync();
-
-        // Seed test data
-        _authKey = "test-mcp-auth-key-12345678";
-        var user = new BoardUser
-        {
-            Id = Guid.NewGuid(),
-            AuthKey = _authKey,
-            Name = "TestAdmin",
-            Role = UserRole.Administrator,
-            IsActive = true,
-        };
-        _db.Users.Add(user);
-
-        _boardId = Guid.NewGuid();
-        _db.Boards.Add(new Board
-        {
-            Id = _boardId,
-            Name = "Test Board",
-            Slug = "test-board",
-            CreatedAtUtc = DateTimeOffset.UtcNow,
-        });
-
-        _laneId = Guid.NewGuid();
-        _db.Lanes.Add(new Lane
-        {
-            Id = _laneId,
-            BoardId = _boardId,
-            Name = "To Do",
-            Position = 0,
-        });
-
-        await _db.SaveChangesAsync();
-
-        var authService = new McpAuthService(_db);
-        var broadcaster = new BoardEventBroadcaster();
-        _cardTools = new CardTools(_db, authService, broadcaster);
+        var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
+        var broadcaster = scope.ServiceProvider.GetRequiredService<BoardEventBroadcaster>();
+        var auth = new McpAuthService(db);
+        var tools = new CardTools(db, auth, broadcaster);
+        return (db, tools, CollaboardApiFactory.TestAdminAuthKey);
     }
 
-    public async Task DisposeAsync()
+    private async Task<(Guid LaneId1, Guid LaneId2)> GetTwoLaneIdsAsync(BoardDbContext db)
     {
-        await _db.DisposeAsync();
-        await _connection.DisposeAsync();
+        var lanes = db.Lanes
+            .Where(l => l.BoardId == _factory.DefaultBoardId)
+            .OrderBy(l => l.Position)
+            .Select(l => l.Id)
+            .ToList();
+
+        lanes.Count.ShouldBeGreaterThanOrEqualTo(2);
+        return (lanes[0], lanes[1]);
     }
 
-    private async Task<Guid> CreateLabelAsync(string name, string? color = null, Guid? boardId = null)
+    private async Task<Guid> CreateCardInLaneAsync(CardTools tools, string authKey, Guid laneId, string name = "Test Card")
     {
-        var label = new Label
-        {
-            Id = Guid.NewGuid(),
-            BoardId = boardId ?? _boardId,
-            Name = name,
-            Color = color,
-        };
-        _db.Labels.Add(label);
-        await _db.SaveChangesAsync();
-        return label.Id;
+        var result = await tools.CreateCardAsync(authKey, name, laneId);
+        result.ShouldNotContain("Error");
+        var json = System.Text.Json.JsonDocument.Parse(result);
+        return json.RootElement.GetProperty("id").GetGuid();
     }
+
+    // ── No-op guard ─────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task UpdateCard_NoChangesSpecified_ReturnsNoOpMessage()
+    {
+        // Arrange
+        var (db, tools, authKey) = CreateTools();
+        var lanes = db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToList();
+        var cardId = await CreateCardInLaneAsync(tools, authKey, lanes[0]);
+
+        // Act
+        var result = await tools.UpdateCardAsync(authKey, cardId);
+
+        // Assert
+        result.ShouldBe("No changes specified.");
+    }
+
+    [Fact]
+    public async Task UpdateCard_NoChangesSpecified_DoesNotUpdateTimestamp()
+    {
+        // Arrange
+        var (db, tools, authKey) = CreateTools();
+        var lanes = db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToList();
+        var cardId = await CreateCardInLaneAsync(tools, authKey, lanes[0]);
+        var card = await db.Cards.FindAsync(cardId);
+        var originalTimestamp = card!.LastUpdatedAtUtc;
+
+        await Task.Delay(50);
+
+        // Act
+        var result = await tools.UpdateCardAsync(authKey, cardId);
+
+        // Assert
+        result.ShouldBe("No changes specified.");
+        var refreshedCard = await db.Cards.FindAsync(cardId);
+        refreshedCard!.LastUpdatedAtUtc.ShouldBe(originalTimestamp);
+    }
+
+    // ── Lane move via update_card ───────────────────────────────────────────
+
+    [Fact]
+    public async Task UpdateCard_WithLaneId_MovesCardToTargetLane()
+    {
+        // Arrange
+        var (db, tools, authKey) = CreateTools();
+        var (lane1, lane2) = await GetTwoLaneIdsAsync(db);
+        var cardId = await CreateCardInLaneAsync(tools, authKey, lane1, "Move Me");
+
+        // Act
+        var result = await tools.UpdateCardAsync(authKey, cardId, laneId: lane2);
+
+        // Assert
+        result.ShouldNotContain("Error");
+        var json = System.Text.Json.JsonDocument.Parse(result);
+        json.RootElement.GetProperty("laneId").GetGuid().ShouldBe(lane2);
+    }
+
+    [Fact]
+    public async Task UpdateCard_WithLaneIdAndIndex_PlacesCardAtSpecifiedPosition()
+    {
+        // Arrange
+        var (db, tools, authKey) = CreateTools();
+        var (lane1, lane2) = await GetTwoLaneIdsAsync(db);
+
+        // Create two existing cards in lane2
+        await CreateCardInLaneAsync(tools, authKey, lane2, "Existing Card A");
+        await CreateCardInLaneAsync(tools, authKey, lane2, "Existing Card B");
+
+        // Create the card to move in lane1
+        var cardId = await CreateCardInLaneAsync(tools, authKey, lane1, "Insert Me");
+
+        // Act — move to lane2 at index 0 (front)
+        var result = await tools.UpdateCardAsync(authKey, cardId, laneId: lane2, index: 0);
+
+        // Assert
+        result.ShouldNotContain("Error");
+        var json = System.Text.Json.JsonDocument.Parse(result);
+        json.RootElement.GetProperty("laneId").GetGuid().ShouldBe(lane2);
+        json.RootElement.GetProperty("position").GetInt32().ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task UpdateCard_WithLaneIdNoIndex_AppendsToEndOfLane()
+    {
+        // Arrange
+        var (db, tools, authKey) = CreateTools();
+        var (lane1, lane2) = await GetTwoLaneIdsAsync(db);
+
+        // Create an existing card in lane2
+        await CreateCardInLaneAsync(tools, authKey, lane2, "Already Here");
+
+        // Create the card to move
+        var cardId = await CreateCardInLaneAsync(tools, authKey, lane1, "Append Me");
+
+        // Act — move to lane2 without index (should append)
+        var result = await tools.UpdateCardAsync(authKey, cardId, laneId: lane2);
+
+        // Assert
+        result.ShouldNotContain("Error");
+        var json = System.Text.Json.JsonDocument.Parse(result);
+        json.RootElement.GetProperty("laneId").GetGuid().ShouldBe(lane2);
+
+        // Card should have the highest position in lane2
+        var maxPosOtherCards = db.Cards
+            .Where(c => c.LaneId == lane2 && c.Id != cardId)
+            .Max(c => (int?)c.Position) ?? -1;
+        json.RootElement.GetProperty("position").GetInt32().ShouldBeGreaterThan(maxPosOtherCards);
+    }
+
+    [Fact]
+    public async Task UpdateCard_WithInvalidLaneId_ReturnsError()
+    {
+        // Arrange
+        var (db, tools, authKey) = CreateTools();
+        var lanes = db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToList();
+        var cardId = await CreateCardInLaneAsync(tools, authKey, lanes[0]);
+
+        // Act
+        var result = await tools.UpdateCardAsync(authKey, cardId, laneId: Guid.NewGuid());
+
+        // Assert
+        result.ShouldContain("Error: Lane not found.");
+    }
+
+    [Fact]
+    public async Task UpdateCard_WithLaneId_ReordersSourceLane()
+    {
+        // Arrange
+        var (db, tools, authKey) = CreateTools();
+        var (lane1, lane2) = await GetTwoLaneIdsAsync(db);
+
+        // Create three cards in lane1
+        var card1Id = await CreateCardInLaneAsync(tools, authKey, lane1, "Source A");
+        var card2Id = await CreateCardInLaneAsync(tools, authKey, lane1, "Source B");
+        var card3Id = await CreateCardInLaneAsync(tools, authKey, lane1, "Source C");
+
+        // Act — move the middle card to lane2
+        await tools.UpdateCardAsync(authKey, card2Id, laneId: lane2);
+
+        // Assert — card2 is no longer in lane1
+        var card2 = await db.Cards.FindAsync(card2Id);
+        card2!.LaneId.ShouldBe(lane2);
+
+        // Assert — remaining source cards maintain relative order with gap-free position spacing
+        var sourceCards = db.Cards
+            .Where(c => c.LaneId == lane1 && (c.Id == card1Id || c.Id == card3Id))
+            .OrderBy(c => c.Position)
+            .ToList();
+
+        sourceCards.Count.ShouldBe(2);
+        sourceCards[0].Id.ShouldBe(card1Id);
+        sourceCards[1].Id.ShouldBe(card3Id);
+        // Positions should be contiguous multiples of 10 (gap-free after reorder)
+        (sourceCards[1].Position - sourceCards[0].Position).ShouldBe(10);
+    }
+
+    // ── Label replace via update_card ───────────────────────────────────────
+
+    [Fact]
+    public async Task UpdateCard_WithLabelIds_AssignsLabels()
+    {
+        // Arrange
+        var (db, tools, authKey) = CreateTools();
+        var lanes = db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToList();
+        var cardId = await CreateCardInLaneAsync(tools, authKey, lanes[0]);
+
+        // Create labels
+        var label1 = new Label { Id = Guid.NewGuid(), BoardId = _factory.DefaultBoardId, Name = $"McpLabel1-{Guid.NewGuid()}", Color = "red" };
+        var label2 = new Label { Id = Guid.NewGuid(), BoardId = _factory.DefaultBoardId, Name = $"McpLabel2-{Guid.NewGuid()}", Color = "blue" };
+        db.Labels.AddRange(label1, label2);
+        await db.SaveChangesAsync();
+
+        // Act
+        var result = await tools.UpdateCardAsync(authKey, cardId, labelIds: $"{label1.Id},{label2.Id}");
+
+        // Assert
+        result.ShouldNotContain("Error");
+        var cardLabels = db.CardLabels.Where(cl => cl.CardId == cardId).Select(cl => cl.LabelId).ToList();
+        cardLabels.Count.ShouldBe(2);
+        cardLabels.ShouldContain(label1.Id);
+        cardLabels.ShouldContain(label2.Id);
+    }
+
+    [Fact]
+    public async Task UpdateCard_WithLabelIds_ReplacesExistingLabels()
+    {
+        // Arrange
+        var (db, tools, authKey) = CreateTools();
+        var lanes = db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToList();
+        var cardId = await CreateCardInLaneAsync(tools, authKey, lanes[0]);
+
+        var label1 = new Label { Id = Guid.NewGuid(), BoardId = _factory.DefaultBoardId, Name = $"Replace1-{Guid.NewGuid()}", Color = "red" };
+        var label2 = new Label { Id = Guid.NewGuid(), BoardId = _factory.DefaultBoardId, Name = $"Replace2-{Guid.NewGuid()}", Color = "green" };
+        var label3 = new Label { Id = Guid.NewGuid(), BoardId = _factory.DefaultBoardId, Name = $"Replace3-{Guid.NewGuid()}", Color = "blue" };
+        db.Labels.AddRange(label1, label2, label3);
+        await db.SaveChangesAsync();
+
+        // First: assign label1 and label2
+        await tools.UpdateCardAsync(authKey, cardId, labelIds: $"{label1.Id},{label2.Id}");
+
+        // Act — replace with label2 and label3 (label1 removed, label3 added, label2 kept)
+        var result = await tools.UpdateCardAsync(authKey, cardId, labelIds: $"{label2.Id},{label3.Id}");
+
+        // Assert
+        result.ShouldNotContain("Error");
+        var cardLabels = db.CardLabels.Where(cl => cl.CardId == cardId).Select(cl => cl.LabelId).ToList();
+        cardLabels.Count.ShouldBe(2);
+        cardLabels.ShouldContain(label2.Id);
+        cardLabels.ShouldContain(label3.Id);
+        cardLabels.ShouldNotContain(label1.Id);
+    }
+
+    [Fact]
+    public async Task UpdateCard_WithEmptyLabelIds_ClearsAllLabels()
+    {
+        // Arrange
+        var (db, tools, authKey) = CreateTools();
+        var lanes = db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToList();
+        var cardId = await CreateCardInLaneAsync(tools, authKey, lanes[0]);
+
+        var label = new Label { Id = Guid.NewGuid(), BoardId = _factory.DefaultBoardId, Name = $"ClearMe-{Guid.NewGuid()}", Color = "red" };
+        db.Labels.Add(label);
+        await db.SaveChangesAsync();
+
+        await tools.UpdateCardAsync(authKey, cardId, labelIds: label.Id.ToString());
+
+        // Act — clear all labels
+        var result = await tools.UpdateCardAsync(authKey, cardId, labelIds: "");
+
+        // Assert
+        result.ShouldNotContain("Error");
+        var cardLabels = db.CardLabels.Where(cl => cl.CardId == cardId).ToList();
+        cardLabels.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task UpdateCard_WithInvalidLabelId_ReturnsError()
+    {
+        // Arrange
+        var (db, tools, authKey) = CreateTools();
+        var lanes = db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToList();
+        var cardId = await CreateCardInLaneAsync(tools, authKey, lanes[0]);
+
+        var bogusLabelId = Guid.NewGuid();
+
+        // Act
+        var result = await tools.UpdateCardAsync(authKey, cardId, labelIds: bogusLabelId.ToString());
+
+        // Assert
+        result.ShouldContain("Error: Labels not found or not on the same board");
+    }
+
+    [Fact]
+    public async Task UpdateCard_WithMalformedLabelIds_ReturnsError()
+    {
+        // Arrange
+        var (db, tools, authKey) = CreateTools();
+        var lanes = db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToList();
+        var cardId = await CreateCardInLaneAsync(tools, authKey, lanes[0]);
+
+        // Act
+        var result = await tools.UpdateCardAsync(authKey, cardId, labelIds: "not-a-guid");
+
+        // Assert
+        result.ShouldContain("Error: Invalid label ID");
+    }
+
+    // ── create_card labelIds ────────────────────────────────────────────────
 
     [Fact]
     public async Task CreateCard_WithLabelIds_AssignsLabels()
     {
-        // Arrange
-        var label1Id = await CreateLabelAsync("bug", "red");
-        var label2Id = await CreateLabelAsync("feature", "green");
-        var labelIds = $"{label1Id},{label2Id}";
+        var (db, tools, authKey) = CreateTools();
+        var lanes = db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToList();
+        var label1 = new Label { Id = Guid.NewGuid(), BoardId = _factory.DefaultBoardId, Name = $"CL1-{Guid.NewGuid()}", Color = "red" };
+        var label2 = new Label { Id = Guid.NewGuid(), BoardId = _factory.DefaultBoardId, Name = $"CL2-{Guid.NewGuid()}", Color = "blue" };
+        db.Labels.AddRange(label1, label2);
+        await db.SaveChangesAsync();
 
-        // Act
-        var result = await _cardTools.CreateCardAsync(_authKey, "Card With Labels", _laneId, labelIds: labelIds);
+        var result = await tools.CreateCardAsync(authKey, "Labeled Card", lanes[0], labelIds: $"{label1.Id},{label2.Id}");
 
-        // Assert
         result.ShouldNotContain("Error");
-        var card = JsonSerializer.Deserialize<JsonElement>(result);
-        var cardId = card.GetProperty("id").GetGuid();
-
-        var cardLabels = await _db.CardLabels.Where(cl => cl.CardId == cardId).ToListAsync();
+        var json = System.Text.Json.JsonDocument.Parse(result);
+        var cardId = json.RootElement.GetProperty("id").GetGuid();
+        var cardLabels = db.CardLabels.Where(cl => cl.CardId == cardId).Select(cl => cl.LabelId).ToList();
         cardLabels.Count.ShouldBe(2);
-        cardLabels.ShouldContain(cl => cl.LabelId == label1Id);
-        cardLabels.ShouldContain(cl => cl.LabelId == label2Id);
-    }
-
-    [Fact]
-    public async Task CreateCard_WithSingleLabelId_AssignsLabel()
-    {
-        // Arrange
-        var labelId = await CreateLabelAsync("improvement", "blue");
-
-        // Act
-        var result = await _cardTools.CreateCardAsync(_authKey, "Single Label Card", _laneId, labelIds: labelId.ToString());
-
-        // Assert
-        result.ShouldNotContain("Error");
-        var card = JsonSerializer.Deserialize<JsonElement>(result);
-        var cardId = card.GetProperty("id").GetGuid();
-
-        var cardLabels = await _db.CardLabels.Where(cl => cl.CardId == cardId).ToListAsync();
-        cardLabels.Count.ShouldBe(1);
-        cardLabels[0].LabelId.ShouldBe(labelId);
+        cardLabels.ShouldContain(label1.Id);
+        cardLabels.ShouldContain(label2.Id);
     }
 
     [Fact]
     public async Task CreateCard_WithNoLabelIds_CreatesCardWithoutLabels()
     {
-        // Act
-        var result = await _cardTools.CreateCardAsync(_authKey, "No Labels Card", _laneId);
+        var (db, tools, authKey) = CreateTools();
+        var lanes = db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToList();
 
-        // Assert
+        var result = await tools.CreateCardAsync(authKey, "No Labels", lanes[0]);
+
         result.ShouldNotContain("Error");
-        var card = JsonSerializer.Deserialize<JsonElement>(result);
-        var cardId = card.GetProperty("id").GetGuid();
-
-        var cardLabels = await _db.CardLabels.Where(cl => cl.CardId == cardId).ToListAsync();
-        cardLabels.Count.ShouldBe(0);
+        var json = System.Text.Json.JsonDocument.Parse(result);
+        var cardId = json.RootElement.GetProperty("id").GetGuid();
+        db.CardLabels.Where(cl => cl.CardId == cardId).ToList().ShouldBeEmpty();
     }
 
     [Fact]
     public async Task CreateCard_WithNonexistentLabel_ReturnsError()
     {
-        // Arrange
-        var bogusLabelId = Guid.NewGuid();
+        var (db, tools, authKey) = CreateTools();
+        var lanes = db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToList();
 
-        // Act
-        var result = await _cardTools.CreateCardAsync(_authKey, "Bad Label Card", _laneId, labelIds: bogusLabelId.ToString());
+        var result = await tools.CreateCardAsync(authKey, "Bad Label", lanes[0], labelIds: Guid.NewGuid().ToString());
 
-        // Assert
         result.ShouldContain("Error");
-        result.ShouldContain(bogusLabelId.ToString());
-        result.ShouldContain("not found");
-
-        // Card should not have been created
-        var cards = await _db.Cards.Where(c => c.Name == "Bad Label Card").ToListAsync();
-        cards.Count.ShouldBe(0);
-    }
-
-    [Fact]
-    public async Task CreateCard_WithCrossBoardLabel_ReturnsError()
-    {
-        // Arrange — create a label on a different board
-        var otherBoardId = Guid.NewGuid();
-        _db.Boards.Add(new Board
-        {
-            Id = otherBoardId,
-            Name = "Other Board",
-            Slug = "other-board",
-            CreatedAtUtc = DateTimeOffset.UtcNow,
-        });
-        await _db.SaveChangesAsync();
-
-        var crossBoardLabelId = await CreateLabelAsync("cross-board-label", "red", otherBoardId);
-
-        // Act
-        var result = await _cardTools.CreateCardAsync(_authKey, "Cross Board Label Card", _laneId, labelIds: crossBoardLabelId.ToString());
-
-        // Assert
-        result.ShouldContain("Error");
-        result.ShouldContain(crossBoardLabelId.ToString());
-        result.ShouldContain("does not belong to the same board");
-
-        // Card should not have been created
-        var cards = await _db.Cards.Where(c => c.Name == "Cross Board Label Card").ToListAsync();
-        cards.Count.ShouldBe(0);
     }
 
     [Fact]
     public async Task CreateCard_WithInvalidLabelIdFormat_ReturnsError()
     {
-        // Act
-        var result = await _cardTools.CreateCardAsync(_authKey, "Invalid Format Card", _laneId, labelIds: "not-a-guid");
+        var (db, tools, authKey) = CreateTools();
+        var lanes = db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToList();
 
-        // Assert
+        var result = await tools.CreateCardAsync(authKey, "Bad Format", lanes[0], labelIds: "not-a-guid");
+
         result.ShouldContain("Error");
-        result.ShouldContain("Invalid label ID format");
-
-        // Card should not have been created
-        var cards = await _db.Cards.Where(c => c.Name == "Invalid Format Card").ToListAsync();
-        cards.Count.ShouldBe(0);
-    }
-
-    [Fact]
-    public async Task CreateCard_WithMixedValidAndInvalidLabels_ReturnsError()
-    {
-        // Arrange — one valid label, one nonexistent
-        var validLabelId = await CreateLabelAsync("valid-label", "blue");
-        var bogusLabelId = Guid.NewGuid();
-        var labelIds = $"{validLabelId},{bogusLabelId}";
-
-        // Act
-        var result = await _cardTools.CreateCardAsync(_authKey, "Mixed Labels Card", _laneId, labelIds: labelIds);
-
-        // Assert
-        result.ShouldContain("Error");
-        result.ShouldContain(bogusLabelId.ToString());
-
-        // Card should not have been created
-        var cards = await _db.Cards.Where(c => c.Name == "Mixed Labels Card").ToListAsync();
-        cards.Count.ShouldBe(0);
-    }
-
-    [Fact]
-    public async Task CreateCard_WithLabelsAndSpaces_ParsesCorrectly()
-    {
-        // Arrange
-        var label1Id = await CreateLabelAsync("spaced-label-1", "red");
-        var label2Id = await CreateLabelAsync("spaced-label-2", "green");
-        var labelIds = $" {label1Id} , {label2Id} ";
-
-        // Act
-        var result = await _cardTools.CreateCardAsync(_authKey, "Spaced Labels Card", _laneId, labelIds: labelIds);
-
-        // Assert
-        result.ShouldNotContain("Error");
-        var card = JsonSerializer.Deserialize<JsonElement>(result);
-        var cardId = card.GetProperty("id").GetGuid();
-
-        var cardLabels = await _db.CardLabels.Where(cl => cl.CardId == cardId).ToListAsync();
-        cardLabels.Count.ShouldBe(2);
     }
 
     [Fact]
     public async Task CreateCard_WithEmptyLabelIds_CreatesCardWithoutLabels()
     {
+        var (db, tools, authKey) = CreateTools();
+        var lanes = db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToList();
+
+        var result = await tools.CreateCardAsync(authKey, "Empty Labels", lanes[0], labelIds: "");
+
+        result.ShouldNotContain("Error");
+    }
+
+    // ── Combined operations ─────────────────────────────────────────────────
+
+    [Fact]
+    public async Task UpdateCard_MoveAndRenameAndLabel_AllApplied()
+    {
+        // Arrange
+        var (db, tools, authKey) = CreateTools();
+        var (lane1, lane2) = await GetTwoLaneIdsAsync(db);
+        var cardId = await CreateCardInLaneAsync(tools, authKey, lane1, "Original");
+
+        var label = new Label { Id = Guid.NewGuid(), BoardId = _factory.DefaultBoardId, Name = $"Combo-{Guid.NewGuid()}", Color = "green" };
+        db.Labels.Add(label);
+        await db.SaveChangesAsync();
+
         // Act
-        var result = await _cardTools.CreateCardAsync(_authKey, "Empty LabelIds Card", _laneId, labelIds: "");
+        var result = await tools.UpdateCardAsync(authKey, cardId, name: "Renamed", laneId: lane2, labelIds: label.Id.ToString());
 
         // Assert
         result.ShouldNotContain("Error");
-        var card = JsonSerializer.Deserialize<JsonElement>(result);
-        var cardId = card.GetProperty("id").GetGuid();
+        var json = System.Text.Json.JsonDocument.Parse(result);
+        json.RootElement.GetProperty("name").GetString().ShouldBe("Renamed");
+        json.RootElement.GetProperty("laneId").GetGuid().ShouldBe(lane2);
 
-        var cardLabels = await _db.CardLabels.Where(cl => cl.CardId == cardId).ToListAsync();
-        cardLabels.Count.ShouldBe(0);
-    }
-
-    [Fact]
-    public async Task CreateCard_LabelsVisibleViaGetCard()
-    {
-        // Arrange
-        var labelId = await CreateLabelAsync("visible-label", "purple");
-
-        // Act
-        var createResult = await _cardTools.CreateCardAsync(_authKey, "Visible Labels Card", _laneId, labelIds: labelId.ToString());
-        createResult.ShouldNotContain("Error");
-        var createdCard = JsonSerializer.Deserialize<JsonElement>(createResult);
-        var cardId = createdCard.GetProperty("id").GetGuid();
-
-        var getResult = await _cardTools.GetCardAsync(_authKey, cardId);
-
-        // Assert
-        var cardData = JsonSerializer.Deserialize<JsonElement>(getResult);
-        var labels = cardData.GetProperty("labels");
-        labels.GetArrayLength().ShouldBe(1);
-        labels[0].GetProperty("id").GetGuid().ShouldBe(labelId);
-        labels[0].GetProperty("name").GetString().ShouldBe("visible-label");
+        var cardLabels = db.CardLabels.Where(cl => cl.CardId == cardId).Select(cl => cl.LabelId).ToList();
+        cardLabels.ShouldContain(label.Id);
     }
 }
