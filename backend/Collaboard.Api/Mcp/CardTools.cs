@@ -226,7 +226,25 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             query = query.Where(c => cardIdsWithLabel.Contains(c.Id));
         }
 
-        var cards = await query.OrderBy(c => c.LaneId).ThenBy(c => c.Position).ToListAsync(ct);
+        var cards = await query.OrderBy(c => c.LaneId).ThenBy(c => c.Position)
+            .Select(c => new CardSummary(
+                c.Id,
+                c.Number,
+                c.Name,
+                c.DescriptionMarkdown,
+                c.Size,
+                c.LaneId,
+                c.Position,
+                c.CreatedByUserId,
+                c.CreatedAtUtc,
+                c.LastUpdatedByUserId,
+                c.LastUpdatedAtUtc,
+                db.CardLabels.Where(cl => cl.CardId == c.Id)
+                    .Join(db.Labels, cl => cl.LabelId, l => l.Id, (_, l) => new CardLabelSummary(l.Id, l.Name, l.Color))
+                    .ToList(),
+                db.Comments.Count(cm => cm.CardId == c.Id),
+                db.Attachments.Count(a => a.CardId == c.Id)))
+            .ToListAsync(ct);
         return JsonSerializer.Serialize(cards, JsonSerializerOptions.Web);
     }
 
