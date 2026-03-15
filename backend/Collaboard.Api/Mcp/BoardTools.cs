@@ -79,10 +79,10 @@ public sealed class BoardTools(BoardDbContext db, McpAuthService auth, IHttpCont
     }
 
     [McpServerTool(Name = "get_lanes", ReadOnly = true, Destructive = false)]
-    [Description("Get all lanes (columns) ordered by position. Pass a boardId to scope to a single board, or omit to get all boards.")]
+    [Description("Get all lanes (columns) for a board, ordered by position. Each lane includes a cardCount with the number of cards in that lane.")]
     public async Task<string> GetLanesAsync(
         [Description("Your auth key (X-User-Key)")] string authKey,
-        [Description("Optional board ID to scope results to a single board")] Guid? boardId = null,
+        [Description("Board ID to scope results")] Guid boardId,
         CancellationToken ct = default)
     {
         var (_, error) = await auth.RequireUserAsync(authKey, ct);
@@ -91,13 +91,19 @@ public sealed class BoardTools(BoardDbContext db, McpAuthService auth, IHttpCont
             return error;
         }
 
-        var query = db.Lanes.AsQueryable();
-        if (boardId.HasValue)
-        {
-            query = query.Where(l => l.BoardId == boardId.Value);
-        }
+        var lanes = await db.Lanes
+            .Where(l => l.BoardId == boardId)
+            .OrderBy(l => l.Position)
+            .Select(l => new
+            {
+                l.Id,
+                l.BoardId,
+                l.Name,
+                l.Position,
+                CardCount = db.Cards.Count(c => c.LaneId == l.Id)
+            })
+            .ToListAsync(ct);
 
-        var lanes = await query.OrderBy(l => l.Position).ToListAsync(ct);
         return JsonSerializer.Serialize(lanes, JsonSerializerOptions.Web);
     }
 }
