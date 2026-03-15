@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { fetchBoard, fetchCardAttachments, fetchCardLabels, fetchComments, fetchMe, fetchUsers, reorderCard } from '@/lib/api';
 import { isLoggedIn, setUserKey, clearUserKey } from '@/lib/auth';
 import { useBoardEvents } from '@/lib/use-board-events';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { cn } from '@/lib/utils';
 import type { CardItem, Lane } from '@/types';
 
@@ -200,31 +201,31 @@ export function App() {
   }
 
   return (
-    <main className="flex h-screen flex-col bg-background p-4 text-foreground">
-      <header className="mb-6 flex items-center justify-between">
-        <img
+    <main className="flex h-screen flex-col bg-background text-foreground">
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
+        <div className="flex items-center gap-3">
+          <img
             src="/collaboard-logo.png"
             alt="Collaboard"
-            className="h-28 w-auto"
-            style={{
-              maskImage: 'radial-gradient(ellipse 90% 80% at center, black 40%, transparent 100%)',
-              WebkitMaskImage: 'radial-gradient(ellipse 90% 80% at center, black 40%, transparent 100%)',
-            }}
+            className="w-48"
+            style={{ imageRendering: 'pixelated' }}
           />
+        </div>
         <div className="flex items-center gap-2">
-          <Button onClick={() => { setCreateLaneId(undefined); setCreateOpen(true); }}>New Card</Button>
+          <Button onClick={() => { setCreateLaneId(undefined); setCreateOpen(true); }}>+ New Card</Button>
           {isAdmin && (
             <Button variant="outline" onClick={() => setAdminOpen(true)}>
               Admin
             </Button>
           )}
+          <ThemeToggle />
           <Button variant="ghost" onClick={handleLogout} className="text-muted-foreground">
             Logout
           </Button>
         </div>
       </header>
       {boardQuery.isError && (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-center text-sm text-destructive">
+        <div className="mx-4 mt-4 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-center text-sm text-destructive">
           Failed to load board. Check your auth key in <code>.env</code> and clear localStorage.
         </div>
       )}
@@ -239,7 +240,7 @@ export function App() {
         onDragEnd={onDragEnd}
       >
         <section
-          className="grid min-h-0 flex-1 gap-4 overflow-x-auto pb-2"
+          className="grid min-h-0 flex-1 gap-4 overflow-x-auto p-4 pb-2"
           style={{
             gridTemplateColumns: lanes.length > 0
               ? `repeat(${lanes.length}, minmax(320px, 1fr))`
@@ -294,25 +295,29 @@ function LaneColumn({
     <article
       ref={setNodeRef}
       className={cn(
-        'flex flex-col overflow-hidden rounded-lg border border-border/60 bg-card p-4 shadow-md border-t-2 border-t-primary/50',
+        'flex flex-col overflow-hidden rounded-lg border border-lane-border bg-lane-bg border-t-2 border-t-primary',
         isOver && 'ring-2 ring-primary/40',
       )}
     >
-      <div className="mb-3 flex shrink-0 items-center justify-between">
-        <h2 className="font-semibold">{lane.name}</h2>
+      <div className="flex shrink-0 items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-2">
+          <span className="inline-block h-2 w-2 rounded-full bg-primary" />
+          <h2 className="text-sm font-semibold uppercase tracking-wide" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>{lane.name}</h2>
+          <span className="text-xs text-muted-foreground">{cards.length}</span>
+        </div>
         <button
           type="button"
           onClick={onAddCard}
-          className="flex h-7 w-7 items-center justify-center rounded-md border text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
         >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <line x1="8" y1="3" x2="8" y2="13" />
             <line x1="3" y1="8" x2="13" y2="8" />
           </svg>
         </button>
       </div>
       <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
-        <div className="flex-1 space-y-3 overflow-y-auto pr-3">
+        <div className="flex-1 space-y-2 overflow-y-auto px-3 pb-3">
           {cards.map((card) => (
             <SortableCard key={card.id} card={card} onCardClick={onCardClick} isDragging={card.id === activeCardId} />
           ))}
@@ -362,13 +367,13 @@ function SortableCard({
       {...attributes}
       onClick={() => onCardClick(card)}
       className={cn(
-        'cursor-pointer rounded-md border border-border bg-card p-3 hover:shadow-md',
+        'cursor-pointer rounded-lg border border-border bg-card p-3 shadow-sm transition-shadow hover:shadow-md hover:border-primary/30',
         isDragging && 'opacity-0',
       )}
     >
       {/* Title + Size */}
       <div className="flex items-start justify-between gap-2">
-        <h3 className="text-base font-semibold leading-snug">{card.name}</h3>
+        <h3 className="text-sm font-medium leading-snug">{card.name}</h3>
         <Badge variant="outline" className="mt-0.5 shrink-0 text-[10px]">{card.size}</Badge>
       </div>
 
@@ -417,9 +422,9 @@ function SortableCard({
 
 function CardOverlay({ card }: { card: CardItem }) {
   return (
-    <div className="rounded-md border border-border bg-card p-3 shadow-xl">
+    <div className="rounded-lg border border-border bg-card p-3 shadow-xl">
       <div className="flex items-start justify-between gap-2">
-        <h3 className="text-base font-semibold leading-snug">{card.name}</h3>
+        <h3 className="text-sm font-medium leading-snug">{card.name}</h3>
         <Badge variant="outline" className="mt-0.5 shrink-0 text-[10px]">{card.size}</Badge>
       </div>
       <div className="mt-2 text-xs text-muted-foreground">

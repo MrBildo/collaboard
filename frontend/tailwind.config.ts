@@ -37,6 +37,10 @@ export default {
           DEFAULT: 'var(--card)',
           foreground: 'var(--card-foreground)',
         },
+        lane: {
+          bg: 'var(--lane-bg)',
+          border: 'var(--lane-border)',
+        },
         sidebar: {
           DEFAULT: 'var(--sidebar)',
           foreground: 'var(--sidebar-foreground)',

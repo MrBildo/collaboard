@@ -38,7 +38,7 @@ export function CardDetailSheet({ card, open, onOpenChange, currentUserId, curre
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[90vh] !w-[80vw] !max-w-[80vw] flex-col overflow-hidden p-0">
+      <DialogContent className="flex max-h-[85vh] !w-[80vw] !max-w-[80vw] flex-col overflow-hidden p-0">
         <CardDetailForm key={card.id} card={card} onOpenChange={onOpenChange} currentUserId={currentUserId} currentUserRole={currentUserRole} />
       </DialogContent>
     </Dialog>
@@ -197,7 +197,7 @@ function CardDetailForm({
       {/* Two-column body */}
       <div className="flex flex-1 gap-0 overflow-hidden">
         {/* Left column — details */}
-        <div className="flex-1 overflow-y-auto border-r px-6 py-4">
+        <div className="flex-1 overflow-y-auto px-6 py-4">
           {/* Description */}
           <div className="mb-4">
             <div className="mb-2 flex items-center justify-between">
@@ -220,7 +220,7 @@ function CardDetailForm({
                 placeholder="Write a description..."
               />
             ) : (
-              <div className="prose prose-sm prose-invert max-w-none rounded-md border bg-muted/20 p-4 text-sm text-foreground">
+              <div className="prose prose-sm max-w-none rounded-md border bg-muted/30 p-4 text-sm text-foreground">
                 {description ? (
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{description}</ReactMarkdown>
                 ) : (
@@ -246,7 +246,7 @@ function CardDetailForm({
         </div>
 
         {/* Right column — comments */}
-        <div className="flex w-[340px] shrink-0 flex-col overflow-y-auto px-5 py-4">
+        <div className="flex w-[340px] shrink-0 flex-col overflow-y-auto border-l border-border px-5 py-4">
           <h3 className="mb-3 text-sm font-semibold">Comments</h3>
           <CardComments cardId={card.id} currentUserId={currentUserId} currentUserRole={currentUserRole} />
         </div>

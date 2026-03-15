@@ -120,7 +120,7 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
             </div>
           ) : (
             <>
-              <div className="prose prose-sm prose-invert max-w-none break-words">
+              <div className="prose prose-sm max-w-none break-words">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{comment.contentMarkdown}</ReactMarkdown>
               </div>
               <div className="mt-2 flex items-center justify-between">
@@ -165,6 +165,7 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
           onChange={(e) => setNewComment(e.target.value)}
           placeholder="Add a comment (Markdown supported)"
           rows={3}
+          className="bg-muted"
         />
         <div className="flex justify-end">
           <Button onClick={handleAdd} disabled={createMutation.isPending || !newComment.trim()}>
