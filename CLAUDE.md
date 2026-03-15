@@ -12,6 +12,7 @@ Kanban board web application — .NET Minimal API backend + React SPA frontend. 
 **Frontend**
 - React 18 + TypeScript
 - Vite (dev server + build)
+- React Router v6 — routes: `/`, `/boards/:slug`, `/boards/:slug/cards/:cardNumber`
 - Tailwind CSS v3 + shadcn/ui
 - TanStack Query (data fetching)
 - dnd-kit (drag-and-drop)
@@ -44,7 +45,7 @@ Launches both API and frontend with the Aspire dashboard. The dashboard URL is p
 
 The API gets a dynamic port (no more hardcoded 58343). The frontend gets a dynamic port. Aspire handles service discovery between them.
 
-Requires `appsettings.Development.json` in `backend/Collaboard.Api/` with `Security:ApiKey`.
+Optionally configure `Admin:AuthKey` in `appsettings.Development.json` in `backend/Collaboard.Api/` — otherwise a random key is generated and logged on first run.
 
 ### Tests
 ```powershell
@@ -69,22 +70,60 @@ Header-based authentication — no ASP.NET auth middleware:
 - Admin seed: uses `Admin:AuthKey` from config if set, else generates ULID and logs it
 - **Use `Results.StatusCode(403)` not `Results.Forbid()`** (no auth middleware registered)
 - `AgentUser` cannot delete cards or attachments
+- All users see all boards — no board-level membership
 
 ## API Surface
 
 All endpoints under `/api/v1/`:
 
+### Boards (admin-only for mutation)
+
+| Method | Path | Auth | Notes |
+|--------|------|------|-------|
+| GET | /boards | All | List all boards |
+| GET | /boards/{idOrSlug} | All | Get board by Guid or slug |
+| POST | /boards | Admin | Create board (name required, slug auto-derived, immutable) |
+| PATCH | /boards/{id} | Admin | Update name only (slug unchanged) |
+| DELETE | /boards/{id} | Admin | Delete board (must have zero lanes) |
+
+### Board-scoped resources
+
+| Method | Path | Auth | Notes |
+|--------|------|------|-------|
+| GET | /boards/{boardId}/board | All | Composite: lanes + cards for a board |
+| GET | /boards/{boardId}/lanes | All | List lanes for a board |
+| POST | /boards/{boardId}/lanes | Admin | Create lane in a board |
+| GET | /boards/{boardId}/cards | All | List cards for a board |
+| POST | /boards/{boardId}/cards | All | Create card in a board |
+
+### By-ID operations (flat, resource knows its board)
+
 | Resource | Endpoints |
 |----------|-----------|
-| Board | `GET /board` |
-| Users | `GET /users`, `GET /users/{id}`, `POST /users`, `PATCH /users/{id}`, `PATCH /users/{id}/deactivate` |
-| Lanes | `GET /lanes`, `GET /lanes/{id}`, `POST /lanes`, `PATCH /lanes/{id}`, `DELETE /lanes/{id}` |
-| Cards | `GET /cards`, `GET /cards/{id}`, `POST /cards`, `PATCH /cards/{id}`, `DELETE /cards/{id}` |
-| Comments | `GET /cards/{id}/comments`, `POST /cards/{id}/comments`, `PATCH /comments/{id}`, `DELETE /comments/{id}` |
-| Attachments | `GET /cards/{id}/attachments`, `POST /cards/{id}/attachments`, `GET /attachments/{id}`, `DELETE /attachments/{id}` |
+| Lanes | `GET /lanes/{id}`, `PATCH /lanes/{id}`, `DELETE /lanes/{id}` |
+| Cards | `GET /cards/{id}`, `PATCH /cards/{id}`, `DELETE /cards/{id}`, `POST /cards/{id}/reorder` |
+
+### Global resources (not board-scoped)
+
+| Resource | Endpoints |
+|----------|-----------|
+| Users | `GET /users`, `GET /users/{id}`, `POST /users`, `PATCH /users/{id}`, `PATCH /users/{id}/deactivate`, `GET /auth/me` |
 | Labels | `GET /labels`, `POST /labels`, `PATCH /labels/{id}`, `DELETE /labels/{id}` |
 | Card Labels | `GET /cards/{id}/labels`, `POST /cards/{id}/labels`, `DELETE /cards/{id}/labels/{labelId}` |
-| MCP | `GET /mcp` (stub manifest) |
+| Comments | `GET /cards/{id}/comments`, `POST /cards/{id}/comments`, `PATCH /comments/{id}`, `DELETE /comments/{id}` |
+| Attachments | `GET /cards/{id}/attachments`, `POST /cards/{id}/attachments`, `GET /attachments/{id}`, `DELETE /attachments/{id}` |
+
+### SSE Events
+
+| Path | Notes |
+|------|-------|
+| /boards/{boardId}/events | Per-board stream; global mutations (labels, users) broadcast to all streams |
+
+### MCP
+
+| Path | Notes |
+|------|-------|
+| /mcp | Stub manifest |
 
 ## .agents/ Directory Structure
 
