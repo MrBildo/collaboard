@@ -33,11 +33,12 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
     }
 
     [McpServerTool(Name = "add_label_to_card", Destructive = false)]
-    [Description("Add a label to a card. The label must belong to the same board as the card.")]
+    [Description("Add a label to a card. Provide either labelId (guid) or labelName (string), not both. The label must belong to the same board as the card.")]
     public async Task<string> AddLabelToCardAsync(
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the card")] Guid cardId,
-        [Description("The ID (guid) of the label to add")] Guid labelId,
+        [Description("The ID (guid) of the label to add. Provide this or labelName, not both.")] Guid? labelId = null,
+        [Description("The name of the label to add (matched case-insensitively within the card's board). Provide this or labelId, not both.")] string? labelName = null,
         CancellationToken ct = default)
     {
         var (_, error) = await auth.RequireUserAsync(authKey, ct);
@@ -52,36 +53,43 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
             return "Error: Card not found.";
         }
 
-        var label = await db.Labels.FindAsync([labelId], ct);
+        var cardBoardId = await db.Lanes.Where(l => l.Id == card.LaneId).Select(l => l.BoardId).FirstOrDefaultAsync(ct);
+
+        var (resolvedLabelId, resolveError) = await ResolveLabelAsync(labelId, labelName, cardBoardId, ct);
+        if (resolveError is not null)
+        {
+            return resolveError;
+        }
+
+        var label = await db.Labels.FindAsync([resolvedLabelId], ct);
         if (label is null)
         {
             return "Error: Label not found.";
         }
 
-        // Validate cross-board: label's BoardId must match card's board
-        var cardBoardId = await db.Lanes.Where(l => l.Id == card.LaneId).Select(l => l.BoardId).FirstOrDefaultAsync(ct);
         if (label.BoardId != cardBoardId)
         {
             return "Error: Label does not belong to the same board as the card.";
         }
 
-        if (await db.CardLabels.AnyAsync(cl => cl.CardId == cardId && cl.LabelId == labelId, ct))
+        if (await db.CardLabels.AnyAsync(cl => cl.CardId == cardId && cl.LabelId == resolvedLabelId, ct))
         {
             return "Label already assigned to this card.";
         }
 
-        db.CardLabels.Add(new CardLabel { CardId = cardId, LabelId = labelId });
+        db.CardLabels.Add(new CardLabel { CardId = cardId, LabelId = resolvedLabelId!.Value });
         await db.SaveChangesAsync(ct);
         broadcaster.PublishBoardUpdated(cardBoardId);
         return "Label added successfully.";
     }
 
     [McpServerTool(Name = "remove_label_from_card", Destructive = false)]
-    [Description("Remove a label from a card.")]
+    [Description("Remove a label from a card. Provide either labelId (guid) or labelName (string), not both.")]
     public async Task<string> RemoveLabelFromCardAsync(
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the card")] Guid cardId,
-        [Description("The ID (guid) of the label to remove")] Guid labelId,
+        [Description("The ID (guid) of the label to remove. Provide this or labelName, not both.")] Guid? labelId = null,
+        [Description("The name of the label to remove (matched case-insensitively within the card's board). Provide this or labelId, not both.")] string? labelName = null,
         CancellationToken ct = default)
     {
         var (_, error) = await auth.RequireUserAsync(authKey, ct);
@@ -90,7 +98,21 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
             return error;
         }
 
-        var cardLabel = await db.CardLabels.FirstOrDefaultAsync(cl => cl.CardId == cardId && cl.LabelId == labelId, ct);
+        var card = await db.Cards.FindAsync([cardId], ct);
+        if (card is null)
+        {
+            return "Error: Card not found.";
+        }
+
+        var cardBoardId = await db.Lanes.Where(l => l.Id == card.LaneId).Select(l => l.BoardId).FirstOrDefaultAsync(ct);
+
+        var (resolvedLabelId, resolveError) = await ResolveLabelAsync(labelId, labelName, cardBoardId, ct);
+        if (resolveError is not null)
+        {
+            return resolveError;
+        }
+
+        var cardLabel = await db.CardLabels.FirstOrDefaultAsync(cl => cl.CardId == cardId && cl.LabelId == resolvedLabelId, ct);
         if (cardLabel is null)
         {
             return "Error: Label not assigned to this card.";
@@ -100,5 +122,53 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
         await db.SaveChangesAsync(ct);
         await db.PublishForCardAsync(cardId, broadcaster);
         return "Label removed successfully.";
+    }
+
+    private async Task<(Guid? LabelId, string? Error)> ResolveLabelAsync(
+        Guid? labelId, string? labelName, Guid boardId, CancellationToken ct)
+    {
+        var hasId = labelId.HasValue && labelId.Value != Guid.Empty;
+        var hasName = !string.IsNullOrWhiteSpace(labelName);
+
+        if (hasId && hasName)
+        {
+            return (null, "Error: Provide either labelId or labelName, not both.");
+        }
+
+        if (!hasId && !hasName)
+        {
+            return (null, "Error: Provide either labelId or labelName.");
+        }
+
+        if (hasId)
+        {
+            return (labelId, null);
+        }
+
+        var matches = await db.Labels
+            .Where(l => l.BoardId == boardId && l.Name.ToLower() == labelName!.ToLower())
+            .ToListAsync(ct);
+
+        if (matches.Count == 0)
+        {
+            var available = await db.Labels
+                .Where(l => l.BoardId == boardId)
+                .OrderBy(l => l.Name)
+                .Select(l => l.Name)
+                .ToListAsync(ct);
+
+            var availableList = available.Count > 0
+                ? string.Join(", ", available)
+                : "(none)";
+
+            return (null, $"Error: No label named '{labelName}' found on this board. Available labels: {availableList}");
+        }
+
+        if (matches.Count > 1)
+        {
+            return (null, $"Error: Multiple labels named '{labelName}' found on this board. Use labelId instead.");
+        }
+
+        return (matches[0].Id, null);
     }
 }
