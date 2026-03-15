@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Collaboard.Api.Models;
 using Collaboard.Api.Tests.Infrastructure;
+using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 
 namespace Collaboard.Api.Tests;
@@ -62,7 +63,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     }
 
     [Fact]
-    public async Task GetCardById_Returns200()
+    public async Task GetCardById_ReturnsEnrichedResponse()
     {
         // Arrange
         TestAuthHelper.SetAdminAuth(_client, _factory);
@@ -80,15 +81,41 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
         var cardId = created.GetProperty("id").GetGuid();
 
+        // Add a comment
+        await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "Test comment" });
+
+        // Add an attachment
+        using var attachContent = new MultipartFormDataContent();
+        attachContent.Add(new ByteArrayContent([1, 2, 3]), "file", "test.txt");
+        await _client.PostAsync($"/api/v1/cards/{cardId}/attachments", attachContent);
+
         // Act
         var response = await _client.GetAsync($"/api/v1/cards/{cardId}");
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var card = await response.Content.ReadFromJsonAsync<JsonElement>();
-        card.GetProperty("id").GetGuid().ShouldBe(cardId);
-        card.GetProperty("name").GetString().ShouldBe("GetById Card");
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        body.GetProperty("card").GetProperty("id").GetGuid().ShouldBe(cardId);
+        body.GetProperty("card").GetProperty("name").GetString().ShouldBe("GetById Card");
+
+        // User display names
+        body.GetProperty("createdByUserName").GetString().ShouldNotBeNullOrEmpty();
+        body.GetProperty("lastUpdatedByUserName").GetString().ShouldNotBeNullOrEmpty();
+
+        // Comments with user names
+        var comments = body.GetProperty("comments");
+        comments.GetArrayLength().ShouldBeGreaterThan(0);
+        comments[0].TryGetProperty("userName", out _).ShouldBeTrue();
+
+        // Labels array present
+        body.TryGetProperty("labels", out _).ShouldBeTrue();
+
+        // Attachments
+        var attachments = body.GetProperty("attachments");
+        attachments.GetArrayLength().ShouldBeGreaterThan(0);
+        attachments[0].GetProperty("fileName").GetString().ShouldBe("test.txt");
+        attachments[0].TryGetProperty("payload", out _).ShouldBeFalse();
     }
 
     [Fact]
@@ -970,5 +997,209 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         var labels = await labelsResponse.Content.ReadFromJsonAsync<JsonElement>();
         labels.GetArrayLength().ShouldBe(1);
         labels[0].GetProperty("id").GetGuid().ShouldBe(label2Id);
+    }
+
+    [Fact]
+    public async Task GetCardById_ReturnsAttachmentsWithoutPayload()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "Card With Attachment",
+            descriptionMarkdown = "",
+            size = "M",
+            laneId,
+            position = NextPosition()
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        using var attachContent = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent([0x89, 0x50, 0x4E, 0x47]);
+        fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
+        attachContent.Add(fileContent, "file", "image.png");
+        var attachResponse = await _client.PostAsync($"/api/v1/cards/{cardId}/attachments", attachContent);
+        attachResponse.EnsureSuccessStatusCode();
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/cards/{cardId}");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var attachments = body.GetProperty("attachments");
+        attachments.GetArrayLength().ShouldBe(1);
+
+        var attachment = attachments[0];
+        attachment.GetProperty("fileName").GetString().ShouldBe("image.png");
+        attachment.GetProperty("contentType").GetString().ShouldBe("image/png");
+        attachment.GetProperty("addedByUserId").GetGuid().ShouldNotBe(Guid.Empty);
+        attachment.TryGetProperty("payload", out _).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task GetCardById_ReturnsUserDisplayNames()
+    {
+        // Arrange
+        var human = await TestAuthHelper.CreateUserAsync(_client, _factory, "DisplayNameUser", UserRole.HumanUser);
+        TestAuthHelper.SetAuth(_client, human.AuthKey);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "Card With User Names",
+            descriptionMarkdown = "",
+            size = "M",
+            laneId,
+            position = NextPosition()
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        // Add a comment
+        await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "Hello" });
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/cards/{cardId}");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        body.GetProperty("createdByUserName").GetString().ShouldBe("DisplayNameUser");
+        body.GetProperty("lastUpdatedByUserName").GetString().ShouldBe("DisplayNameUser");
+
+        var comments = body.GetProperty("comments");
+        comments.GetArrayLength().ShouldBe(1);
+        comments[0].GetProperty("userName").GetString().ShouldBe("DisplayNameUser");
+    }
+
+    [Fact]
+    public async Task McpGetCard_ByCardNumber_ReturnsCard()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "Card Number Lookup",
+            descriptionMarkdown = "Find by number",
+            size = "S",
+            laneId,
+            position = NextPosition()
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardNumber = created.GetProperty("number").GetInt64();
+
+        // Act
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
+        var authService = scope.ServiceProvider.GetRequiredService<Mcp.McpAuthService>();
+        var broadcaster = scope.ServiceProvider.GetRequiredService<Events.BoardEventBroadcaster>();
+        var cardTools = new Mcp.CardTools(db, authService, broadcaster);
+
+        var result = await cardTools.GetCardAsync(_factory.AdminAuthKey, cardNumber: cardNumber);
+
+        // Assert
+        var parsed = JsonSerializer.Deserialize<JsonElement>(result);
+        parsed.GetProperty("card").GetProperty("name").GetString().ShouldBe("Card Number Lookup");
+        parsed.GetProperty("card").GetProperty("number").GetInt64().ShouldBe(cardNumber);
+    }
+
+    [Fact]
+    public async Task McpGetCard_NeitherIdNorNumber_ReturnsError()
+    {
+        // Arrange
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
+        var authService = scope.ServiceProvider.GetRequiredService<Mcp.McpAuthService>();
+        var broadcaster = scope.ServiceProvider.GetRequiredService<Events.BoardEventBroadcaster>();
+        var cardTools = new Mcp.CardTools(db, authService, broadcaster);
+
+        // Act
+        var result = await cardTools.GetCardAsync(_factory.AdminAuthKey);
+
+        // Assert
+        result.ShouldContain("Provide either cardId or cardNumber");
+    }
+
+    [Fact]
+    public async Task McpGetCard_InvalidCardNumber_ReturnsError()
+    {
+        // Arrange
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
+        var authService = scope.ServiceProvider.GetRequiredService<Mcp.McpAuthService>();
+        var broadcaster = scope.ServiceProvider.GetRequiredService<Events.BoardEventBroadcaster>();
+        var cardTools = new Mcp.CardTools(db, authService, broadcaster);
+
+        // Act
+        var result = await cardTools.GetCardAsync(_factory.AdminAuthKey, cardNumber: 999999);
+
+        // Assert
+        result.ShouldContain("Card not found");
+    }
+
+    [Fact]
+    public async Task McpGetCard_IncludesAttachmentsAndUserNames()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "MCP Enriched Card",
+            descriptionMarkdown = "",
+            size = "M",
+            laneId,
+            position = NextPosition()
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        // Add a comment
+        await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "MCP test comment" });
+
+        // Add an attachment via REST
+        using var attachContent = new MultipartFormDataContent();
+        attachContent.Add(new ByteArrayContent([1, 2, 3]), "file", "data.csv");
+        await _client.PostAsync($"/api/v1/cards/{cardId}/attachments", attachContent);
+
+        // Act
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
+        var authService = scope.ServiceProvider.GetRequiredService<Mcp.McpAuthService>();
+        var broadcaster = scope.ServiceProvider.GetRequiredService<Events.BoardEventBroadcaster>();
+        var cardTools = new Mcp.CardTools(db, authService, broadcaster);
+
+        var result = await cardTools.GetCardAsync(_factory.AdminAuthKey, cardId: cardId);
+
+        // Assert
+        var parsed = JsonSerializer.Deserialize<JsonElement>(result);
+        parsed.GetProperty("card").GetProperty("name").GetString().ShouldBe("MCP Enriched Card");
+
+        // User names
+        parsed.GetProperty("createdByUserName").GetString().ShouldNotBeNullOrEmpty();
+        parsed.GetProperty("lastUpdatedByUserName").GetString().ShouldNotBeNullOrEmpty();
+
+        // Comments with user names
+        var comments = parsed.GetProperty("comments");
+        comments.GetArrayLength().ShouldBe(1);
+        comments[0].GetProperty("userName").GetString().ShouldNotBeNullOrEmpty();
+
+        // Attachments (metadata only)
+        var attachments = parsed.GetProperty("attachments");
+        attachments.GetArrayLength().ShouldBe(1);
+        attachments[0].GetProperty("fileName").GetString().ShouldBe("data.csv");
     }
 }
