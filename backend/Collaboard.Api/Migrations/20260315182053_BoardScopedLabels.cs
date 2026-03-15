@@ -38,7 +38,7 @@ public partial class BoardScopedLabels : Migration
             INSERT INTO _label_mapping (OldLabelId, NewLabelId, BoardId)
             SELECT
                 l.Id,
-                lower(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' || substr(hex(randomblob(2)),2) || '-' || substr('89ab', abs(random()) % 4 + 1, 1) || substr(hex(randomblob(2)),2) || '-' || hex(randomblob(6))),
+                upper(hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' || substr(hex(randomblob(2)),2) || '-' || substr('89AB', abs(random()) % 4 + 1, 1) || substr(hex(randomblob(2)),2) || '-' || hex(randomblob(6))),
                 b.Id
             FROM Labels l
             CROSS JOIN Boards b
