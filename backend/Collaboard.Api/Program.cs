@@ -1,17 +1,40 @@
+using System.Reflection;
 using Collaboard.Api;
 using Collaboard.Api.Endpoints;
 using Collaboard.Api.Events;
 using Collaboard.Api.Mcp;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
+
+// --version flag
+if (args.Contains("--version"))
+{
+    var version = Assembly.GetExecutingAssembly()
+        .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+        ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString()
+        ?? "0.0.0";
+    Console.WriteLine($"Collaboard {version}");
+    return;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
 builder.Services.AddOpenApi();
 builder.Services.AddCors();
+var connectionString = builder.Configuration.GetConnectionString("Board") ?? "Data Source=./data/collaboard.db";
+
+// Ensure the data directory exists before EF creates/opens the database
+var dbPath = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(connectionString).DataSource;
+var dbDir = Path.GetDirectoryName(dbPath);
+if (!string.IsNullOrEmpty(dbDir))
+{
+    Directory.CreateDirectory(dbDir);
+}
+
 builder.Services.AddDbContext<BoardDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("Board") ?? "Data Source=collaboard.db"));
+    options.UseSqlite(connectionString));
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<BoardEventBroadcaster>();
@@ -27,9 +50,27 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
-    await db.Database.EnsureCreatedAsync();
+
+    // Auto-backup SQLite DB before applying pending migrations
+    var pendingMigrations = await db.Database.GetPendingMigrationsAsync();
+    if (pendingMigrations.Any())
+    {
+        var currentConnectionString = db.Database.GetConnectionString();
+        var currentDbPath = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(currentConnectionString).DataSource;
+        if (File.Exists(currentDbPath))
+        {
+            var backupPath = $"{currentDbPath}.bak-{DateTime.UtcNow:yyyyMMddHHmmss}";
+            File.Copy(currentDbPath, backupPath);
+            app.Logger.LogInformation("Database backed up to {BackupPath} before applying {Count} pending migration(s)",
+                backupPath, pendingMigrations.Count());
+        }
+    }
+
+    await db.Database.MigrateAsync();
+
     await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode = 'wal';");
     await db.Database.ExecuteSqlRawAsync("PRAGMA busy_timeout = 5000;");
+
     if (!await db.Users.AnyAsync())
     {
         var adminAuthKey = app.Configuration.GetValue<string>("Admin:AuthKey")
@@ -58,8 +99,13 @@ using (var scope = app.Services.CreateScope())
             new Lane { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "Done", Position = 2 }
         );
         await db.SaveChangesAsync();
+    }
 
-        app.Logger.LogInformation("Admin user seeded with auth key: {AuthKey}", adminAuthKey);
+    // Always log the admin auth key at startup
+    var admin = await db.Users.FirstOrDefaultAsync(u => u.Role == UserRole.Administrator);
+    if (admin is not null)
+    {
+        app.Logger.LogInformation("Admin auth key: {AuthKey}", admin.AuthKey);
     }
 }
 
@@ -71,6 +117,10 @@ if (app.Environment.IsDevelopment())
         .AllowAnyMethod()
         .AllowAnyHeader());
 }
+
+// Serve the embedded SPA from wwwroot
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 var api = app.MapGroup("/api/v1");
 api.MapBoardEndpoints();
@@ -86,6 +136,9 @@ app.MapEventEndpoints();
 app.MapMcp();
 
 app.MapDefaultEndpoints();
+
+// SPA fallback — serve index.html for any unmatched routes (must be after API/MCP routes)
+app.MapFallbackToFile("index.html");
 
 app.Run();
 

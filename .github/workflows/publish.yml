@@ -1,0 +1,113 @@
+name: Publish
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - rid: win-x64
+            artifact: collaboard-win-x64
+            ext: zip
+          - rid: osx-arm64
+            artifact: collaboard-osx-arm64
+            ext: tar.gz
+          - rid: osx-x64
+            artifact: collaboard-osx-x64
+            ext: tar.gz
+          - rid: linux-x64
+            artifact: collaboard-linux-x64
+            ext: tar.gz
+          - rid: linux-arm64
+            artifact: collaboard-linux-arm64
+            ext: tar.gz
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      # CI validation
+      - name: Restore backend
+        run: dotnet restore backend/Collaboard.sln
+
+      - name: Build backend
+        run: dotnet build backend/Collaboard.sln --no-restore
+
+      - name: Test backend
+        run: dotnet test backend/ --no-build --verbosity normal
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Type check frontend
+        run: npx tsc -b
+        working-directory: frontend
+
+      # Build frontend and copy to wwwroot
+      - name: Build frontend
+        run: npx vite build
+        working-directory: frontend
+
+      - name: Copy frontend to wwwroot
+        run: |
+          mkdir -p backend/Collaboard.Api/wwwroot
+          cp -r frontend/dist/* backend/Collaboard.Api/wwwroot/
+
+      # Extract version from tag (strip leading 'v')
+      - name: Set version
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      # Publish self-contained single-file executable
+      - name: Publish
+        run: |
+          dotnet publish backend/Collaboard.Api/Collaboard.Api.csproj \
+            -c Release \
+            -r ${{ matrix.rid }} \
+            --self-contained \
+            /p:PublishSingleFile=true \
+            /p:Version=${{ steps.version.outputs.VERSION }} \
+            -o publish/${{ matrix.artifact }}
+
+      # Bundle with appsettings.json and INSTALL.md
+      - name: Prepare release bundle
+        run: |
+          cp INSTALL.md publish/${{ matrix.artifact }}/
+          # appsettings.json is already in publish output
+
+      # Package artifact
+      - name: Package (zip)
+        if: matrix.ext == 'zip'
+        run: |
+          cd publish
+          zip -r ../${{ matrix.artifact }}.zip ${{ matrix.artifact }}/
+
+      - name: Package (tar.gz)
+        if: matrix.ext == 'tar.gz'
+        run: |
+          cd publish
+          tar czf ../${{ matrix.artifact }}.tar.gz ${{ matrix.artifact }}/
+
+      # Attach to GitHub Release
+      - name: Upload release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" "${{ matrix.artifact }}.${{ matrix.ext }}"
