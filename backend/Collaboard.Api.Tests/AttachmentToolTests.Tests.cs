@@ -1,0 +1,79 @@
+using Collaboard.Api.Events;
+using Collaboard.Api.Mcp;
+using Collaboard.Api.Models;
+using Collaboard.Api.Tests.Infrastructure;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Shouldly;
+
+namespace Collaboard.Api.Tests;
+
+public class AttachmentToolTests(CollaboardApiFactory factory) : IClassFixture<CollaboardApiFactory>
+{
+    private readonly CollaboardApiFactory _factory = factory;
+    private static int _nextNumber = 5000;
+
+    private async Task<(AttachmentTools Tools, Guid CardId, string AuthKey)> CreateToolWithCardAsync()
+    {
+        var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
+        var auth = scope.ServiceProvider.GetRequiredService<McpAuthService>();
+        var broadcaster = scope.ServiceProvider.GetRequiredService<BoardEventBroadcaster>();
+
+        var admin = await db.Users.FirstAsync(u => u.Role == UserRole.Administrator);
+        var board = await db.Boards.FirstAsync();
+        var lane = await db.Lanes.FirstAsync(l => l.BoardId == board.Id);
+
+        var card = new CardItem
+        {
+            Id = Guid.NewGuid(),
+            LaneId = lane.Id,
+            Name = "MCP Upload Test Card",
+            Number = Interlocked.Increment(ref _nextNumber),
+            Position = 9000,
+            CreatedByUserId = admin.Id,
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            LastUpdatedByUserId = admin.Id,
+            LastUpdatedAtUtc = DateTimeOffset.UtcNow,
+        };
+        db.Cards.Add(card);
+        await db.SaveChangesAsync();
+
+        var tools = new AttachmentTools(db, auth, broadcaster);
+        return (tools, card.Id, admin.AuthKey);
+    }
+
+    [Fact]
+    public async Task UploadAttachment_ExceedsFiveMbLimit_ReturnsError()
+    {
+        // Arrange
+        var (tools, cardId, authKey) = await CreateToolWithCardAsync();
+        var oversizedPayload = new byte[(5 * 1024 * 1024) + 1];
+        var base64Content = Convert.ToBase64String(oversizedPayload);
+
+        // Act
+        var result = await tools.UploadAttachmentAsync(
+            authKey, cardId, "big-file.bin", base64Content);
+
+        // Assert
+        result.ShouldContain("File exceeds 5MB limit");
+        result.ShouldContain("REST API");
+    }
+
+    [Fact]
+    public async Task UploadAttachment_ExactlyFiveMb_Succeeds()
+    {
+        // Arrange
+        var (tools, cardId, authKey) = await CreateToolWithCardAsync();
+        var exactPayload = new byte[5 * 1024 * 1024];
+        var base64Content = Convert.ToBase64String(exactPayload);
+
+        // Act
+        var result = await tools.UploadAttachmentAsync(
+            authKey, cardId, "exact-5mb.bin", base64Content);
+
+        // Assert
+        result.ShouldNotContain("Error");
+        result.ShouldContain("exact-5mb.bin");
+    }
+}
