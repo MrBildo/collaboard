@@ -184,16 +184,20 @@ function CardDetailForm({
             </SelectContent>
           </Select>
           {lanes && lanes.length > 0 && (
-            <Select value={currentLaneId} onValueChange={(v) => v && v !== currentLaneId && moveMutation.mutate(v)}>
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {lanes.map((lane) => (
-                  <SelectItem key={lane.id} value={lane.id}>{lane.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <select
+              value={currentLaneId}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v && v !== currentLaneId) {
+                  moveMutation.mutate(v);
+                }
+              }}
+              className="rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground"
+            >
+              {lanes.map((lane) => (
+                <option key={lane.id} value={lane.id}>{lane.name}</option>
+              ))}
+            </select>
           )}
           {(allLabelsQuery.data ?? []).map((label) => {
             const isAssigned = labels.some((l) => l.id === label.id);
