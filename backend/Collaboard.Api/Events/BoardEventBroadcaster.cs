@@ -69,6 +69,22 @@ public class BoardEventBroadcaster
         }
     }
 
+    public void CompleteAll()
+    {
+        lock (_lock)
+        {
+            foreach (var (_, subscribers) in _boardSubscribers)
+            {
+                foreach (var ch in subscribers)
+                {
+                    ch.Writer.TryComplete();
+                }
+            }
+
+            _boardSubscribers.Clear();
+        }
+    }
+
     private static void WriteToSubscribers(List<Channel<string>> subscribers, string eventType)
     {
         subscribers.RemoveAll(ch =>

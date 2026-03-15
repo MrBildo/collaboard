@@ -140,6 +140,10 @@ app.MapDefaultEndpoints();
 // SPA fallback — serve index.html for any unmatched routes (must be after API/MCP routes)
 app.MapFallbackToFile("index.html");
 
+// Complete all SSE channels on shutdown so streamed connections close promptly
+app.Lifetime.ApplicationStopping.Register(() =>
+    app.Services.GetRequiredService<BoardEventBroadcaster>().CompleteAll());
+
 app.Run();
 
 public partial class Program { }
