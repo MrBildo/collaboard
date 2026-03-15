@@ -190,6 +190,12 @@ internal static class CardEndpoints
                 return Results.BadRequest("Lane not found.");
             }
 
+            var sourceLane = await db.Lanes.FindAsync(card.LaneId);
+            if (sourceLane is null || sourceLane.BoardId != targetLane.BoardId)
+            {
+                return Results.BadRequest("Cannot move cards between boards.");
+            }
+
             var sourceLaneId = card.LaneId;
 
             var targetCards = await db.Cards

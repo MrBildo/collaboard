@@ -202,6 +202,46 @@ Instance-local workspace (gitignored). Run `/bootstrap` to create on fresh clone
 - Test classes per resource: `*EndpointTests.Tests.cs`
 - Shared infrastructure: `Infrastructure/CollaboardApiFactory.cs`, `TestAuthHelper.cs`
 
+## Development Process
+
+Collaboard development is tracked on the **Collaboard** board in the production instance (`http://localhost:8080`, board slug: `collaboard`).
+
+### Lanes
+
+| Lane | Purpose |
+|------|---------|
+| Triage | New items land here, need sizing/discussion |
+| Backlog | Prioritized, ready to pick up |
+| In Progress | Actively being worked on |
+| Done | Merged to main |
+| Archived | Cleared periodically |
+
+### Labels
+
+Labels are global (shared across all boards) and align with conventional commit prefixes:
+
+| Label | Color | Maps to |
+|-------|-------|---------|
+| `bug` | red | `fix:` commits |
+| `feature` | green | `feat:` commits |
+| `improvement` | blue | `refactor:` / minor enhancements |
+| `chore` | gray | CI, deps, tooling |
+| `docs` | teal | documentation |
+| `blocked` | red | work is blocked |
+
+### Workflow
+
+1. New items → **Triage** with a type label (`bug`, `feature`, etc.)
+2. Size (S/M/L/XL), prioritize → **Backlog**
+3. Pick up → **In Progress**, create a feature branch
+4. PR merged → **Done**
+5. Periodically sweep Done → **Archived**
+6. Cards needing a spec get a comment linking to `.agents/specs/`
+
+### Releases
+
+Use `/release` to cut a new version — it waits for CI, creates a GitHub Release, monitors the publish workflow, and reports when artifacts are ready.
+
 ## Skills
 
 | Skill | Purpose |
