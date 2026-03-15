@@ -30,6 +30,9 @@ backend/**/appsettings.Development.json
 # Agent workspace (local only)
 .agents/
 
+# Agent environment (auth keys)
+.agent.env
+
 # OS files
 Thumbs.db
 Desktop.ini

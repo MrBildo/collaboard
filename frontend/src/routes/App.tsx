@@ -15,7 +15,7 @@ import { fetchBoardBySlug, fetchBoardData, fetchBoards, fetchCardAttachments, fe
 import { isLoggedIn, setUserKey, clearUserKey, setLastBoardSlug } from '@/lib/auth';
 import { useBoardEvents } from '@/lib/use-board-events';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { cn } from '@/lib/utils';
+import { cn, getContrastColor } from '@/lib/utils';
 import type { Board, CardItem, Lane } from '@/types';
 
 export function App() {
@@ -497,7 +497,7 @@ function SortableCard({
               key={label.id}
               variant="secondary"
               className="text-[10px]"
-              style={label.color ? { backgroundColor: label.color, color: '#fff' } : undefined}
+              style={label.color ? { backgroundColor: label.color, color: getContrastColor(label.color) } : undefined}
             >
               {label.name}
             </Badge>
