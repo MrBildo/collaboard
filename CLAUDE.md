@@ -93,7 +93,7 @@ All endpoints under `/api/v1/`:
 | GET | /boards/{boardId}/board | All | Composite: lanes + cards for a board |
 | GET | /boards/{boardId}/lanes | All | List lanes for a board |
 | POST | /boards/{boardId}/lanes | Admin | Create lane in a board |
-| GET | /boards/{boardId}/cards | All | List cards for a board |
+| GET | /boards/{boardId}/cards | All | List cards for a board. Optional query params: `since` (DateTimeOffset), `labelId` (Guid), `laneId` (Guid) |
 | POST | /boards/{boardId}/cards | All | Create card in a board |
 
 ### By-ID operations (flat, resource knows its board)
@@ -123,7 +123,7 @@ All endpoints under `/api/v1/`:
 
 | Path | Notes |
 |------|-------|
-| /mcp | Streamable HTTP transport — 20 tools across BoardTools, CardTools, CommentTools, AttachmentTools, LabelTools |
+| /mcp | Streamable HTTP transport — 21 tools across BoardTools, CardTools, CommentTools, AttachmentTools, LabelTools |
 
 ## .agents/ Directory Structure
 
@@ -237,6 +237,14 @@ Labels are global (shared across all boards) and align with conventional commit 
 4. PR merged → **Done**
 5. Periodically sweep Done → **Archived**
 6. Cards needing a spec get a comment linking to `.agents/specs/`
+
+### Agent Board Awareness
+
+Agents working on Collaboard should use the MCP tools to stay in sync with the board:
+- **Start of session:** Call `get_board` or `get_cards` with the Collaboard board ID to see current backlog, in-progress items, and recent activity
+- **Check for changes:** Use `get_cards` with the `since` parameter to see cards with recent activity (new/edited comments, new attachments, card updates). This catches changes made by humans or other agents between sessions
+- **During work:** Move cards between lanes, add comments with PR links, and label cards as you work
+- **Board ID:** Use `get_boards` to discover board IDs — the Collaboard development board has slug `collaboard`
 
 ### Releases
 

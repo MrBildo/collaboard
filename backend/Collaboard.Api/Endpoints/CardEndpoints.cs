@@ -13,7 +13,7 @@ internal static class CardEndpoints
     public static RouteGroupBuilder MapCardEndpoints(this RouteGroupBuilder group)
     {
         // Board-scoped listing and creation
-        group.MapGet("/boards/{boardId:guid}/cards", async (BoardDbContext db, HttpContext http, Guid boardId) =>
+        group.MapGet("/boards/{boardId:guid}/cards", async (BoardDbContext db, HttpContext http, Guid boardId, DateTimeOffset? since, Guid? labelId, Guid? laneId) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
             if (forbidden is not null)
@@ -26,8 +26,37 @@ internal static class CardEndpoints
                 return Results.NotFound();
             }
 
-            var laneIds = await db.Lanes.Where(x => x.BoardId == boardId).Select(x => x.Id).ToListAsync();
-            var cards = await db.Cards.Where(x => laneIds.Contains(x.LaneId)).OrderBy(x => x.LaneId).ThenBy(x => x.Position).ToListAsync();
+            var boardLaneIds = await db.Lanes.Where(x => x.BoardId == boardId).Select(x => x.Id).ToListAsync();
+            var query = db.Cards.Where(x => boardLaneIds.Contains(x.LaneId));
+
+            if (laneId.HasValue)
+            {
+                query = query.Where(x => x.LaneId == laneId.Value);
+            }
+
+            if (since.HasValue)
+            {
+                var cardIdsWithRecentComments = db.Comments
+                    .Where(c => c.LastUpdatedAtUtc >= since.Value)
+                    .Select(c => c.CardId);
+                var cardIdsWithRecentAttachments = db.Attachments
+                    .Where(a => a.AddedAtUtc >= since.Value)
+                    .Select(a => a.CardId);
+
+                query = query.Where(x =>
+                    x.CreatedAtUtc >= since.Value
+                    || x.LastUpdatedAtUtc >= since.Value
+                    || cardIdsWithRecentComments.Contains(x.Id)
+                    || cardIdsWithRecentAttachments.Contains(x.Id));
+            }
+
+            if (labelId.HasValue)
+            {
+                var cardIdsWithLabel = db.CardLabels.Where(cl => cl.LabelId == labelId.Value).Select(cl => cl.CardId);
+                query = query.Where(x => cardIdsWithLabel.Contains(x.Id));
+            }
+
+            var cards = await query.OrderBy(x => x.LaneId).ThenBy(x => x.Position).ToListAsync();
             return Results.Ok(cards);
         });
 
