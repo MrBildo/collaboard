@@ -93,7 +93,7 @@ All endpoints under `/api/v1/`:
 | GET | /boards/{boardId}/board | All | Composite: lanes + cards for a board |
 | GET | /boards/{boardId}/lanes | All | List lanes for a board |
 | POST | /boards/{boardId}/lanes | Admin | Create lane in a board |
-| GET | /boards/{boardId}/cards | All | List cards for a board |
+| GET | /boards/{boardId}/cards | All | List cards for a board. Optional query params: `since` (DateTimeOffset), `labelId` (Guid), `laneId` (Guid) |
 | POST | /boards/{boardId}/cards | All | Create card in a board |
 
 ### By-ID operations (flat, resource knows its board)
