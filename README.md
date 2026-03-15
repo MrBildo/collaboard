@@ -1,11 +1,22 @@
-# Collaboard
+<p align="center">
+  <img src="docs/collaboard-logo.png" alt="Collaboard" width="400">
+</p>
 
-A self-hosted kanban board for small teams. Runs as a single executable — no database server, no containers, no cloud accounts. Just download, run, and open your browser.
+<p align="center">
+  A self-hosted kanban board for small teams.<br>
+  Single executable. No database server. No containers. No cloud accounts.<br>
+  Just download, run, and open your browser.
+</p>
+
+<p align="center">
+  <a href="https://github.com/MrBildo/collaboard/actions/workflows/ci.yml"><img src="https://github.com/MrBildo/collaboard/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="https://github.com/MrBildo/collaboard/releases/latest"><img src="https://img.shields.io/github/v/release/MrBildo/collaboard" alt="Latest Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/MrBildo/collaboard" alt="License"></a>
+</p>
+
+---
 
 Built for trusted LAN environments where a team needs a lightweight, collaborative task board with real-time updates.
-
-[![CI](https://github.com/MrBildo/collaboard/actions/workflows/ci.yml/badge.svg)](https://github.com/MrBildo/collaboard/actions/workflows/ci.yml)
-[![Latest Release](https://img.shields.io/github/v/release/MrBildo/collaboard)](https://github.com/MrBildo/collaboard/releases/latest)
 
 ## Features
 
