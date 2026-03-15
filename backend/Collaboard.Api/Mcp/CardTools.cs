@@ -98,7 +98,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         }
 
         var nextNumber = (await db.Cards.MaxAsync(c => (long?)c.Number, ct) ?? 0) + 1;
-        var maxPosition = await db.Cards.Where(c => c.LaneId == laneId).MaxAsync(c => (int?)c.Position, ct) ?? -10;
+        var minPosition = await db.Cards.Where(c => c.LaneId == laneId).MinAsync(c => (int?)c.Position, ct) ?? 10;
 
         var now = DateTimeOffset.UtcNow;
         var card = new CardItem
@@ -109,7 +109,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             DescriptionMarkdown = descriptionMarkdown ?? string.Empty,
             SizeId = resolvedSizeId,
             LaneId = laneId,
-            Position = maxPosition + 10,
+            Position = minPosition - 10,
             CreatedAtUtc = now,
             LastUpdatedAtUtc = now,
             CreatedByUserId = user!.Id,

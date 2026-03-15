@@ -53,4 +53,25 @@ public sealed class BoardTools(BoardDbContext db, McpAuthService auth)
 
         return JsonSerializer.Serialize(lanes, JsonSerializerOptions.Web);
     }
+
+    [McpServerTool(Name = "get_sizes", ReadOnly = true, Destructive = false)]
+    [Description("Get all card sizes for a board, ordered by ordinal. Use this to discover valid size IDs/names when creating or updating cards.")]
+    public async Task<string> GetSizesAsync(
+        [Description("Your auth key (X-User-Key)")] string authKey,
+        [Description("Board ID to scope results")] Guid boardId,
+        CancellationToken ct = default)
+    {
+        var (_, error) = await auth.RequireUserAsync(authKey, ct);
+        if (error is not null)
+        {
+            return error;
+        }
+
+        var sizes = await db.CardSizes
+            .Where(s => s.BoardId == boardId)
+            .OrderBy(s => s.Ordinal)
+            .ToListAsync(ct);
+
+        return JsonSerializer.Serialize(sizes, JsonSerializerOptions.Web);
+    }
 }
