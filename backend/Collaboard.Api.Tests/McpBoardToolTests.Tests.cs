@@ -16,8 +16,7 @@ public class McpBoardToolTests(CollaboardApiFactory factory) : IClassFixture<Col
     {
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
         var authService = scope.ServiceProvider.GetRequiredService<McpAuthService>();
-        var httpContextAccessor = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Http.IHttpContextAccessor>();
-        return new BoardTools(db, authService, httpContextAccessor);
+        return new BoardTools(db, authService);
     }
 
     [Fact]

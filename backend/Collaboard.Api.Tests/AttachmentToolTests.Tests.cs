@@ -57,7 +57,7 @@ public class AttachmentToolTests(CollaboardApiFactory factory) : IClassFixture<C
 
         // Assert
         result.ShouldContain("File exceeds 5MB limit");
-        result.ShouldContain("REST API");
+        result.ShouldContain("REST endpoint");
     }
 
     [Fact]
