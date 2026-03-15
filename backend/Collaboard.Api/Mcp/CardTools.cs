@@ -231,10 +231,11 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
     }
 
     [McpServerTool(Name = "get_card", ReadOnly = true, Destructive = false)]
-    [Description("Get a single card by its ID, including its comments and labels.")]
+    [Description("Get a single card by its ID or card number, including its comments, labels, and attachments (metadata only). To download attachment content, GET /api/v1/attachments/{id} with X-User-Key header.")]
     public async Task<string> GetCardAsync(
         [Description("Your auth key")] string authKey,
-        [Description("The ID (guid) of the card")] Guid cardId,
+        [Description("The ID (guid) of the card (provide this or cardNumber)")] Guid? cardId = null,
+        [Description("The card number (provide this or cardId)")] long? cardNumber = null,
         CancellationToken ct = default)
     {
         var (_, error) = await auth.RequireUserAsync(authKey, ct);
@@ -243,18 +244,61 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             return error;
         }
 
-        var card = await db.Cards.FindAsync([cardId], ct);
+        if (cardId is null && cardNumber is null)
+        {
+            return "Error: Provide either cardId or cardNumber.";
+        }
+
+        var card = cardId.HasValue
+            ? await db.Cards.FindAsync([cardId.Value], ct)
+            : await db.Cards.FirstOrDefaultAsync(c => c.Number == cardNumber, ct);
+
         if (card is null)
         {
             return "Error: Card not found.";
         }
 
-        var comments = await db.Comments.Where(c => c.CardId == cardId).ToListAsync(ct);
+        var resolvedCardId = card.Id;
+
+        var comments = await db.Comments.Where(c => c.CardId == resolvedCardId).ToListAsync(ct);
         comments.Sort((a, b) => a.LastUpdatedAtUtc.CompareTo(b.LastUpdatedAtUtc));
-        var labels = await db.CardLabels.Where(cl => cl.CardId == cardId)
+
+        var userIds = comments.Select(c => c.UserId)
+            .Append(card.CreatedByUserId)
+            .Append(card.LastUpdatedByUserId)
+            .Distinct()
+            .ToList();
+        var userNames = await db.Users
+            .Where(u => userIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.Name, ct);
+
+        var commentsWithUserNames = comments.Select(c => new
+        {
+            c.Id,
+            c.CardId,
+            c.UserId,
+            userName = userNames.GetValueOrDefault(c.UserId),
+            c.ContentMarkdown,
+            c.LastUpdatedAtUtc,
+        });
+
+        var labels = await db.CardLabels.Where(cl => cl.CardId == resolvedCardId)
             .Join(db.Labels, cl => cl.LabelId, l => l.Id, (_, l) => l)
             .ToListAsync(ct);
 
-        return JsonSerializer.Serialize(new { card, comments, labels }, JsonSerializerOptions.Web);
+        var attachments = await db.Attachments
+            .Where(a => a.CardId == resolvedCardId)
+            .Select(a => new { a.Id, a.FileName, a.ContentType, a.AddedByUserId, a.AddedAtUtc })
+            .ToListAsync(ct);
+
+        return JsonSerializer.Serialize(new
+        {
+            card,
+            createdByUserName = userNames.GetValueOrDefault(card.CreatedByUserId),
+            lastUpdatedByUserName = userNames.GetValueOrDefault(card.LastUpdatedByUserId),
+            comments = commentsWithUserNames,
+            labels,
+            attachments,
+        }, JsonSerializerOptions.Web);
     }
 }

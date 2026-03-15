@@ -124,7 +124,51 @@ internal static class CardEndpoints
             }
 
             var card = await db.Cards.FindAsync(id);
-            return card is null ? Results.NotFound() : Results.Ok(card);
+            if (card is null)
+            {
+                return Results.NotFound();
+            }
+
+            var comments = await db.Comments.Where(c => c.CardId == id).ToListAsync();
+            comments.Sort((a, b) => a.LastUpdatedAtUtc.CompareTo(b.LastUpdatedAtUtc));
+
+            var userIds = comments.Select(c => c.UserId)
+                .Append(card.CreatedByUserId)
+                .Append(card.LastUpdatedByUserId)
+                .Distinct()
+                .ToList();
+            var userNames = await db.Users
+                .Where(u => userIds.Contains(u.Id))
+                .ToDictionaryAsync(u => u.Id, u => u.Name);
+
+            var commentsWithUserNames = comments.Select(c => new
+            {
+                c.Id,
+                c.CardId,
+                c.UserId,
+                userName = userNames.GetValueOrDefault(c.UserId),
+                c.ContentMarkdown,
+                c.LastUpdatedAtUtc,
+            });
+
+            var labels = await db.CardLabels.Where(cl => cl.CardId == id)
+                .Join(db.Labels, cl => cl.LabelId, l => l.Id, (_, l) => l)
+                .ToListAsync();
+
+            var attachments = await db.Attachments
+                .Where(a => a.CardId == id)
+                .Select(a => new { a.Id, a.FileName, a.ContentType, a.AddedByUserId, a.AddedAtUtc })
+                .ToListAsync();
+
+            return Results.Ok(new
+            {
+                card,
+                createdByUserName = userNames.GetValueOrDefault(card.CreatedByUserId),
+                lastUpdatedByUserName = userNames.GetValueOrDefault(card.LastUpdatedByUserId),
+                comments = commentsWithUserNames,
+                labels,
+                attachments,
+            });
         });
 
         group.MapPatch("/cards/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, JsonElement patch, BoardEventBroadcaster broadcaster) =>
