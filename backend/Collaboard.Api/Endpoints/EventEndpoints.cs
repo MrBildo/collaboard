@@ -6,13 +6,13 @@ internal static class EventEndpoints
 {
     public static IEndpointRouteBuilder MapEventEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/v1/board/events", async (BoardEventBroadcaster broadcaster, HttpContext http, CancellationToken ct) =>
+        app.MapGet("/api/v1/boards/{boardId:guid}/events", async (BoardEventBroadcaster broadcaster, HttpContext http, Guid boardId, CancellationToken ct) =>
         {
             http.Response.Headers.ContentType = "text/event-stream";
             http.Response.Headers.CacheControl = "no-cache";
             http.Response.Headers.Connection = "keep-alive";
 
-            var reader = broadcaster.Subscribe();
+            var reader = broadcaster.Subscribe(boardId);
 
             try
             {
@@ -28,7 +28,7 @@ internal static class EventEndpoints
             }
             finally
             {
-                broadcaster.Unsubscribe(reader);
+                broadcaster.Unsubscribe(boardId, reader);
             }
         });
 

@@ -56,7 +56,7 @@ internal static class AttachmentEndpoints
             };
             db.Attachments.Add(attachment);
             await db.SaveChangesAsync();
-            broadcaster.Publish("board-updated");
+            await db.PublishForCardAsync(id, broadcaster);
             return Results.Created($"/api/v1/cards/{id}/attachments/{attachment.Id}", new { attachment.Id, attachment.FileName });
         }).DisableAntiforgery();
 
@@ -92,9 +92,10 @@ internal static class AttachmentEndpoints
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
 
+            var cardId = attachment.CardId;
             db.Attachments.Remove(attachment);
             await db.SaveChangesAsync();
-            broadcaster.Publish("board-updated");
+            await db.PublishForCardAsync(cardId, broadcaster);
             return Results.NoContent();
         });
 

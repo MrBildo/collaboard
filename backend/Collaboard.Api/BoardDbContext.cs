@@ -5,6 +5,7 @@ namespace Collaboard.Api;
 
 public class BoardDbContext(DbContextOptions<BoardDbContext> options) : DbContext(options)
 {
+    public DbSet<Board> Boards => Set<Board>();
     public DbSet<BoardUser> Users => Set<BoardUser>();
     public DbSet<Lane> Lanes => Set<Lane>();
     public DbSet<CardItem> Cards => Set<CardItem>();
@@ -15,8 +16,9 @@ public class BoardDbContext(DbContextOptions<BoardDbContext> options) : DbContex
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
+        builder.Entity<Board>().HasIndex(x => x.Slug).IsUnique();
         builder.Entity<BoardUser>().HasIndex(x => x.AuthKey).IsUnique();
-        builder.Entity<Lane>().HasIndex(x => x.Position).IsUnique();
+        builder.Entity<Lane>().HasIndex(x => new { x.BoardId, x.Position }).IsUnique();
         builder.Entity<CardItem>().HasIndex(x => x.Number).IsUnique();
         builder.Entity<CardItem>().HasIndex(x => new { x.LaneId, x.Position });
         builder.Entity<CardComment>().HasIndex(x => new { x.CardId, x.LastUpdatedAtUtc });

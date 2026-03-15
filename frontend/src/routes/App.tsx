@@ -2,24 +2,27 @@ import { DndContext, DragEndEvent, DragOverEvent, DragOverlay, DragStartEvent, M
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { AdminPanel } from '@/components/AdminPanel';
+import { GlobalAdminPanel } from '@/components/GlobalAdminPanel';
 import { CardDetailSheet } from '@/components/CardDetailSheet';
 import { CreateCardDialog } from '@/components/CreateCardDialog';
 import { LoginScreen } from '@/components/LoginScreen';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { fetchBoard, fetchCardAttachments, fetchCardLabels, fetchComments, fetchMe, fetchUsers, reorderCard } from '@/lib/api';
-import { isLoggedIn, setUserKey, clearUserKey } from '@/lib/auth';
+import { fetchBoardBySlug, fetchBoardData, fetchBoards, fetchCardAttachments, fetchCardLabels, fetchComments, fetchMe, fetchUsers, reorderCard } from '@/lib/api';
+import { isLoggedIn, setUserKey, clearUserKey, setLastBoardSlug } from '@/lib/auth';
 import { useBoardEvents } from '@/lib/use-board-events';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { cn } from '@/lib/utils';
-import type { CardItem, Lane } from '@/types';
+import type { Board, CardItem, Lane } from '@/types';
 
 export function App() {
+  const { slug, cardNumber } = useParams<{ slug: string; cardNumber: string }>();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [loggedIn, setLoggedIn] = useState(isLoggedIn());
-  useBoardEvents(loggedIn);
 
   const handleLogin = useCallback((key: string) => {
     setUserKey(key);
@@ -32,7 +35,35 @@ export function App() {
     setLoggedIn(false);
   }, [queryClient]);
 
-  const boardQuery = useQuery({ queryKey: ['board'], queryFn: fetchBoard, retry: 2, staleTime: 30_000, enabled: loggedIn, refetchOnWindowFocus: false });
+  // Fetch the board metadata by slug
+  const boardMetaQuery = useQuery({
+    queryKey: ['board', slug],
+    queryFn: () => fetchBoardBySlug(slug!),
+    enabled: loggedIn && !!slug,
+  });
+  const board = boardMetaQuery.data;
+  const boardId = board?.id;
+
+  // Track last visited board
+  useEffect(() => {
+    if (slug) {
+      setLastBoardSlug(slug);
+    }
+  }, [slug]);
+
+  // SSE for this board
+  useBoardEvents(boardId);
+
+  // Fetch board data (lanes + cards)
+  const boardDataQuery = useQuery({
+    queryKey: ['boardData', boardId],
+    queryFn: () => fetchBoardData(boardId!),
+    retry: 2,
+    staleTime: 30_000,
+    enabled: loggedIn && !!boardId,
+    refetchOnWindowFocus: false,
+  });
+
   const meQuery = useQuery({
     queryKey: ['me'],
     queryFn: fetchMe,
@@ -49,6 +80,14 @@ export function App() {
   });
   const isAdmin = adminCheck.data === true;
 
+  // Board list for switcher
+  const boardsQuery = useQuery({
+    queryKey: ['boards'],
+    queryFn: fetchBoards,
+    enabled: loggedIn,
+    staleTime: 60_000,
+  });
+
   const mouseSensor = useSensor(MouseSensor, { activationConstraint: { distance: 8 } });
   const touchSensor = useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } });
   const sensors = useSensors(mouseSensor, touchSensor);
@@ -59,11 +98,12 @@ export function App() {
   const [createOpen, setCreateOpen] = useState(false);
   const [createLaneId, setCreateLaneId] = useState<string | undefined>(undefined);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [globalAdminOpen, setGlobalAdminOpen] = useState(false);
 
   const [dragPhase, setDragPhase] = useState<'idle' | 'dragging' | 'settling'>('idle');
 
-  const lanes = useMemo(() => boardQuery.data?.lanes ?? [], [boardQuery.data]);
-  const serverCards = useMemo(() => boardQuery.data?.cards ?? [], [boardQuery.data]);
+  const lanes = useMemo(() => boardDataQuery.data?.lanes ?? [], [boardDataQuery.data]);
+  const serverCards = useMemo(() => boardDataQuery.data?.cards ?? [], [boardDataQuery.data]);
 
   const [localCards, setLocalCards] = useState<CardItem[]>([]);
   const [prevServerCards, setPrevServerCards] = useState(serverCards);
@@ -73,6 +113,25 @@ export function App() {
       setLocalCards([...serverCards].sort((a, b) => a.position - b.position));
     }
   }
+
+  // Deep link: open card detail from URL
+  useEffect(() => {
+    if (cardNumber && serverCards.length > 0) {
+      const num = parseInt(cardNumber, 10);
+      const card = serverCards.find((c) => c.number === num);
+      if (card) {
+        setSelectedCard(card);
+        setDetailOpen(true);
+      }
+    }
+  }, [cardNumber, serverCards]);
+
+  const handleDetailOpenChange = useCallback((open: boolean) => {
+    setDetailOpen(open);
+    if (!open && cardNumber) {
+      navigate(`/boards/${slug}`, { replace: true });
+    }
+  }, [cardNumber, slug, navigate]);
 
   const laneIds = useMemo(() => new Set(lanes.map((l) => l.id)), [lanes]);
 
@@ -87,13 +146,13 @@ export function App() {
     mutationFn: (vars: { cardId: string; laneId: string; index: number }) =>
       reorderCard(vars.cardId, vars.laneId, vars.index),
     onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: ['board'] });
+      await queryClient.cancelQueries({ queryKey: ['boardData', boardId] });
     },
     onSuccess: (data) => {
-      queryClient.setQueryData(['board'], data);
+      queryClient.setQueryData(['boardData', boardId], data);
     },
     onError: () => {
-      queryClient.invalidateQueries({ queryKey: ['board'] });
+      queryClient.invalidateQueries({ queryKey: ['boardData', boardId] });
     },
     onSettled: () => {
       setDragPhase('idle');
@@ -124,9 +183,8 @@ export function App() {
 
       if (!overLaneId) return prev;
 
-      // Same-lane reorder
       if (activeLaneId === overLaneId) {
-        if (laneIds.has(overId)) return prev; // hovering over own lane container — no-op
+        if (laneIds.has(overId)) return prev;
         const laneCards = prev.filter((c) => c.laneId === activeLaneId);
         const oldIdx = laneCards.findIndex((c) => c.id === activeId);
         const newIdx = laneCards.findIndex((c) => c.id === overId);
@@ -138,10 +196,9 @@ export function App() {
         return [...rest, ...reordered];
       }
 
-      // Cross-lane move
       const overLaneCards = prev.filter((c) => c.laneId === overLaneId && c.id !== activeId);
 
-      let newIndex = overLaneCards.length; // default: append
+      let newIndex = overLaneCards.length;
       if (!laneIds.has(overId)) {
         const overIndex = overLaneCards.findIndex((c) => c.id === overId);
         if (overIndex >= 0) {
@@ -167,14 +224,12 @@ export function App() {
     const cardId = String(active.id);
 
     if (!over) {
-      // Cancel — reset local cards from server
       setDragPhase('idle');
       setLocalCards([...serverCards].sort((a, b) => a.position - b.position));
       setActiveCardId(null);
       return;
     }
 
-    // Compute target lane and index from localCards (onDragOver already positioned it)
     const card = localCards.find((c) => c.id === cardId);
     if (!card) {
       setDragPhase('idle');
@@ -194,11 +249,14 @@ export function App() {
   const handleCardClick = (card: CardItem) => {
     setSelectedCard(card);
     setDetailOpen(true);
+    navigate(`/boards/${slug}/cards/${card.number}`, { replace: true });
   };
 
   if (!loggedIn) {
     return <LoginScreen onLogin={handleLogin} />;
   }
+
+  const boards = boardsQuery.data ?? [];
 
   return (
     <main className="flex h-screen flex-col bg-background text-foreground">
@@ -210,13 +268,24 @@ export function App() {
             className="w-48"
             style={{ imageRendering: 'pixelated' }}
           />
+          {boards.length > 1 && (
+            <BoardSwitcher boards={boards} currentSlug={slug} />
+          )}
+          {boards.length === 1 && board && (
+            <span className="text-sm font-medium text-muted-foreground">{board.name}</span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Button onClick={() => { setCreateLaneId(undefined); setCreateOpen(true); }}>+ New Card</Button>
           {isAdmin && (
-            <Button variant="outline" onClick={() => setAdminOpen(true)}>
-              Admin
-            </Button>
+            <>
+              <Button variant="outline" onClick={() => setAdminOpen(true)}>
+                Lanes
+              </Button>
+              <Button variant="outline" onClick={() => setGlobalAdminOpen(true)}>
+                Admin
+              </Button>
+            </>
           )}
           <ThemeToggle />
           <Button variant="ghost" onClick={handleLogout} className="text-muted-foreground">
@@ -224,12 +293,12 @@ export function App() {
           </Button>
         </div>
       </header>
-      {boardQuery.isError && (
+      {boardDataQuery.isError && (
         <div className="mx-4 mt-4 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-center text-sm text-destructive">
-          Failed to load board. Check your auth key in <code>.env</code> and clear localStorage.
+          Failed to load board. Check your auth key and try again.
         </div>
       )}
-      {boardQuery.isLoading && (
+      {(boardDataQuery.isLoading || boardMetaQuery.isLoading) && (
         <p className="py-8 text-center text-muted-foreground">Loading board...</p>
       )}
       <DndContext
@@ -266,12 +335,35 @@ export function App() {
         </DragOverlay>
       </DndContext>
 
-      <CardDetailSheet card={selectedCard} open={detailOpen} onOpenChange={setDetailOpen} currentUserId={currentUserId} currentUserRole={currentUserRole} />
+      <CardDetailSheet card={selectedCard} open={detailOpen} onOpenChange={handleDetailOpenChange} currentUserId={currentUserId} currentUserRole={currentUserRole} />
 
-      <CreateCardDialog lanes={lanes} open={createOpen} onOpenChange={setCreateOpen} defaultLaneId={createLaneId} />
+      {boardId && (
+        <CreateCardDialog boardId={boardId} lanes={lanes} open={createOpen} onOpenChange={setCreateOpen} defaultLaneId={createLaneId} />
+      )}
 
-      <AdminPanel open={adminOpen} onOpenChange={setAdminOpen} />
+      {boardId && (
+        <AdminPanel boardId={boardId} open={adminOpen} onOpenChange={setAdminOpen} />
+      )}
+
+      <GlobalAdminPanel open={globalAdminOpen} onOpenChange={setGlobalAdminOpen} />
     </main>
+  );
+}
+
+function BoardSwitcher({ boards, currentSlug }: { boards: Board[]; currentSlug?: string }) {
+  const navigate = useNavigate();
+  const current = boards.find((b) => b.slug === currentSlug);
+
+  return (
+    <select
+      value={currentSlug ?? ''}
+      onChange={(e) => navigate(`/boards/${e.target.value}`)}
+      className="rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground"
+    >
+      {boards.map((b) => (
+        <option key={b.id} value={b.slug}>{b.name}</option>
+      ))}
+    </select>
   );
 }
 
@@ -371,13 +463,11 @@ function SortableCard({
         isDragging && 'opacity-0',
       )}
     >
-      {/* Title + Size */}
       <div className="flex items-start justify-between gap-2">
         <h3 className="text-sm font-medium leading-snug">{card.name}</h3>
         <Badge variant="outline" className="mt-0.5 shrink-0 text-[10px]">{card.size}</Badge>
       </div>
 
-      {/* Bottom row — metadata */}
       <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
         <span>#{card.number}</span>
 
@@ -401,7 +491,6 @@ function SortableCard({
 
       </div>
 
-      {/* Labels */}
       {labels.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1">
           {labels.map((label) => (

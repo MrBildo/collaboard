@@ -50,7 +50,7 @@ internal static class CommentEndpoints
             };
             db.Comments.Add(comment);
             await db.SaveChangesAsync();
-            broadcaster.Publish("board-updated");
+            await db.PublishForCardAsync(id, broadcaster);
             return Results.Created($"/api/v1/cards/{id}/comments/{comment.Id}", comment);
         });
 
@@ -74,9 +74,10 @@ internal static class CommentEndpoints
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
 
+            var cardId = comment.CardId;
             db.Comments.Remove(comment);
             await db.SaveChangesAsync();
-            broadcaster.Publish("board-updated");
+            await db.PublishForCardAsync(cardId, broadcaster);
             return Results.NoContent();
         });
 
@@ -107,7 +108,7 @@ internal static class CommentEndpoints
 
             comment.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
             await db.SaveChangesAsync();
-            broadcaster.Publish("board-updated");
+            await db.PublishForCardAsync(comment.CardId, broadcaster);
             return Results.Ok(comment);
         });
 

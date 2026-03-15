@@ -4,10 +4,11 @@ namespace Collaboard.Api.Events;
 
 public class BoardEventBroadcaster
 {
-    private readonly List<Channel<string>> _subscribers = [];
+    private readonly Dictionary<Guid, List<Channel<string>>> _boardSubscribers = [];
+    private readonly List<Channel<string>> _globalSubscribers = [];
     private readonly Lock _lock = new();
 
-    public ChannelReader<string> Subscribe()
+    public ChannelReader<string> Subscribe(Guid boardId)
     {
         var channel = Channel.CreateUnbounded<string>(new UnboundedChannelOptions
         {
@@ -17,35 +18,68 @@ public class BoardEventBroadcaster
 
         lock (_lock)
         {
-            _subscribers.Add(channel);
+            if (!_boardSubscribers.TryGetValue(boardId, out var subscribers))
+            {
+                subscribers = [];
+                _boardSubscribers[boardId] = subscribers;
+            }
+
+            subscribers.Add(channel);
         }
 
         return channel.Reader;
     }
 
-    public void Unsubscribe(ChannelReader<string> reader)
+    public void Unsubscribe(Guid boardId, ChannelReader<string> reader)
     {
         lock (_lock)
         {
-            _subscribers.RemoveAll(ch => ch.Reader == reader);
+            if (_boardSubscribers.TryGetValue(boardId, out var subscribers))
+            {
+                subscribers.RemoveAll(ch => ch.Reader == reader);
+                if (subscribers.Count == 0)
+                {
+                    _boardSubscribers.Remove(boardId);
+                }
+            }
         }
     }
 
-    public void Publish(string eventType)
+    public void PublishBoardUpdated(Guid boardId) => PublishToBoard(boardId, "board-updated");
+
+    public void PublishGlobal(string eventType)
     {
         lock (_lock)
         {
-            // Remove dead channels and write to live ones
-            _subscribers.RemoveAll(ch =>
+            foreach (var (_, subscribers) in _boardSubscribers)
             {
-                if (!ch.Writer.TryWrite(eventType))
-                {
-                    ch.Writer.TryComplete();
-                    return true;
-                }
-
-                return false;
-            });
+                WriteToSubscribers(subscribers, eventType);
+            }
         }
+    }
+
+    private void PublishToBoard(Guid boardId, string eventType)
+    {
+        lock (_lock)
+        {
+            if (_boardSubscribers.TryGetValue(boardId, out var subscribers))
+            {
+                WriteToSubscribers(subscribers, eventType);
+            }
+        }
+    }
+
+    private static void WriteToSubscribers(List<Channel<string>> subscribers, string eventType)
+    {
+        subscribers.RemoveAll(ch =>
+        {
+            if (!ch.Writer.TryWrite(eventType))
+            {
+                ch.Writer.TryComplete();
+                return true;
+            }
+
+            return false;
+        });
     }
 }

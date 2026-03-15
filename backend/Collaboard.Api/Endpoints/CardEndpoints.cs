@@ -12,13 +12,8 @@ internal static class CardEndpoints
 
     public static RouteGroupBuilder MapCardEndpoints(this RouteGroupBuilder group)
     {
-        group.MapGet("/cards", async (BoardDbContext db, HttpContext http) =>
-        {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
-            return forbidden is not null ? forbidden : Results.Ok(await db.Cards.OrderBy(x => x.LaneId).ThenBy(x => x.Position).ToListAsync());
-        });
-
-        group.MapGet("/cards/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id) =>
+        // Board-scoped listing and creation
+        group.MapGet("/boards/{boardId:guid}/cards", async (BoardDbContext db, HttpContext http, Guid boardId) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
             if (forbidden is not null)
@@ -26,16 +21,33 @@ internal static class CardEndpoints
                 return forbidden;
             }
 
-            var card = await db.Cards.FindAsync(id);
-            return card is null ? Results.NotFound() : Results.Ok(card);
+            if (!await db.Boards.AnyAsync(x => x.Id == boardId))
+            {
+                return Results.NotFound();
+            }
+
+            var laneIds = await db.Lanes.Where(x => x.BoardId == boardId).Select(x => x.Id).ToListAsync();
+            var cards = await db.Cards.Where(x => laneIds.Contains(x.LaneId)).OrderBy(x => x.LaneId).ThenBy(x => x.Position).ToListAsync();
+            return Results.Ok(cards);
         });
 
-        group.MapPost("/cards", async (BoardDbContext db, HttpContext http, CardItem request, BoardEventBroadcaster broadcaster) =>
+        group.MapPost("/boards/{boardId:guid}/cards", async (BoardDbContext db, HttpContext http, Guid boardId, CardItem request, BoardEventBroadcaster broadcaster) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
             if (forbidden is not null)
             {
                 return forbidden;
+            }
+
+            if (!await db.Boards.AnyAsync(x => x.Id == boardId))
+            {
+                return Results.NotFound();
+            }
+
+            // Verify the lane belongs to this board
+            if (!await db.Lanes.AnyAsync(x => x.Id == request.LaneId && x.BoardId == boardId))
+            {
+                return Results.BadRequest("Lane does not belong to this board.");
             }
 
             if (!string.IsNullOrEmpty(request.Size))
@@ -69,8 +81,21 @@ internal static class CardEndpoints
             };
             db.Cards.Add(card);
             await db.SaveChangesAsync();
-            broadcaster.Publish("board-updated");
+            broadcaster.PublishBoardUpdated(boardId);
             return Results.Created($"/api/v1/cards/{card.Id}", card);
+        });
+
+        // By-ID operations (flat)
+        group.MapGet("/cards/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id) =>
+        {
+            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
+            if (forbidden is not null)
+            {
+                return forbidden;
+            }
+
+            var card = await db.Cards.FindAsync(id);
+            return card is null ? Results.NotFound() : Results.Ok(card);
         });
 
         group.MapPatch("/cards/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, JsonElement patch, BoardEventBroadcaster broadcaster) =>
@@ -131,7 +156,14 @@ internal static class CardEndpoints
             card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
             card.LastUpdatedByUserId = http.CurrentUser().Id;
             await db.SaveChangesAsync();
-            broadcaster.Publish("board-updated");
+
+            // Resolve the board from the card's lane
+            var cardLane = await db.Lanes.FindAsync(card.LaneId);
+            if (cardLane is not null)
+            {
+                broadcaster.PublishBoardUpdated(cardLane.BoardId);
+            }
+
             return Results.Ok(card);
         });
 
@@ -152,7 +184,8 @@ internal static class CardEndpoints
             var targetLaneId = body.GetProperty("laneId").GetGuid();
             var targetIndex = body.GetProperty("index").GetInt32();
 
-            if (!await db.Lanes.AnyAsync(l => l.Id == targetLaneId))
+            var targetLane = await db.Lanes.FindAsync(targetLaneId);
+            if (targetLane is null)
             {
                 return Results.BadRequest("Lane not found.");
             }
@@ -192,10 +225,11 @@ internal static class CardEndpoints
             card.LastUpdatedByUserId = http.CurrentUser().Id;
 
             await db.SaveChangesAsync();
-            broadcaster.Publish("board-updated");
+            broadcaster.PublishBoardUpdated(targetLane.BoardId);
 
-            var lanes = await db.Lanes.OrderBy(l => l.Position).ToListAsync();
-            var cards = await db.Cards.OrderBy(c => c.LaneId).ThenBy(c => c.Position).ToListAsync();
+            var boardLaneIds = await db.Lanes.Where(x => x.BoardId == targetLane.BoardId).Select(x => x.Id).ToListAsync();
+            var lanes = await db.Lanes.Where(x => x.BoardId == targetLane.BoardId).OrderBy(l => l.Position).ToListAsync();
+            var cards = await db.Cards.Where(x => boardLaneIds.Contains(x.LaneId)).OrderBy(c => c.LaneId).ThenBy(c => c.Position).ToListAsync();
             return Results.Ok(new { lanes, cards });
         });
 
@@ -213,16 +247,22 @@ internal static class CardEndpoints
                 return Results.NotFound();
             }
 
-            // Humans can only delete their own cards; admins can delete any
             var user = http.CurrentUser();
             if (user.Role != UserRole.Administrator && card.CreatedByUserId != user.Id)
             {
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
 
+            var lane = await db.Lanes.FindAsync(card.LaneId);
+
             db.Cards.Remove(card);
             await db.SaveChangesAsync();
-            broadcaster.Publish("board-updated");
+
+            if (lane is not null)
+            {
+                broadcaster.PublishBoardUpdated(lane.BoardId);
+            }
+
             return Results.NoContent();
         });
 

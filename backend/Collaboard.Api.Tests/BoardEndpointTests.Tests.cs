@@ -17,6 +17,8 @@ public class BoardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
+    // --- Composite board view tests (boards/{boardId}/board) ---
+
     [Fact]
     public async Task GetBoard_AsAdmin_Returns200WithLanesAndEmptyCards()
     {
@@ -24,7 +26,7 @@ public class BoardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         TestAuthHelper.SetAdminAuth(_client, _factory);
 
         // Act
-        var response = await _client.GetAsync("/api/v1/board");
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/board");
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -44,7 +46,7 @@ public class BoardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         TestAuthHelper.SetAuth(_client, human.AuthKey);
 
         // Act
-        var response = await _client.GetAsync("/api/v1/board");
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/board");
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -58,7 +60,7 @@ public class BoardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         TestAuthHelper.SetAuth(_client, agent.AuthKey);
 
         // Act
-        var response = await _client.GetAsync("/api/v1/board");
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/board");
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -71,7 +73,7 @@ public class BoardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         _client.DefaultRequestHeaders.Remove("X-User-Key");
 
         // Act
-        var response = await _client.GetAsync("/api/v1/board");
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/board");
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
@@ -84,7 +86,7 @@ public class BoardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         TestAuthHelper.SetAdminAuth(_client, _factory);
 
         // Act
-        var response = await _client.GetAsync("/api/v1/board");
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/board");
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -111,7 +113,7 @@ public class BoardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         // Arrange
         TestAuthHelper.SetAdminAuth(_client, _factory);
 
-        var boardResponse = await _client.GetAsync("/api/v1/board");
+        var boardResponse = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/board");
         var boardJson = await boardResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
         var firstLaneId = boardJson.GetProperty("lanes")[0].GetProperty("id").GetGuid();
 
@@ -125,10 +127,10 @@ public class BoardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         };
 
         // Act
-        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", cardPayload);
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", cardPayload);
         createResponse.StatusCode.ShouldBe(HttpStatusCode.Created);
 
-        var refreshedBoard = await _client.GetAsync("/api/v1/board");
+        var refreshedBoard = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/board");
 
         // Assert
         refreshedBoard.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -150,5 +152,142 @@ public class BoardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         }
 
         found.ShouldBeTrue("Created card was not found in the board response.");
+    }
+
+    // --- Board CRUD tests ---
+
+    [Fact]
+    public async Task ListBoards_AsAdmin_ReturnsAtLeastOne()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        // Act
+        var response = await _client.GetAsync("/api/v1/boards");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var boards = await response.Content.ReadFromJsonAsync<JsonElement[]>(_jsonOptions);
+        boards.ShouldNotBeNull();
+        boards.ShouldNotBeEmpty();
+    }
+
+    [Fact]
+    public async Task GetBoardById_Returns200()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var board = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        board.GetProperty("id").GetGuid().ShouldBe(_factory.DefaultBoardId);
+        board.GetProperty("name").GetString().ShouldBe("Default");
+    }
+
+    [Fact]
+    public async Task GetBoardBySlug_Returns200()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        // Act
+        var response = await _client.GetAsync("/api/v1/boards/default");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var board = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        board.GetProperty("slug").GetString().ShouldBe("default");
+    }
+
+    [Fact]
+    public async Task CreateBoard_AsAdmin_Returns201()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var boardName = $"Board {Guid.NewGuid()}";
+
+        // Act
+        var response = await _client.PostAsJsonAsync("/api/v1/boards", new { name = boardName });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        var board = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        board.GetProperty("name").GetString().ShouldBe(boardName);
+        board.GetProperty("id").GetGuid().ShouldNotBe(Guid.Empty);
+        board.GetProperty("slug").GetString().ShouldNotBeNullOrWhiteSpace();
+    }
+
+    [Fact]
+    public async Task CreateBoard_AsHumanUser_Returns403()
+    {
+        // Arrange
+        var human = await TestAuthHelper.CreateUserAsync(_client, _factory, "Board Human Creator", UserRole.HumanUser);
+        TestAuthHelper.SetAuth(_client, human.AuthKey);
+
+        // Act
+        var response = await _client.PostAsJsonAsync("/api/v1/boards", new { name = "Forbidden Board" });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task PatchBoard_UpdatesName_SlugUnchanged()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var createResponse = await _client.PostAsJsonAsync("/api/v1/boards", new { name = $"Patch Board {Guid.NewGuid()}" });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var boardId = created.GetProperty("id").GetGuid();
+        var originalSlug = created.GetProperty("slug").GetString();
+
+        // Act
+        var response = await _client.PatchAsJsonAsync($"/api/v1/boards/{boardId}", new { name = "Renamed Board" });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var updated = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        updated.GetProperty("name").GetString().ShouldBe("Renamed Board");
+        updated.GetProperty("slug").GetString().ShouldBe(originalSlug);
+    }
+
+    [Fact]
+    public async Task DeleteBoard_EmptyBoard_Returns204()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var createResponse = await _client.PostAsJsonAsync("/api/v1/boards", new { name = $"Delete Me {Guid.NewGuid()}" });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var boardId = created.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.DeleteAsync($"/api/v1/boards/{boardId}");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    public async Task DeleteBoard_BoardWithLanes_Returns400()
+    {
+        // Arrange — the default board has 3 lanes
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        // Act
+        var response = await _client.DeleteAsync($"/api/v1/boards/{_factory.DefaultBoardId}");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 }

@@ -1,5 +1,13 @@
+export type Board = {
+  id: string;
+  name: string;
+  slug: string;
+  createdAtUtc: string;
+};
+
 export type Lane = {
   id: string;
+  boardId: string;
   name: string;
   position: number;
 };

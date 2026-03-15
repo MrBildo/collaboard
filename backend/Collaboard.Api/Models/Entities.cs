@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.RegularExpressions;
 
 namespace Collaboard.Api.Models;
 
@@ -7,6 +8,17 @@ public enum UserRole
     Administrator,
     HumanUser,
     AgentUser,
+}
+
+public class Board
+{
+    public Guid Id { get; set; }
+    [MaxLength(200)] public string Name { get; set; } = string.Empty;
+    [MaxLength(200)] public string Slug { get; set; } = string.Empty;
+    public DateTimeOffset CreatedAtUtc { get; set; }
+
+    public static string GenerateSlug(string name) =>
+        Regex.Replace(name.ToLowerInvariant(), @"[^a-z0-9]+", "-").Trim('-');
 }
 
 public class BoardUser
@@ -21,6 +33,7 @@ public class BoardUser
 public class Lane
 {
     public Guid Id { get; set; }
+    public Guid BoardId { get; set; }
     [MaxLength(80)] public string Name { get; set; } = string.Empty;
     public int Position { get; set; }
 }

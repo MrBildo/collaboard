@@ -1,8 +1,8 @@
 import axios from 'axios';
-import type { AttachmentMeta, BoardUser, CardComment, CardItem, Label, Lane } from '@/types';
+import type { AttachmentMeta, Board, BoardUser, CardComment, CardItem, Label, Lane } from '@/types';
 import { getUserKey } from '@/lib/auth';
 
-export type { AttachmentMeta, BoardUser, CardComment, CardItem, Label, Lane };
+export type { AttachmentMeta, Board, BoardUser, CardComment, CardItem, Label, Lane };
 
 export const api = axios.create({
   baseURL: '/api/v1',
@@ -22,15 +22,40 @@ export async function fetchMe(): Promise<{ id: string; name: string; role: numbe
   return data;
 }
 
-// Board
-export async function fetchBoard(): Promise<{ lanes: Lane[]; cards: CardItem[] }> {
-  const { data } = await api.get('/board');
+// Boards
+export async function fetchBoards(): Promise<Board[]> {
+  const { data } = await api.get('/boards');
   return data;
 }
 
-// Cards
-export async function fetchCards(): Promise<CardItem[]> {
-  const { data } = await api.get('/cards');
+export async function fetchBoardBySlug(slug: string): Promise<Board> {
+  const { data } = await api.get(`/boards/${slug}`);
+  return data;
+}
+
+export async function createBoard(name: string): Promise<Board> {
+  const { data } = await api.post('/boards', { name });
+  return data;
+}
+
+export async function updateBoard(id: string, patch: Record<string, unknown>): Promise<Board> {
+  const { data } = await api.patch(`/boards/${id}`, patch);
+  return data;
+}
+
+export async function deleteBoard(id: string): Promise<void> {
+  await api.delete(`/boards/${id}`);
+}
+
+// Board composite view
+export async function fetchBoardData(boardId: string): Promise<{ lanes: Lane[]; cards: CardItem[] }> {
+  const { data } = await api.get(`/boards/${boardId}/board`);
+  return data;
+}
+
+// Cards (board-scoped creation/listing, flat by-ID)
+export async function fetchCards(boardId: string): Promise<CardItem[]> {
+  const { data } = await api.get(`/boards/${boardId}/cards`);
   return data;
 }
 
@@ -39,14 +64,14 @@ export async function fetchCard(id: string): Promise<CardItem> {
   return data;
 }
 
-export async function createCard(card: {
+export async function createCard(boardId: string, card: {
   name: string;
   descriptionMarkdown?: string;
   size?: string;
   laneId: string;
   position: number;
 }): Promise<CardItem> {
-  const { data } = await api.post('/cards', card);
+  const { data } = await api.post(`/boards/${boardId}/cards`, card);
   return data;
 }
 
@@ -68,7 +93,7 @@ export async function reorderCard(
   return data;
 }
 
-// Labels
+// Labels (global)
 export async function fetchLabels(): Promise<Label[]> {
   const { data } = await api.get('/labels');
   return data;
@@ -98,7 +123,6 @@ export async function createComment(cardId: string, contentMarkdown: string): Pr
   return data;
 }
 
-// Comments (update/delete)
 export async function updateComment(id: string, contentMarkdown: string): Promise<CardComment> {
   const { data } = await api.patch(`/comments/${id}`, { contentMarkdown });
   return data;
@@ -153,14 +177,14 @@ export async function deactivateUser(id: string): Promise<void> {
   await api.patch(`/users/${id}/deactivate`);
 }
 
-// Lanes
-export async function fetchLanes(): Promise<Lane[]> {
-  const { data } = await api.get('/lanes');
+// Lanes (board-scoped creation/listing, flat by-ID)
+export async function fetchLanes(boardId: string): Promise<Lane[]> {
+  const { data } = await api.get(`/boards/${boardId}/lanes`);
   return data;
 }
 
-export async function createLane(name: string, position: number): Promise<Lane> {
-  const { data } = await api.post('/lanes', { name, position });
+export async function createLane(boardId: string, name: string, position: number): Promise<Lane> {
+  const { data } = await api.post(`/boards/${boardId}/lanes`, { name, position });
   return data;
 }
 

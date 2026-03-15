@@ -60,9 +60,10 @@ public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, Boar
             return "Error: You can only delete your own attachments.";
         }
 
+        var deleteCardId = attachment.CardId;
         db.Attachments.Remove(attachment);
         await db.SaveChangesAsync(ct);
-        broadcaster.Publish("board-updated");
+        await db.PublishForCardAsync(deleteCardId, broadcaster);
         return $"Attachment '{attachment.FileName}' deleted.";
     }
 
@@ -109,7 +110,7 @@ public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, Boar
         };
         db.Attachments.Add(attachment);
         await db.SaveChangesAsync(ct);
-        broadcaster.Publish("board-updated");
+        await db.PublishForCardAsync(cardId, broadcaster);
         return JsonSerializer.Serialize(new { attachment.Id, attachment.FileName }, JsonSerializerOptions.Web);
     }
 }

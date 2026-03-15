@@ -5,6 +5,7 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister';
 import { RouterProvider, createBrowserRouter } from 'react-router-dom';
 import { App } from './routes/App';
+import { BoardRedirect } from './routes/BoardRedirect';
 import './styles.css';
 
 const queryClient = new QueryClient();
@@ -13,6 +14,14 @@ const persister = createSyncStoragePersister({ storage: window.localStorage });
 const router = createBrowserRouter([
   {
     path: '/',
+    element: <BoardRedirect />,
+  },
+  {
+    path: '/boards/:slug',
+    element: <App />,
+  },
+  {
+    path: '/boards/:slug/cards/:cardNumber',
     element: <App />,
   },
 ]);

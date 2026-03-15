@@ -27,7 +27,7 @@ internal static class UserEndpoints
             };
             db.Users.Add(user);
             await db.SaveChangesAsync();
-            broadcaster.Publish("board-updated");
+            broadcaster.PublishGlobal("board-updated");
             return Results.Created($"/api/v1/users/{user.Id}", user);
         });
 
@@ -90,7 +90,7 @@ internal static class UserEndpoints
             }
 
             await db.SaveChangesAsync();
-            broadcaster.Publish("board-updated");
+            broadcaster.PublishGlobal("board-updated");
             return Results.Ok(user);
         });
 
@@ -110,7 +110,7 @@ internal static class UserEndpoints
 
             user.IsActive = false;
             await db.SaveChangesAsync();
-            broadcaster.Publish("board-updated");
+            broadcaster.PublishGlobal("board-updated");
             return Results.NoContent();
         });
 

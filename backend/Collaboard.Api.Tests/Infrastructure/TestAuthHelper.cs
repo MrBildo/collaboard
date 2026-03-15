@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text.Json;
 using Collaboard.Api.Models;
 
 namespace Collaboard.Api.Tests.Infrastructure;
@@ -23,5 +24,13 @@ public static class TestAuthHelper
         var response = await client.PostAsJsonAsync("/api/v1/users", new { name, role });
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<BoardUser>())!;
+    }
+
+    public static async Task<Guid> GetDefaultBoardIdAsync(HttpClient client)
+    {
+        var response = await client.GetAsync("/api/v1/boards");
+        response.EnsureSuccessStatusCode();
+        var boards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+        return boards![0].GetProperty("id").GetGuid();
     }
 }

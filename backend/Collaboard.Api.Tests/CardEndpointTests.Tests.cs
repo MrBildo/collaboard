@@ -18,7 +18,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
 
     private async Task<Guid> GetFirstLaneIdAsync()
     {
-        var response = await _client.GetAsync("/api/v1/board");
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/board");
         response.EnsureSuccessStatusCode();
         var board = await response.Content.ReadFromJsonAsync<JsonElement>();
         return board.GetProperty("lanes")[0].GetProperty("id").GetGuid();
@@ -26,7 +26,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
 
     private async Task<Guid> GetLaneIdByIndexAsync(int index)
     {
-        var response = await _client.GetAsync("/api/v1/board");
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/board");
         response.EnsureSuccessStatusCode();
         var board = await response.Content.ReadFromJsonAsync<JsonElement>();
         return board.GetProperty("lanes")[index].GetProperty("id").GetGuid();
@@ -40,7 +40,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         var laneId = await GetFirstLaneIdAsync();
 
         // Create a card to ensure at least one exists
-        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
         {
             name = "GetCards Test Card",
             descriptionMarkdown = "",
@@ -51,7 +51,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         createResponse.EnsureSuccessStatusCode();
 
         // Act
-        var response = await _client.GetAsync("/api/v1/cards");
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards");
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -68,7 +68,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         TestAuthHelper.SetAdminAuth(_client, _factory);
         var laneId = await GetFirstLaneIdAsync();
 
-        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
         {
             name = "GetById Card",
             descriptionMarkdown = "Find me",
@@ -123,7 +123,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/v1/cards", request);
+        var response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", request);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
@@ -146,7 +146,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         List<long> numbers = [];
         for (var i = 0; i < 3; i++)
         {
-            var response = await _client.PostAsJsonAsync("/api/v1/cards", new
+            var response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
             {
                 name = $"Sequential Card {i}",
                 descriptionMarkdown = "",
@@ -182,7 +182,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/v1/cards", request);
+        var response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", request);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
@@ -195,7 +195,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         TestAuthHelper.SetAdminAuth(_client, _factory);
         var laneId = await GetFirstLaneIdAsync();
 
-        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
         {
             name = "Original Name",
             descriptionMarkdown = "desc",
@@ -230,7 +230,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         var targetLaneId = await GetLaneIdByIndexAsync(1);
         var pos = NextPosition();
 
-        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
         {
             name = "Movable Card",
             descriptionMarkdown = "will move",
@@ -274,7 +274,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         var laneId = await GetFirstLaneIdAsync();
         var pos = NextPosition();
 
-        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
         {
             name = "Stable Card",
             descriptionMarkdown = "Original description",
@@ -308,7 +308,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         TestAuthHelper.SetAdminAuth(_client, _factory);
         var laneId = await GetFirstLaneIdAsync();
 
-        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
         {
             name = "Admin Delete Target",
             descriptionMarkdown = "",
@@ -335,7 +335,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         TestAuthHelper.SetAuth(_client, human.AuthKey);
         var laneId = await GetFirstLaneIdAsync();
 
-        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
         {
             name = "Human Delete Target",
             descriptionMarkdown = "",
@@ -361,7 +361,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         TestAuthHelper.SetAdminAuth(_client, _factory);
         var laneId = await GetFirstLaneIdAsync();
 
-        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
         {
             name = "Agent Cannot Delete This",
             descriptionMarkdown = "",
@@ -414,7 +414,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/v1/cards", request);
+        var response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", request);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -441,7 +441,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/v1/cards", request);
+        var response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", request);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
@@ -456,7 +456,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         TestAuthHelper.SetAdminAuth(_client, _factory);
         var laneId = await GetFirstLaneIdAsync();
 
-        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
         {
             name = "Position Zero Card",
             descriptionMarkdown = "",
@@ -484,7 +484,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         TestAuthHelper.SetAdminAuth(_client, _factory);
         var laneId = await GetFirstLaneIdAsync();
 
-        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
         {
             name = "Card For Invalid Size Patch",
             descriptionMarkdown = "",
@@ -513,7 +513,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         var cardIds = new List<Guid>();
         for (var i = 0; i < 3; i++)
         {
-            var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+            var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
             {
                 name = $"Reorder Same Lane Card {i}",
                 descriptionMarkdown = "",
@@ -560,7 +560,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         var sourceLaneId = await GetLaneIdByIndexAsync(0);
         var targetLaneId = await GetLaneIdByIndexAsync(1);
 
-        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
         {
             name = "Cross Lane Reorder Card",
             descriptionMarkdown = "",
@@ -606,7 +606,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         var sourceLaneId = await GetFirstLaneIdAsync();
 
         // Create a new empty lane
-        var laneResponse = await _client.PostAsJsonAsync("/api/v1/lanes", new
+        var laneResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/lanes", new
         {
             name = $"Empty Lane {Guid.NewGuid()}",
             position = NextPosition()
@@ -615,7 +615,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         var lane = await laneResponse.Content.ReadFromJsonAsync<JsonElement>();
         var emptyLaneId = lane.GetProperty("id").GetGuid();
 
-        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
         {
             name = "Card To Empty Lane",
             descriptionMarkdown = "",
@@ -680,7 +680,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         TestAuthHelper.SetAdminAuth(_client, _factory);
         var laneId = await GetFirstLaneIdAsync();
 
-        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
         {
             name = "Card For Bad Lane Reorder",
             descriptionMarkdown = "",
@@ -710,7 +710,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         TestAuthHelper.SetAdminAuth(_client, _factory);
         var laneId = await GetFirstLaneIdAsync();
 
-        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
         {
             name = "Full Board Reorder Card",
             descriptionMarkdown = "",
@@ -758,7 +758,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         var label2Id = label2.GetProperty("id").GetGuid();
 
         // Create a card
-        var createResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
         {
             name = "Labeled Card",
             descriptionMarkdown = "",

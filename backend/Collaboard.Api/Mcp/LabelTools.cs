@@ -57,7 +57,7 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
 
         db.CardLabels.Add(new CardLabel { CardId = cardId, LabelId = labelId });
         await db.SaveChangesAsync(ct);
-        broadcaster.Publish("board-updated");
+        broadcaster.PublishGlobal("board-updated");
         return "Label added successfully.";
     }
 
@@ -83,7 +83,7 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
 
         db.CardLabels.Remove(cardLabel);
         await db.SaveChangesAsync(ct);
-        broadcaster.Publish("board-updated");
+        broadcaster.PublishGlobal("board-updated");
         return "Label removed successfully.";
     }
 }

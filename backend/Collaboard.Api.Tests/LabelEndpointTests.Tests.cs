@@ -18,7 +18,7 @@ public class LabelEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
 
     private async Task<Guid> GetFirstLaneIdAsync()
     {
-        var response = await _client.GetAsync("/api/v1/board");
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/board");
         response.EnsureSuccessStatusCode();
         var board = await response.Content.ReadFromJsonAsync<JsonElement>();
         return board.GetProperty("lanes")[0].GetProperty("id").GetGuid();
@@ -26,7 +26,7 @@ public class LabelEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
 
     private async Task<Guid> CreateCardAsync(Guid laneId)
     {
-        var response = await _client.PostAsJsonAsync("/api/v1/cards", new
+        var response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
         {
             name = $"Test Card {Guid.NewGuid()}",
             descriptionMarkdown = "",
