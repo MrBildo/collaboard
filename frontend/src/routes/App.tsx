@@ -326,7 +326,7 @@ export function App() {
         </DragOverlay>
       </DndContext>
 
-      <CardDetailSheet card={selectedCard} open={detailOpen} onOpenChange={handleDetailOpenChange} currentUserId={currentUserId} currentUserRole={currentUserRole} />
+      <CardDetailSheet card={selectedCard} open={detailOpen} onOpenChange={handleDetailOpenChange} currentUserId={currentUserId} currentUserRole={currentUserRole} lanes={lanes} boardId={boardId} />
 
       {boardId && (
         <CreateCardDialog boardId={boardId} lanes={lanes} open={createOpen} onOpenChange={setCreateOpen} defaultLaneId={createLaneId} />
