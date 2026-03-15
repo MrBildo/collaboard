@@ -20,6 +20,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         [Description("The ID (guid) of the lane to place the card in")] Guid laneId,
         [Description("Optional markdown description")] string? descriptionMarkdown = null,
         [Description("Size: S, M, L, or XL. Defaults to M")] string? size = null,
+        [Description("Optional comma-separated label IDs (guids) to assign to the card at creation. All labels must belong to the same board as the lane.")] string? labelIds = null,
         CancellationToken ct = default)
     {
         var (user, error) = await auth.RequireUserAsync(authKey, ct);
@@ -34,9 +35,41 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             return "Error: Size must be one of: S, M, L, XL";
         }
 
-        if (!await db.Lanes.AnyAsync(l => l.Id == laneId, ct))
+        var lane = await db.Lanes.FirstOrDefaultAsync(l => l.Id == laneId, ct);
+        if (lane is null)
         {
             return "Error: Lane not found.";
+        }
+
+        // Parse and validate label IDs if provided
+        var parsedLabelIds = new List<Guid>();
+        if (!string.IsNullOrWhiteSpace(labelIds))
+        {
+            var parts = labelIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var part in parts)
+            {
+                if (!Guid.TryParse(part, out var parsedId))
+                {
+                    return $"Error: Invalid label ID format: '{part}'. Expected a GUID.";
+                }
+
+                parsedLabelIds.Add(parsedId);
+            }
+
+            // Validate all labels exist and belong to the same board as the lane
+            foreach (var labelId in parsedLabelIds)
+            {
+                var label = await db.Labels.FindAsync([labelId], ct);
+                if (label is null)
+                {
+                    return $"Error: Label '{labelId}' not found.";
+                }
+
+                if (label.BoardId != lane.BoardId)
+                {
+                    return $"Error: Label '{labelId}' does not belong to the same board as the target lane.";
+                }
+            }
         }
 
         var nextNumber = (await db.Cards.MaxAsync(c => (long?)c.Number, ct) ?? 0) + 1;
@@ -58,6 +91,12 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             LastUpdatedByUserId = user.Id,
         };
         db.Cards.Add(card);
+
+        foreach (var labelId in parsedLabelIds)
+        {
+            db.CardLabels.Add(new CardLabel { CardId = card.Id, LabelId = labelId });
+        }
+
         await db.SaveChangesAsync(ct);
         await db.PublishForCardAsync(card.Id, broadcaster);
         return JsonSerializer.Serialize(card, JsonSerializerOptions.Web);
