@@ -139,8 +139,9 @@ app.UseStaticFiles();
 
 var api = app.MapGroup("/api/v1");
 
-api.MapGet("/version", () =>
+api.MapGet("/version", (HttpContext context) =>
 {
+    context.Response.Headers.CacheControl = "no-cache, no-store";
     var raw = Assembly.GetExecutingAssembly()
         .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
         ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString()
