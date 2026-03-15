@@ -4,38 +4,117 @@
 
 @layer base {
   :root {
-    --background: oklch(0.16 0.02 230);
-    --foreground: oklch(0.93 0.01 230);
-    --card: oklch(0.24 0.03 235);
-    --card-foreground: oklch(0.93 0.01 230);
-    --popover: oklch(0.22 0.03 235);
-    --popover-foreground: oklch(0.93 0.01 230);
-    --primary: oklch(0.62 0.2 250);
-    --primary-foreground: oklch(0.98 0.005 230);
-    --secondary: oklch(0.32 0.04 240);
-    --secondary-foreground: oklch(0.90 0.01 230);
-    --muted: oklch(0.28 0.025 235);
-    --muted-foreground: oklch(0.65 0.025 230);
-    --accent: oklch(0.72 0.18 55);
-    --accent-foreground: oklch(0.15 0.02 55);
-    --destructive: oklch(0.60 0.22 25);
-    --border: oklch(0.36 0.04 240);
-    --input: oklch(0.26 0.03 235);
-    --ring: oklch(0.62 0.2 250);
-    --chart-1: oklch(0.62 0.2 250);
-    --chart-2: oklch(0.72 0.18 55);
-    --chart-3: oklch(0.65 0.18 150);
-    --chart-4: oklch(0.85 0.15 85);
-    --chart-5: oklch(0.60 0.22 25);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.20 0.025 230);
-    --sidebar-foreground: oklch(0.92 0.01 230);
-    --sidebar-primary: oklch(0.62 0.2 250);
-    --sidebar-primary-foreground: oklch(0.98 0.005 230);
-    --sidebar-accent: oklch(0.30 0.04 250);
-    --sidebar-accent-foreground: oklch(0.88 0.01 230);
-    --sidebar-border: oklch(0.32 0.03 230);
-    --sidebar-ring: oklch(0.62 0.2 250);
+    /* Surfaces — cool-tinted whites and grays */
+    --background: hsl(210, 20%, 98%);
+    --foreground: hsl(215, 25%, 15%);
+    --card: hsl(0, 0%, 100%);
+    --card-foreground: hsl(215, 25%, 15%);
+    --popover: hsl(0, 0%, 100%);
+    --popover-foreground: hsl(215, 25%, 15%);
+
+    /* Brand colors */
+    --primary: hsl(195, 100%, 42%);
+    --primary-foreground: hsl(0, 0%, 100%);
+    --secondary: hsl(210, 15%, 93%);
+    --secondary-foreground: hsl(215, 20%, 30%);
+    --accent: hsl(36, 100%, 50%);
+    --accent-foreground: hsl(36, 90%, 15%);
+
+    /* Semantic */
+    --muted: hsl(210, 15%, 93%);
+    --muted-foreground: hsl(215, 15%, 50%);
+    --destructive: hsl(0, 72%, 51%);
+
+    /* Borders & inputs */
+    --border: hsl(214, 20%, 88%);
+    --input: hsl(214, 20%, 88%);
+    --ring: hsl(195, 100%, 42%);
+
+    /* Radius */
+    --radius: 0.5rem;
+
+    /* Lane backgrounds */
+    --lane-bg: hsl(210, 15%, 95%);
+    --lane-border: hsl(214, 20%, 88%);
+
+    /* Chart colors */
+    --chart-1: hsl(195, 100%, 42%);
+    --chart-2: hsl(36, 100%, 50%);
+    --chart-3: hsl(150, 60%, 40%);
+    --chart-4: hsl(280, 60%, 55%);
+    --chart-5: hsl(0, 72%, 51%);
+
+    /* Sidebar (keep for shadcn compatibility) */
+    --sidebar: hsl(210, 15%, 95%);
+    --sidebar-foreground: hsl(215, 25%, 15%);
+    --sidebar-primary: hsl(195, 100%, 42%);
+    --sidebar-primary-foreground: hsl(0, 0%, 100%);
+    --sidebar-accent: hsl(210, 15%, 93%);
+    --sidebar-accent-foreground: hsl(215, 20%, 30%);
+    --sidebar-border: hsl(214, 20%, 88%);
+    --sidebar-ring: hsl(195, 100%, 42%);
+  }
+
+  [data-theme="dark"] {
+    /* Surfaces — bg(8%) → lane(11%) → card(15%) → border(25%) */
+    --background: hsl(222, 22%, 8%);
+    --foreground: hsl(210, 15%, 90%);
+    --card: hsl(222, 18%, 15%);
+    --card-foreground: hsl(210, 15%, 90%);
+    --popover: hsl(222, 18%, 17%);
+    --popover-foreground: hsl(210, 15%, 90%);
+
+    /* Brand colors — same hues, adjusted for dark bg */
+    --primary: hsl(195, 90%, 55%);
+    --primary-foreground: hsl(222, 22%, 8%);
+    --secondary: hsl(222, 15%, 22%);
+    --secondary-foreground: hsl(210, 15%, 80%);
+    --accent: hsl(36, 100%, 55%);
+    --accent-foreground: hsl(36, 90%, 10%);
+
+    /* Semantic */
+    --muted: hsl(222, 15%, 20%);
+    --muted-foreground: hsl(215, 15%, 55%);
+    --destructive: hsl(0, 72%, 55%);
+
+    /* Borders & inputs — must be visible against card AND bg */
+    --border: hsl(222, 12%, 25%);
+    --input: hsl(222, 15%, 18%);
+    --ring: hsl(195, 90%, 55%);
+
+    /* Lane */
+    --lane-bg: hsl(222, 20%, 11%);
+    --lane-border: hsl(222, 12%, 25%);
+
+    /* Sidebar */
+    --sidebar: hsl(222, 20%, 11%);
+    --sidebar-foreground: hsl(210, 15%, 90%);
+    --sidebar-primary: hsl(195, 90%, 55%);
+    --sidebar-primary-foreground: hsl(222, 22%, 8%);
+    --sidebar-accent: hsl(222, 15%, 20%);
+    --sidebar-accent-foreground: hsl(210, 15%, 80%);
+    --sidebar-border: hsl(222, 12%, 25%);
+    --sidebar-ring: hsl(195, 90%, 55%);
+
+  }
+
+  /* Prose overrides scoped to .prose inside dark mode — must be a separate rule
+     so it has higher specificity than the base .prose class which sets its own vars */
+  [data-theme="dark"] .prose {
+    --tw-prose-body: hsl(210, 15%, 85%);
+    --tw-prose-headings: hsl(210, 15%, 95%);
+    --tw-prose-links: hsl(195, 90%, 55%);
+    --tw-prose-bold: hsl(210, 15%, 95%);
+    --tw-prose-code: hsl(195, 80%, 70%);
+    --tw-prose-pre-bg: hsl(222, 20%, 14%);
+    --tw-prose-pre-code: hsl(210, 15%, 85%);
+    --tw-prose-quotes: hsl(210, 15%, 70%);
+    --tw-prose-quote-borders: hsl(195, 90%, 55%);
+    --tw-prose-counters: hsl(210, 15%, 60%);
+    --tw-prose-bullets: hsl(210, 15%, 50%);
+    --tw-prose-hr: hsl(222, 15%, 25%);
+    --tw-prose-th-borders: hsl(222, 15%, 30%);
+    --tw-prose-td-borders: hsl(222, 12%, 22%);
   }
 
   * {
@@ -45,7 +124,7 @@
   body {
     @apply bg-background text-foreground;
     margin: 0;
-    font-family: Inter, system-ui, sans-serif;
+    font-family: 'DM Sans', system-ui, sans-serif;
   }
 
   /* Custom scrollbar styling */

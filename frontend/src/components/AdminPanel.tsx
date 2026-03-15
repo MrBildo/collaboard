@@ -166,9 +166,9 @@ function LanesTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col divide-y divide-border rounded-lg border">
         {lanes.map((lane) => (
-          <div key={lane.id} className="flex items-center justify-between rounded-lg border px-4 py-3">
+          <div key={lane.id} className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-muted/50">
             {editingId === lane.id ? (
               <>
                 <div className="flex flex-1 items-center gap-2">
@@ -204,18 +204,23 @@ function LanesTab() {
                 <div className="flex gap-1">
                   <Button
                     size="xs"
-                    variant="outline"
+                    variant="ghost"
                     onClick={() => startEdit(lane.id, lane.name, lane.position)}
+                    title="Edit"
                   >
-                    Edit
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></svg>
                   </Button>
                   <Button
                     size="xs"
-                    variant="destructive"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive"
                     onClick={() => handleDelete(lane.id)}
                     disabled={deleteMutation.isPending}
+                    title={confirmDeleteId === lane.id ? 'Confirm delete' : 'Delete'}
                   >
-                    {confirmDeleteId === lane.id ? 'Confirm' : 'Delete'}
+                    {confirmDeleteId === lane.id ? 'Confirm' : (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
+                    )}
                   </Button>
                 </div>
               </>
@@ -315,12 +320,12 @@ function UsersTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col divide-y divide-border rounded-lg border">
         {users.map((user) => (
-          <div key={user.id} className="flex items-center justify-between rounded-lg border px-4 py-3">
+          <div key={user.id} className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-muted/50">
             <div className="flex items-center gap-3">
               <span className="font-medium">{user.name}</span>
-              <Badge variant="secondary">{ROLE_MAP[user.role] ?? `Role ${user.role}`}</Badge>
+              <Badge variant="secondary" className={user.role === 0 ? 'bg-primary/15 text-primary' : user.role === 2 ? 'bg-accent/15 text-accent' : ''}>{ROLE_MAP[user.role] ?? `Role ${user.role}`}</Badge>
               <Badge variant={user.isActive ? 'outline' : 'destructive'}>
                 {user.isActive ? 'Active' : 'Inactive'}
               </Badge>
@@ -329,7 +334,8 @@ function UsersTab() {
               {user.isActive && (
                 <Button
                   size="xs"
-                  variant="destructive"
+                  variant="ghost"
+                  className="text-destructive hover:text-destructive"
                   onClick={() => handleDeactivate(user.id)}
                   disabled={deactivateMutation.isPending}
                 >
@@ -471,9 +477,9 @@ function LabelsTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col divide-y divide-border rounded-lg border">
         {labels.map((label) => (
-          <div key={label.id} className="flex items-center justify-between rounded-lg border px-4 py-3">
+          <div key={label.id} className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-muted/50">
             {editingId === label.id ? (
               <>
                 <div className="flex flex-1 items-center gap-2">
@@ -511,18 +517,23 @@ function LabelsTab() {
                 <div className="flex gap-1">
                   <Button
                     size="xs"
-                    variant="outline"
+                    variant="ghost"
                     onClick={() => startEdit(label.id, label.name, label.color)}
+                    title="Edit"
                   >
-                    Edit
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></svg>
                   </Button>
                   <Button
                     size="xs"
-                    variant="destructive"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive"
                     onClick={() => handleDelete(label.id)}
                     disabled={deleteMutation.isPending}
+                    title={confirmDeleteId === label.id ? 'Confirm delete' : 'Delete'}
                   >
-                    {confirmDeleteId === label.id ? 'Confirm' : 'Delete'}
+                    {confirmDeleteId === label.id ? 'Confirm' : (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
+                    )}
                   </Button>
                 </div>
               </>
