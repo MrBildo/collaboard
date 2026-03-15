@@ -42,10 +42,14 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
 
   useEffect(() => {
     if (open) {
-      setFilter('');
       setTimeout(() => inputRef.current?.focus(), 0);
     }
   }, [open]);
+
+  const handleOpen = () => {
+    if (!open) setFilter('');
+    setOpen(!open);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -73,7 +77,7 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
         variant="outline"
         size="sm"
         className="h-auto min-h-8 gap-1.5 px-2.5 py-1"
-        onClick={() => setOpen(!open)}
+        onClick={handleOpen}
       >
         <Tag className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
         {assignedLabels.length > 0 ? (
