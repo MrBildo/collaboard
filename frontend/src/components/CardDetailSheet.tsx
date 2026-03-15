@@ -28,7 +28,7 @@ import {
   updateCard,
   uploadAttachment,
 } from '@/lib/api';
-import { getContrastColor, getReadableColor } from '@/lib/utils';
+import { LabelPicker } from '@/components/LabelPicker';
 import type { CardItem, Lane } from '@/types';
 
 type CardDetailSheetProps = {
@@ -290,32 +290,12 @@ function CardDetailForm({
               ))}
             </select>
           )}
-          {(allLabelsQuery.data ?? []).map((label) => {
-            const isAssigned = labels.some((l) => l.id === label.id);
-            return (
-              <button
-                key={label.id}
-                type="button"
-                onClick={() => {
-                  if (isAssigned) {
-                    removeLabelMutation.mutate(label.id);
-                  } else {
-                    addLabelMutation.mutate(label.id);
-                  }
-                }}
-                className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium transition-opacity hover:opacity-80"
-                style={{
-                  backgroundColor: isAssigned ? (label.color ?? '#6b7280') : 'transparent',
-                  color: isAssigned ? getContrastColor(label.color) : getReadableColor(label.color),
-                  borderColor: isAssigned
-                    ? (label.color ?? '#6b7280')
-                    : getReadableColor(label.color),
-                }}
-              >
-                {label.name}
-              </button>
-            );
-          })}
+          <LabelPicker
+            allLabels={allLabelsQuery.data ?? []}
+            assignedLabels={labels}
+            onAdd={(id) => addLabelMutation.mutate(id)}
+            onRemove={(id) => removeLabelMutation.mutate(id)}
+          />
         </div>
       </DialogHeader>
 
