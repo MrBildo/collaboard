@@ -36,7 +36,18 @@ internal static class CardEndpoints
 
             if (since.HasValue)
             {
-                query = query.Where(x => x.CreatedAtUtc >= since.Value || x.LastUpdatedAtUtc >= since.Value);
+                var cardIdsWithRecentComments = db.Comments
+                    .Where(c => c.LastUpdatedAtUtc >= since.Value)
+                    .Select(c => c.CardId);
+                var cardIdsWithRecentAttachments = db.Attachments
+                    .Where(a => a.AddedAtUtc >= since.Value)
+                    .Select(a => a.CardId);
+
+                query = query.Where(x =>
+                    x.CreatedAtUtc >= since.Value
+                    || x.LastUpdatedAtUtc >= since.Value
+                    || cardIdsWithRecentComments.Contains(x.Id)
+                    || cardIdsWithRecentAttachments.Contains(x.Id));
             }
 
             if (labelId.HasValue)
