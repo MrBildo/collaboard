@@ -43,10 +43,19 @@ using (var scope = app.Services.CreateScope())
             Role = UserRole.Administrator,
         });
 
+        var defaultBoard = new Board
+        {
+            Id = Guid.NewGuid(),
+            Name = "Default",
+            Slug = "default",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+        };
+        db.Boards.Add(defaultBoard);
+
         db.Lanes.AddRange(
-            new Lane { Id = Guid.NewGuid(), Name = "Backlog", Position = 0 },
-            new Lane { Id = Guid.NewGuid(), Name = "In Progress", Position = 1 },
-            new Lane { Id = Guid.NewGuid(), Name = "Done", Position = 2 }
+            new Lane { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "Backlog", Position = 0 },
+            new Lane { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "In Progress", Position = 1 },
+            new Lane { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "Done", Position = 2 }
         );
         await db.SaveChangesAsync();
 

@@ -1,18 +1,18 @@
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
-export function useBoardEvents(enabled: boolean) {
+export function useBoardEvents(boardId: string | undefined) {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (!enabled) {
+    if (!boardId) {
       return;
     }
 
-    const es = new EventSource('/api/v1/board/events');
+    const es = new EventSource(`/api/v1/boards/${boardId}/events`);
 
     es.addEventListener('board-updated', () => {
-      queryClient.invalidateQueries({ queryKey: ['board'] });
+      queryClient.invalidateQueries({ queryKey: ['boardData', boardId] });
       queryClient.invalidateQueries({ queryKey: ['labels'] });
       queryClient.invalidateQueries({ queryKey: ['cardLabels'] });
       queryClient.invalidateQueries({ queryKey: ['comments'] });
@@ -25,5 +25,5 @@ export function useBoardEvents(enabled: boolean) {
     };
 
     return () => es.close();
-  }, [queryClient, enabled]);
+  }, [queryClient, boardId]);
 }

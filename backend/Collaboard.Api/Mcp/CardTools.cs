@@ -59,7 +59,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         };
         db.Cards.Add(card);
         await db.SaveChangesAsync(ct);
-        broadcaster.Publish("board-updated");
+        await db.PublishForCardAsync(card.Id, broadcaster);
         return JsonSerializer.Serialize(card, JsonSerializerOptions.Web);
     }
 
@@ -122,7 +122,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         card.LastUpdatedByUserId = user!.Id;
         card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
-        broadcaster.Publish("board-updated");
+        await db.PublishForCardAsync(card.Id, broadcaster);
         return $"Card '{card.Name}' moved to lane at index {index}.";
     }
 
@@ -171,7 +171,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         card.LastUpdatedByUserId = user!.Id;
         card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
-        broadcaster.Publish("board-updated");
+        await db.PublishForCardAsync(card.Id, broadcaster);
         return JsonSerializer.Serialize(card, JsonSerializerOptions.Web);
     }
 

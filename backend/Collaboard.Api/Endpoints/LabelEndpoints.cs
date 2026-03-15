@@ -43,7 +43,7 @@ internal static class LabelEndpoints
             };
             db.Labels.Add(label);
             await db.SaveChangesAsync();
-            broadcaster.Publish("board-updated");
+            broadcaster.PublishGlobal("board-updated");
             return Results.Created($"/api/v1/labels/{label.Id}", label);
         });
 
@@ -72,7 +72,7 @@ internal static class LabelEndpoints
             }
 
             await db.SaveChangesAsync();
-            broadcaster.Publish("board-updated");
+            broadcaster.PublishGlobal("board-updated");
             return Results.Ok(label);
         });
 
@@ -94,7 +94,7 @@ internal static class LabelEndpoints
             db.CardLabels.RemoveRange(cardLabels);
             db.Labels.Remove(label);
             await db.SaveChangesAsync();
-            broadcaster.Publish("board-updated");
+            broadcaster.PublishGlobal("board-updated");
             return Results.NoContent();
         });
 
@@ -146,7 +146,7 @@ internal static class LabelEndpoints
             var cardLabel = new CardLabel { CardId = id, LabelId = labelId };
             db.CardLabels.Add(cardLabel);
             await db.SaveChangesAsync();
-            broadcaster.Publish("board-updated");
+            broadcaster.PublishGlobal("board-updated");
             return Results.Created($"/api/v1/cards/{id}/labels/{labelId}", cardLabel);
         });
 
@@ -166,7 +166,7 @@ internal static class LabelEndpoints
 
             db.CardLabels.Remove(cardLabel);
             await db.SaveChangesAsync();
-            broadcaster.Publish("board-updated");
+            broadcaster.PublishGlobal("board-updated");
             return Results.NoContent();
         });
 

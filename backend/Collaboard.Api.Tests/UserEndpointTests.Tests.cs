@@ -244,7 +244,7 @@ public class UserEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
 
         // Act — try to use the deactivated user's auth key
         TestAuthHelper.SetAuth(_client, user.AuthKey);
-        var response = await _client.GetAsync("/api/v1/board");
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/board");
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);

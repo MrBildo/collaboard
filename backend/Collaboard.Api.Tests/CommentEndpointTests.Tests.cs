@@ -22,7 +22,7 @@ public class CommentEndpointTests(CollaboardApiFactory factory) : IClassFixture<
     {
         TestAuthHelper.SetAdminAuth(_client, _factory);
 
-        var boardResponse = await _client.GetAsync("/api/v1/board");
+        var boardResponse = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/board");
         boardResponse.EnsureSuccessStatusCode();
         var board = await boardResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
         var laneId = board.GetProperty("lanes")[0].GetProperty("id").GetGuid();
@@ -35,7 +35,7 @@ public class CommentEndpointTests(CollaboardApiFactory factory) : IClassFixture<
             position = Interlocked.Increment(ref _nextPosition),
         };
 
-        var cardResponse = await _client.PostAsJsonAsync("/api/v1/cards", cardPayload);
+        var cardResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", cardPayload);
         cardResponse.EnsureSuccessStatusCode();
         var card = await cardResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
         return card.GetProperty("id").GetGuid();

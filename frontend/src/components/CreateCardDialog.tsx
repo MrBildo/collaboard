@@ -19,17 +19,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { createCard, fetchBoard } from '@/lib/api';
+import { createCard, fetchBoardData } from '@/lib/api';
 import type { Lane } from '@/types';
 
 type CreateCardDialogProps = {
+  boardId: string;
   lanes: Lane[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultLaneId?: string;
 };
 
-export function CreateCardDialog({ lanes, open, onOpenChange, defaultLaneId }: CreateCardDialogProps) {
+export function CreateCardDialog({ boardId, lanes, open, onOpenChange, defaultLaneId }: CreateCardDialogProps) {
   const queryClient = useQueryClient();
 
   const [name, setName] = useState('');
@@ -44,22 +45,21 @@ export function CreateCardDialog({ lanes, open, onOpenChange, defaultLaneId }: C
     }
   }
 
-  // Fetch board data to calculate next position
-  const boardQuery = useQuery({
-    queryKey: ['board'],
-    queryFn: fetchBoard,
+  const boardDataQuery = useQuery({
+    queryKey: ['boardData', boardId],
+    queryFn: () => fetchBoardData(boardId),
   });
 
   const createMutation = useMutation({
     mutationFn: () => {
-      const cards = boardQuery.data?.cards ?? [];
+      const cards = boardDataQuery.data?.cards ?? [];
       const laneCards = cards.filter((c) => c.laneId === laneId);
       const maxPosition =
         laneCards.length > 0
           ? Math.max(...laneCards.map((c) => c.position))
           : 0;
 
-      return createCard({
+      return createCard(boardId, {
         name,
         descriptionMarkdown: description || undefined,
         size,
@@ -68,7 +68,7 @@ export function CreateCardDialog({ lanes, open, onOpenChange, defaultLaneId }: C
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['board'] });
+      queryClient.invalidateQueries({ queryKey: ['boardData', boardId] });
       resetForm();
       onOpenChange(false);
     },

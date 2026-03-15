@@ -10,12 +10,41 @@ internal static class LaneEndpoints
 {
     public static RouteGroupBuilder MapLaneEndpoints(this RouteGroupBuilder group)
     {
-        group.MapGet("/lanes", async (BoardDbContext db, HttpContext http) =>
+        // Board-scoped listing and creation
+        group.MapGet("/boards/{boardId:guid}/lanes", async (BoardDbContext db, HttpContext http, Guid boardId) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
-            return forbidden is not null ? forbidden : Results.Ok(await db.Lanes.OrderBy(x => x.Position).ToListAsync());
+            if (forbidden is not null)
+            {
+                return forbidden;
+            }
+
+            return !await db.Boards.AnyAsync(x => x.Id == boardId)
+                ? Results.NotFound()
+                : Results.Ok(await db.Lanes.Where(x => x.BoardId == boardId).OrderBy(x => x.Position).ToListAsync());
         });
 
+        group.MapPost("/boards/{boardId:guid}/lanes", async (BoardDbContext db, HttpContext http, Guid boardId, Lane request, BoardEventBroadcaster broadcaster) =>
+        {
+            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
+            if (forbidden is not null)
+            {
+                return forbidden;
+            }
+
+            if (!await db.Boards.AnyAsync(x => x.Id == boardId))
+            {
+                return Results.NotFound();
+            }
+
+            var lane = new Lane { Id = Guid.NewGuid(), BoardId = boardId, Name = request.Name, Position = request.Position };
+            db.Lanes.Add(lane);
+            await db.SaveChangesAsync();
+            broadcaster.PublishBoardUpdated(boardId);
+            return Results.Created($"/api/v1/lanes/{lane.Id}", lane);
+        });
+
+        // By-ID operations (flat)
         group.MapGet("/lanes/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
@@ -26,21 +55,6 @@ internal static class LaneEndpoints
 
             var lane = await db.Lanes.FindAsync(id);
             return lane is null ? Results.NotFound() : Results.Ok(lane);
-        });
-
-        group.MapPost("/lanes", async (BoardDbContext db, HttpContext http, Lane request, BoardEventBroadcaster broadcaster) =>
-        {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
-            var lane = new Lane { Id = Guid.NewGuid(), Name = request.Name, Position = request.Position };
-            db.Lanes.Add(lane);
-            await db.SaveChangesAsync();
-            broadcaster.Publish("board-updated");
-            return Results.Created($"/api/v1/lanes/{lane.Id}", lane);
         });
 
         group.MapDelete("/lanes/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, BoardEventBroadcaster broadcaster) =>
@@ -64,7 +78,7 @@ internal static class LaneEndpoints
 
             db.Lanes.Remove(lane);
             await db.SaveChangesAsync();
-            broadcaster.Publish("board-updated");
+            broadcaster.PublishBoardUpdated(lane.BoardId);
             return Results.NoContent();
         });
 
@@ -90,7 +104,7 @@ internal static class LaneEndpoints
             if (patch.TryGetProperty("position", out var pos))
             {
                 var newPos = pos.GetInt32();
-                if (await db.Lanes.AnyAsync(x => x.Position == newPos && x.Id != id))
+                if (await db.Lanes.AnyAsync(x => x.BoardId == lane.BoardId && x.Position == newPos && x.Id != id))
                 {
                     return Results.Conflict("Position already taken by another lane.");
                 }
@@ -99,7 +113,7 @@ internal static class LaneEndpoints
             }
 
             await db.SaveChangesAsync();
-            broadcaster.Publish("board-updated");
+            broadcaster.PublishBoardUpdated(lane.BoardId);
             return Results.Ok(lane);
         });
 

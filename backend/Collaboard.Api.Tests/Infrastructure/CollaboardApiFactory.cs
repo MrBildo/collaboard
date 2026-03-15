@@ -15,6 +15,7 @@ public class CollaboardApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
 
     public const string TestAdminAuthKey = "test-admin-auth-key-12345678";
     public string AdminAuthKey { get; private set; } = string.Empty;
+    public Guid DefaultBoardId { get; private set; }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -53,6 +54,9 @@ public class CollaboardApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
         var admin = await db.Users.FirstAsync(u => u.Role == UserRole.Administrator);
         AdminAuthKey = admin.AuthKey;
+
+        var board = await db.Set<Board>().FirstAsync();
+        DefaultBoardId = board.Id;
     }
 
     public new async Task DisposeAsync()

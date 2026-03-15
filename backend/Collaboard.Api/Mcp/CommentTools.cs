@@ -39,7 +39,7 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
         };
         db.Comments.Add(comment);
         await db.SaveChangesAsync(ct);
-        broadcaster.Publish("board-updated");
+        await db.PublishForCardAsync(cardId, broadcaster);
         return JsonSerializer.Serialize(comment, JsonSerializerOptions.Web);
     }
 

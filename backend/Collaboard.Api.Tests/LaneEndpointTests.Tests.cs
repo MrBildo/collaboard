@@ -19,7 +19,7 @@ public class LaneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         TestAuthHelper.SetAdminAuth(_client, _factory);
 
         // Act
-        var response = await _client.GetAsync("/api/v1/lanes");
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/lanes");
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -41,7 +41,7 @@ public class LaneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     {
         // Arrange
         TestAuthHelper.SetAdminAuth(_client, _factory);
-        var createResponse = await _client.PostAsJsonAsync("/api/v1/lanes", new { name = "GetById Lane", position = 200 });
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/lanes", new { name = "GetById Lane", position = 200 });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
         var laneId = created.GetProperty("id").GetGuid();
@@ -76,7 +76,7 @@ public class LaneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     {
         // Arrange
         TestAuthHelper.SetAdminAuth(_client, _factory);
-        var createResponse = await _client.PostAsJsonAsync("/api/v1/lanes", new { name = "PatchNameBefore", position = 201 });
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/lanes", new { name = "PatchNameBefore", position = 201 });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
         var laneId = created.GetProperty("id").GetGuid();
@@ -96,7 +96,7 @@ public class LaneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     {
         // Arrange
         TestAuthHelper.SetAdminAuth(_client, _factory);
-        var createResponse = await _client.PostAsJsonAsync("/api/v1/lanes", new { name = "PatchPosLane", position = 202 });
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/lanes", new { name = "PatchPosLane", position = 202 });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
         var laneId = created.GetProperty("id").GetGuid();
@@ -116,10 +116,10 @@ public class LaneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     {
         // Arrange
         TestAuthHelper.SetAdminAuth(_client, _factory);
-        var lane1Response = await _client.PostAsJsonAsync("/api/v1/lanes", new { name = "ConflictLane1", position = 300 });
+        var lane1Response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/lanes", new { name = "ConflictLane1", position = 300 });
         lane1Response.EnsureSuccessStatusCode();
 
-        var lane2Response = await _client.PostAsJsonAsync("/api/v1/lanes", new { name = "ConflictLane2", position = 301 });
+        var lane2Response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/lanes", new { name = "ConflictLane2", position = 301 });
         lane2Response.EnsureSuccessStatusCode();
         var lane2 = await lane2Response.Content.ReadFromJsonAsync<JsonElement>();
         var lane2Id = lane2.GetProperty("id").GetGuid();
@@ -139,7 +139,7 @@ public class LaneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         var request = new { name = "Review", position = 3 };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/v1/lanes", request);
+        var response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/lanes", request);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
@@ -159,7 +159,7 @@ public class LaneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         var request = new { name = "Blocked", position = 4 };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/v1/lanes", request);
+        var response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/lanes", request);
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
@@ -170,7 +170,7 @@ public class LaneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     {
         // Arrange
         TestAuthHelper.SetAdminAuth(_client, _factory);
-        var createResponse = await _client.PostAsJsonAsync("/api/v1/lanes", new { name = "Disposable", position = 99 });
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/lanes", new { name = "Disposable", position = 99 });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
         var laneId = created.GetProperty("id").GetGuid();
@@ -188,12 +188,12 @@ public class LaneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         // Arrange
         TestAuthHelper.SetAdminAuth(_client, _factory);
 
-        var laneResponse = await _client.PostAsJsonAsync("/api/v1/lanes", new { name = "HasCards", position = 100 });
+        var laneResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/lanes", new { name = "HasCards", position = 100 });
         laneResponse.EnsureSuccessStatusCode();
         var lane = await laneResponse.Content.ReadFromJsonAsync<JsonElement>();
         var laneId = lane.GetProperty("id").GetGuid();
 
-        var cardResponse = await _client.PostAsJsonAsync("/api/v1/cards", new
+        var cardResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
         {
             name = "Blocker Card",
             descriptionMarkdown = "Prevents deletion",
@@ -231,7 +231,7 @@ public class LaneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         var user = await TestAuthHelper.CreateUserAsync(_client, _factory, "HumanDeleter", UserRole.HumanUser);
         TestAuthHelper.SetAuth(_client, user.AuthKey);
 
-        var boardResponse = await _client.GetAsync("/api/v1/board");
+        var boardResponse = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/board");
         var board = await boardResponse.Content.ReadFromJsonAsync<JsonElement>();
         var firstLaneId = board.GetProperty("lanes")[0].GetProperty("id").GetGuid();
 
