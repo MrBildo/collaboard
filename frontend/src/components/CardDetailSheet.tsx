@@ -1,13 +1,8 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogDescription,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -22,7 +17,17 @@ import {
 } from '@/components/ui/select';
 import { CardComments } from '@/components/CardComments';
 import { CardAttachments } from '@/components/CardAttachments';
-import { addCardLabel, deleteCard, fetchCardLabels, fetchLabels, fetchUserDirectory, reorderCard, removeCardLabel, updateCard } from '@/lib/api';
+import {
+  addCardLabel,
+  deleteCard,
+  fetchCardLabels,
+  fetchLabels,
+  fetchUserDirectory,
+  reorderCard,
+  removeCardLabel,
+  updateCard,
+  uploadAttachment,
+} from '@/lib/api';
 import { getContrastColor, getReadableColor } from '@/lib/utils';
 import type { CardItem, Lane } from '@/types';
 
@@ -36,16 +41,49 @@ type CardDetailSheetProps = {
   boardId?: string;
 };
 
-export function CardDetailSheet({ card, open, onOpenChange, currentUserId, currentUserRole, lanes, boardId }: CardDetailSheetProps) {
+export function CardDetailSheet({
+  card,
+  open,
+  onOpenChange,
+  currentUserId,
+  currentUserRole,
+  lanes,
+  boardId,
+}: CardDetailSheetProps) {
   if (!card) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[85vh] !w-[80vw] !max-w-[80vw] flex-col overflow-hidden p-0">
-        <CardDetailForm key={card.id} card={card} onOpenChange={onOpenChange} currentUserId={currentUserId} currentUserRole={currentUserRole} lanes={lanes} boardId={boardId} />
+        <CardDetailForm
+          key={card.id}
+          card={card}
+          onOpenChange={onOpenChange}
+          currentUserId={currentUserId}
+          currentUserRole={currentUserRole}
+          lanes={lanes}
+          boardId={boardId}
+        />
       </DialogContent>
     </Dialog>
   );
+}
+
+function isTextInputFocused(): boolean {
+  const el = document.activeElement;
+  if (!el) return false;
+  const tag = el.tagName.toLowerCase();
+  if (tag === 'textarea') return true;
+  if (tag === 'input' && (el as HTMLInputElement).type !== 'file') return true;
+  if ((el as HTMLElement).isContentEditable) return true;
+  return false;
+}
+
+function buildPasteFileName(mimeType: string): string {
+  const ext = mimeType.split('/')[1]?.replace('jpeg', 'jpg') ?? 'bin';
+  const now = new Date();
+  const ts = now.toISOString().replace(/[-:T]/g, '').replace(/\..+/, '').slice(0, 15);
+  return `pasted-image-${ts}.${ext}`;
 }
 
 function CardDetailForm({
@@ -64,6 +102,7 @@ function CardDetailForm({
   boardId?: string;
 }) {
   const queryClient = useQueryClient();
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   const [name, setName] = useState(card.name);
   const [currentLaneId, setCurrentLaneId] = useState(card.laneId);
@@ -71,16 +110,59 @@ function CardDetailForm({
   const [size, setSize] = useState(card.size);
   const [editingDescription, setEditingDescription] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [pasteStatus, setPasteStatus] = useState<string | null>(null);
 
-  const canDelete = currentUserRole === 0 || (currentUserRole === 1 && card.createdByUserId === currentUserId);
+  const pasteMutation = useMutation({
+    mutationFn: (file: File) => uploadAttachment(card.id, file),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['attachments', card.id] });
+      setPasteStatus(`Attached "${data.fileName}"`);
+      setTimeout(() => setPasteStatus(null), 3000);
+    },
+    onError: () => {
+      setPasteStatus('Paste upload failed');
+      setTimeout(() => setPasteStatus(null), 3000);
+    },
+  });
+
+  const handlePaste = useCallback(
+    (e: ClipboardEvent) => {
+      if (isTextInputFocused()) return;
+
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (const item of Array.from(items)) {
+        if (item.kind === 'file') {
+          const blob = item.getAsFile();
+          if (!blob) continue;
+
+          e.preventDefault();
+          const file = new File([blob], buildPasteFileName(blob.type), { type: blob.type });
+          pasteMutation.mutate(file);
+          return;
+        }
+      }
+    },
+    [pasteMutation],
+  );
+
+  useEffect(() => {
+    const el = dialogRef.current;
+    if (!el) return;
+    el.addEventListener('paste', handlePaste);
+    return () => el.removeEventListener('paste', handlePaste);
+  }, [handlePaste]);
+
+  const canDelete =
+    currentUserRole === 0 || (currentUserRole === 1 && card.createdByUserId === currentUserId);
 
   const directoryQuery = useQuery({
     queryKey: ['userDirectory'],
     queryFn: fetchUserDirectory,
     staleTime: 60_000,
   });
-  const userName = (id: string) =>
-    directoryQuery.data?.find((u) => u.id === id)?.name ?? 'Unknown';
+  const userName = (id: string) => directoryQuery.data?.find((u) => u.id === id)?.name ?? 'Unknown';
 
   const labelsQuery = useQuery({
     queryKey: ['cardLabels', card.id],
@@ -159,7 +241,12 @@ function CardDetailForm({
   const labels = labelsQuery.data ?? [];
 
   return (
-    <>
+    <div ref={dialogRef}>
+      {/* Paste feedback */}
+      {pasteStatus && (
+        <div className="bg-primary/10 text-primary border-b px-6 py-2 text-sm">{pasteStatus}</div>
+      )}
+
       {/* Header */}
       <DialogHeader className="px-6 pt-6 pb-0">
         <DialogDescription className="text-xs">#{card.number}</DialogDescription>
@@ -196,7 +283,9 @@ function CardDetailForm({
               className="rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground"
             >
               {lanes.map((lane) => (
-                <option key={lane.id} value={lane.id}>{lane.name}</option>
+                <option key={lane.id} value={lane.id}>
+                  {lane.name}
+                </option>
               ))}
             </select>
           )}
@@ -217,7 +306,9 @@ function CardDetailForm({
                 style={{
                   backgroundColor: isAssigned ? (label.color ?? '#6b7280') : 'transparent',
                   color: isAssigned ? getContrastColor(label.color) : getReadableColor(label.color),
-                  borderColor: isAssigned ? (label.color ?? '#6b7280') : getReadableColor(label.color),
+                  borderColor: isAssigned
+                    ? (label.color ?? '#6b7280')
+                    : getReadableColor(label.color),
                 }}
               >
                 {label.name}
@@ -257,7 +348,9 @@ function CardDetailForm({
                 {description ? (
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{description}</ReactMarkdown>
                 ) : (
-                  <p className="italic text-muted-foreground">No description yet. Click Edit to add one.</p>
+                  <p className="italic text-muted-foreground">
+                    No description yet. Click Edit to add one.
+                  </p>
                 )}
               </div>
             )}
@@ -268,27 +361,46 @@ function CardDetailForm({
           {/* Attachments */}
           <div>
             <Label className="mb-2 text-xs text-muted-foreground">Attachments</Label>
-            <CardAttachments cardId={card.id} currentUserId={currentUserId} currentUserRole={currentUserRole} />
+            <CardAttachments
+              cardId={card.id}
+              currentUserId={currentUserId}
+              currentUserRole={currentUserRole}
+            />
           </div>
 
           {/* Metadata */}
           <div className="mt-4 text-xs text-muted-foreground">
-            <p>Created by {userName(card.createdByUserId)} · {new Date(card.createdAtUtc).toLocaleString()}</p>
-            <p>Updated by {userName(card.lastUpdatedByUserId)} · {new Date(card.lastUpdatedAtUtc).toLocaleString()}</p>
+            <p>
+              Created by {userName(card.createdByUserId)} ·{' '}
+              {new Date(card.createdAtUtc).toLocaleString()}
+            </p>
+            <p>
+              Updated by {userName(card.lastUpdatedByUserId)} ·{' '}
+              {new Date(card.lastUpdatedAtUtc).toLocaleString()}
+            </p>
           </div>
         </div>
 
         {/* Right column — comments */}
         <div className="flex w-[340px] shrink-0 flex-col overflow-y-auto border-l border-border px-5 py-4">
           <h3 className="mb-3 text-sm font-semibold">Comments</h3>
-          <CardComments cardId={card.id} currentUserId={currentUserId} currentUserRole={currentUserRole} />
+          <CardComments
+            cardId={card.id}
+            currentUserId={currentUserId}
+            currentUserRole={currentUserRole}
+          />
         </div>
       </div>
 
       {/* Footer */}
       <div className="flex items-center justify-between border-t px-6 py-3">
         {canDelete ? (
-          <Button variant="destructive" size="sm" onClick={handleDelete} disabled={deleteMutation.isPending}>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleDelete}
+            disabled={deleteMutation.isPending}
+          >
             {confirmDelete ? 'Confirm delete' : 'Delete'}
           </Button>
         ) : (
@@ -303,6 +415,6 @@ function CardDetailForm({
           </Button>
         </div>
       </div>
-    </>
+    </div>
   );
 }
