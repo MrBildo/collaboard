@@ -127,19 +127,28 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
     }
 
     [McpServerTool(Name = "update_card", Destructive = false)]
-    [Description("Update a card's name, description, or size.")]
+    [Description("Update a card's name, description, size, lane/position, or labels. All fields are optional — only provided fields are changed. For labelIds, pass a comma-separated list of label GUIDs to replace all current labels (use empty string to clear).")]
     public async Task<string> UpdateCardAsync(
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the card to update")] Guid cardId,
         [Description("New name/title (optional)")] string? name = null,
         [Description("New markdown description (optional)")] string? descriptionMarkdown = null,
         [Description("New size: S, M, L, or XL (optional)")] string? size = null,
+        [Description("Target lane ID to move the card to (optional)")] Guid? laneId = null,
+        [Description("0-based index position in the target lane (optional, requires laneId — defaults to end of lane)")] int? index = null,
+        [Description("Comma-separated label GUIDs to replace current labels (optional, empty string clears all)")] string? labelIds = null,
         CancellationToken ct = default)
     {
         var (user, error) = await auth.RequireUserAsync(authKey, ct);
         if (error is not null)
         {
             return error;
+        }
+
+        // No-op guard: if no optional params are provided, skip DB writes
+        if (name is null && descriptionMarkdown is null && size is null && laneId is null && index is null && labelIds is null)
+        {
+            return "No changes specified.";
         }
 
         var card = await db.Cards.FindAsync([cardId], ct);
@@ -166,6 +175,93 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             }
 
             card.Size = size;
+        }
+
+        // Lane move: if laneId provided, move card to that lane with optional index
+        if (laneId is not null)
+        {
+            if (!await db.Lanes.AnyAsync(l => l.Id == laneId.Value, ct))
+            {
+                return "Error: Lane not found.";
+            }
+
+            var sourceLaneId = card.LaneId;
+
+            var targetCards = await db.Cards
+                .Where(c => c.LaneId == laneId.Value && c.Id != cardId)
+                .OrderBy(c => c.Position)
+                .ToListAsync(ct);
+
+            var targetIndex = index.HasValue
+                ? Math.Clamp(index.Value, 0, targetCards.Count)
+                : targetCards.Count;
+
+            targetCards.Insert(targetIndex, card);
+
+            for (var i = 0; i < targetCards.Count; i++)
+            {
+                targetCards[i].Position = i * 10;
+            }
+
+            if (sourceLaneId != laneId.Value)
+            {
+                card.LaneId = laneId.Value;
+
+                var sourceCards = await db.Cards
+                    .Where(c => c.LaneId == sourceLaneId && c.Id != cardId)
+                    .OrderBy(c => c.Position)
+                    .ToListAsync(ct);
+
+                for (var i = 0; i < sourceCards.Count; i++)
+                {
+                    sourceCards[i].Position = i * 10;
+                }
+            }
+        }
+
+        // Label replace: diff against current assignments
+        if (labelIds is not null)
+        {
+            var cardBoardId = await db.Lanes.Where(l => l.Id == card.LaneId).Select(l => l.BoardId).FirstOrDefaultAsync(ct);
+
+            var desiredLabelIds = new HashSet<Guid>();
+            if (!string.IsNullOrWhiteSpace(labelIds))
+            {
+                foreach (var part in labelIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                {
+                    if (!Guid.TryParse(part, out var parsedId))
+                    {
+                        return $"Error: Invalid label ID '{part}'.";
+                    }
+
+                    desiredLabelIds.Add(parsedId);
+                }
+
+                // Validate all labels exist and belong to the same board
+                var validLabels = await db.Labels
+                    .Where(l => desiredLabelIds.Contains(l.Id) && l.BoardId == cardBoardId)
+                    .Select(l => l.Id)
+                    .ToListAsync(ct);
+
+                var invalidIds = desiredLabelIds.Except(validLabels).ToList();
+                if (invalidIds.Count > 0)
+                {
+                    return $"Error: Labels not found or not on the same board: {string.Join(", ", invalidIds)}";
+                }
+            }
+
+            var currentLabels = await db.CardLabels.Where(cl => cl.CardId == cardId).ToListAsync(ct);
+            var currentLabelIds = currentLabels.Select(cl => cl.LabelId).ToHashSet();
+
+            // Remove labels no longer desired
+            var toRemove = currentLabels.Where(cl => !desiredLabelIds.Contains(cl.LabelId)).ToList();
+            db.CardLabels.RemoveRange(toRemove);
+
+            // Add missing labels
+            foreach (var lid in desiredLabelIds.Where(id => !currentLabelIds.Contains(id)))
+            {
+                db.CardLabels.Add(new CardLabel { CardId = cardId, LabelId = lid });
+            }
         }
 
         card.LastUpdatedByUserId = user!.Id;
