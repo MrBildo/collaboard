@@ -123,6 +123,16 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 
 var api = app.MapGroup("/api/v1");
+
+api.MapGet("/version", () =>
+{
+    var version = Assembly.GetExecutingAssembly()
+        .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+        ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString()
+        ?? "0.0.0";
+    return Results.Ok(new { version });
+});
+
 api.MapBoardEndpoints();
 api.MapUserEndpoints();
 api.MapLaneEndpoints();

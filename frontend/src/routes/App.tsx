@@ -11,7 +11,7 @@ import { CreateCardDialog } from '@/components/CreateCardDialog';
 import { LoginScreen } from '@/components/LoginScreen';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { fetchBoardBySlug, fetchBoardData, fetchBoards, fetchCardAttachments, fetchCardLabels, fetchComments, fetchMe, fetchUsers, reorderCard } from '@/lib/api';
+import { fetchBoardBySlug, fetchBoardData, fetchBoards, fetchCardAttachments, fetchCardLabels, fetchComments, fetchMe, fetchUsers, fetchVersion, reorderCard } from '@/lib/api';
 import { isLoggedIn, setUserKey, clearUserKey, setLastBoardSlug } from '@/lib/auth';
 import { useBoardEvents } from '@/lib/use-board-events';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -86,6 +86,12 @@ export function App() {
     queryFn: fetchBoards,
     enabled: loggedIn,
     staleTime: 60_000,
+  });
+
+  const versionQuery = useQuery({
+    queryKey: ['version'],
+    queryFn: fetchVersion,
+    staleTime: Infinity,
   });
 
   const mouseSensor = useSensor(MouseSensor, { activationConstraint: { distance: 8 } });
@@ -282,6 +288,9 @@ export function App() {
           <Button variant="ghost" onClick={handleLogout} className="text-muted-foreground">
             Logout
           </Button>
+          {versionQuery.data && (
+            <span className="text-xs text-muted-foreground/50">v{versionQuery.data.version}</span>
+          )}
         </div>
       </header>
       {boardDataQuery.isError && (

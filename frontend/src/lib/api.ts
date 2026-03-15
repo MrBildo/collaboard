@@ -16,6 +16,12 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Version
+export async function fetchVersion(): Promise<{ version: string }> {
+  const { data } = await api.get('/version');
+  return data;
+}
+
 // Auth
 export async function fetchMe(): Promise<{ id: string; name: string; role: number }> {
   const { data } = await api.get('/auth/me');
