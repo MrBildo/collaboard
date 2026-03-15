@@ -64,12 +64,12 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
     }
 
     [McpServerTool(Name = "move_card", Destructive = false)]
-    [Description("Move a card to a different lane and/or position (index) within that lane.")]
+    [Description("Move a card to a different lane and/or position (index) within that lane. If index is omitted, the card is appended to the end of the target lane.")]
     public async Task<string> MoveCardAsync(
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the card to move")] Guid cardId,
         [Description("The ID (guid) of the target lane")] Guid laneId,
-        [Description("The 0-based index position in the target lane")] int index,
+        [Description("Optional 0-based index position in the target lane. Defaults to end of lane.")] int? index = null,
         CancellationToken ct = default)
     {
         var (user, error) = await auth.RequireUserAsync(authKey, ct);
@@ -96,8 +96,8 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             .OrderBy(c => c.Position)
             .ToListAsync(ct);
 
-        index = Math.Clamp(index, 0, targetCards.Count);
-        targetCards.Insert(index, card);
+        var resolvedIndex = Math.Clamp(index ?? targetCards.Count, 0, targetCards.Count);
+        targetCards.Insert(resolvedIndex, card);
 
         for (var i = 0; i < targetCards.Count; i++)
         {
@@ -123,7 +123,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
         await db.PublishForCardAsync(card.Id, broadcaster);
-        return $"Card '{card.Name}' moved to lane at index {index}.";
+        return $"Card '{card.Name}' moved to lane at index {resolvedIndex}.";
     }
 
     [McpServerTool(Name = "update_card", Destructive = false)]
