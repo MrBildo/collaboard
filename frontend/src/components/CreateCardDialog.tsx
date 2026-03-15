@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { createCard, fetchBoardData } from '@/lib/api';
+import { addCardLabel, createCard, fetchBoardData, fetchLabels } from '@/lib/api';
 import type { Lane } from '@/types';
 
 type CreateCardDialogProps = {
@@ -37,13 +37,20 @@ export function CreateCardDialog({ boardId, lanes, open, onOpenChange, defaultLa
   const [description, setDescription] = useState('');
   const [size, setSize] = useState('M');
   const [laneId, setLaneId] = useState(defaultLaneId ?? lanes[0]?.id ?? '');
+  const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
   const [prevOpen, setPrevOpen] = useState(false);
   if (open !== prevOpen) {
     setPrevOpen(open);
     if (open) {
       setLaneId(defaultLaneId ?? lanes[0]?.id ?? '');
+      setSelectedLabelIds([]);
     }
   }
+
+  const allLabelsQuery = useQuery({
+    queryKey: ['labels'],
+    queryFn: fetchLabels,
+  });
 
   const boardDataQuery = useQuery({
     queryKey: ['boardData', boardId],
@@ -67,7 +74,10 @@ export function CreateCardDialog({ boardId, lanes, open, onOpenChange, defaultLa
         position: maxPosition + 1,
       });
     },
-    onSuccess: () => {
+    onSuccess: async (card) => {
+      if (selectedLabelIds.length > 0) {
+        await Promise.all(selectedLabelIds.map((labelId) => addCardLabel(card.id, labelId)));
+      }
       queryClient.invalidateQueries({ queryKey: ['boardData', boardId] });
       resetForm();
       onOpenChange(false);
@@ -79,6 +89,7 @@ export function CreateCardDialog({ boardId, lanes, open, onOpenChange, defaultLa
     setDescription('');
     setSize('M');
     setLaneId(defaultLaneId ?? lanes[0]?.id ?? '');
+    setSelectedLabelIds([]);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -136,6 +147,38 @@ export function CreateCardDialog({ boardId, lanes, open, onOpenChange, defaultLa
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Labels */}
+            {(allLabelsQuery.data ?? []).length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <Label>Labels</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {(allLabelsQuery.data ?? []).map((label) => {
+                    const isSelected = selectedLabelIds.includes(label.id);
+                    return (
+                      <button
+                        key={label.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedLabelIds((prev) =>
+                            isSelected ? prev.filter((id) => id !== label.id) : [...prev, label.id]
+                          );
+                        }}
+                        className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium transition-opacity hover:opacity-80"
+                        style={{
+                          backgroundColor: isSelected ? (label.color ?? '#6b7280') : 'transparent',
+                          color: isSelected ? '#fff' : (label.color ?? '#9ca3af'),
+                          borderColor: label.color ?? '#6b7280',
+                          opacity: isSelected ? 1 : 0.5,
+                        }}
+                      >
+                        {label.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Lane */}
             <div className="flex flex-col gap-1.5">
