@@ -175,6 +175,61 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         return JsonSerializer.Serialize(card, JsonSerializerOptions.Web);
     }
 
+    [McpServerTool(Name = "get_cards", ReadOnly = true, Destructive = false)]
+    [Description("List cards for a board with optional filters. Use the 'since' filter to check for recent activity (includes cards with new/edited comments and new attachments).")]
+    public async Task<string> GetCardsAsync(
+        [Description("Your auth key")] string authKey,
+        [Description("The board ID to list cards from")] Guid boardId,
+        [Description("Only return cards with activity (created, updated, commented, attachment added) after this date. ISO 8601 format.")] DateTimeOffset? since = null,
+        [Description("Only return cards with this label assigned")] Guid? labelId = null,
+        [Description("Only return cards in this lane")] Guid? laneId = null,
+        CancellationToken ct = default)
+    {
+        var (_, error) = await auth.RequireUserAsync(authKey, ct);
+        if (error is not null)
+        {
+            return error;
+        }
+
+        var boardLaneIds = await db.Lanes.Where(l => l.BoardId == boardId).Select(l => l.Id).ToListAsync(ct);
+        if (boardLaneIds.Count == 0)
+        {
+            return "Error: Board not found or has no lanes.";
+        }
+
+        var query = db.Cards.Where(c => boardLaneIds.Contains(c.LaneId));
+
+        if (laneId.HasValue)
+        {
+            query = query.Where(c => c.LaneId == laneId.Value);
+        }
+
+        if (since.HasValue)
+        {
+            var cardIdsWithRecentComments = db.Comments
+                .Where(cm => cm.LastUpdatedAtUtc >= since.Value)
+                .Select(cm => cm.CardId);
+            var cardIdsWithRecentAttachments = db.Attachments
+                .Where(a => a.AddedAtUtc >= since.Value)
+                .Select(a => a.CardId);
+
+            query = query.Where(c =>
+                c.CreatedAtUtc >= since.Value
+                || c.LastUpdatedAtUtc >= since.Value
+                || cardIdsWithRecentComments.Contains(c.Id)
+                || cardIdsWithRecentAttachments.Contains(c.Id));
+        }
+
+        if (labelId.HasValue)
+        {
+            var cardIdsWithLabel = db.CardLabels.Where(cl => cl.LabelId == labelId.Value).Select(cl => cl.CardId);
+            query = query.Where(c => cardIdsWithLabel.Contains(c.Id));
+        }
+
+        var cards = await query.OrderBy(c => c.LaneId).ThenBy(c => c.Position).ToListAsync(ct);
+        return JsonSerializer.Serialize(cards, JsonSerializerOptions.Web);
+    }
+
     [McpServerTool(Name = "get_card", ReadOnly = true, Destructive = false)]
     [Description("Get a single card by its ID, including its comments and labels.")]
     public async Task<string> GetCardAsync(
