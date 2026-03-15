@@ -107,6 +107,8 @@ export function App() {
   const [dragPhase, setDragPhase] = useState<'idle' | 'dragging' | 'settling'>('idle');
 
   const lanes = useMemo(() => boardDataQuery.data?.lanes ?? [], [boardDataQuery.data]);
+  const sizes = useMemo(() => boardDataQuery.data?.sizes ?? [], [boardDataQuery.data]);
+  const sizeMap = useMemo(() => new Map(sizes.map((s) => [s.id, s.name])), [sizes]);
   const serverCards = useMemo(() => boardDataQuery.data?.cards ?? [], [boardDataQuery.data]);
 
   const [localCards, setLocalCards] = useState<CardItem[]>([]);
@@ -325,20 +327,21 @@ export function App() {
               onCardClick={handleCardClick}
               onAddCard={() => { setCreateLaneId(lane.id); setCreateOpen(true); }}
               activeCardId={activeCardId}
+              sizeMap={sizeMap}
             />
           ))}
         </section>
         <DragOverlay>
           {activeCardId ? (
-            <CardOverlay card={localCards.find((c) => c.id === activeCardId)!} />
+            <CardOverlay card={localCards.find((c) => c.id === activeCardId)!} sizeMap={sizeMap} />
           ) : null}
         </DragOverlay>
       </DndContext>
 
-      <CardDetailSheet card={selectedCard} open={detailOpen} onOpenChange={handleDetailOpenChange} currentUserId={currentUserId} currentUserRole={currentUserRole} lanes={lanes} boardId={boardId} />
+      <CardDetailSheet card={selectedCard} open={detailOpen} onOpenChange={handleDetailOpenChange} currentUserId={currentUserId} currentUserRole={currentUserRole} lanes={lanes} boardId={boardId} sizes={sizes} />
 
       {boardId && (
-        <CreateCardDialog boardId={boardId} lanes={lanes} open={createOpen} onOpenChange={setCreateOpen} defaultLaneId={createLaneId} />
+        <CreateCardDialog boardId={boardId} lanes={lanes} sizes={sizes} open={createOpen} onOpenChange={setCreateOpen} defaultLaneId={createLaneId} />
       )}
 
       {boardId && (
@@ -372,12 +375,14 @@ function LaneColumn({
   onCardClick,
   onAddCard,
   activeCardId,
+  sizeMap,
 }: {
   lane: Lane;
   cards: CardItem[];
   onCardClick: (card: CardItem) => void;
   onAddCard: () => void;
   activeCardId: string | null;
+  sizeMap: Map<string, string>;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: lane.id });
   const cardIds = useMemo(() => cards.map((c) => c.id), [cards]);
@@ -410,7 +415,7 @@ function LaneColumn({
       <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
         <div className="flex-1 space-y-2 overflow-y-auto px-3 pb-3">
           {cards.map((card) => (
-            <SortableCard key={card.id} card={card} onCardClick={onCardClick} isDragging={card.id === activeCardId} />
+            <SortableCard key={card.id} card={card} onCardClick={onCardClick} isDragging={card.id === activeCardId} sizeMap={sizeMap} />
           ))}
         </div>
       </SortableContext>
@@ -422,10 +427,12 @@ function SortableCard({
   card,
   onCardClick,
   isDragging,
+  sizeMap,
 }: {
   card: CardItem;
   onCardClick: (card: CardItem) => void;
   isDragging: boolean;
+  sizeMap: Map<string, string>;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: card.id });
   const style = {
@@ -464,7 +471,7 @@ function SortableCard({
     >
       <div className="flex items-start justify-between gap-2">
         <h3 className="text-sm font-medium leading-snug">{card.name}</h3>
-        <Badge variant="outline" className="mt-0.5 shrink-0 text-[10px]">{card.size}</Badge>
+        <Badge variant="outline" className="mt-0.5 shrink-0 text-[10px]">{sizeMap.get(card.sizeId) ?? '?'}</Badge>
       </div>
 
       <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
@@ -508,12 +515,12 @@ function SortableCard({
   );
 }
 
-function CardOverlay({ card }: { card: CardItem }) {
+function CardOverlay({ card, sizeMap }: { card: CardItem; sizeMap: Map<string, string> }) {
   return (
     <div className="rounded-lg border border-border bg-card p-3 shadow-xl">
       <div className="flex items-start justify-between gap-2">
         <h3 className="text-sm font-medium leading-snug">{card.name}</h3>
-        <Badge variant="outline" className="mt-0.5 shrink-0 text-[10px]">{card.size}</Badge>
+        <Badge variant="outline" className="mt-0.5 shrink-0 text-[10px]">{sizeMap.get(card.sizeId) ?? '?'}</Badge>
       </div>
       <div className="mt-2 text-xs text-muted-foreground">
         <span>#{card.number}</span>

@@ -59,6 +59,14 @@ internal static class BoardEndpoints
                 CreatedAtUtc = DateTimeOffset.UtcNow,
             };
             db.Boards.Add(board);
+
+            db.CardSizes.AddRange(
+                new CardSize { Id = Guid.NewGuid(), BoardId = board.Id, Name = "S", Ordinal = 0 },
+                new CardSize { Id = Guid.NewGuid(), BoardId = board.Id, Name = "M", Ordinal = 1 },
+                new CardSize { Id = Guid.NewGuid(), BoardId = board.Id, Name = "L", Ordinal = 2 },
+                new CardSize { Id = Guid.NewGuid(), BoardId = board.Id, Name = "XL", Ordinal = 3 }
+            );
+
             await db.SaveChangesAsync();
             return Results.Created($"/api/v1/boards/{board.Id}", board);
         });
@@ -127,7 +135,8 @@ internal static class BoardEndpoints
             var laneIds = await db.Lanes.Where(x => x.BoardId == boardId).Select(x => x.Id).ToListAsync();
             var lanes = await db.Lanes.Where(x => x.BoardId == boardId).OrderBy(x => x.Position).ToListAsync();
             var cards = await db.Cards.Where(x => laneIds.Contains(x.LaneId)).OrderBy(x => x.LaneId).ThenBy(x => x.Position).ToListAsync();
-            return Results.Ok(new { lanes, cards });
+            var sizes = await db.CardSizes.Where(x => x.BoardId == boardId).OrderBy(x => x.Ordinal).ToListAsync();
+            return Results.Ok(new { lanes, cards, sizes });
         });
 
         return group;

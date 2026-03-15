@@ -1,8 +1,8 @@
 import axios from 'axios';
-import type { AttachmentMeta, Board, BoardUser, CardComment, CardItem, Label, Lane } from '@/types';
+import type { AttachmentMeta, Board, BoardUser, CardComment, CardItem, CardSize, Label, Lane } from '@/types';
 import { getUserKey } from '@/lib/auth';
 
-export type { AttachmentMeta, Board, BoardUser, CardComment, CardItem, Label, Lane };
+export type { AttachmentMeta, Board, BoardUser, CardComment, CardItem, CardSize, Label, Lane };
 
 export const api = axios.create({
   baseURL: '/api/v1',
@@ -54,7 +54,7 @@ export async function deleteBoard(id: string): Promise<void> {
 }
 
 // Board composite view
-export async function fetchBoardData(boardId: string): Promise<{ lanes: Lane[]; cards: CardItem[] }> {
+export async function fetchBoardData(boardId: string): Promise<{ lanes: Lane[]; cards: CardItem[]; sizes: CardSize[] }> {
   const { data } = await api.get(`/boards/${boardId}/board`);
   return data;
 }
@@ -73,7 +73,7 @@ export async function fetchCard(id: string): Promise<CardItem> {
 export async function createCard(boardId: string, card: {
   name: string;
   descriptionMarkdown?: string;
-  size?: string;
+  sizeId?: string;
   laneId: string;
   position: number;
 }): Promise<CardItem> {
@@ -201,6 +201,26 @@ export async function updateLane(id: string, patch: Record<string, unknown>): Pr
 
 export async function deleteLane(id: string): Promise<void> {
   await api.delete(`/lanes/${id}`);
+}
+
+// Sizes (board-scoped admin)
+export async function fetchSizes(boardId: string): Promise<CardSize[]> {
+  const { data } = await api.get(`/boards/${boardId}/sizes`);
+  return data;
+}
+
+export async function createSize(boardId: string, name: string, ordinal?: number): Promise<CardSize> {
+  const { data } = await api.post(`/boards/${boardId}/sizes`, { name, ordinal: ordinal ?? 0 });
+  return data;
+}
+
+export async function updateSize(id: string, patch: Record<string, unknown>): Promise<CardSize> {
+  const { data } = await api.patch(`/sizes/${id}`, patch);
+  return data;
+}
+
+export async function deleteSize(id: string): Promise<void> {
+  await api.delete(`/sizes/${id}`);
 }
 
 // Labels (board-scoped admin)

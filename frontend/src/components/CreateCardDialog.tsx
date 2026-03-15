@@ -20,22 +20,24 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { addCardLabel, createCard, fetchBoardData, fetchLabels } from '@/lib/api';
-import type { Lane } from '@/types';
+import type { CardSize, Lane } from '@/types';
 
 type CreateCardDialogProps = {
   boardId: string;
   lanes: Lane[];
+  sizes: CardSize[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultLaneId?: string;
 };
 
-export function CreateCardDialog({ boardId, lanes, open, onOpenChange, defaultLaneId }: CreateCardDialogProps) {
+export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, defaultLaneId }: CreateCardDialogProps) {
   const queryClient = useQueryClient();
 
+  const defaultSizeId = sizes.length > 0 ? sizes.sort((a, b) => a.ordinal - b.ordinal)[0].id : '';
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [size, setSize] = useState('M');
+  const [sizeId, setSizeId] = useState(defaultSizeId);
   const [laneId, setLaneId] = useState(defaultLaneId ?? lanes[0]?.id ?? '');
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
   const [prevOpen, setPrevOpen] = useState(false);
@@ -69,7 +71,7 @@ export function CreateCardDialog({ boardId, lanes, open, onOpenChange, defaultLa
       return createCard(boardId, {
         name,
         descriptionMarkdown: description || undefined,
-        size,
+        sizeId: sizeId || undefined,
         laneId,
         position: maxPosition + 1,
       });
@@ -87,7 +89,7 @@ export function CreateCardDialog({ boardId, lanes, open, onOpenChange, defaultLa
   const resetForm = () => {
     setName('');
     setDescription('');
-    setSize('M');
+    setSizeId(defaultSizeId);
     setLaneId(defaultLaneId ?? lanes[0]?.id ?? '');
     setSelectedLabelIds([]);
   };
@@ -133,20 +135,23 @@ export function CreateCardDialog({ boardId, lanes, open, onOpenChange, defaultLa
             </div>
 
             {/* Size */}
-            <div className="flex flex-col gap-1.5">
-              <Label>Size</Label>
-              <Select value={size} onValueChange={(v) => v && setSize(v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="S">S</SelectItem>
-                  <SelectItem value="M">M</SelectItem>
-                  <SelectItem value="L">L</SelectItem>
-                  <SelectItem value="XL">XL</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {sizes.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <Label>Size</Label>
+                <Select value={sizeId} onValueChange={(v) => v && setSizeId(v)}>
+                  <SelectTrigger>
+                    <SelectValue>
+                      {sizes.find((s) => s.id === sizeId)?.name ?? 'Select size'}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[...sizes].sort((a, b) => a.ordinal - b.ordinal).map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* Labels */}
             {(allLabelsQuery.data ?? []).length > 0 && (

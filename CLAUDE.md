@@ -90,11 +90,13 @@ All endpoints under `/api/v1/`:
 
 | Method | Path | Auth | Notes |
 |--------|------|------|-------|
-| GET | /boards/{boardId}/board | All | Composite: lanes + cards for a board |
+| GET | /boards/{boardId}/board | All | Composite: lanes + cards + sizes for a board |
 | GET | /boards/{boardId}/lanes | All | List lanes for a board |
 | POST | /boards/{boardId}/lanes | Admin | Create lane in a board |
-| GET | /boards/{boardId}/cards | All | List cards (enriched: labels, commentCount, attachmentCount). Optional query params: `since` (DateTimeOffset), `labelId` (Guid), `laneId` (Guid) |
-| POST | /boards/{boardId}/cards | All | Create card in a board |
+| GET | /boards/{boardId}/sizes | All | List card sizes for a board (ordered by ordinal) |
+| POST | /boards/{boardId}/sizes | Admin | Create size in a board (auto-ordinal if omitted) |
+| GET | /boards/{boardId}/cards | All | List cards (enriched: labels, sizeId, sizeName, commentCount, attachmentCount). Optional query params: `since` (DateTimeOffset), `labelId` (Guid), `laneId` (Guid) |
+| POST | /boards/{boardId}/cards | All | Create card in a board (accepts `sizeId`, defaults to lowest-ordinal size) |
 | GET | /boards/{boardId}/labels | All | List labels for a board |
 | POST | /boards/{boardId}/labels | Admin | Create label in a board |
 | PATCH | /boards/{boardId}/labels/{id} | Admin | Update label name/color |
@@ -105,7 +107,8 @@ All endpoints under `/api/v1/`:
 | Resource | Endpoints |
 |----------|-----------|
 | Lanes | `GET /lanes/{id}`, `PATCH /lanes/{id}`, `DELETE /lanes/{id}` |
-| Cards | `GET /cards/{id}` (enriched: card, user names, comments, labels, attachments), `PATCH /cards/{id}`, `DELETE /cards/{id}`, `POST /cards/{id}/reorder` |
+| Sizes | `GET /sizes/{id}`, `PATCH /sizes/{id}` (name/ordinal), `DELETE /sizes/{id}` (blocked if in use by cards) |
+| Cards | `GET /cards/{id}` (enriched: card, sizeName, user names, comments, labels, attachments), `PATCH /cards/{id}` (accepts `sizeId`), `DELETE /cards/{id}`, `POST /cards/{id}/reorder` |
 
 ### Global resources (not board-scoped)
 
@@ -130,12 +133,12 @@ All endpoints under `/api/v1/`:
 
 **Tools (13):**
 - **BoardTools:** `get_boards`, `get_lanes` (boardId required, includes cardCount per lane)
-- **CardTools:** `create_card` (supports labelIds), `move_card` (index optional), `update_card` (supports laneId/index move, labelIds replace, no-op guard), `get_cards` (enriched: labels, commentCount, attachmentCount), `get_card` (enriched: attachments, user names; supports cardNumber lookup)
+- **CardTools:** `create_card` (supports labelIds, sizeId/sizeName — defaults to lowest-ordinal size), `move_card` (index optional), `update_card` (supports laneId/index move, sizeId/sizeName, labelIds replace, no-op guard), `get_cards` (enriched: labels, sizeId, sizeName, commentCount, attachmentCount), `get_card` (enriched: sizeName, attachments, user names; supports cardNumber lookup)
 - **CommentTools:** `add_comment`
 - **AttachmentTools:** `upload_attachment` (5MB limit, base64), `delete_attachment`
 - **LabelTools:** `get_labels`, `add_label_to_card` (supports labelName), `remove_label_from_card` (supports labelName)
 
-**Cross-cutting:** All card-scoped tools accept `cardNumber` (long) as alternative to `cardId` (Guid). Label assignment tools accept `labelName` as alternative to `labelId`. Shared resolution via `McpCardResolver`.
+**Cross-cutting:** All card-scoped tools accept `cardNumber` (long) as alternative to `cardId` (Guid). Label assignment tools accept `labelName` as alternative to `labelId`. Size tools accept `sizeName` as alternative to `sizeId`. Shared resolution via `McpCardResolver`.
 
 ## .agents/ Directory Structure
 

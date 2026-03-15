@@ -29,7 +29,7 @@ import {
   uploadAttachment,
 } from '@/lib/api';
 import { LabelPicker } from '@/components/LabelPicker';
-import type { CardItem, Lane } from '@/types';
+import type { CardItem, CardSize, Lane } from '@/types';
 
 type CardDetailSheetProps = {
   card: CardItem | null;
@@ -39,6 +39,7 @@ type CardDetailSheetProps = {
   currentUserRole?: number;
   lanes?: Lane[];
   boardId?: string;
+  sizes?: CardSize[];
 };
 
 export function CardDetailSheet({
@@ -49,6 +50,7 @@ export function CardDetailSheet({
   currentUserRole,
   lanes,
   boardId,
+  sizes,
 }: CardDetailSheetProps) {
   if (!card) return null;
 
@@ -63,6 +65,7 @@ export function CardDetailSheet({
           currentUserRole={currentUserRole}
           lanes={lanes}
           boardId={boardId}
+          sizes={sizes}
         />
       </DialogContent>
     </Dialog>
@@ -93,6 +96,7 @@ function CardDetailForm({
   currentUserRole,
   lanes,
   boardId,
+  sizes,
 }: {
   card: CardItem;
   onOpenChange: (open: boolean) => void;
@@ -100,6 +104,7 @@ function CardDetailForm({
   currentUserRole?: number;
   lanes?: Lane[];
   boardId?: string;
+  sizes?: CardSize[];
 }) {
   const queryClient = useQueryClient();
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -107,7 +112,7 @@ function CardDetailForm({
   const [name, setName] = useState(card.name);
   const [currentLaneId, setCurrentLaneId] = useState(card.laneId);
   const [description, setDescription] = useState(card.descriptionMarkdown ?? '');
-  const [size, setSize] = useState(card.size);
+  const [sizeId, setSizeId] = useState(card.sizeId);
   const [editingDescription, setEditingDescription] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pasteStatus, setPasteStatus] = useState<string | null>(null);
@@ -222,7 +227,7 @@ function CardDetailForm({
 
     if (name !== card.name) patch.name = name;
     if (description !== (card.descriptionMarkdown ?? '')) patch.descriptionMarkdown = description;
-    if (size !== card.size) patch.size = size;
+    if (sizeId !== card.sizeId) patch.sizeId = sizeId;
 
     if (Object.keys(patch).length > 0) {
       updateMutation.mutate(patch);
@@ -261,17 +266,20 @@ function CardDetailForm({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3 pt-2">
-          <Select value={size} onValueChange={(v) => v && setSize(v)}>
-            <SelectTrigger className="w-20">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="S">S</SelectItem>
-              <SelectItem value="M">M</SelectItem>
-              <SelectItem value="L">L</SelectItem>
-              <SelectItem value="XL">XL</SelectItem>
-            </SelectContent>
-          </Select>
+          {sizes && sizes.length > 0 && (
+            <Select value={sizeId} onValueChange={(v) => v && setSizeId(v)}>
+              <SelectTrigger className="w-20">
+                <SelectValue>
+                  {sizes.find((s) => s.id === sizeId)?.name ?? '?'}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {sizes.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           {lanes && lanes.length > 0 && (
             <select
               value={currentLaneId}

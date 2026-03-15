@@ -106,6 +106,13 @@ using (var scope = app.Services.CreateScope())
             new Lane { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "In Progress", Position = 1 },
             new Lane { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "Done", Position = 2 }
         );
+
+        db.Set<CardSize>().AddRange(
+            new CardSize { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "S", Ordinal = 0 },
+            new CardSize { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "M", Ordinal = 1 },
+            new CardSize { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "L", Ordinal = 2 },
+            new CardSize { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "XL", Ordinal = 3 }
+        );
         await db.SaveChangesAsync();
     }
 
@@ -145,6 +152,7 @@ api.MapGet("/version", () =>
 api.MapBoardEndpoints();
 api.MapUserEndpoints();
 api.MapLaneEndpoints();
+api.MapSizeEndpoints();
 api.MapCardEndpoints();
 api.MapLabelEndpoints();
 api.MapCommentEndpoints();

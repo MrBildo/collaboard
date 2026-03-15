@@ -12,6 +12,13 @@ export type Lane = {
   position: number;
 };
 
+export type CardSize = {
+  id: string;
+  boardId: string;
+  name: string;
+  ordinal: number;
+};
+
 export type CardItem = {
   id: string;
   number: number;
@@ -19,7 +26,7 @@ export type CardItem = {
   descriptionMarkdown: string;
   laneId: string;
   position: number;
-  size: string;
+  sizeId: string;
   createdByUserId: string;
   createdAtUtc: string;
   lastUpdatedByUserId: string;
