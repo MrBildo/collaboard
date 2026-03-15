@@ -33,6 +33,14 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         return board.GetProperty("lanes")[index].GetProperty("id").GetGuid();
     }
 
+    private async Task<Guid> GetSizeIdByNameAsync(string sizeName)
+    {
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/sizes");
+        response.EnsureSuccessStatusCode();
+        var sizes = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+        return sizes!.First(s => s.GetProperty("name").GetString() == sizeName).GetProperty("id").GetGuid();
+    }
+
     [Fact]
     public async Task GetCards_ReturnsAllCards()
     {
@@ -323,7 +331,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         var updated = await response.Content.ReadFromJsonAsync<JsonElement>();
         updated.GetProperty("name").GetString().ShouldBe("Renamed Card");
         updated.GetProperty("descriptionMarkdown").GetString().ShouldBe(originalDescription);
-        updated.GetProperty("size").GetString().ShouldBe("M");
+        updated.GetProperty("sizeId").GetGuid().ShouldNotBe(Guid.Empty);
         updated.GetProperty("laneId").GetGuid().ShouldBe(laneId);
         updated.GetProperty("position").GetInt32().ShouldBe(pos);
     }
@@ -425,7 +433,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     }
 
     [Fact]
-    public async Task PostCard_InvalidSize_Returns400()
+    public async Task PostCard_InvalidSizeId_Returns400()
     {
         // Arrange
         TestAuthHelper.SetAdminAuth(_client, _factory);
@@ -435,7 +443,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         {
             name = "Invalid Size Card",
             descriptionMarkdown = "",
-            size = "XXL",
+            sizeId = Guid.NewGuid(),
             laneId,
             position = NextPosition()
         };
@@ -457,12 +465,13 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         // Arrange
         TestAuthHelper.SetAdminAuth(_client, _factory);
         var laneId = await GetFirstLaneIdAsync();
+        var sizeId = await GetSizeIdByNameAsync(size);
 
         var request = new
         {
             name = $"Card Size {size}",
             descriptionMarkdown = "",
-            size,
+            sizeId,
             laneId,
             position = NextPosition()
         };
@@ -473,7 +482,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
         var card = await response.Content.ReadFromJsonAsync<JsonElement>();
-        card.GetProperty("size").GetString().ShouldBe(size);
+        card.GetProperty("sizeId").GetGuid().ShouldBe(sizeId);
     }
 
     [Fact]
@@ -505,7 +514,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     }
 
     [Fact]
-    public async Task PatchCard_InvalidSize_Returns400()
+    public async Task PatchCard_InvalidSizeId_Returns400()
     {
         // Arrange
         TestAuthHelper.SetAdminAuth(_client, _factory);
@@ -515,7 +524,6 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         {
             name = "Card For Invalid Size Patch",
             descriptionMarkdown = "",
-            size = "M",
             laneId,
             position = NextPosition()
         });
@@ -524,7 +532,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         var cardId = created.GetProperty("id").GetGuid();
 
         // Act
-        var response = await _client.PatchAsJsonAsync($"/api/v1/cards/{cardId}", new { size = "XXL" });
+        var response = await _client.PatchAsJsonAsync($"/api/v1/cards/{cardId}", new { sizeId = Guid.NewGuid() });
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);

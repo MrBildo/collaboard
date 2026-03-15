@@ -38,13 +38,21 @@ public class Lane
     public int Position { get; set; }
 }
 
+public class CardSize
+{
+    public Guid Id { get; set; }
+    public Guid BoardId { get; set; }
+    [MaxLength(20)] public string Name { get; set; } = string.Empty;
+    public int Ordinal { get; set; }
+}
+
 public class CardItem
 {
     public Guid Id { get; set; }
     public long Number { get; set; }
     [MaxLength(200)] public string Name { get; set; } = string.Empty;
     public string DescriptionMarkdown { get; set; } = string.Empty;
-    [MaxLength(20)] public string Size { get; set; } = "M";
+    public Guid SizeId { get; set; }
     public Guid LaneId { get; set; }
     public int Position { get; set; }
     public Guid CreatedByUserId { get; set; }
@@ -94,7 +102,8 @@ public record CardSummary(
     long Number,
     string Name,
     string DescriptionMarkdown,
-    string Size,
+    Guid SizeId,
+    string SizeName,
     Guid LaneId,
     int Position,
     Guid CreatedByUserId,

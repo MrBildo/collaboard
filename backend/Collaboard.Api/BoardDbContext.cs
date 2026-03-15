@@ -8,6 +8,7 @@ public class BoardDbContext(DbContextOptions<BoardDbContext> options) : DbContex
     public DbSet<Board> Boards => Set<Board>();
     public DbSet<BoardUser> Users => Set<BoardUser>();
     public DbSet<Lane> Lanes => Set<Lane>();
+    public DbSet<CardSize> CardSizes => Set<CardSize>();
     public DbSet<CardItem> Cards => Set<CardItem>();
     public DbSet<CardComment> Comments => Set<CardComment>();
     public DbSet<CardAttachment> Attachments => Set<CardAttachment>();
@@ -19,6 +20,8 @@ public class BoardDbContext(DbContextOptions<BoardDbContext> options) : DbContex
         builder.Entity<Board>().HasIndex(x => x.Slug).IsUnique();
         builder.Entity<BoardUser>().HasIndex(x => x.AuthKey).IsUnique();
         builder.Entity<Lane>().HasIndex(x => new { x.BoardId, x.Position }).IsUnique();
+        builder.Entity<CardSize>().HasIndex(x => new { x.BoardId, x.Ordinal }).IsUnique();
+        builder.Entity<CardSize>().HasIndex(x => new { x.BoardId, x.Name }).IsUnique();
         builder.Entity<CardItem>().HasIndex(x => x.Number).IsUnique();
         builder.Entity<CardItem>().HasIndex(x => new { x.LaneId, x.Position });
         builder.Entity<CardComment>().HasIndex(x => new { x.CardId, x.LastUpdatedAtUtc });

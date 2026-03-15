@@ -10,8 +10,6 @@ namespace Collaboard.Api.Mcp;
 [McpServerToolType]
 public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEventBroadcaster broadcaster)
 {
-    private static readonly string[] _validSizes = ["S", "M", "L", "XL"];
-
     [McpServerTool(Name = "create_card", Destructive = false)]
     [Description("Create a new card on the kanban board.")]
     public async Task<string> CreateCardAsync(
@@ -19,7 +17,8 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         [Description("The title/name of the card")] string name,
         [Description("The ID (guid) of the lane to place the card in")] Guid laneId,
         [Description("Optional markdown description")] string? descriptionMarkdown = null,
-        [Description("Size: S, M, L, or XL. Defaults to M")] string? size = null,
+        [Description("Optional size ID (guid). If omitted, uses the board's lowest-ordinal size.")] Guid? sizeId = null,
+        [Description("Optional size name (e.g. 'M', 'XL'). Used if sizeId is not provided.")] string? sizeName = null,
         [Description("Optional comma-separated label IDs (guids) to assign to the card at creation. All labels must belong to the same board as the lane.")] string? labelIds = null,
         CancellationToken ct = default)
     {
@@ -29,16 +28,42 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             return error;
         }
 
-        var cardSize = size ?? "M";
-        if (!_validSizes.Contains(cardSize))
-        {
-            return "Error: Size must be one of: S, M, L, XL";
-        }
-
         var lane = await db.Lanes.FirstOrDefaultAsync(l => l.Id == laneId, ct);
         if (lane is null)
         {
             return "Error: Lane not found.";
+        }
+
+        // Resolve size
+        Guid resolvedSizeId;
+        if (sizeId.HasValue)
+        {
+            if (!await db.CardSizes.AnyAsync(s => s.Id == sizeId.Value && s.BoardId == lane.BoardId, ct))
+            {
+                return "Error: Size not found or does not belong to this board.";
+            }
+
+            resolvedSizeId = sizeId.Value;
+        }
+        else if (!string.IsNullOrWhiteSpace(sizeName))
+        {
+            var size = await db.CardSizes.FirstOrDefaultAsync(s => s.BoardId == lane.BoardId && s.Name == sizeName, ct);
+            if (size is null)
+            {
+                return $"Error: Size '{sizeName}' not found on this board.";
+            }
+
+            resolvedSizeId = size.Id;
+        }
+        else
+        {
+            var defaultSize = await db.CardSizes.Where(s => s.BoardId == lane.BoardId).OrderBy(s => s.Ordinal).FirstOrDefaultAsync(ct);
+            if (defaultSize is null)
+            {
+                return "Error: Board has no sizes configured.";
+            }
+
+            resolvedSizeId = defaultSize.Id;
         }
 
         // Parse and validate label IDs if provided
@@ -82,7 +107,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             Number = nextNumber,
             Name = name,
             DescriptionMarkdown = descriptionMarkdown ?? string.Empty,
-            Size = cardSize,
+            SizeId = resolvedSizeId,
             LaneId = laneId,
             Position = maxPosition + 10,
             CreatedAtUtc = now,
@@ -180,7 +205,8 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         [Description("The card number (provide this or cardId)")] long? cardNumber = null,
         [Description("New name/title (optional)")] string? name = null,
         [Description("New markdown description (optional)")] string? descriptionMarkdown = null,
-        [Description("New size: S, M, L, or XL (optional)")] string? size = null,
+        [Description("New size ID (guid, optional)")] Guid? sizeId = null,
+        [Description("New size name (e.g. 'M', 'XL', optional). Used if sizeId is not provided.")] string? sizeName = null,
         [Description("Target lane ID to move the card to (optional)")] Guid? laneId = null,
         [Description("0-based index position in the target lane (optional, requires laneId — defaults to end of lane)")] int? index = null,
         [Description("Comma-separated label GUIDs to replace current labels (optional, empty string clears all)")] string? labelIds = null,
@@ -199,7 +225,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         }
 
         // No-op guard: if no optional params are provided, skip DB writes
-        if (name is null && descriptionMarkdown is null && size is null && laneId is null && index is null && labelIds is null)
+        if (name is null && descriptionMarkdown is null && sizeId is null && sizeName is null && laneId is null && index is null && labelIds is null)
         {
             return "No changes specified.";
         }
@@ -220,14 +246,29 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             card.DescriptionMarkdown = descriptionMarkdown;
         }
 
-        if (size is not null)
+        if (sizeId.HasValue || sizeName is not null)
         {
-            if (!_validSizes.Contains(size))
-            {
-                return "Error: Size must be one of: S, M, L, XL";
-            }
+            var cardBoardId = await db.Lanes.Where(l => l.Id == card.LaneId).Select(l => l.BoardId).FirstOrDefaultAsync(ct);
 
-            card.Size = size;
+            if (sizeId.HasValue)
+            {
+                if (!await db.CardSizes.AnyAsync(s => s.Id == sizeId.Value && s.BoardId == cardBoardId, ct))
+                {
+                    return "Error: Size not found or does not belong to this board.";
+                }
+
+                card.SizeId = sizeId.Value;
+            }
+            else
+            {
+                var size = await db.CardSizes.FirstOrDefaultAsync(s => s.BoardId == cardBoardId && s.Name == sizeName, ct);
+                if (size is null)
+                {
+                    return $"Error: Size '{sizeName}' not found on this board.";
+                }
+
+                card.SizeId = size.Id;
+            }
         }
 
         // Lane move: if laneId provided, move card to that lane with optional index
@@ -381,7 +422,8 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
                 c.Number,
                 c.Name,
                 c.DescriptionMarkdown,
-                c.Size,
+                c.SizeId,
+                db.CardSizes.Where(s => s.Id == c.SizeId).Select(s => s.Name).FirstOrDefault() ?? "?",
                 c.LaneId,
                 c.Position,
                 c.CreatedByUserId,
@@ -454,9 +496,12 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             .Select(a => new { a.Id, a.FileName, a.ContentType, a.AddedByUserId, a.AddedAtUtc })
             .ToListAsync(ct);
 
+        var sizeName = await db.CardSizes.Where(s => s.Id == card.SizeId).Select(s => s.Name).FirstOrDefaultAsync(ct) ?? "?";
+
         return JsonSerializer.Serialize(new
         {
             card,
+            sizeName,
             createdByUserName = userNames.GetValueOrDefault(card.CreatedByUserId),
             lastUpdatedByUserName = userNames.GetValueOrDefault(card.LastUpdatedByUserId),
             comments = commentsWithUserNames,

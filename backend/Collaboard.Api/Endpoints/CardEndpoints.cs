@@ -8,8 +8,6 @@ namespace Collaboard.Api.Endpoints;
 
 internal static class CardEndpoints
 {
-    private static readonly string[] _validSizes = ["S", "M", "L", "XL"];
-
     public static RouteGroupBuilder MapCardEndpoints(this RouteGroupBuilder group)
     {
         // Board-scoped listing and creation
@@ -62,7 +60,8 @@ internal static class CardEndpoints
                     c.Number,
                     c.Name,
                     c.DescriptionMarkdown,
-                    c.Size,
+                    c.SizeId,
+                    db.CardSizes.Where(s => s.Id == c.SizeId).Select(s => s.Name).FirstOrDefault() ?? "?",
                     c.LaneId,
                     c.Position,
                     c.CreatedByUserId,
@@ -78,7 +77,7 @@ internal static class CardEndpoints
             return Results.Ok(cards);
         });
 
-        group.MapPost("/boards/{boardId:guid}/cards", async (BoardDbContext db, HttpContext http, Guid boardId, CardItem request, BoardEventBroadcaster broadcaster) =>
+        group.MapPost("/boards/{boardId:guid}/cards", async (BoardDbContext db, HttpContext http, Guid boardId, JsonElement body, BoardEventBroadcaster broadcaster) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
             if (forbidden is not null)
@@ -91,22 +90,38 @@ internal static class CardEndpoints
                 return Results.NotFound();
             }
 
+            var requestLaneId = body.GetProperty("laneId").GetGuid();
+            var requestName = body.GetProperty("name").GetString()!;
+            var requestDescription = body.TryGetProperty("descriptionMarkdown", out var descProp) ? descProp.GetString() ?? "" : "";
+            var requestPosition = body.TryGetProperty("position", out var posProp) ? posProp.GetInt32() : 0;
+
             // Verify the lane belongs to this board
-            if (!await db.Lanes.AnyAsync(x => x.Id == request.LaneId && x.BoardId == boardId))
+            if (!await db.Lanes.AnyAsync(x => x.Id == requestLaneId && x.BoardId == boardId))
             {
                 return Results.BadRequest("Lane does not belong to this board.");
             }
 
-            if (!string.IsNullOrEmpty(request.Size))
+            Guid sizeId;
+            if (body.TryGetProperty("sizeId", out var sizeIdProp) && sizeIdProp.ValueKind != JsonValueKind.Null)
             {
-                if (!_validSizes.Contains(request.Size))
+                sizeId = sizeIdProp.GetGuid();
+                if (!await db.CardSizes.AnyAsync(s => s.Id == sizeId && s.BoardId == boardId))
                 {
-                    return Results.BadRequest("Size must be one of: S, M, L, XL");
+                    return Results.BadRequest("Size does not belong to this board.");
                 }
             }
             else
             {
-                request.Size = "M";
+                var defaultSize = await db.CardSizes
+                    .Where(s => s.BoardId == boardId)
+                    .OrderBy(s => s.Ordinal)
+                    .FirstOrDefaultAsync();
+                if (defaultSize is null)
+                {
+                    return Results.BadRequest("Board has no sizes configured.");
+                }
+
+                sizeId = defaultSize.Id;
             }
 
             var now = DateTimeOffset.UtcNow;
@@ -116,11 +131,11 @@ internal static class CardEndpoints
             {
                 Id = Guid.NewGuid(),
                 Number = nextNumber,
-                Name = request.Name,
-                DescriptionMarkdown = request.DescriptionMarkdown,
-                Size = request.Size,
-                LaneId = request.LaneId,
-                Position = request.Position,
+                Name = requestName,
+                DescriptionMarkdown = requestDescription,
+                SizeId = sizeId,
+                LaneId = requestLaneId,
+                Position = requestPosition,
                 CreatedAtUtc = now,
                 LastUpdatedAtUtc = now,
                 CreatedByUserId = currentUser.Id,
@@ -178,9 +193,12 @@ internal static class CardEndpoints
                 .Select(a => new { a.Id, a.FileName, a.ContentType, a.AddedByUserId, a.AddedAtUtc })
                 .ToListAsync();
 
+            var sizeName = await db.CardSizes.Where(s => s.Id == card.SizeId).Select(s => s.Name).FirstOrDefaultAsync() ?? "?";
+
             return Results.Ok(new
             {
                 card,
+                sizeName,
                 createdByUserName = userNames.GetValueOrDefault(card.CreatedByUserId),
                 lastUpdatedByUserName = userNames.GetValueOrDefault(card.LastUpdatedByUserId),
                 comments = commentsWithUserNames,
@@ -213,15 +231,16 @@ internal static class CardEndpoints
                 card.DescriptionMarkdown = desc.GetString()!;
             }
 
-            if (patch.TryGetProperty("size", out var size))
+            if (patch.TryGetProperty("sizeId", out var sizeIdPatch))
             {
-                var sizeVal = size.GetString()!;
-                if (!_validSizes.Contains(sizeVal))
+                var newSizeId = sizeIdPatch.GetGuid();
+                var sizeLane = await db.Lanes.FindAsync(card.LaneId);
+                if (sizeLane is null || !await db.CardSizes.AnyAsync(s => s.Id == newSizeId && s.BoardId == sizeLane.BoardId))
                 {
-                    return Results.BadRequest("Size must be one of: S, M, L, XL");
+                    return Results.BadRequest("Size does not belong to this board.");
                 }
 
-                card.Size = sizeVal;
+                card.SizeId = newSizeId;
             }
 
             if (patch.TryGetProperty("laneId", out var lane))
