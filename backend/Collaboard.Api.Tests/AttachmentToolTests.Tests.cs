@@ -53,7 +53,7 @@ public class AttachmentToolTests(CollaboardApiFactory factory) : IClassFixture<C
 
         // Act
         var result = await tools.UploadAttachmentAsync(
-            authKey, cardId, "big-file.bin", base64Content);
+            authKey, "big-file.bin", base64Content, cardId: cardId);
 
         // Assert
         result.ShouldContain("File exceeds 5MB limit");
@@ -70,7 +70,7 @@ public class AttachmentToolTests(CollaboardApiFactory factory) : IClassFixture<C
 
         // Act
         var result = await tools.UploadAttachmentAsync(
-            authKey, cardId, "exact-5mb.bin", base64Content);
+            authKey, "exact-5mb.bin", base64Content, cardId: cardId);
 
         // Assert
         result.ShouldNotContain("Error");

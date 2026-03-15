@@ -72,8 +72,8 @@ public class McpCardToolTests(CollaboardApiFactory factory) : IClassFixture<Coll
 
         var result = await cardTools.MoveCardAsync(
             _factory.AdminAuthKey,
-            moveCardId,
-            targetLaneId);
+            targetLaneId,
+            cardId: moveCardId);
 
         // Assert — card should be at the end (index 2, after the two existing cards)
         result.ShouldContain("moved to lane at index 2");
@@ -147,8 +147,8 @@ public class McpCardToolTests(CollaboardApiFactory factory) : IClassFixture<Coll
 
         var result = await cardTools.MoveCardAsync(
             _factory.AdminAuthKey,
-            moveCardId,
             targetLaneId,
+            cardId: moveCardId,
             index: 0);
 
         // Assert — card should be at index 0

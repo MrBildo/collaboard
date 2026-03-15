@@ -1145,7 +1145,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         var result = await cardTools.GetCardAsync(_factory.AdminAuthKey, cardNumber: 999999);
 
         // Assert
-        result.ShouldContain("Card not found");
+        result.ShouldContain("not found");
     }
 
     [Fact]

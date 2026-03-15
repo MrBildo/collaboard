@@ -45,9 +45,10 @@ public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, Boar
     [Description("Upload a file attachment to a card using base64-encoded content. Limited to 5MB. For larger files (up to 50MB), use the REST endpoint POST /api/v1/cards/{cardId}/attachments (multipart/form-data).")]
     public async Task<string> UploadAttachmentAsync(
         [Description("Your auth key")] string authKey,
-        [Description("The ID (guid) of the card to attach the file to")] Guid cardId,
         [Description("The file name (e.g., 'report.pdf')")] string fileName,
         [Description("The base64-encoded file content")] string base64Content,
+        [Description("The ID (guid) of the card to attach the file to (provide this or cardNumber)")] Guid? cardId = null,
+        [Description("The card number (provide this or cardId)")] long? cardNumber = null,
         [Description("The MIME content type (e.g., 'application/pdf', 'image/png'). Defaults to 'application/octet-stream'")] string? contentType = null,
         CancellationToken ct = default)
     {
@@ -57,7 +58,13 @@ public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, Boar
             return error;
         }
 
-        if (!await db.Cards.AnyAsync(c => c.Id == cardId, ct))
+        var (resolvedCardId, resolveError) = await McpCardResolver.ResolveCardIdAsync(db, cardId, cardNumber, ct);
+        if (resolveError is not null)
+        {
+            return resolveError;
+        }
+
+        if (!await db.Cards.AnyAsync(c => c.Id == resolvedCardId!.Value, ct))
         {
             return "Error: Card not found.";
         }
@@ -81,7 +88,7 @@ public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, Boar
         var attachment = new CardAttachment
         {
             Id = Guid.NewGuid(),
-            CardId = cardId,
+            CardId = resolvedCardId!.Value,
             FileName = fileName,
             ContentType = contentType ?? "application/octet-stream",
             Payload = payload,
@@ -90,7 +97,7 @@ public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, Boar
         };
         db.Attachments.Add(attachment);
         await db.SaveChangesAsync(ct);
-        await db.PublishForCardAsync(cardId, broadcaster);
+        await db.PublishForCardAsync(resolvedCardId.Value, broadcaster);
         return JsonSerializer.Serialize(new { attachment.Id, attachment.FileName }, JsonSerializerOptions.Web);
     }
 }
