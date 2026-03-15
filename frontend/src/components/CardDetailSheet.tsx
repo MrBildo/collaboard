@@ -23,7 +23,7 @@ import {
 import { CardComments } from '@/components/CardComments';
 import { CardAttachments } from '@/components/CardAttachments';
 import { addCardLabel, deleteCard, fetchCardLabels, fetchLabels, fetchUserDirectory, reorderCard, removeCardLabel, updateCard } from '@/lib/api';
-import { getContrastColor } from '@/lib/utils';
+import { getContrastColor, getReadableColor } from '@/lib/utils';
 import type { CardItem, Lane } from '@/types';
 
 type CardDetailSheetProps = {
@@ -216,9 +216,8 @@ function CardDetailForm({
                 className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium transition-opacity hover:opacity-80"
                 style={{
                   backgroundColor: isAssigned ? (label.color ?? '#6b7280') : 'transparent',
-                  color: isAssigned ? getContrastColor(label.color) : (label.color ?? '#9ca3af'),
-                  borderColor: label.color ?? '#6b7280',
-                  opacity: isAssigned ? 1 : 0.5,
+                  color: isAssigned ? getContrastColor(label.color) : getReadableColor(label.color),
+                  borderColor: isAssigned ? (label.color ?? '#6b7280') : getReadableColor(label.color),
                 }}
               >
                 {label.name}
