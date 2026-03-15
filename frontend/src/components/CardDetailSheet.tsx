@@ -133,7 +133,7 @@ function CardDetailForm({
       if (!items) return;
 
       for (const item of Array.from(items)) {
-        if (item.kind === 'file') {
+        if (item.kind === 'file' && item.type.startsWith('image/')) {
           const blob = item.getAsFile();
           if (!blob) continue;
 
