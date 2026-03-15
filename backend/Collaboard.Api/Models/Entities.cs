@@ -65,6 +65,7 @@ public class CardComment
 public class Label
 {
     public Guid Id { get; set; }
+    public Guid BoardId { get; set; }
     [MaxLength(80)] public string Name { get; set; } = string.Empty;
     [MaxLength(20)] public string? Color { get; set; }
 }

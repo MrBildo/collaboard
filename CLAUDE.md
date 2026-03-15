@@ -95,6 +95,10 @@ All endpoints under `/api/v1/`:
 | POST | /boards/{boardId}/lanes | Admin | Create lane in a board |
 | GET | /boards/{boardId}/cards | All | List cards for a board. Optional query params: `since` (DateTimeOffset), `labelId` (Guid), `laneId` (Guid) |
 | POST | /boards/{boardId}/cards | All | Create card in a board |
+| GET | /boards/{boardId}/labels | All | List labels for a board |
+| POST | /boards/{boardId}/labels | Admin | Create label in a board |
+| PATCH | /boards/{boardId}/labels/{id} | Admin | Update label name/color |
+| DELETE | /boards/{boardId}/labels/{id} | Admin | Delete label + cleanup card assignments |
 
 ### By-ID operations (flat, resource knows its board)
 
@@ -108,8 +112,7 @@ All endpoints under `/api/v1/`:
 | Resource | Endpoints |
 |----------|-----------|
 | Users | `GET /users`, `GET /users/{id}`, `POST /users`, `PATCH /users/{id}`, `PATCH /users/{id}/deactivate`, `GET /auth/me` |
-| Labels | `GET /labels`, `POST /labels`, `PATCH /labels/{id}`, `DELETE /labels/{id}` |
-| Card Labels | `GET /cards/{id}/labels`, `POST /cards/{id}/labels`, `DELETE /cards/{id}/labels/{labelId}` |
+| Card Labels | `GET /cards/{id}/labels`, `POST /cards/{id}/labels` (validates label belongs to same board as card), `DELETE /cards/{id}/labels/{labelId}` |
 | Comments | `GET /cards/{id}/comments`, `POST /cards/{id}/comments`, `PATCH /comments/{id}`, `DELETE /comments/{id}` |
 | Attachments | `GET /cards/{id}/attachments`, `POST /cards/{id}/attachments`, `GET /attachments/{id}`, `DELETE /attachments/{id}` |
 
@@ -117,7 +120,7 @@ All endpoints under `/api/v1/`:
 
 | Path | Notes |
 |------|-------|
-| /boards/{boardId}/events | Per-board stream; global mutations (labels, users) broadcast to all streams |
+| /boards/{boardId}/events | Per-board stream; label mutations broadcast per-board, user mutations broadcast globally |
 
 ### MCP
 
@@ -204,21 +207,22 @@ Instance-local workspace (gitignored). Run `/bootstrap` to create on fresh clone
 
 ## Development Process
 
-Collaboard development is tracked on the **Collaboard** board in the production instance (`http://localhost:8080`, board slug: `collaboard`).
+Collaboard development is tracked on the **Collaboard** board in the production instance (board slug: `collaboard`).
 
 ### Lanes
 
 | Lane | Purpose |
 |------|---------|
-| Triage | New items land here, need sizing/discussion |
 | Backlog | Prioritized, ready to pick up |
+| Triage | New items land here, need sizing/discussion |
 | In Progress | Actively being worked on |
+| Review | PR open, awaiting user review |
 | Done | Merged to main |
 | Archived | Cleared periodically |
 
 ### Labels
 
-Labels are global (shared across all boards) and align with conventional commit prefixes:
+Labels are board-scoped (each board has its own label set) and align with conventional commit prefixes:
 
 | Label | Color | Maps to |
 |-------|-------|---------|

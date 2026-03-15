@@ -48,8 +48,8 @@ export function CreateCardDialog({ boardId, lanes, open, onOpenChange, defaultLa
   }
 
   const allLabelsQuery = useQuery({
-    queryKey: ['labels'],
-    queryFn: fetchLabels,
+    queryKey: ['labels', boardId],
+    queryFn: () => fetchLabels(boardId),
   });
 
   const boardDataQuery = useQuery({

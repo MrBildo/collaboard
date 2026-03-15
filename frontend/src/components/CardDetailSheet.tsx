@@ -170,8 +170,9 @@ function CardDetailForm({
   });
 
   const allLabelsQuery = useQuery({
-    queryKey: ['labels'],
-    queryFn: fetchLabels,
+    queryKey: ['labels', boardId],
+    queryFn: () => fetchLabels(boardId!),
+    enabled: !!boardId,
   });
 
   const addLabelMutation = useMutation({

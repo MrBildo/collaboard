@@ -14,12 +14,9 @@ internal static class LaneEndpoints
         group.MapGet("/boards/{boardId:guid}/lanes", async (BoardDbContext db, HttpContext http, Guid boardId) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
-            return !await db.Boards.AnyAsync(x => x.Id == boardId)
+            return forbidden is not null
+                ? forbidden
+                : !await db.Boards.AnyAsync(x => x.Id == boardId)
                 ? Results.NotFound()
                 : Results.Ok(await db.Lanes.Where(x => x.BoardId == boardId).OrderBy(x => x.Position).ToListAsync());
         });

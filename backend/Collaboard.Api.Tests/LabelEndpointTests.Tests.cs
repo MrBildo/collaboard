@@ -39,13 +39,22 @@ public class LabelEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         return card.GetProperty("id").GetGuid();
     }
 
-    private async Task<(Guid Id, string Name)> CreateLabelAsync(string? name = null, string? color = null)
+    private async Task<(Guid Id, string Name)> CreateLabelAsync(Guid? boardId = null, string? name = null, string? color = null)
     {
+        boardId ??= _factory.DefaultBoardId;
         name ??= $"Label-{Guid.NewGuid()}";
-        var response = await _client.PostAsJsonAsync("/api/v1/labels", new { name, color });
+        var response = await _client.PostAsJsonAsync($"/api/v1/boards/{boardId}/labels", new { name, color });
         response.EnsureSuccessStatusCode();
         var label = await response.Content.ReadFromJsonAsync<JsonElement>();
         return (label.GetProperty("id").GetGuid(), name);
+    }
+
+    private async Task<Guid> CreateBoardAsync(string name)
+    {
+        var response = await _client.PostAsJsonAsync("/api/v1/boards", new { name });
+        response.EnsureSuccessStatusCode();
+        var board = await response.Content.ReadFromJsonAsync<JsonElement>();
+        return board.GetProperty("id").GetGuid();
     }
 
     [Fact]
@@ -55,7 +64,7 @@ public class LabelEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         TestAuthHelper.SetAdminAuth(_client, _factory);
 
         // Act
-        var response = await _client.GetAsync("/api/v1/labels");
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/labels");
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -71,7 +80,7 @@ public class LabelEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         var labelName = $"Bug-{Guid.NewGuid()}";
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/v1/labels", new { name = labelName, color = "red" });
+        var response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/labels", new { name = labelName, color = "red" });
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
@@ -79,6 +88,7 @@ public class LabelEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         label.GetProperty("name").GetString().ShouldBe(labelName);
         label.GetProperty("color").GetString().ShouldBe("red");
         label.GetProperty("id").GetGuid().ShouldNotBe(Guid.Empty);
+        label.GetProperty("boardId").GetGuid().ShouldBe(_factory.DefaultBoardId);
     }
 
     [Fact]
@@ -87,14 +97,32 @@ public class LabelEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         // Arrange
         TestAuthHelper.SetAdminAuth(_client, _factory);
         var labelName = $"Duplicate-{Guid.NewGuid()}";
-        var firstResponse = await _client.PostAsJsonAsync("/api/v1/labels", new { name = labelName, color = "blue" });
+        var firstResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/labels", new { name = labelName, color = "blue" });
         firstResponse.EnsureSuccessStatusCode();
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/v1/labels", new { name = labelName, color = "green" });
+        var response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/labels", new { name = labelName, color = "green" });
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task PostLabel_SameNameDifferentBoard_Succeeds()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var labelName = $"CrossBoard-{Guid.NewGuid()}";
+        var boardBId = await CreateBoardAsync($"Board B {Guid.NewGuid()}");
+
+        var firstResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/labels", new { name = labelName, color = "blue" });
+        firstResponse.EnsureSuccessStatusCode();
+
+        // Act — same name on a different board should succeed
+        var response = await _client.PostAsJsonAsync($"/api/v1/boards/{boardBId}/labels", new { name = labelName, color = "green" });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
     }
 
     [Fact]
@@ -105,7 +133,7 @@ public class LabelEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         TestAuthHelper.SetAuth(_client, human.AuthKey);
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/v1/labels", new { name = $"Forbidden-{Guid.NewGuid()}", color = "red" });
+        var response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/labels", new { name = $"Forbidden-{Guid.NewGuid()}", color = "red" });
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
@@ -119,7 +147,7 @@ public class LabelEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         var (labelId, _) = await CreateLabelAsync(color: "red");
 
         // Act
-        var response = await _client.PatchAsJsonAsync($"/api/v1/labels/{labelId}", new { name = $"Updated-{Guid.NewGuid()}", color = "green" });
+        var response = await _client.PatchAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/labels/{labelId}", new { name = $"Updated-{Guid.NewGuid()}", color = "green" });
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -135,7 +163,22 @@ public class LabelEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         var bogusId = Guid.NewGuid();
 
         // Act
-        var response = await _client.PatchAsJsonAsync($"/api/v1/labels/{bogusId}", new { name = "Ghost" });
+        var response = await _client.PatchAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/labels/{bogusId}", new { name = "Ghost" });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task PatchLabel_WrongBoard_Returns404()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var (labelId, _) = await CreateLabelAsync(color: "red");
+        var boardBId = await CreateBoardAsync($"Board B {Guid.NewGuid()}");
+
+        // Act — try to patch label via wrong board
+        var response = await _client.PatchAsJsonAsync($"/api/v1/boards/{boardBId}/labels/{labelId}", new { name = "Ghost" });
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
@@ -149,7 +192,7 @@ public class LabelEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         var (labelId, _) = await CreateLabelAsync();
 
         // Act
-        var response = await _client.DeleteAsync($"/api/v1/labels/{labelId}");
+        var response = await _client.DeleteAsync($"/api/v1/boards/{_factory.DefaultBoardId}/labels/{labelId}");
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
@@ -169,7 +212,7 @@ public class LabelEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         assignResponse.EnsureSuccessStatusCode();
 
         // Act — delete the label
-        var response = await _client.DeleteAsync($"/api/v1/labels/{labelId}");
+        var response = await _client.DeleteAsync($"/api/v1/boards/{_factory.DefaultBoardId}/labels/{labelId}");
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
@@ -237,6 +280,25 @@ public class LabelEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task PostCardLabel_CrossBoard_Returns400()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+        var cardId = await CreateCardAsync(laneId);
+
+        // Create a label on a different board
+        var boardBId = await CreateBoardAsync($"Board B {Guid.NewGuid()}");
+        var (labelId, _) = await CreateLabelAsync(boardId: boardBId);
+
+        // Act — try to assign a label from board B to a card on the default board
+        var response = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/labels", new { labelId });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     [Fact]

@@ -99,9 +99,9 @@ export async function reorderCard(
   return data;
 }
 
-// Labels (global)
-export async function fetchLabels(): Promise<Label[]> {
-  const { data } = await api.get('/labels');
+// Labels (board-scoped)
+export async function fetchLabels(boardId: string): Promise<Label[]> {
+  const { data } = await api.get(`/boards/${boardId}/labels`);
   return data;
 }
 
@@ -203,17 +203,17 @@ export async function deleteLane(id: string): Promise<void> {
   await api.delete(`/lanes/${id}`);
 }
 
-// Labels (admin)
-export async function createLabel(name: string, color?: string): Promise<Label> {
-  const { data } = await api.post('/labels', { name, color });
+// Labels (board-scoped admin)
+export async function createLabel(boardId: string, name: string, color?: string): Promise<Label> {
+  const { data } = await api.post(`/boards/${boardId}/labels`, { name, color });
   return data;
 }
 
-export async function updateLabel(id: string, patch: Record<string, unknown>): Promise<Label> {
-  const { data } = await api.patch(`/labels/${id}`, patch);
+export async function updateLabel(boardId: string, id: string, patch: Record<string, unknown>): Promise<Label> {
+  const { data } = await api.patch(`/boards/${boardId}/labels/${id}`, patch);
   return data;
 }
 
-export async function deleteLabel(id: string): Promise<void> {
-  await api.delete(`/labels/${id}`);
+export async function deleteLabel(boardId: string, id: string): Promise<void> {
+  await api.delete(`/boards/${boardId}/labels/${id}`);
 }
