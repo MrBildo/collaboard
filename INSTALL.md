@@ -20,7 +20,7 @@
 
 ## Configuration
 
-Collaboard uses `appsettings.json` for configuration. Create `appsettings.Production.json` next to the executable to override defaults without modifying the shipped config.
+Collaboard uses `appsettings.json` for configuration. Create `appsettings.Local.json` next to the executable to override defaults without modifying the shipped config.
 
 | Setting | Default | Description |
 |---------|---------|-------------|
@@ -48,7 +48,7 @@ export COLLABOARD__ConnectionStrings__Board="Data Source=/var/data/collaboard.db
 ## Updating
 
 1. Stop the running process
-2. Replace the executable (keep your `appsettings.Production.json` and `data/` directory)
+2. Replace the executable (keep your `appsettings.Local.json` and `data/` directory)
 3. Start the app — migrations run automatically
 
 ## Version

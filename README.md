@@ -76,7 +76,7 @@ xattr -d com.apple.quarantine ./Collaboard.Api
 
 ## Configuration
 
-Collaboard ships with sensible defaults. All settings can be overridden via `appsettings.Production.json` (place next to the executable), environment variables, or command-line arguments.
+Collaboard ships with sensible defaults. All settings can be overridden via `appsettings.Local.json` (place next to the executable), environment variables, or command-line arguments.
 
 | Setting | Default | Description |
 |---------|---------|-------------|
@@ -262,7 +262,7 @@ dotnet publish backend/Collaboard.Api/Collaboard.Api.csproj \
 
 1. Stop the running process
 2. Download the new release for your platform
-3. Replace the executable (keep your `data/` directory and `appsettings.Production.json`)
+3. Replace the executable (keep your `data/` directory and `appsettings.Local.json`)
 4. Start the app — migrations run automatically, database is backed up first
 
 ## License

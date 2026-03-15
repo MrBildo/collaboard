@@ -50,7 +50,7 @@ Get-ChildItem $sourceDir | ForEach-Object {
     # Skip data directory (contains the database)
     if ($_.Name -eq 'data') { return }
     # Skip user config overrides
-    if ($_.Name -eq 'appsettings.Production.json') { return }
+    if ($_.Name -eq 'appsettings.Local.json') { return }
     if (Test-Path $dest) {
         Remove-Item $dest -Recurse -Force
     }
