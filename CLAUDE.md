@@ -69,7 +69,7 @@ Header-based authentication — no ASP.NET auth middleware:
 - `IsActive` flag on `BoardUser` — deactivated users get 401
 - Admin seed: uses `Admin:AuthKey` from config if set, else generates ULID and logs it
 - **Use `Results.StatusCode(403)` not `Results.Forbid()`** (no auth middleware registered)
-- `AgentUser` cannot delete cards or attachments
+- `AgentUser` cannot delete cards; can delete own comments and attachments
 - All users see all boards — no board-level membership
 
 ## API Surface
@@ -215,6 +215,7 @@ Collaboard development is tracked on the **Collaboard** board in the production 
 |------|---------|
 | Backlog | Prioritized, ready to pick up |
 | Triage | New items land here, need sizing/discussion |
+| Ready | Sized, scoped, and approved — agents can pick these up |
 | In Progress | Actively being worked on |
 | Review | PR open, awaiting user review |
 | Done | Merged to main |
@@ -237,15 +238,17 @@ Labels are board-scoped (each board has its own label set) and align with conven
 
 1. New items → **Triage** with a type label (`bug`, `feature`, etc.)
 2. Size (S/M/L/XL), prioritize → **Backlog**
-3. Pick up → **In Progress**, create a feature branch
-4. PR merged → **Done**
-5. Periodically sweep Done → **Archived**
-6. Cards needing a spec get a comment linking to `.agents/specs/`
+3. User approves for work → **Ready** (agents should only pick up cards from Ready)
+4. Pick up → **In Progress**, create a feature branch
+5. PR open → **Review**, awaiting user review
+6. PR merged → **Done**
+7. Periodically sweep Done → **Archived**
+8. Cards needing a spec get a comment linking to `.agents/specs/`
 
 ### Agent Board Awareness
 
 Agents working on Collaboard should use the MCP tools to stay in sync with the board:
-- **Start of session:** Call `get_board` or `get_cards` with the Collaboard board ID to see current backlog, in-progress items, and recent activity
+- **Start of session:** Call `get_cards` with the Collaboard board ID to see current ready, in-progress items, and recent activity
 - **Check for changes:** Use `get_cards` with the `since` parameter to see cards with recent activity (new/edited comments, new attachments, card updates). This catches changes made by humans or other agents between sessions
 - **During work:** Move cards between lanes, add comments with PR links, and label cards as you work
 - **Board ID:** Use `get_boards` to discover board IDs — the Collaboard development board has slug `collaboard`
