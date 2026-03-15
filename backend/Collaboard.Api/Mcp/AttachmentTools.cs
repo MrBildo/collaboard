@@ -10,32 +10,6 @@ namespace Collaboard.Api.Mcp;
 [McpServerToolType]
 public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, BoardEventBroadcaster broadcaster)
 {
-    [McpServerTool(Name = "get_attachments", ReadOnly = true, Destructive = false)]
-    [Description("Get all attachments on a card (metadata only, no file content). Use the upload_attachment tool to add files. To download, call get_api_info for the REST URL.")]
-    public async Task<string> GetAttachmentsAsync(
-        [Description("Your auth key")] string authKey,
-        [Description("The ID (guid) of the card")] Guid cardId,
-        CancellationToken ct = default)
-    {
-        var (_, error) = await auth.RequireUserAsync(authKey, ct);
-        if (error is not null)
-        {
-            return error;
-        }
-
-        if (!await db.Cards.AnyAsync(c => c.Id == cardId, ct))
-        {
-            return "Error: Card not found.";
-        }
-
-        var attachments = await db.Attachments
-            .Where(a => a.CardId == cardId)
-            .Select(a => new { a.Id, a.FileName, a.ContentType, a.AddedByUserId, a.AddedAtUtc })
-            .ToListAsync(ct);
-
-        return JsonSerializer.Serialize(attachments, JsonSerializerOptions.Web);
-    }
-
     [McpServerTool(Name = "delete_attachment", Destructive = true)]
     [Description("Delete an attachment you added. Administrators can delete any attachment.")]
     public async Task<string> DeleteAttachmentAsync(
@@ -68,7 +42,7 @@ public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, Boar
     }
 
     [McpServerTool(Name = "upload_attachment", Destructive = false)]
-    [Description("Upload a file attachment to a card using base64-encoded content. Best for small files and images. For large files (CSVs, PDFs), use the REST API instead — call get_api_info for the URL.")]
+    [Description("Upload a file attachment to a card using base64-encoded content. Best for small files and images. For large files (CSVs, PDFs), use the REST endpoint POST /api/v1/cards/{cardId}/attachments (multipart/form-data).")]
     public async Task<string> UploadAttachmentAsync(
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the card to attach the file to")] Guid cardId,
