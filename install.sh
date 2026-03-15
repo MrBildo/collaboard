@@ -50,10 +50,25 @@ TEMP_DIR="$(mktemp -d)"
 echo "Downloading ${ARTIFACT_NAME}.tar.gz..."
 curl -sSfL "$DOWNLOAD_URL" -o "${TEMP_DIR}/${ARTIFACT_NAME}.tar.gz"
 
-# Extract
+# Extract to temp location first, then merge (preserving data/ and user config)
 echo "Extracting to ${INSTALL_DIR}..."
+TEMP_EXTRACT="${TEMP_DIR}/extract"
+mkdir -p "$TEMP_EXTRACT"
+tar xzf "${TEMP_DIR}/${ARTIFACT_NAME}.tar.gz" -C "$TEMP_EXTRACT" --strip-components=1
+
 mkdir -p "$INSTALL_DIR"
-tar xzf "${TEMP_DIR}/${ARTIFACT_NAME}.tar.gz" -C "$INSTALL_DIR" --strip-components=1
+
+# Copy new files, preserving data/ and user config
+for item in "$TEMP_EXTRACT"/*; do
+    name="$(basename "$item")"
+    # Skip data directory (contains the database)
+    [ "$name" = "data" ] && continue
+    # Skip user config overrides
+    [ "$name" = "appsettings.Local.json" ] && continue
+    # Remove old version and move new one in
+    rm -rf "${INSTALL_DIR}/${name}"
+    mv "$item" "${INSTALL_DIR}/${name}"
+done
 
 # Clean up
 rm -rf "$TEMP_DIR"
