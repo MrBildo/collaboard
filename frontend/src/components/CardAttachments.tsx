@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { api, deleteAttachment, fetchCardAttachments, fetchUserDirectory, uploadAttachment } from '@/lib/api';
@@ -14,6 +14,8 @@ export function CardAttachments({ cardId, currentUserId, currentUserRole }: Card
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounter = useRef(0);
 
   const directoryQuery = useQuery({
     queryKey: ['userDirectory'],
@@ -45,6 +47,35 @@ export function CardAttachments({ cardId, currentUserId, currentUserRole }: Card
       setConfirmDeleteId(null);
     },
   });
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current++;
+    if (e.dataTransfer.types.includes('Files')) setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current--;
+    if (dragCounter.current === 0) setIsDragging(false);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      dragCounter.current = 0;
+      setIsDragging(false);
+      const files = Array.from(e.dataTransfer.files);
+      for (const file of files) {
+        uploadMutation.mutate(file);
+      }
+    },
+    [uploadMutation],
+  );
 
   const handleUpload = () => {
     fileInputRef.current?.click();
@@ -82,7 +113,19 @@ export function CardAttachments({ cardId, currentUserId, currentUserRole }: Card
   );
 
   return (
-    <div className="flex flex-col gap-4">
+    <div
+      className="flex flex-col gap-4"
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      {isDragging && (
+        <div className="flex items-center justify-center rounded-lg border-2 border-dashed border-primary bg-primary/10 py-6 text-sm text-primary">
+          Drop files to upload
+        </div>
+      )}
+
       {attachmentsQuery.isLoading && (
         <p className="text-sm text-muted-foreground">Loading attachments...</p>
       )}
