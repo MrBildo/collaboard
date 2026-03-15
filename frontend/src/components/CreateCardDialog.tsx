@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { addCardLabel, createCard, fetchBoardData, fetchLabels } from '@/lib/api';
+import { LabelPicker } from '@/components/LabelPicker';
 import type { CardSize, Lane } from '@/types';
 
 type CreateCardDialogProps = {
@@ -157,31 +158,12 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
             {(allLabelsQuery.data ?? []).length > 0 && (
               <div className="flex flex-col gap-1.5">
                 <Label>Labels</Label>
-                <div className="flex flex-wrap gap-1.5">
-                  {(allLabelsQuery.data ?? []).map((label) => {
-                    const isSelected = selectedLabelIds.includes(label.id);
-                    return (
-                      <button
-                        key={label.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedLabelIds((prev) =>
-                            isSelected ? prev.filter((id) => id !== label.id) : [...prev, label.id]
-                          );
-                        }}
-                        className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium transition-opacity hover:opacity-80"
-                        style={{
-                          backgroundColor: isSelected ? (label.color ?? '#6b7280') : 'transparent',
-                          color: isSelected ? '#fff' : (label.color ?? '#9ca3af'),
-                          borderColor: label.color ?? '#6b7280',
-                          opacity: isSelected ? 1 : 0.5,
-                        }}
-                      >
-                        {label.name}
-                      </button>
-                    );
-                  })}
-                </div>
+                <LabelPicker
+                  allLabels={allLabelsQuery.data ?? []}
+                  assignedLabels={(allLabelsQuery.data ?? []).filter((l) => selectedLabelIds.includes(l.id))}
+                  onAdd={(id) => setSelectedLabelIds((prev) => [...prev, id])}
+                  onRemove={(id) => setSelectedLabelIds((prev) => prev.filter((x) => x !== id))}
+                />
               </div>
             )}
 

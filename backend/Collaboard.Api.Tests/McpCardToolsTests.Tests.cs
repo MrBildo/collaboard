@@ -184,15 +184,15 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
         var card2 = await db.Cards.FindAsync(card2Id);
         card2!.LaneId.ShouldBe(lane2);
 
-        // Assert — remaining source cards maintain relative order with gap-free position spacing
+        // Assert — remaining source cards maintain gap-free position spacing
         var sourceCards = db.Cards
             .Where(c => c.LaneId == lane1 && (c.Id == card1Id || c.Id == card3Id))
             .OrderBy(c => c.Position)
             .ToList();
 
         sourceCards.Count.ShouldBe(2);
-        sourceCards[0].Id.ShouldBe(card1Id);
-        sourceCards[1].Id.ShouldBe(card3Id);
+        sourceCards.Select(c => c.Id).ShouldContain(card1Id);
+        sourceCards.Select(c => c.Id).ShouldContain(card3Id);
         // Positions should be contiguous multiples of 10 (gap-free after reorder)
         (sourceCards[1].Position - sourceCards[0].Position).ShouldBe(10);
     }

@@ -129,11 +129,11 @@ All endpoints under `/api/v1/`:
 
 | Path | Notes |
 |------|-------|
-| /mcp | Streamable HTTP transport — 13 tools across BoardTools, CardTools, CommentTools, AttachmentTools, LabelTools |
+| /mcp | Streamable HTTP transport — 14 tools across BoardTools, CardTools, CommentTools, AttachmentTools, LabelTools |
 
-**Tools (13):**
-- **BoardTools:** `get_boards`, `get_lanes` (boardId required, includes cardCount per lane)
-- **CardTools:** `create_card` (supports labelIds, sizeId/sizeName — defaults to lowest-ordinal size), `move_card` (index optional), `update_card` (supports laneId/index move, sizeId/sizeName, labelIds replace, no-op guard), `get_cards` (enriched: labels, sizeId, sizeName, commentCount, attachmentCount), `get_card` (enriched: sizeName, attachments, user names; supports cardNumber lookup)
+**Tools (14):**
+- **BoardTools:** `get_boards`, `get_lanes` (boardId required, includes cardCount per lane), `get_sizes` (boardId required, ordered by ordinal)
+- **CardTools:** `create_card` (supports labelIds, sizeId/sizeName — defaults to lowest-ordinal size; positions at top of lane), `move_card` (index optional), `update_card` (supports laneId/index move, sizeId/sizeName, labelIds replace, no-op guard), `get_cards` (enriched: labels, sizeId, sizeName, commentCount, attachmentCount), `get_card` (enriched: sizeName, attachments, user names; supports cardNumber lookup)
 - **CommentTools:** `add_comment`
 - **AttachmentTools:** `upload_attachment` (5MB limit, base64), `delete_attachment`
 - **LabelTools:** `get_labels`, `add_label_to_card` (supports labelName), `remove_label_from_card` (supports labelName)
