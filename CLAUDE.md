@@ -123,7 +123,7 @@ All endpoints under `/api/v1/`:
 
 | Path | Notes |
 |------|-------|
-| /mcp | Streamable HTTP transport — 19 tools across BoardTools, CardTools, CommentTools, AttachmentTools, LabelTools |
+| /mcp | Streamable HTTP transport — 20 tools across BoardTools, CardTools, CommentTools, AttachmentTools, LabelTools |
 
 ## .agents/ Directory Structure
 
