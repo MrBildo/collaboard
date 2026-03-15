@@ -85,7 +85,9 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
     }
   };
 
-  const comments = commentsQuery.data ?? [];
+  const comments = [...(commentsQuery.data ?? [])].sort(
+    (a, b) => new Date(b.lastUpdatedAtUtc).getTime() - new Date(a.lastUpdatedAtUtc).getTime(),
+  );
 
   return (
     <div className="flex flex-col gap-4">

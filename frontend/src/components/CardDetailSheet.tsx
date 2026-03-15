@@ -65,6 +65,7 @@ function CardDetailForm({
   const queryClient = useQueryClient();
 
   const [name, setName] = useState(card.name);
+  const [currentLaneId, setCurrentLaneId] = useState(card.laneId);
   const [description, setDescription] = useState(card.descriptionMarkdown ?? '');
   const [size, setSize] = useState(card.size);
   const [editingDescription, setEditingDescription] = useState(false);
@@ -124,6 +125,9 @@ function CardDetailForm({
 
   const moveMutation = useMutation({
     mutationFn: (laneId: string) => reorderCard(card.id, laneId, 0),
+    onMutate: (laneId) => {
+      setCurrentLaneId(laneId);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['boardData', boardId] });
     },
@@ -180,7 +184,7 @@ function CardDetailForm({
             </SelectContent>
           </Select>
           {lanes && lanes.length > 0 && (
-            <Select value={card.laneId} onValueChange={(v) => v && v !== card.laneId && moveMutation.mutate(v)}>
+            <Select value={currentLaneId} onValueChange={(v) => v && v !== currentLaneId && moveMutation.mutate(v)}>
               <SelectTrigger className="w-40">
                 <SelectValue />
               </SelectTrigger>

@@ -77,7 +77,9 @@ export function CardAttachments({ cardId, currentUserId, currentUserRole }: Card
     }
   };
 
-  const attachments = attachmentsQuery.data ?? [];
+  const attachments = [...(attachmentsQuery.data ?? [])].sort(
+    (a, b) => new Date(b.addedAtUtc).getTime() - new Date(a.addedAtUtc).getTime(),
+  );
 
   return (
     <div className="flex flex-col gap-4">
