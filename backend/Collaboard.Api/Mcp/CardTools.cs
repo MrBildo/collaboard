@@ -48,7 +48,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             Id = Guid.NewGuid(),
             Number = nextNumber,
             Name = name,
-            DescriptionMarkdown = descriptionMarkdown?.Replace("\\n", "\n") ?? string.Empty,
+            DescriptionMarkdown = descriptionMarkdown ?? string.Empty,
             Size = cardSize,
             LaneId = laneId,
             Position = maxPosition + 10,
@@ -155,7 +155,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
 
         if (descriptionMarkdown is not null)
         {
-            card.DescriptionMarkdown = descriptionMarkdown.Replace("\\n", "\n");
+            card.DescriptionMarkdown = descriptionMarkdown;
         }
 
         if (size is not null)

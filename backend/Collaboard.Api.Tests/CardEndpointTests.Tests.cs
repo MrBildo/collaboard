@@ -781,6 +781,62 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     }
 
     [Fact]
+    public async Task PostCard_NewlinesInDescription_PreservedOnRoundTrip()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+        var description = "Line one\nLine two\nLine three";
+
+        var request = new
+        {
+            name = "Newline Card",
+            descriptionMarkdown = description,
+            size = "M",
+            laneId,
+            position = NextPosition()
+        };
+
+        // Act
+        var response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", request);
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var card = await response.Content.ReadFromJsonAsync<JsonElement>();
+        card.GetProperty("descriptionMarkdown").GetString().ShouldBe(description);
+    }
+
+    [Fact]
+    public async Task PatchCard_NewlinesInDescription_PreservedOnRoundTrip()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "Card For Newline Patch",
+            descriptionMarkdown = "initial",
+            size = "M",
+            laneId,
+            position = NextPosition()
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        var newDescription = "Updated line one\nUpdated line two\ttab here";
+
+        // Act
+        var response = await _client.PatchAsJsonAsync($"/api/v1/cards/{cardId}", new { descriptionMarkdown = newDescription });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var updated = await response.Content.ReadFromJsonAsync<JsonElement>();
+        updated.GetProperty("descriptionMarkdown").GetString().ShouldBe(newDescription);
+    }
+
+    [Fact]
     public async Task PatchCard_WithLabelIds_ReplacesLabels()
     {
         // Arrange
