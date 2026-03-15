@@ -93,8 +93,6 @@ export function App() {
   const sensors = useSensors(mouseSensor, touchSensor);
 
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
-  const [selectedCard, setSelectedCard] = useState<CardItem | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [createLaneId, setCreateLaneId] = useState<string | undefined>(undefined);
   const [adminOpen, setAdminOpen] = useState(false);
@@ -114,24 +112,19 @@ export function App() {
     }
   }
 
-  // Deep link: open card detail from URL
-  useEffect(() => {
-    if (cardNumber && serverCards.length > 0) {
-      const num = parseInt(cardNumber, 10);
-      const card = serverCards.find((c) => c.number === num);
-      if (card) {
-        setSelectedCard(card);
-        setDetailOpen(true);
-      }
-    }
+  // Derive selected card and detail-open state from URL (cardNumber param is the source of truth)
+  const selectedCard = useMemo(() => {
+    if (!cardNumber || serverCards.length === 0) return null;
+    const num = parseInt(cardNumber, 10);
+    return serverCards.find((c) => c.number === num) ?? null;
   }, [cardNumber, serverCards]);
+  const detailOpen = selectedCard !== null;
 
   const handleDetailOpenChange = useCallback((open: boolean) => {
-    setDetailOpen(open);
-    if (!open && cardNumber) {
+    if (!open) {
       navigate(`/boards/${slug}`, { replace: true });
     }
-  }, [cardNumber, slug, navigate]);
+  }, [slug, navigate]);
 
   const laneIds = useMemo(() => new Set(lanes.map((l) => l.id)), [lanes]);
 
@@ -247,8 +240,6 @@ export function App() {
   };
 
   const handleCardClick = (card: CardItem) => {
-    setSelectedCard(card);
-    setDetailOpen(true);
     navigate(`/boards/${slug}/cards/${card.number}`, { replace: true });
   };
 
@@ -352,7 +343,6 @@ export function App() {
 
 function BoardSwitcher({ boards, currentSlug }: { boards: Board[]; currentSlug?: string }) {
   const navigate = useNavigate();
-  const current = boards.find((b) => b.slug === currentSlug);
 
   return (
     <select
