@@ -93,7 +93,7 @@ All endpoints under `/api/v1/`:
 | GET | /boards/{boardId}/board | All | Composite: lanes + cards for a board |
 | GET | /boards/{boardId}/lanes | All | List lanes for a board |
 | POST | /boards/{boardId}/lanes | Admin | Create lane in a board |
-| GET | /boards/{boardId}/cards | All | List cards for a board. Optional query params: `since` (DateTimeOffset), `labelId` (Guid), `laneId` (Guid) |
+| GET | /boards/{boardId}/cards | All | List cards (enriched: labels, commentCount, attachmentCount). Optional query params: `since` (DateTimeOffset), `labelId` (Guid), `laneId` (Guid) |
 | POST | /boards/{boardId}/cards | All | Create card in a board |
 | GET | /boards/{boardId}/labels | All | List labels for a board |
 | POST | /boards/{boardId}/labels | Admin | Create label in a board |
@@ -105,7 +105,7 @@ All endpoints under `/api/v1/`:
 | Resource | Endpoints |
 |----------|-----------|
 | Lanes | `GET /lanes/{id}`, `PATCH /lanes/{id}`, `DELETE /lanes/{id}` |
-| Cards | `GET /cards/{id}`, `PATCH /cards/{id}`, `DELETE /cards/{id}`, `POST /cards/{id}/reorder` |
+| Cards | `GET /cards/{id}` (enriched: card, user names, comments, labels, attachments), `PATCH /cards/{id}`, `DELETE /cards/{id}`, `POST /cards/{id}/reorder` |
 
 ### Global resources (not board-scoped)
 
@@ -126,7 +126,16 @@ All endpoints under `/api/v1/`:
 
 | Path | Notes |
 |------|-------|
-| /mcp | Streamable HTTP transport — 21 tools across BoardTools, CardTools, CommentTools, AttachmentTools, LabelTools |
+| /mcp | Streamable HTTP transport — 13 tools across BoardTools, CardTools, CommentTools, AttachmentTools, LabelTools |
+
+**Tools (13):**
+- **BoardTools:** `get_boards`, `get_lanes` (boardId required, includes cardCount per lane)
+- **CardTools:** `create_card` (supports labelIds), `move_card` (index optional), `update_card` (supports laneId/index move, labelIds replace, no-op guard), `get_cards` (enriched: labels, commentCount, attachmentCount), `get_card` (enriched: attachments, user names; supports cardNumber lookup)
+- **CommentTools:** `add_comment`
+- **AttachmentTools:** `upload_attachment` (5MB limit, base64), `delete_attachment`
+- **LabelTools:** `get_labels`, `add_label_to_card` (supports labelName), `remove_label_from_card` (supports labelName)
+
+**Cross-cutting:** All card-scoped tools accept `cardNumber` (long) as alternative to `cardId` (Guid). Label assignment tools accept `labelName` as alternative to `labelId`. Shared resolution via `McpCardResolver`.
 
 ## .agents/ Directory Structure
 

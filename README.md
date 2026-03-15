@@ -20,15 +20,16 @@ Built for trusted LAN environments where a team needs a lightweight, collaborati
 
 ## Features
 
+- **First-class AI agent support** — Built-in [MCP](https://modelcontextprotocol.io/) endpoint with 13 purpose-built tools. Agents can create cards, move work between lanes, comment, label, and upload attachments — referencing cards by number (`#42`) or ID. Human-agent collaboration is a core design goal, not a bolt-on
+- **Real-time for everyone** — SSE pushes every change to all connected clients instantly. When an agent moves a card or a teammate adds a comment, you see it live. No polling, no refresh
+- **Full Markdown rendering** — Descriptions and comments render real Markdown, including **tables**, code blocks, headings, lists, and inline formatting. Not a stripped-down subset — actual GFM
+- **Clipboard paste & drag-and-drop uploads** — Paste a screenshot or drag files directly onto a card. Attachments just work
 - **Multi-board** — Create and manage multiple boards from a single instance
-- **Drag-and-drop** — Reorder cards and move them between lanes
-- **Labels** — Color-coded labels for categorization
-- **Comments** — Threaded discussion on cards with Markdown support
-- **Attachments** — File uploads on cards
-- **Real-time updates** — Server-sent events push changes to all connected clients instantly
-- **Dark / light theme** — Toggle between themes, persisted per-browser
+- **Drag-and-drop** — Reorder cards and move them between lanes with dnd-kit
+- **Board-scoped labels** — Color-coded labels per board for categorization
+- **Comments** — Threaded discussion on cards with full Markdown
 - **Deep linking** — Direct URLs to boards and cards (`/boards/my-board/cards/42`)
-- **MCP integration** — Model Context Protocol endpoint for AI agent tooling
+- **Dark / light theme** — Toggle between themes, persisted per-browser
 - **Single executable** — Self-contained binary with embedded SPA, no runtime dependencies
 - **SQLite** — Zero-config database, auto-migrated on startup
 
@@ -120,7 +121,7 @@ All endpoints are under `/api/v1/`. Authentication is via the `X-User-Key` heade
 | GET | /boards/{boardId}/board | All | Composite: lanes + cards |
 | GET | /boards/{boardId}/lanes | All | List lanes |
 | POST | /boards/{boardId}/lanes | Admin | Create lane |
-| GET | /boards/{boardId}/cards | All | List cards |
+| GET | /boards/{boardId}/cards | All | List cards (includes labels, comment/attachment counts). Filters: `since`, `labelId`, `laneId` |
 | POST | /boards/{boardId}/cards | All | Create card |
 
 ### By-ID Operations
@@ -141,14 +142,22 @@ All endpoints are under `/api/v1/`. Authentication is via the `X-User-Key` heade
 | PATCH | /users/{id}/deactivate | Admin | Deactivate user |
 | GET | /auth/me | All | Current user info |
 
-### Labels, Comments, Attachments
+### Labels (board-scoped)
+
+| Method | Path | Auth | Notes |
+|--------|------|------|-------|
+| GET | /boards/{boardId}/labels | All | List labels for a board |
+| POST | /boards/{boardId}/labels | Admin | Create label |
+| PATCH | /boards/{boardId}/labels/{id} | Admin | Update label name/color |
+| DELETE | /boards/{boardId}/labels/{id} | Admin | Delete label + cleanup card assignments |
+
+### Comments, Attachments, Card Labels
 
 | Resource | Endpoints |
 |----------|-----------|
-| Labels | `GET /labels`, `POST /labels`, `PATCH /labels/{id}`, `DELETE /labels/{id}` |
-| Card Labels | `GET /cards/{id}/labels`, `POST /cards/{id}/labels`, `DELETE /cards/{id}/labels/{labelId}` |
+| Card Labels | `GET /cards/{id}/labels`, `POST /cards/{id}/labels` (validates same board), `DELETE /cards/{id}/labels/{labelId}` |
 | Comments | `GET /cards/{id}/comments`, `POST /cards/{id}/comments`, `PATCH /comments/{id}`, `DELETE /comments/{id}` |
-| Attachments | `GET /cards/{id}/attachments`, `POST /cards/{id}/attachments`, `GET /attachments/{id}`, `DELETE /attachments/{id}` |
+| Attachments | `GET /cards/{id}/attachments`, `POST /cards/{id}/attachments` (50MB max), `GET /attachments/{id}`, `DELETE /attachments/{id}` |
 
 ### SSE Events
 
@@ -158,13 +167,41 @@ All endpoints are under `/api/v1/`. Authentication is via the `X-User-Key` heade
 
 ## MCP for AI Agents
 
-Collaboard exposes an MCP (Model Context Protocol) endpoint at `/mcp` for AI agent integration.
+Collaboard is designed from the ground up for human-agent collaboration. The built-in MCP endpoint gives AI agents the same capabilities as human users — managing cards, commenting, labeling, and uploading files — all reflected in real-time to every connected client.
 
-To connect an MCP client, configure it with:
-- **URL:** `http://<host>:8080/mcp`
-- **Auth header:** `X-User-Key: <agent-user-auth-key>`
+**13 tools** across boards, cards, comments, attachments, and labels:
 
-Create an agent user via the admin panel or API:
+| Category | Tools |
+|----------|-------|
+| Boards | `get_boards`, `get_lanes` |
+| Cards | `create_card`, `move_card`, `update_card`, `get_cards`, `get_card` |
+| Comments | `add_comment` |
+| Attachments | `upload_attachment` (5MB base64), `delete_attachment` |
+| Labels | `get_labels`, `add_label_to_card`, `remove_label_from_card` |
+
+**Agent-friendly design:**
+- Reference cards by **number** (`#42`) or GUID — every card-scoped tool accepts either
+- Reference labels by **name** (`"Bug"`) or ID — no GUID lookup needed
+- `get_cards` returns **enriched data** — labels, comment counts, and attachment counts per card
+- `get_card` returns the full picture — card, comments with user names, labels, and attachment metadata in one call
+- `create_card` and `update_card` accept **labels inline** — no separate calls needed
+- `update_card` is a power tool — update fields, move lanes, and replace labels in a single operation
+
+### Connecting
+
+```json
+{
+  "mcpServers": {
+    "collaboard": {
+      "type": "streamable-http",
+      "url": "http://localhost:8080/mcp",
+      "headers": { "X-User-Key": "<agent-auth-key>" }
+    }
+  }
+}
+```
+
+### Creating an Agent User
 
 ```bash
 curl -X POST http://localhost:8080/api/v1/users \
@@ -173,7 +210,7 @@ curl -X POST http://localhost:8080/api/v1/users \
   -d '{"name": "My Agent", "role": "AgentUser"}'
 ```
 
-Agent users have restricted permissions — they cannot delete cards or attachments.
+Agent users can do everything human users can, except delete cards. They can delete their own comments and attachments.
 
 ## Admin Setup
 
@@ -200,8 +237,8 @@ The response includes the new user's `authKey`. Share it with them — they'll e
 | Role | Permissions |
 |------|-------------|
 | Administrator | Full access — manage boards, lanes, users, labels |
-| HumanUser | Create/edit/delete cards, comments, attachments |
-| AgentUser | Same as HumanUser, but cannot delete cards or attachments |
+| HumanUser | Create/edit/delete own cards, comments, attachments |
+| AgentUser | Same as HumanUser, but cannot delete cards. Can delete own comments and attachments |
 
 ## Development
 
