@@ -837,6 +837,94 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     }
 
     [Fact]
+    public async Task GetCards_IncludesLabelsAndCounts()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        // Create a label
+        var labelResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/labels",
+            new { name = $"EnrichLabel-{Guid.NewGuid()}", color = "green" });
+        labelResponse.EnsureSuccessStatusCode();
+        var label = await labelResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var labelId = label.GetProperty("id").GetGuid();
+
+        // Create a card
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "Enriched Card",
+            descriptionMarkdown = "",
+            size = "M",
+            laneId,
+            position = NextPosition()
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        // Assign label to card
+        await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/labels", new { labelId });
+
+        // Add a comment
+        await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "Test comment" });
+
+        // Add an attachment
+        var attachContent = new MultipartFormDataContent();
+        attachContent.Add(new ByteArrayContent([1, 2, 3]), "file", "test.txt");
+        await _client.PostAsync($"/api/v1/cards/{cardId}/attachments", attachContent);
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+        cards.ShouldNotBeNull();
+
+        var enrichedCard = cards.First(c => c.GetProperty("id").GetGuid() == cardId);
+        enrichedCard.GetProperty("labels").GetArrayLength().ShouldBe(1);
+        enrichedCard.GetProperty("labels")[0].GetProperty("id").GetGuid().ShouldBe(labelId);
+        enrichedCard.GetProperty("labels")[0].GetProperty("name").GetString()!.ShouldContain("EnrichLabel");
+        enrichedCard.GetProperty("labels")[0].GetProperty("color").GetString().ShouldBe("green");
+        enrichedCard.GetProperty("commentCount").GetInt32().ShouldBe(1);
+        enrichedCard.GetProperty("attachmentCount").GetInt32().ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task GetCards_CardWithNoLabelsOrCounts_ReturnsEmptyAndZero()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "Bare Card No Extras",
+            descriptionMarkdown = "",
+            size = "S",
+            laneId,
+            position = NextPosition()
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+        cards.ShouldNotBeNull();
+
+        var bareCard = cards.First(c => c.GetProperty("id").GetGuid() == cardId);
+        bareCard.GetProperty("labels").GetArrayLength().ShouldBe(0);
+        bareCard.GetProperty("commentCount").GetInt32().ShouldBe(0);
+        bareCard.GetProperty("attachmentCount").GetInt32().ShouldBe(0);
+    }
+
+    [Fact]
     public async Task PatchCard_WithLabelIds_ReplacesLabels()
     {
         // Arrange

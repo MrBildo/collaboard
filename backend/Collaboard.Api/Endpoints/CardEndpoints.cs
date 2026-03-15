@@ -56,7 +56,25 @@ internal static class CardEndpoints
                 query = query.Where(x => cardIdsWithLabel.Contains(x.Id));
             }
 
-            var cards = await query.OrderBy(x => x.LaneId).ThenBy(x => x.Position).ToListAsync();
+            var cards = await query.OrderBy(x => x.LaneId).ThenBy(x => x.Position)
+                .Select(c => new CardSummary(
+                    c.Id,
+                    c.Number,
+                    c.Name,
+                    c.DescriptionMarkdown,
+                    c.Size,
+                    c.LaneId,
+                    c.Position,
+                    c.CreatedByUserId,
+                    c.CreatedAtUtc,
+                    c.LastUpdatedByUserId,
+                    c.LastUpdatedAtUtc,
+                    db.CardLabels.Where(cl => cl.CardId == c.Id)
+                        .Join(db.Labels, cl => cl.LabelId, l => l.Id, (_, l) => new CardLabelSummary(l.Id, l.Name, l.Color))
+                        .ToList(),
+                    db.Comments.Count(cm => cm.CardId == c.Id),
+                    db.Attachments.Count(a => a.CardId == c.Id)))
+                .ToListAsync();
             return Results.Ok(cards);
         });
 
