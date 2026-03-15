@@ -22,8 +22,8 @@ import {
 } from '@/components/ui/select';
 import { CardComments } from '@/components/CardComments';
 import { CardAttachments } from '@/components/CardAttachments';
-import { addCardLabel, deleteCard, fetchCardLabels, fetchLabels, fetchUserDirectory, removeCardLabel, updateCard } from '@/lib/api';
-import type { CardItem } from '@/types';
+import { addCardLabel, deleteCard, fetchCardLabels, fetchLabels, fetchUserDirectory, reorderCard, removeCardLabel, updateCard } from '@/lib/api';
+import type { CardItem, Lane } from '@/types';
 
 type CardDetailSheetProps = {
   card: CardItem | null;
@@ -31,15 +31,17 @@ type CardDetailSheetProps = {
   onOpenChange: (open: boolean) => void;
   currentUserId?: string;
   currentUserRole?: number;
+  lanes?: Lane[];
+  boardId?: string;
 };
 
-export function CardDetailSheet({ card, open, onOpenChange, currentUserId, currentUserRole }: CardDetailSheetProps) {
+export function CardDetailSheet({ card, open, onOpenChange, currentUserId, currentUserRole, lanes, boardId }: CardDetailSheetProps) {
   if (!card) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[85vh] !w-[80vw] !max-w-[80vw] flex-col overflow-hidden p-0">
-        <CardDetailForm key={card.id} card={card} onOpenChange={onOpenChange} currentUserId={currentUserId} currentUserRole={currentUserRole} />
+        <CardDetailForm key={card.id} card={card} onOpenChange={onOpenChange} currentUserId={currentUserId} currentUserRole={currentUserRole} lanes={lanes} boardId={boardId} />
       </DialogContent>
     </Dialog>
   );
@@ -50,11 +52,15 @@ function CardDetailForm({
   onOpenChange,
   currentUserId,
   currentUserRole,
+  lanes,
+  boardId,
 }: {
   card: CardItem;
   onOpenChange: (open: boolean) => void;
   currentUserId?: string;
   currentUserRole?: number;
+  lanes?: Lane[];
+  boardId?: string;
 }) {
   const queryClient = useQueryClient();
 
@@ -116,6 +122,13 @@ function CardDetailForm({
     },
   });
 
+  const moveMutation = useMutation({
+    mutationFn: (laneId: string) => reorderCard(card.id, laneId, 0),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['boardData', boardId] });
+    },
+  });
+
   const handleSave = () => {
     const patch: Record<string, unknown> = {};
 
@@ -166,6 +179,18 @@ function CardDetailForm({
               <SelectItem value="XL">XL</SelectItem>
             </SelectContent>
           </Select>
+          {lanes && lanes.length > 0 && (
+            <Select value={card.laneId} onValueChange={(v) => v && v !== card.laneId && moveMutation.mutate(v)}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {lanes.map((lane) => (
+                  <SelectItem key={lane.id} value={lane.id}>{lane.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           {(allLabelsQuery.data ?? []).map((label) => {
             const isAssigned = labels.some((l) => l.id === label.id);
             return (
