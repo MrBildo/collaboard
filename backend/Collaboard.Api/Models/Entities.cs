@@ -86,3 +86,21 @@ public class CardAttachment
     public Guid AddedByUserId { get; set; }
     public DateTimeOffset AddedAtUtc { get; set; }
 }
+
+public record CardLabelSummary(Guid Id, string Name, string? Color);
+
+public record CardSummary(
+    Guid Id,
+    long Number,
+    string Name,
+    string DescriptionMarkdown,
+    string Size,
+    Guid LaneId,
+    int Position,
+    Guid CreatedByUserId,
+    DateTimeOffset CreatedAtUtc,
+    Guid LastUpdatedByUserId,
+    DateTimeOffset LastUpdatedAtUtc,
+    List<CardLabelSummary> Labels,
+    int CommentCount,
+    int AttachmentCount);

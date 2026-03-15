@@ -186,6 +186,24 @@ public class CommentEndpointTests(CollaboardApiFactory factory) : IClassFixture<
     }
 
     [Fact]
+    public async Task PostComment_NewlinesInContent_PreservedOnRoundTrip()
+    {
+        // Arrange
+        var cardId = await CreateCardAsync();
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var content = "Line one\nLine two\nLine three\ttab here";
+        var payload = new { contentMarkdown = content };
+
+        // Act
+        var response = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", payload);
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        json.GetProperty("contentMarkdown").GetString().ShouldBe(content);
+    }
+
+    [Fact]
     public async Task DeleteComment_OwnComment_Returns204()
     {
         // Arrange

@@ -11,11 +11,12 @@ namespace Collaboard.Api.Mcp;
 public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEventBroadcaster broadcaster)
 {
     [McpServerTool(Name = "add_comment", Destructive = false)]
-    [Description("Add a comment to a card.")]
+    [Description("Add a comment to a card. Provide either cardId or cardNumber to identify the card.")]
     public async Task<string> AddCommentAsync(
         [Description("Your auth key")] string authKey,
-        [Description("The ID (guid) of the card to comment on")] Guid cardId,
         [Description("The comment text (Markdown supported)")] string content,
+        [Description("The ID (guid) of the card to comment on (provide this or cardNumber)")] Guid? cardId = null,
+        [Description("The card number (provide this or cardId)")] long? cardNumber = null,
         CancellationToken ct = default)
     {
         var (user, error) = await auth.RequireUserAsync(authKey, ct);
@@ -24,7 +25,14 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
             return error;
         }
 
-        if (!await db.Cards.AnyAsync(c => c.Id == cardId, ct))
+        var (resolvedCardId, resolveError) = await McpCardResolver.ResolveCardIdAsync(db, cardId, cardNumber, ct);
+        if (resolveError is not null)
+        {
+            return resolveError;
+        }
+
+        var card = await db.Cards.FindAsync([resolvedCardId!.Value], ct);
+        if (card is null)
         {
             return "Error: Card not found.";
         }
@@ -32,40 +40,14 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
         var comment = new CardComment
         {
             Id = Guid.NewGuid(),
-            CardId = cardId,
+            CardId = card.Id,
             UserId = user!.Id,
-            ContentMarkdown = content.Replace("\\n", "\n"),
+            ContentMarkdown = content,
             LastUpdatedAtUtc = DateTimeOffset.UtcNow,
         };
         db.Comments.Add(comment);
         await db.SaveChangesAsync(ct);
-        await db.PublishForCardAsync(cardId, broadcaster);
+        await db.PublishForCardAsync(card.Id, broadcaster);
         return JsonSerializer.Serialize(comment, JsonSerializerOptions.Web);
-    }
-
-    [McpServerTool(Name = "get_comments", ReadOnly = true, Destructive = false)]
-    [Description("Get all comments on a card.")]
-    public async Task<string> GetCommentsAsync(
-        [Description("Your auth key")] string authKey,
-        [Description("The ID (guid) of the card")] Guid cardId,
-        CancellationToken ct = default)
-    {
-        var (_, error) = await auth.RequireUserAsync(authKey, ct);
-        if (error is not null)
-        {
-            return error;
-        }
-
-        if (!await db.Cards.AnyAsync(c => c.Id == cardId, ct))
-        {
-            return "Error: Card not found.";
-        }
-
-        var comments = await db.Comments
-            .Where(c => c.CardId == cardId)
-            .ToListAsync(ct);
-        comments.Sort((a, b) => a.LastUpdatedAtUtc.CompareTo(b.LastUpdatedAtUtc));
-
-        return JsonSerializer.Serialize(comments, JsonSerializerOptions.Web);
     }
 }

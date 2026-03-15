@@ -242,7 +242,7 @@ function CardDetailForm({
   const labels = labelsQuery.data ?? [];
 
   return (
-    <div ref={dialogRef}>
+    <div ref={dialogRef} className="flex min-h-0 flex-1 flex-col overflow-hidden">
       {/* Paste feedback */}
       {pasteStatus && (
         <div className="bg-primary/10 text-primary border-b px-6 py-2 text-sm">{pasteStatus}</div>

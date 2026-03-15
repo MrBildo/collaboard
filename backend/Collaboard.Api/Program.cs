@@ -4,6 +4,7 @@ using Collaboard.Api.Endpoints;
 using Collaboard.Api.Events;
 using Collaboard.Api.Mcp;
 using Collaboard.Api.Models;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 
 // --version flag
@@ -41,6 +42,11 @@ builder.Services.AddDbContext<BoardDbContext>(options =>
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<BoardEventBroadcaster>();
 builder.Services.AddScoped<McpAuthService>();
+
+builder.Services.Configure<FormOptions>(options =>
+    options.MultipartBodyLengthLimit = 50 * 1024 * 1024);
+builder.WebHost.ConfigureKestrel(options =>
+    options.Limits.MaxRequestBodySize = 50 * 1024 * 1024);
 
 builder.Services
     .AddMcpServer()

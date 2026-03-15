@@ -69,7 +69,7 @@ Header-based authentication — no ASP.NET auth middleware:
 - `IsActive` flag on `BoardUser` — deactivated users get 401
 - Admin seed: uses `Admin:AuthKey` from config if set, else generates ULID and logs it
 - **Use `Results.StatusCode(403)` not `Results.Forbid()`** (no auth middleware registered)
-- `AgentUser` cannot delete cards or attachments
+- `AgentUser` cannot delete cards; can delete own comments and attachments
 - All users see all boards — no board-level membership
 
 ## API Surface
@@ -93,7 +93,7 @@ All endpoints under `/api/v1/`:
 | GET | /boards/{boardId}/board | All | Composite: lanes + cards for a board |
 | GET | /boards/{boardId}/lanes | All | List lanes for a board |
 | POST | /boards/{boardId}/lanes | Admin | Create lane in a board |
-| GET | /boards/{boardId}/cards | All | List cards for a board. Optional query params: `since` (DateTimeOffset), `labelId` (Guid), `laneId` (Guid) |
+| GET | /boards/{boardId}/cards | All | List cards (enriched: labels, commentCount, attachmentCount). Optional query params: `since` (DateTimeOffset), `labelId` (Guid), `laneId` (Guid) |
 | POST | /boards/{boardId}/cards | All | Create card in a board |
 | GET | /boards/{boardId}/labels | All | List labels for a board |
 | POST | /boards/{boardId}/labels | Admin | Create label in a board |
@@ -105,7 +105,7 @@ All endpoints under `/api/v1/`:
 | Resource | Endpoints |
 |----------|-----------|
 | Lanes | `GET /lanes/{id}`, `PATCH /lanes/{id}`, `DELETE /lanes/{id}` |
-| Cards | `GET /cards/{id}`, `PATCH /cards/{id}`, `DELETE /cards/{id}`, `POST /cards/{id}/reorder` |
+| Cards | `GET /cards/{id}` (enriched: card, user names, comments, labels, attachments), `PATCH /cards/{id}`, `DELETE /cards/{id}`, `POST /cards/{id}/reorder` |
 
 ### Global resources (not board-scoped)
 
@@ -126,7 +126,16 @@ All endpoints under `/api/v1/`:
 
 | Path | Notes |
 |------|-------|
-| /mcp | Streamable HTTP transport — 21 tools across BoardTools, CardTools, CommentTools, AttachmentTools, LabelTools |
+| /mcp | Streamable HTTP transport — 13 tools across BoardTools, CardTools, CommentTools, AttachmentTools, LabelTools |
+
+**Tools (13):**
+- **BoardTools:** `get_boards`, `get_lanes` (boardId required, includes cardCount per lane)
+- **CardTools:** `create_card` (supports labelIds), `move_card` (index optional), `update_card` (supports laneId/index move, labelIds replace, no-op guard), `get_cards` (enriched: labels, commentCount, attachmentCount), `get_card` (enriched: attachments, user names; supports cardNumber lookup)
+- **CommentTools:** `add_comment`
+- **AttachmentTools:** `upload_attachment` (5MB limit, base64), `delete_attachment`
+- **LabelTools:** `get_labels`, `add_label_to_card` (supports labelName), `remove_label_from_card` (supports labelName)
+
+**Cross-cutting:** All card-scoped tools accept `cardNumber` (long) as alternative to `cardId` (Guid). Label assignment tools accept `labelName` as alternative to `labelId`. Shared resolution via `McpCardResolver`.
 
 ## .agents/ Directory Structure
 
@@ -215,6 +224,7 @@ Collaboard development is tracked on the **Collaboard** board in the production 
 |------|---------|
 | Backlog | Prioritized, ready to pick up |
 | Triage | New items land here, need sizing/discussion |
+| Ready | Sized, scoped, and approved — agents can pick these up |
 | In Progress | Actively being worked on |
 | Review | PR open, awaiting user review |
 | Done | Merged to main |
@@ -237,15 +247,17 @@ Labels are board-scoped (each board has its own label set) and align with conven
 
 1. New items → **Triage** with a type label (`bug`, `feature`, etc.)
 2. Size (S/M/L/XL), prioritize → **Backlog**
-3. Pick up → **In Progress**, create a feature branch
-4. PR merged → **Done**
-5. Periodically sweep Done → **Archived**
-6. Cards needing a spec get a comment linking to `.agents/specs/`
+3. User approves for work → **Ready** (agents should only pick up cards from Ready)
+4. Pick up → **In Progress**, create a feature branch
+5. PR open → **Review**, awaiting user review
+6. PR merged → **Done**
+7. Periodically sweep Done → **Archived**
+8. Cards needing a spec get a comment linking to `.agents/specs/`
 
 ### Agent Board Awareness
 
 Agents working on Collaboard should use the MCP tools to stay in sync with the board:
-- **Start of session:** Call `get_board` or `get_cards` with the Collaboard board ID to see current backlog, in-progress items, and recent activity
+- **Start of session:** Call `get_cards` with the Collaboard board ID to see current ready, in-progress items, and recent activity
 - **Check for changes:** Use `get_cards` with the `since` parameter to see cards with recent activity (new/edited comments, new attachments, card updates). This catches changes made by humans or other agents between sessions
 - **During work:** Move cards between lanes, add comments with PR links, and label cards as you work
 - **Board ID:** Use `get_boards` to discover board IDs — the Collaboard development board has slug `collaboard`
