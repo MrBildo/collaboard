@@ -42,7 +42,7 @@ public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, Boar
     }
 
     [McpServerTool(Name = "upload_attachment", Destructive = false)]
-    [Description("Upload a file attachment to a card using base64-encoded content. Best for small files and images. For large files (CSVs, PDFs), use the REST endpoint POST /api/v1/cards/{cardId}/attachments (multipart/form-data).")]
+    [Description("Upload a file attachment to a card using base64-encoded content. Limited to 5MB. For larger files (up to 50MB), use the REST endpoint POST /api/v1/cards/{cardId}/attachments (multipart/form-data).")]
     public async Task<string> UploadAttachmentAsync(
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the card to attach the file to")] Guid cardId,
@@ -70,6 +70,12 @@ public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, Boar
         catch (FormatException)
         {
             return "Error: Invalid base64 content.";
+        }
+
+        const int maxBytes = 5 * 1024 * 1024;
+        if (payload.Length > maxBytes)
+        {
+            return "Error: File exceeds 5MB limit for MCP uploads. Use the REST endpoint POST /api/v1/cards/{cardId}/attachments for larger files (up to 50MB).";
         }
 
         var attachment = new CardAttachment
