@@ -31,7 +31,8 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
             return resolveError;
         }
 
-        if (!await db.Cards.AnyAsync(c => c.Id == resolvedCardId!.Value, ct))
+        var card = await db.Cards.FindAsync([resolvedCardId!.Value], ct);
+        if (card is null)
         {
             return "Error: Card not found.";
         }
@@ -39,14 +40,14 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
         var comment = new CardComment
         {
             Id = Guid.NewGuid(),
-            CardId = resolvedCardId!.Value,
+            CardId = card.Id,
             UserId = user!.Id,
             ContentMarkdown = content,
             LastUpdatedAtUtc = DateTimeOffset.UtcNow,
         };
         db.Comments.Add(comment);
         await db.SaveChangesAsync(ct);
-        await db.PublishForCardAsync(resolvedCardId!.Value, broadcaster);
+        await db.PublishForCardAsync(card.Id, broadcaster);
         return JsonSerializer.Serialize(comment, JsonSerializerOptions.Web);
     }
 }

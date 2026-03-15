@@ -423,7 +423,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             return "Error: Card not found.";
         }
 
-        var comments = await db.Comments.Where(c => c.CardId == resolvedCardId).ToListAsync(ct);
+        var comments = await db.Comments.Where(c => c.CardId == card.Id).ToListAsync(ct);
         comments.Sort((a, b) => a.LastUpdatedAtUtc.CompareTo(b.LastUpdatedAtUtc));
 
         var userIds = comments.Select(c => c.UserId)
@@ -445,12 +445,12 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             c.LastUpdatedAtUtc,
         });
 
-        var labels = await db.CardLabels.Where(cl => cl.CardId == resolvedCardId)
+        var labels = await db.CardLabels.Where(cl => cl.CardId == card.Id)
             .Join(db.Labels, cl => cl.LabelId, l => l.Id, (_, l) => l)
             .ToListAsync(ct);
 
         var attachments = await db.Attachments
-            .Where(a => a.CardId == resolvedCardId)
+            .Where(a => a.CardId == card.Id)
             .Select(a => new { a.Id, a.FileName, a.ContentType, a.AddedByUserId, a.AddedAtUtc })
             .ToListAsync(ct);
 

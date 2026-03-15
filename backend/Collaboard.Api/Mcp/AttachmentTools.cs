@@ -64,7 +64,8 @@ public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, Boar
             return resolveError;
         }
 
-        if (!await db.Cards.AnyAsync(c => c.Id == resolvedCardId!.Value, ct))
+        var card = await db.Cards.FindAsync([resolvedCardId!.Value], ct);
+        if (card is null)
         {
             return "Error: Card not found.";
         }
@@ -88,7 +89,7 @@ public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, Boar
         var attachment = new CardAttachment
         {
             Id = Guid.NewGuid(),
-            CardId = resolvedCardId!.Value,
+            CardId = card.Id,
             FileName = fileName,
             ContentType = contentType ?? "application/octet-stream",
             Payload = payload,
@@ -97,7 +98,7 @@ public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, Boar
         };
         db.Attachments.Add(attachment);
         await db.SaveChangesAsync(ct);
-        await db.PublishForCardAsync(resolvedCardId.Value, broadcaster);
+        await db.PublishForCardAsync(card.Id, broadcaster);
         return JsonSerializer.Serialize(new { attachment.Id, attachment.FileName }, JsonSerializerOptions.Web);
     }
 }
