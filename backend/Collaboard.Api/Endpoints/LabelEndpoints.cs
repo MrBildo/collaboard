@@ -10,7 +10,8 @@ internal static class LabelEndpoints
 {
     public static RouteGroupBuilder MapLabelEndpoints(this RouteGroupBuilder group)
     {
-        group.MapGet("/labels", async (BoardDbContext db, HttpContext http) =>
+        // Board-scoped label CRUD
+        group.MapGet("/boards/{boardId:guid}/labels", async (BoardDbContext db, HttpContext http, Guid boardId) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
             if (forbidden is not null)
@@ -18,11 +19,16 @@ internal static class LabelEndpoints
                 return forbidden;
             }
 
-            var labels = await db.Labels.ToListAsync();
+            if (!await db.Boards.AnyAsync(x => x.Id == boardId))
+            {
+                return Results.NotFound();
+            }
+
+            var labels = await db.Labels.Where(x => x.BoardId == boardId).OrderBy(x => x.Name).ToListAsync();
             return Results.Ok(labels);
         });
 
-        group.MapPost("/labels", async (BoardDbContext db, HttpContext http, Label request, BoardEventBroadcaster broadcaster) =>
+        group.MapPost("/boards/{boardId:guid}/labels", async (BoardDbContext db, HttpContext http, Guid boardId, Label request, BoardEventBroadcaster broadcaster) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
             if (forbidden is not null)
@@ -30,24 +36,30 @@ internal static class LabelEndpoints
                 return forbidden;
             }
 
-            if (await db.Labels.AnyAsync(x => x.Name == request.Name))
+            if (!await db.Boards.AnyAsync(x => x.Id == boardId))
             {
-                return Results.Conflict("A label with that name already exists.");
+                return Results.NotFound();
+            }
+
+            if (await db.Labels.AnyAsync(x => x.BoardId == boardId && x.Name == request.Name))
+            {
+                return Results.Conflict("A label with that name already exists on this board.");
             }
 
             var label = new Label
             {
                 Id = Guid.NewGuid(),
+                BoardId = boardId,
                 Name = request.Name,
                 Color = request.Color,
             };
             db.Labels.Add(label);
             await db.SaveChangesAsync();
-            broadcaster.PublishGlobal("board-updated");
-            return Results.Created($"/api/v1/labels/{label.Id}", label);
+            broadcaster.PublishBoardUpdated(boardId);
+            return Results.Created($"/api/v1/boards/{boardId}/labels/{label.Id}", label);
         });
 
-        group.MapPatch("/labels/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, JsonElement patch, BoardEventBroadcaster broadcaster) =>
+        group.MapPatch("/boards/{boardId:guid}/labels/{id:guid}", async (BoardDbContext db, HttpContext http, Guid boardId, Guid id, JsonElement patch, BoardEventBroadcaster broadcaster) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
             if (forbidden is not null)
@@ -56,7 +68,7 @@ internal static class LabelEndpoints
             }
 
             var label = await db.Labels.FindAsync(id);
-            if (label is null)
+            if (label is null || label.BoardId != boardId)
             {
                 return Results.NotFound();
             }
@@ -72,11 +84,11 @@ internal static class LabelEndpoints
             }
 
             await db.SaveChangesAsync();
-            broadcaster.PublishGlobal("board-updated");
+            broadcaster.PublishBoardUpdated(boardId);
             return Results.Ok(label);
         });
 
-        group.MapDelete("/labels/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, BoardEventBroadcaster broadcaster) =>
+        group.MapDelete("/boards/{boardId:guid}/labels/{id:guid}", async (BoardDbContext db, HttpContext http, Guid boardId, Guid id, BoardEventBroadcaster broadcaster) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
             if (forbidden is not null)
@@ -85,7 +97,7 @@ internal static class LabelEndpoints
             }
 
             var label = await db.Labels.FindAsync(id);
-            if (label is null)
+            if (label is null || label.BoardId != boardId)
             {
                 return Results.NotFound();
             }
@@ -94,10 +106,11 @@ internal static class LabelEndpoints
             db.CardLabels.RemoveRange(cardLabels);
             db.Labels.Remove(label);
             await db.SaveChangesAsync();
-            broadcaster.PublishGlobal("board-updated");
+            broadcaster.PublishBoardUpdated(boardId);
             return Results.NoContent();
         });
 
+        // Card-label operations (card-scoped routes, unchanged)
         group.MapGet("/cards/{id:guid}/labels", async (BoardDbContext db, HttpContext http, Guid id) =>
         {
             var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
@@ -127,15 +140,24 @@ internal static class LabelEndpoints
                 return forbidden;
             }
 
-            if (!await db.Cards.AnyAsync(x => x.Id == id))
+            var card = await db.Cards.FindAsync(id);
+            if (card is null)
             {
                 return Results.NotFound();
             }
 
             var labelId = body.GetProperty("labelId").GetGuid();
-            if (!await db.Labels.AnyAsync(x => x.Id == labelId))
+            var label = await db.Labels.FindAsync(labelId);
+            if (label is null)
             {
                 return Results.NotFound();
+            }
+
+            // Validate that the label belongs to the same board as the card
+            var cardBoardId = await db.Lanes.Where(l => l.Id == card.LaneId).Select(l => l.BoardId).FirstOrDefaultAsync();
+            if (label.BoardId != cardBoardId)
+            {
+                return Results.BadRequest("Label does not belong to the same board as the card.");
             }
 
             if (await db.CardLabels.AnyAsync(x => x.CardId == id && x.LabelId == labelId))
@@ -146,7 +168,7 @@ internal static class LabelEndpoints
             var cardLabel = new CardLabel { CardId = id, LabelId = labelId };
             db.CardLabels.Add(cardLabel);
             await db.SaveChangesAsync();
-            broadcaster.PublishGlobal("board-updated");
+            broadcaster.PublishBoardUpdated(cardBoardId);
             return Results.Created($"/api/v1/cards/{id}/labels/{labelId}", cardLabel);
         });
 
@@ -166,7 +188,16 @@ internal static class LabelEndpoints
 
             db.CardLabels.Remove(cardLabel);
             await db.SaveChangesAsync();
-            broadcaster.PublishGlobal("board-updated");
+
+            var boardId = await db.Cards
+                .Where(c => c.Id == id)
+                .Join(db.Lanes, c => c.LaneId, l => l.Id, (_, l) => l.BoardId)
+                .FirstOrDefaultAsync();
+            if (boardId != Guid.Empty)
+            {
+                broadcaster.PublishBoardUpdated(boardId);
+            }
+
             return Results.NoContent();
         });
 

@@ -277,7 +277,7 @@ export function App() {
           {isAdmin && (
             <>
               <Button variant="outline" onClick={() => setAdminOpen(true)}>
-                Lanes
+                Board Settings
               </Button>
               <Button variant="outline" onClick={() => setGlobalAdminOpen(true)}>
                 Admin

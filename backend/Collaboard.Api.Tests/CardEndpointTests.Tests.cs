@@ -787,13 +787,13 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         TestAuthHelper.SetAdminAuth(_client, _factory);
         var laneId = await GetFirstLaneIdAsync();
 
-        // Create two labels
-        var label1Response = await _client.PostAsJsonAsync("/api/v1/labels", new { name = $"CardLabel1-{Guid.NewGuid()}", color = "red" });
+        // Create two labels (board-scoped)
+        var label1Response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/labels", new { name = $"CardLabel1-{Guid.NewGuid()}", color = "red" });
         label1Response.EnsureSuccessStatusCode();
         var label1 = await label1Response.Content.ReadFromJsonAsync<JsonElement>();
         var label1Id = label1.GetProperty("id").GetGuid();
 
-        var label2Response = await _client.PostAsJsonAsync("/api/v1/labels", new { name = $"CardLabel2-{Guid.NewGuid()}", color = "blue" });
+        var label2Response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/labels", new { name = $"CardLabel2-{Guid.NewGuid()}", color = "blue" });
         label2Response.EnsureSuccessStatusCode();
         var label2 = await label2Response.Content.ReadFromJsonAsync<JsonElement>();
         var label2Id = label2.GetProperty("id").GetGuid();

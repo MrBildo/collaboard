@@ -23,7 +23,7 @@ public class BoardDbContext(DbContextOptions<BoardDbContext> options) : DbContex
         builder.Entity<CardItem>().HasIndex(x => new { x.LaneId, x.Position });
         builder.Entity<CardComment>().HasIndex(x => new { x.CardId, x.LastUpdatedAtUtc });
         builder.Entity<CardAttachment>().HasIndex(x => x.CardId);
-        builder.Entity<Label>().HasIndex(x => x.Name).IsUnique();
+        builder.Entity<Label>().HasIndex(x => new { x.BoardId, x.Name }).IsUnique();
         builder.Entity<CardLabel>().HasKey(x => new { x.CardId, x.LabelId });
     }
 }

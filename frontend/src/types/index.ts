@@ -28,6 +28,7 @@ export type CardItem = {
 
 export type Label = {
   id: string;
+  boardId: string;
   name: string;
   color?: string | null;
 };
