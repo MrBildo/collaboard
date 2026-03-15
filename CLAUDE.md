@@ -130,10 +130,12 @@ All endpoints under `/api/v1/`:
 
 **Tools (13):**
 - **BoardTools:** `get_boards`, `get_lanes` (boardId required, includes cardCount per lane)
-- **CardTools:** `create_card` (supports labelIds), `move_card` (index optional), `update_card` (supports laneId/index move, labelIds replace, no-op guard), `get_cards` (enriched: labels, commentCount, attachmentCount), `get_card` (enriched: attachments, user names; supports cardNumber lookup)
+- **CardTools:** `create_card` (supports labelIds, size S/M/L/XL defaults M), `move_card` (index optional), `update_card` (supports name, description, size, laneId/index move, labelIds replace, no-op guard), `get_cards` (enriched: labels, commentCount, attachmentCount), `get_card` (enriched: attachments, user names; supports cardNumber lookup)
 - **CommentTools:** `add_comment`
-- **AttachmentTools:** `upload_attachment` (5MB limit, base64), `delete_attachment`
+- **AttachmentTools:** `upload_attachment` (5MB limit, base64; for >5MB use REST `POST /api/v1/cards/{cardId}/attachments` multipart up to 50MB), `delete_attachment`
 - **LabelTools:** `get_labels`, `add_label_to_card` (supports labelName), `remove_label_from_card` (supports labelName)
+
+**Attachment content download:** `GET /api/v1/attachments/{id}` with `X-User-Key` header (not available via MCP).
 
 **Cross-cutting:** All card-scoped tools accept `cardNumber` (long) as alternative to `cardId` (Guid). Label assignment tools accept `labelName` as alternative to `labelId`. Shared resolution via `McpCardResolver`.
 
