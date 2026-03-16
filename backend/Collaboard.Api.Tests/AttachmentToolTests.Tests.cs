@@ -4,6 +4,7 @@ using Collaboard.Api.Models;
 using Collaboard.Api.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Shouldly;
 
 namespace Collaboard.Api.Tests;
@@ -39,7 +40,8 @@ public class AttachmentToolTests(CollaboardApiFactory factory) : IClassFixture<C
         db.Cards.Add(card);
         await db.SaveChangesAsync();
 
-        var tools = new AttachmentTools(db, auth, broadcaster);
+        var settings = Options.Create(new AttachmentSettings());
+        var tools = new AttachmentTools(db, auth, broadcaster, settings);
         return (tools, card.Id, admin.AuthKey);
     }
 

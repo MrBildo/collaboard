@@ -17,7 +17,7 @@ internal static class BoardEndpoints
         {
             var board = Guid.TryParse(idOrSlug, out var id)
                 ? await db.Boards.FindAsync(id)
-                : await db.Boards.FirstOrDefaultAsync(x => x.Slug == idOrSlug);
+                : await db.Boards.SingleOrDefaultAsync(x => x.Slug == idOrSlug);
 
             return board is null ? Results.NotFound() : Results.Ok(board);
         }).RequireAuth();
