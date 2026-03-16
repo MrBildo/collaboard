@@ -13,6 +13,7 @@ export function useBoardEvents(boardId: string | undefined) {
     const es = new EventSource(`/api/v1/boards/${boardId}/events`);
 
     es.addEventListener('board-updated', () => {
+      queryClient.cancelQueries({ queryKey: queryKeys.boards.data(boardId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.boards.cards(boardId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.labels.all(boardId) });
