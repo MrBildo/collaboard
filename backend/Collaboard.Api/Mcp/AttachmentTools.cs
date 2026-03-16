@@ -48,8 +48,10 @@ public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, Boar
         [Description("The file name (e.g., 'report.pdf')")] string fileName,
         [Description("The base64-encoded file content")] string base64Content,
         [Description("The ID (guid) of the card to attach the file to (provide this or cardNumber)")] Guid? cardId = null,
-        [Description("The card number (provide this or cardId)")] long? cardNumber = null,
+        [Description("The card number (provide this or cardId). Requires boardId or boardSlug.")] long? cardNumber = null,
         [Description("The MIME content type (e.g., 'application/pdf', 'image/png'). Defaults to 'application/octet-stream'")] string? contentType = null,
+        [Description("Board ID (required when using cardNumber)")] Guid? boardId = null,
+        [Description("Board slug (alternative to boardId when using cardNumber)")] string? boardSlug = null,
         CancellationToken ct = default)
     {
         var (user, error) = await auth.RequireUserAsync(authKey, ct);
@@ -58,7 +60,7 @@ public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, Boar
             return error;
         }
 
-        var (resolvedCardId, resolveError) = await McpCardResolver.ResolveCardIdAsync(db, cardId, cardNumber, ct);
+        var (resolvedCardId, resolveError) = await McpCardResolver.ResolveCardIdAsync(db, cardId, cardNumber, boardId, boardSlug, ct);
         if (resolveError is not null)
         {
             return resolveError;

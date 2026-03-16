@@ -37,9 +37,11 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
     public async Task<string> AddLabelToCardAsync(
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the card (provide this or cardNumber)")] Guid? cardId = null,
-        [Description("The card number (provide this or cardId)")] long? cardNumber = null,
+        [Description("The card number (provide this or cardId). Requires boardId or boardSlug.")] long? cardNumber = null,
         [Description("The ID (guid) of the label to add. Provide this or labelName, not both.")] Guid? labelId = null,
         [Description("The name of the label to add (matched case-insensitively within the card's board). Provide this or labelId, not both.")] string? labelName = null,
+        [Description("Board ID (required when using cardNumber)")] Guid? boardId = null,
+        [Description("Board slug (alternative to boardId when using cardNumber)")] string? boardSlug = null,
         CancellationToken ct = default)
     {
         var (_, error) = await auth.RequireUserAsync(authKey, ct);
@@ -48,7 +50,7 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
             return error;
         }
 
-        var (resolvedCardId, cardResolveError) = await McpCardResolver.ResolveCardIdAsync(db, cardId, cardNumber, ct);
+        var (resolvedCardId, cardResolveError) = await McpCardResolver.ResolveCardIdAsync(db, cardId, cardNumber, boardId, boardSlug, ct);
         if (cardResolveError is not null)
         {
             return cardResolveError;
@@ -95,9 +97,11 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
     public async Task<string> RemoveLabelFromCardAsync(
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the card (provide this or cardNumber)")] Guid? cardId = null,
-        [Description("The card number (provide this or cardId)")] long? cardNumber = null,
+        [Description("The card number (provide this or cardId). Requires boardId or boardSlug.")] long? cardNumber = null,
         [Description("The ID (guid) of the label to remove. Provide this or labelName, not both.")] Guid? labelId = null,
         [Description("The name of the label to remove (matched case-insensitively within the card's board). Provide this or labelId, not both.")] string? labelName = null,
+        [Description("Board ID (required when using cardNumber)")] Guid? boardId = null,
+        [Description("Board slug (alternative to boardId when using cardNumber)")] string? boardSlug = null,
         CancellationToken ct = default)
     {
         var (_, error) = await auth.RequireUserAsync(authKey, ct);
@@ -106,7 +110,7 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
             return error;
         }
 
-        var (resolvedCardId, cardResolveError) = await McpCardResolver.ResolveCardIdAsync(db, cardId, cardNumber, ct);
+        var (resolvedCardId, cardResolveError) = await McpCardResolver.ResolveCardIdAsync(db, cardId, cardNumber, boardId, boardSlug, ct);
         if (cardResolveError is not null)
         {
             return cardResolveError;

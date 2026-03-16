@@ -97,14 +97,13 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             }
         }
 
-        var nextNumber = (await db.Cards.MaxAsync(c => (long?)c.Number, ct) ?? 0) + 1;
         var minPosition = await db.Cards.Where(c => c.LaneId == laneId).MinAsync(c => (int?)c.Position, ct) ?? 10;
 
         var now = DateTimeOffset.UtcNow;
         var card = new CardItem
         {
             Id = Guid.NewGuid(),
-            Number = nextNumber,
+            BoardId = lane.BoardId,
             Name = name,
             DescriptionMarkdown = descriptionMarkdown ?? string.Empty,
             SizeId = resolvedSizeId,
@@ -115,14 +114,18 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             CreatedByUserId = user!.Id,
             LastUpdatedByUserId = user.Id,
         };
-        db.Cards.Add(card);
+        await CardNumberHelper.InsertCardWithAutoNumberAsync(db, card, lane.BoardId, ct);
 
-        foreach (var labelId in parsedLabelIds)
+        if (parsedLabelIds.Count > 0)
         {
-            db.CardLabels.Add(new CardLabel { CardId = card.Id, LabelId = labelId });
+            foreach (var labelId in parsedLabelIds)
+            {
+                db.CardLabels.Add(new CardLabel { CardId = card.Id, LabelId = labelId });
+            }
+
+            await db.SaveChangesAsync(ct);
         }
 
-        await db.SaveChangesAsync(ct);
         await db.PublishForCardAsync(card.Id, broadcaster);
         return JsonSerializer.Serialize(card, JsonSerializerOptions.Web);
     }
@@ -133,8 +136,10 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the target lane")] Guid laneId,
         [Description("The ID (guid) of the card to move (provide this or cardNumber)")] Guid? cardId = null,
-        [Description("The card number (provide this or cardId)")] long? cardNumber = null,
+        [Description("The card number (provide this or cardId). Requires boardId or boardSlug.")] long? cardNumber = null,
         [Description("Optional 0-based index position in the target lane. Defaults to end of lane.")] int? index = null,
+        [Description("Board ID (required when using cardNumber)")] Guid? boardId = null,
+        [Description("Board slug (alternative to boardId when using cardNumber)")] string? boardSlug = null,
         CancellationToken ct = default)
     {
         var (user, error) = await auth.RequireUserAsync(authKey, ct);
@@ -143,7 +148,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             return error;
         }
 
-        var (resolvedCardId, resolveError) = await McpCardResolver.ResolveCardIdAsync(db, cardId, cardNumber, ct);
+        var (resolvedCardId, resolveError) = await McpCardResolver.ResolveCardIdAsync(db, cardId, cardNumber, boardId, boardSlug, ct);
         if (resolveError is not null)
         {
             return resolveError;
@@ -202,7 +207,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
     public async Task<string> UpdateCardAsync(
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the card to update (provide this or cardNumber)")] Guid? cardId = null,
-        [Description("The card number (provide this or cardId)")] long? cardNumber = null,
+        [Description("The card number (provide this or cardId). Requires boardId or boardSlug.")] long? cardNumber = null,
         [Description("New name/title (optional)")] string? name = null,
         [Description("New markdown description (optional)")] string? descriptionMarkdown = null,
         [Description("New size ID (guid, optional)")] Guid? sizeId = null,
@@ -210,6 +215,8 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         [Description("Target lane ID to move the card to (optional)")] Guid? laneId = null,
         [Description("0-based index position in the target lane (optional, requires laneId — defaults to end of lane)")] int? index = null,
         [Description("Comma-separated label GUIDs to replace current labels (optional, empty string clears all)")] string? labelIds = null,
+        [Description("Board ID (required when using cardNumber)")] Guid? boardId = null,
+        [Description("Board slug (alternative to boardId when using cardNumber)")] string? boardSlug = null,
         CancellationToken ct = default)
     {
         var (user, error) = await auth.RequireUserAsync(authKey, ct);
@@ -218,7 +225,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             return error;
         }
 
-        var (resolvedCardId, resolveError) = await McpCardResolver.ResolveCardIdAsync(db, cardId, cardNumber, ct);
+        var (resolvedCardId, resolveError) = await McpCardResolver.ResolveCardIdAsync(db, cardId, cardNumber, boardId, boardSlug, ct);
         if (resolveError is not null)
         {
             return resolveError;
@@ -381,13 +388,12 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             return error;
         }
 
-        var boardLaneIds = await db.Lanes.Where(l => l.BoardId == boardId).Select(l => l.Id).ToListAsync(ct);
-        if (boardLaneIds.Count == 0)
+        if (!await db.Boards.AnyAsync(b => b.Id == boardId, ct))
         {
-            return "Error: Board not found or has no lanes.";
+            return "Error: Board not found.";
         }
 
-        var query = db.Cards.Where(c => boardLaneIds.Contains(c.LaneId));
+        var query = db.Cards.Where(c => c.BoardId == boardId);
 
         if (laneId.HasValue)
         {
@@ -444,7 +450,9 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
     public async Task<string> GetCardAsync(
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the card (provide this or cardNumber)")] Guid? cardId = null,
-        [Description("The card number (provide this or cardId)")] long? cardNumber = null,
+        [Description("The card number (provide this or cardId). Requires boardId or boardSlug.")] long? cardNumber = null,
+        [Description("Board ID (required when using cardNumber)")] Guid? boardId = null,
+        [Description("Board slug (alternative to boardId when using cardNumber)")] string? boardSlug = null,
         CancellationToken ct = default)
     {
         var (_, error) = await auth.RequireUserAsync(authKey, ct);
@@ -453,7 +461,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             return error;
         }
 
-        var (resolvedCardId, resolveError) = await McpCardResolver.ResolveCardIdAsync(db, cardId, cardNumber, ct);
+        var (resolvedCardId, resolveError) = await McpCardResolver.ResolveCardIdAsync(db, cardId, cardNumber, boardId, boardSlug, ct);
         if (resolveError is not null)
         {
             return resolveError;

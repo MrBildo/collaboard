@@ -45,6 +45,7 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
   if (open !== prevOpen) {
     setPrevOpen(open);
     if (open) {
+      setSizeId(defaultSizeId);
       setLaneId(defaultLaneId ?? lanes[0]?.id ?? '');
       setSelectedLabelIds([]);
     }
@@ -97,7 +98,7 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || !sizeId) return;
     createMutation.mutate();
   };
 
@@ -195,7 +196,7 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={createMutation.isPending || !name.trim()}>
+            <Button type="submit" disabled={createMutation.isPending || !name.trim() || !sizeId}>
               {createMutation.isPending ? 'Creating...' : 'Create'}
             </Button>
           </DialogFooter>
