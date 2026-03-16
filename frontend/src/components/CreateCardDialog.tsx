@@ -44,19 +44,6 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
   const [laneId, setLaneId] = useState(defaultLaneId ?? lanes[0]?.id ?? '');
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
 
-  const resetForm = () => {
-    setName('');
-    setDescription('');
-    setSizeId(defaultSizeId);
-    setLaneId(defaultLaneId ?? lanes[0]?.id ?? '');
-    setSelectedLabelIds([]);
-  };
-
-  const handleOpenChange = (nextOpen: boolean) => {
-    if (nextOpen) resetForm();
-    onOpenChange(nextOpen);
-  };
-
   const allLabelsQuery = useQuery({
     queryKey: queryKeys.labels.all(boardId),
     queryFn: () => fetchLabels(boardId),
@@ -89,7 +76,6 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
-      resetForm();
       onOpenChange(false);
     },
   });
@@ -101,7 +87,7 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
