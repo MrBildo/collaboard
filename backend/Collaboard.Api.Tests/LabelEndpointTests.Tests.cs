@@ -9,20 +9,11 @@ namespace Collaboard.Api.Tests;
 
 public class LabelEndpointTests(CollaboardApiFactory factory) : IClassFixture<CollaboardApiFactory>
 {
-    private static int _nextPosition = 5000;
-
     private readonly CollaboardApiFactory _factory = factory;
     private readonly HttpClient _client = factory.CreateClient();
 
-    private static int NextPosition() => Interlocked.Increment(ref _nextPosition);
-
     private async Task<Guid> GetFirstLaneIdAsync()
-    {
-        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/board");
-        response.EnsureSuccessStatusCode();
-        var board = await response.Content.ReadFromJsonAsync<JsonElement>();
-        return board.GetProperty("lanes")[0].GetProperty("id").GetGuid();
-    }
+        => await TestDataHelper.GetFirstLaneIdAsync(_client, _factory.DefaultBoardId);
 
     private async Task<Guid> CreateCardAsync(Guid laneId)
     {
@@ -32,7 +23,7 @@ public class LabelEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
             descriptionMarkdown = "",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         response.EnsureSuccessStatusCode();
         var card = await response.Content.ReadFromJsonAsync<JsonElement>();

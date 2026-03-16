@@ -10,36 +10,17 @@ namespace Collaboard.Api.Tests;
 
 public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<CollaboardApiFactory>
 {
-    private static int _nextPosition = 1000;
-
     private readonly CollaboardApiFactory _factory = factory;
     private readonly HttpClient _client = factory.CreateClient();
 
-    private static int NextPosition() => Interlocked.Increment(ref _nextPosition);
-
     private async Task<Guid> GetFirstLaneIdAsync()
-    {
-        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/board");
-        response.EnsureSuccessStatusCode();
-        var board = await response.Content.ReadFromJsonAsync<JsonElement>();
-        return board.GetProperty("lanes")[0].GetProperty("id").GetGuid();
-    }
+        => await TestDataHelper.GetFirstLaneIdAsync(_client, _factory.DefaultBoardId);
 
     private async Task<Guid> GetLaneIdByIndexAsync(int index)
-    {
-        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/board");
-        response.EnsureSuccessStatusCode();
-        var board = await response.Content.ReadFromJsonAsync<JsonElement>();
-        return board.GetProperty("lanes")[index].GetProperty("id").GetGuid();
-    }
+        => await TestDataHelper.GetLaneIdByIndexAsync(_client, _factory.DefaultBoardId, index);
 
     private async Task<Guid> GetSizeIdByNameAsync(string sizeName)
-    {
-        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/sizes");
-        response.EnsureSuccessStatusCode();
-        var sizes = await response.Content.ReadFromJsonAsync<JsonElement[]>();
-        return sizes!.First(s => s.GetProperty("name").GetString() == sizeName).GetProperty("id").GetGuid();
-    }
+        => await TestDataHelper.GetSizeIdByNameAsync(_client, _factory.DefaultBoardId, sizeName);
 
     [Fact]
     public async Task GetCards_ReturnsAllCards()
@@ -55,7 +36,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
 
@@ -83,7 +64,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "Find me",
             size = "S",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -154,7 +135,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "Some description",
             size = "L",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         };
 
         // Act
@@ -187,7 +168,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
                 descriptionMarkdown = "",
                 size = "S",
                 laneId,
-                position = NextPosition()
+                position = Random.Shared.Next(10000, 99999)
             });
             response.EnsureSuccessStatusCode();
             var card = await response.Content.ReadFromJsonAsync<JsonElement>();
@@ -213,7 +194,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "Created by agent",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         };
 
         // Act
@@ -236,7 +217,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "desc",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -263,7 +244,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         TestAuthHelper.SetAdminAuth(_client, _factory);
         var sourceLaneId = await GetLaneIdByIndexAsync(0);
         var targetLaneId = await GetLaneIdByIndexAsync(1);
-        var pos = NextPosition();
+        var pos = Random.Shared.Next(10000, 99999);
 
         var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
         {
@@ -307,7 +288,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         // Arrange
         TestAuthHelper.SetAdminAuth(_client, _factory);
         var laneId = await GetFirstLaneIdAsync();
-        var pos = NextPosition();
+        var pos = Random.Shared.Next(10000, 99999);
 
         var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
         {
@@ -349,7 +330,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -376,7 +357,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -402,7 +383,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -445,7 +426,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             sizeId = Guid.NewGuid(),
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         };
 
         // Act
@@ -473,7 +454,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             sizeId,
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         };
 
         // Act
@@ -498,7 +479,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -525,7 +506,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             name = "Card For Invalid Size Patch",
             descriptionMarkdown = "",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -601,7 +582,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "M",
             laneId = sourceLaneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -644,7 +625,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         var laneResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/lanes", new
         {
             name = $"Empty Lane {Guid.NewGuid()}",
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         laneResponse.EnsureSuccessStatusCode();
         var lane = await laneResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -656,7 +637,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "M",
             laneId = sourceLaneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -721,7 +702,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -751,7 +732,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -787,7 +768,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createCardResponse.EnsureSuccessStatusCode();
         var card = await createCardResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -829,7 +810,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = description,
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         };
 
         // Act
@@ -854,7 +835,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "initial",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -892,7 +873,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -939,7 +920,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "S",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -984,7 +965,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -1020,7 +1001,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -1064,7 +1045,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -1101,7 +1082,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "Find by number",
             size = "S",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -1169,7 +1150,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -1226,7 +1207,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             name = $"SizeName-Test-{Guid.NewGuid()}",
             descriptionMarkdown = "",
             laneId,
-            position = NextPosition(),
+            position = Random.Shared.Next(10000, 99999),
             sizeId
         });
         createResponse.EnsureSuccessStatusCode();
@@ -1270,7 +1251,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             name = $"LabelSummary-Test-{Guid.NewGuid()}",
             descriptionMarkdown = "",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -1314,7 +1295,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             name = $"CommentCount-Test-{Guid.NewGuid()}",
             descriptionMarkdown = "",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -1345,7 +1326,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             name = $"AttachCount-Test-{Guid.NewGuid()}",
             descriptionMarkdown = "",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -1377,7 +1358,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             name = $"CommentOrder-Test-{Guid.NewGuid()}",
             descriptionMarkdown = "",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -1432,7 +1413,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             name = $"CommentEndpointOrder-{Guid.NewGuid()}",
             descriptionMarkdown = "",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -1480,7 +1461,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             name = $"MultiA-{Guid.NewGuid()}",
             descriptionMarkdown = "",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         cardAResponse.EnsureSuccessStatusCode();
         var cardAId = (await cardAResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
@@ -1494,7 +1475,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             name = $"MultiB-{Guid.NewGuid()}",
             descriptionMarkdown = "",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         cardBResponse.EnsureSuccessStatusCode();
         var cardBId = (await cardBResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
@@ -1547,7 +1528,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         var response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
         {
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
 
         // Assert
@@ -1566,7 +1547,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         {
             name = "   ",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
 
         // Assert
@@ -1584,7 +1565,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         {
             name = "Reorder No LaneId",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -1611,7 +1592,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         {
             name = "Reorder No Index",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -1638,7 +1619,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         {
             name = "Patch Bad Lane",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -1665,7 +1646,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         {
             name = "Patch Empty Name",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
