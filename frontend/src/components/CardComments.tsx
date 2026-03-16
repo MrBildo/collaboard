@@ -107,48 +107,27 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
 
   const expanded = newCommentFocused || newComment.length > 0;
 
-  const textareaCallbackRef = useCallback((node: HTMLTextAreaElement | null) => {
-    (newCommentRef as React.MutableRefObject<HTMLTextAreaElement | null>).current = node;
-    node?.focus();
-  }, []);
-
   return (
     <div className="flex flex-1 flex-col gap-3 overflow-hidden">
       {/* New comment input — sticky at top */}
       <div className="flex shrink-0 flex-col gap-2">
-        {expanded ? (
-          <>
-            <Textarea
-              ref={textareaCallbackRef}
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Add a comment..."
-              rows={3}
-              className="bg-muted"
-            />
-            <div className="flex justify-end gap-2">
-              <Button size="sm" variant="outline" onClick={handleCancelNew}>
-                Cancel
-              </Button>
-              <Button size="sm" onClick={handleAdd} disabled={createMutation.isPending || !newComment.trim()}>
-                {createMutation.isPending ? 'Saving...' : 'Save'}
-              </Button>
-            </div>
-          </>
-        ) : (
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={() => setNewCommentFocused(true)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                setNewCommentFocused(true);
-              }
-            }}
-            className="cursor-text rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground"
-          >
-            Add a comment...
+        <Textarea
+          ref={newCommentRef}
+          value={newComment}
+          onChange={(e) => setNewComment(e.target.value)}
+          onFocus={() => setNewCommentFocused(true)}
+          placeholder="Add a comment..."
+          rows={expanded ? 3 : 1}
+          className="bg-muted transition-all"
+        />
+        {expanded && (
+          <div className="flex justify-end gap-2">
+            <Button size="sm" variant="outline" onClick={handleCancelNew}>
+              Cancel
+            </Button>
+            <Button size="sm" onClick={handleAdd} disabled={createMutation.isPending || !newComment.trim()}>
+              {createMutation.isPending ? 'Saving...' : 'Save'}
+            </Button>
           </div>
         )}
       </div>
