@@ -241,4 +241,34 @@ public class LaneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
+
+    [Fact]
+    public async Task PostLane_WithEmptyName_Returns400()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        // Act
+        var response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/lanes", new { name = "  ", position = 500 });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task PatchLane_WithEmptyName_Returns400()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/lanes", new { name = "PatchEmptyTest", position = 501 });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var laneId = created.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.PatchAsJsonAsync($"/api/v1/lanes/{laneId}", new { name = "" });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
 }

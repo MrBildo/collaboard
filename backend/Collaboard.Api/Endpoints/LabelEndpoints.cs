@@ -29,6 +29,11 @@ internal static class LabelEndpoints
                 return Results.NotFound();
             }
 
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                return Results.BadRequest("Name is required.");
+            }
+
             if (await db.Labels.AnyAsync(x => x.BoardId == boardId && x.Name == request.Name))
             {
                 return Results.Conflict("A label with that name already exists on this board.");
@@ -57,7 +62,13 @@ internal static class LabelEndpoints
 
             if (patch.TryGetProperty("name", out var name))
             {
-                label.Name = name.GetString()!;
+                var nameStr = name.ValueKind == JsonValueKind.Null ? null : name.GetString();
+                if (string.IsNullOrWhiteSpace(nameStr))
+                {
+                    return Results.BadRequest("Name cannot be empty.");
+                }
+
+                label.Name = nameStr;
             }
 
             if (patch.TryGetProperty("color", out var color))

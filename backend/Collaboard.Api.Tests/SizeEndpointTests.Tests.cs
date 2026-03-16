@@ -238,4 +238,34 @@ public class SizeEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
+
+    [Fact]
+    public async Task PostSize_WithEmptyName_Returns400()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        // Act
+        var response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/sizes", new { name = "  ", ordinal = 500 });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task PatchSize_WithEmptyName_Returns400()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/sizes", new { name = "PatchEmptySize", ordinal = 501 });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var sizeId = created.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.PatchAsJsonAsync($"/api/v1/sizes/{sizeId}", new { name = "" });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
 }

@@ -104,8 +104,20 @@ internal static class CardEndpoints
                 return Results.NotFound();
             }
 
-            var requestLaneId = body.GetProperty("laneId").GetGuid();
-            var requestName = body.GetProperty("name").GetString()!;
+            if (!body.TryGetProperty("laneId", out var laneIdProp) || laneIdProp.ValueKind == JsonValueKind.Null)
+            {
+                return Results.BadRequest("laneId is required.");
+            }
+
+            var requestLaneId = laneIdProp.GetGuid();
+
+            if (!body.TryGetProperty("name", out var nameProp) || string.IsNullOrWhiteSpace(nameProp.GetString()))
+            {
+                return Results.BadRequest("Name is required.");
+            }
+
+            var requestName = nameProp.GetString()!;
+
             var requestDescription = body.TryGetProperty("descriptionMarkdown", out var descProp) ? descProp.GetString() ?? "" : "";
             var requestPosition = body.TryGetProperty("position", out var posProp) ? posProp.GetInt32() : 0;
 
@@ -226,16 +238,27 @@ internal static class CardEndpoints
 
             if (patch.TryGetProperty("name", out var name))
             {
-                card.Name = name.GetString()!;
+                var nameStr = name.ValueKind == JsonValueKind.Null ? null : name.GetString();
+                if (string.IsNullOrWhiteSpace(nameStr))
+                {
+                    return Results.BadRequest("Name cannot be empty.");
+                }
+
+                card.Name = nameStr;
             }
 
             if (patch.TryGetProperty("descriptionMarkdown", out var desc))
             {
-                card.DescriptionMarkdown = desc.GetString()!;
+                card.DescriptionMarkdown = desc.ValueKind == JsonValueKind.Null ? "" : desc.GetString()!;
             }
 
             if (patch.TryGetProperty("sizeId", out var sizeIdPatch))
             {
+                if (sizeIdPatch.ValueKind == JsonValueKind.Null)
+                {
+                    return Results.BadRequest("sizeId cannot be null.");
+                }
+
                 var newSizeId = sizeIdPatch.GetGuid();
                 var sizeLane = await db.Lanes.FindAsync(card.LaneId);
                 if (sizeLane is null || !await db.CardSizes.AnyAsync(s => s.Id == newSizeId && s.BoardId == sizeLane.BoardId))
@@ -248,7 +271,18 @@ internal static class CardEndpoints
 
             if (patch.TryGetProperty("laneId", out var lane))
             {
-                card.LaneId = lane.GetGuid();
+                if (lane.ValueKind == JsonValueKind.Null)
+                {
+                    return Results.BadRequest("laneId cannot be null.");
+                }
+
+                var newLaneId = lane.GetGuid();
+                if (!await db.Lanes.AnyAsync(l => l.Id == newLaneId))
+                {
+                    return Results.BadRequest("Lane not found.");
+                }
+
+                card.LaneId = newLaneId;
             }
 
             if (patch.TryGetProperty("position", out var pos))
@@ -288,8 +322,19 @@ internal static class CardEndpoints
                 return Results.NotFound();
             }
 
-            var targetLaneId = body.GetProperty("laneId").GetGuid();
-            var targetIndex = body.GetProperty("index").GetInt32();
+            if (!body.TryGetProperty("laneId", out var laneIdProp) || laneIdProp.ValueKind == JsonValueKind.Null)
+            {
+                return Results.BadRequest("laneId is required.");
+            }
+
+            var targetLaneId = laneIdProp.GetGuid();
+
+            if (!body.TryGetProperty("index", out var indexProp) || indexProp.ValueKind == JsonValueKind.Null)
+            {
+                return Results.BadRequest("index is required.");
+            }
+
+            var targetIndex = indexProp.GetInt32();
 
             var targetLane = await db.Lanes.FindAsync(targetLaneId);
             if (targetLane is null)
