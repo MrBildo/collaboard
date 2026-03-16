@@ -358,7 +358,7 @@ function CardDetailForm({
       )}
 
       {/* Header */}
-      <DialogHeader className="px-6 pt-6 pb-0">
+      <DialogHeader className="px-6 pt-6 pb-4">
         <div className="flex items-center gap-2">
           <DialogDescription className="text-xs">#{card.number}</DialogDescription>
           {(onNavigatePrev || onNavigateNext) && (
