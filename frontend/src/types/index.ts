@@ -13,6 +13,9 @@ import type {
   boardDataSchema,
   userDirectoryEntrySchema,
   authMeSchema,
+  prunePreviewCardSchema,
+  prunePreviewResponseSchema,
+  pruneResponseSchema,
 } from '@/lib/schemas';
 
 export type Board = z.infer<typeof boardSchema>;
@@ -43,3 +46,12 @@ export type UpdateSizePatch = { name?: string; ordinal?: number };
 export type UpdateLabelPatch = { name?: string; color?: string | null };
 export type UpdateUserPatch = { name?: string; role?: number };
 export type UpdateCommentPatch = { contentMarkdown?: string };
+
+export type PrunePreviewCard = z.infer<typeof prunePreviewCardSchema>;
+export type PrunePreviewResponse = z.infer<typeof prunePreviewResponseSchema>;
+export type PruneResponse = z.infer<typeof pruneResponseSchema>;
+export type PruneFilters = {
+  olderThan?: string;
+  laneIds?: string[];
+  labelIds?: string[];
+};
