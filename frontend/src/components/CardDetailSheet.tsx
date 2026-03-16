@@ -139,13 +139,12 @@ export function CardDetailSheet({
   return (
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent data-mobile-fullscreen className="flex flex-col p-0 md:max-h-[85vh] md:!w-[80vw] md:!max-w-[80vw]" style={{ overflow: 'visible' }}>
-        {/* Floating nav buttons — desktop only */}
+        {/* Floating nav buttons — desktop only, positioned outside the dialog */}
         {prevCard && (
           <button
             type="button"
             onClick={() => handleNavigate('prev')}
-            className="fixed top-1/2 z-50 hidden -translate-y-1/2 items-center justify-center rounded-full bg-background/90 shadow-lg ring-1 ring-foreground/10 transition-colors hover:bg-accent md:flex"
-            style={{ left: 'calc(10vw - 56px)', width: 40, height: 40 }}
+            className="absolute top-1/2 -left-14 z-50 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-background/90 shadow-lg ring-1 ring-foreground/10 transition-colors hover:bg-accent md:flex"
             aria-label="Previous card"
           >
             <ChevronLeft className="h-5 w-5" />
@@ -155,8 +154,7 @@ export function CardDetailSheet({
           <button
             type="button"
             onClick={() => handleNavigate('next')}
-            className="fixed top-1/2 z-50 hidden -translate-y-1/2 items-center justify-center rounded-full bg-background/90 shadow-lg ring-1 ring-foreground/10 transition-colors hover:bg-accent md:flex"
-            style={{ right: 'calc(10vw - 56px)', width: 40, height: 40 }}
+            className="absolute top-1/2 -right-14 z-50 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-background/90 shadow-lg ring-1 ring-foreground/10 transition-colors hover:bg-accent md:flex"
             aria-label="Next card"
           >
             <ChevronRight className="h-5 w-5" />
