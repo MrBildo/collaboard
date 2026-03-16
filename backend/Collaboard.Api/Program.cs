@@ -160,6 +160,7 @@ api.MapLabelEndpoints();
 api.MapCommentEndpoints();
 api.MapAttachmentEndpoints();
 api.MapPruneEndpoints();
+api.MapSearchEndpoints();
 
 app.MapEventEndpoints();
 

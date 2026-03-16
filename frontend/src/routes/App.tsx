@@ -9,6 +9,7 @@ import { CardDetailSheet } from '@/components/CardDetailSheet';
 import { CardOverlay } from '@/components/CardOverlay';
 import { CreateCardDialog } from '@/components/CreateCardDialog';
 import { GlobalAdminPanel } from '@/components/GlobalAdminPanel';
+import { SearchCommand } from '@/components/SearchCommand';
 import { LaneColumn } from '@/components/LaneColumn';
 import { LoginScreen } from '@/components/LoginScreen';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -318,6 +319,9 @@ export function App() {
           {boards.length === 1 && board && (
             <span className="hidden text-sm font-medium text-muted-foreground md:inline">{board.name}</span>
           )}
+        </div>
+        <div className="hidden flex-1 justify-center px-4 md:flex">
+          <SearchCommand />
         </div>
         {/* Desktop actions */}
         <div className="hidden items-center gap-2 md:flex">

@@ -25,5 +25,8 @@ export const queryKeys = {
     directory: () => ['users', 'directory'] as const,
     all: () => ['users'] as const,
   },
+  search: {
+    cards: (q: string) => ['search', 'cards', q] as const,
+  },
   version: () => ['version'] as const,
 } as const;

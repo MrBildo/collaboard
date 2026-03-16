@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
+using Collaboard.Api.Endpoints;
 using Collaboard.Api.Events;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
@@ -239,6 +240,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         [Description("Only return cards with activity (created, updated, commented, attachment added) after this date. ISO 8601 format.")] DateTimeOffset? since = null,
         [Description("Only return cards with this label assigned")] Guid? labelId = null,
         [Description("Only return cards in this lane")] Guid? laneId = null,
+        [Description("Search term. Prefix with # for card number lookup (e.g. '#42'). Plain numbers match card number or name/description. Text matches name or description.")] string? search = null,
         CancellationToken ct = default)
     {
         var (_, error) = await auth.RequireUserAsync(authKey, ct);
@@ -280,6 +282,8 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             var cardIdsWithLabel = db.CardLabels.Where(cl => cl.LabelId == labelId.Value).Select(cl => cl.CardId);
             query = query.Where(c => cardIdsWithLabel.Contains(c.Id));
         }
+
+        query = SearchHelper.ApplySearchFilter(query, search);
 
         var cards = await query.OrderBy(c => c.LaneId).ThenBy(c => c.Position).ToListAsync(ct);
 

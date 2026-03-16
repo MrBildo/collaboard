@@ -15,6 +15,7 @@ import type {
   PruneFilters,
   PrunePreviewResponse,
   PruneResponse,
+  SearchResult,
   UpdateBoardPatch,
   UpdateCardPatch,
   UpdateCommentPatch,
@@ -40,6 +41,7 @@ import {
   prunePreviewResponseSchema,
   pruneResponseSchema,
   reorderResponseSchema,
+  searchResultSchema,
   uploadAttachmentResponseSchema,
   userDirectoryEntrySchema,
   versionSchema,
@@ -297,4 +299,10 @@ export async function prunePreview(boardId: string, filters: PruneFilters): Prom
 export async function pruneCards(boardId: string, filters: PruneFilters): Promise<PruneResponse> {
   const { data } = await api.post(`/boards/${boardId}/prune`, filters);
   return pruneResponseSchema.parse(data);
+}
+
+// Search
+export async function searchAllCards(q: string, limit = 20): Promise<SearchResult[]> {
+  const { data } = await api.get('/search/cards', { params: { q, limit } });
+  return z.array(searchResultSchema).parse(data);
 }
