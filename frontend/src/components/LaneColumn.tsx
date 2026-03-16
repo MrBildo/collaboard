@@ -3,7 +3,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useMemo } from 'react';
 import { SortableCard } from '@/components/SortableCard';
 import { cn } from '@/lib/utils';
-import type { CardItem, Lane } from '@/types';
+import type { CardItem, CardSummary, Lane } from '@/types';
 
 type LaneColumnProps = {
   lane: Lane;
@@ -12,6 +12,7 @@ type LaneColumnProps = {
   onAddCard: () => void;
   activeCardId: string | null;
   sizeMap: Map<string, string>;
+  enrichedCardMap: Map<string, CardSummary>;
 };
 
 export function LaneColumn({
@@ -21,6 +22,7 @@ export function LaneColumn({
   onAddCard,
   activeCardId,
   sizeMap,
+  enrichedCardMap,
 }: LaneColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: lane.id });
   const cardIds = useMemo(() => cards.map((c) => c.id), [cards]);
@@ -53,7 +55,7 @@ export function LaneColumn({
       <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
         <div className="space-y-2 px-3 pb-3 md:flex-1 md:overflow-y-auto">
           {cards.map((card) => (
-            <SortableCard key={card.id} card={card} onCardClick={onCardClick} isDragging={card.id === activeCardId} sizeMap={sizeMap} />
+            <SortableCard key={card.id} card={card} onCardClick={onCardClick} isDragging={card.id === activeCardId} sizeMap={sizeMap} enrichedData={enrichedCardMap.get(card.id)} />
           ))}
         </div>
       </SortableContext>

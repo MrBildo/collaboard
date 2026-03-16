@@ -6,13 +6,14 @@ import { fetchCardAttachments, fetchCardLabels, fetchComments } from '@/lib/api'
 import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { queryKeys } from '@/lib/query-keys';
 import { cn, getContrastColor } from '@/lib/utils';
-import type { CardItem } from '@/types';
+import type { CardItem, CardSummary } from '@/types';
 
 type SortableCardProps = {
   card: CardItem;
   onCardClick: (card: CardItem) => void;
   isDragging: boolean;
   sizeMap: Map<string, string>;
+  enrichedData?: CardSummary;
 };
 
 export function SortableCard({
@@ -20,6 +21,7 @@ export function SortableCard({
   onCardClick,
   isDragging,
   sizeMap,
+  enrichedData,
 }: SortableCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: card.id });
   const style = {
@@ -29,21 +31,24 @@ export function SortableCard({
   const labelsQuery = useQuery({
     queryKey: queryKeys.cards.labels(card.id),
     queryFn: () => fetchCardLabels(card.id),
+    enabled: !enrichedData,
     ...QUERY_DEFAULTS.labels,
   });
   const commentsQuery = useQuery({
     queryKey: queryKeys.cards.comments(card.id),
     queryFn: () => fetchComments(card.id),
+    enabled: !enrichedData,
     ...QUERY_DEFAULTS.comments,
   });
   const attachmentsQuery = useQuery({
     queryKey: queryKeys.cards.attachments(card.id),
     queryFn: () => fetchCardAttachments(card.id),
+    enabled: !enrichedData,
     ...QUERY_DEFAULTS.attachments,
   });
-  const labels = labelsQuery.data ?? [];
-  const commentCount = commentsQuery.data?.length ?? 0;
-  const attachmentCount = attachmentsQuery.data?.length ?? 0;
+  const labels = enrichedData?.labels ?? labelsQuery.data ?? [];
+  const commentCount = enrichedData?.commentCount ?? commentsQuery.data?.length ?? 0;
+  const attachmentCount = enrichedData?.attachmentCount ?? attachmentsQuery.data?.length ?? 0;
 
   return (
     <div
