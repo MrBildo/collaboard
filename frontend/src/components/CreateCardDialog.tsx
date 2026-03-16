@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Dialog,
@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { addCardLabel, createCard, fetchBoardData, fetchLabels } from '@/lib/api';
+import { createCard, fetchBoardData, fetchLabels } from '@/lib/api';
 import { LabelPicker } from '@/components/LabelPicker';
 import { queryKeys } from '@/lib/query-keys';
 import type { CardSize, Lane } from '@/types';
@@ -42,15 +42,20 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
   const [sizeId, setSizeId] = useState(defaultSizeId);
   const [laneId, setLaneId] = useState(defaultLaneId ?? lanes[0]?.id ?? '');
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
-  const [prevOpen, setPrevOpen] = useState(false);
-  if (open !== prevOpen) {
-    setPrevOpen(open);
+
+  const resetForm = () => {
+    setName('');
+    setDescription('');
+    setSizeId(defaultSizeId);
+    setLaneId(defaultLaneId ?? lanes[0]?.id ?? '');
+    setSelectedLabelIds([]);
+  };
+
+  useEffect(() => {
     if (open) {
-      setSizeId(defaultSizeId);
-      setLaneId(defaultLaneId ?? lanes[0]?.id ?? '');
-      setSelectedLabelIds([]);
+      resetForm();
     }
-  }
+  }, [open]);
 
   const allLabelsQuery = useQuery({
     queryKey: queryKeys.labels.all(boardId),
@@ -72,30 +77,20 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
           : 0;
 
       return createCard(boardId, {
-        name,
+        name: name.trim(),
         descriptionMarkdown: description || undefined,
         sizeId: sizeId || undefined,
         laneId,
         position: maxPosition + 1,
+        labelIds: selectedLabelIds.length > 0 ? selectedLabelIds : undefined,
       });
     },
-    onSuccess: async (card) => {
-      if (selectedLabelIds.length > 0) {
-        await Promise.all(selectedLabelIds.map((labelId) => addCardLabel(card.id, labelId)));
-      }
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
       resetForm();
       onOpenChange(false);
     },
   });
-
-  const resetForm = () => {
-    setName('');
-    setDescription('');
-    setSizeId(defaultSizeId);
-    setLaneId(defaultLaneId ?? lanes[0]?.id ?? '');
-    setSelectedLabelIds([]);
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

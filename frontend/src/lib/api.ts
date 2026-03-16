@@ -104,9 +104,17 @@ export async function createCard(boardId: string, card: {
   sizeId?: string;
   laneId: string;
   position: number;
+  labelIds?: string[];
 }): Promise<CardItem> {
-  const { data } = await api.post(`/boards/${boardId}/cards`, card);
-  return cardItemSchema.parse(data);
+  const { labelIds, ...cardData } = card;
+  const { data } = await api.post(`/boards/${boardId}/cards`, cardData);
+  const parsed = cardItemSchema.parse(data);
+
+  if (labelIds && labelIds.length > 0) {
+    await Promise.all(labelIds.map((labelId) => addCardLabel(parsed.id, labelId)));
+  }
+
+  return parsed;
 }
 
 export async function updateCard(id: string, patch: Record<string, unknown>): Promise<CardItem> {
