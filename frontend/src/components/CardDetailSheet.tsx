@@ -358,7 +358,7 @@ function CardDetailForm({
       )}
 
       {/* Header */}
-      <DialogHeader className="px-6 pt-6 pb-0">
+      <DialogHeader className="px-6 pt-6 pb-4">
         <div className="flex items-center gap-2">
           <DialogDescription className="text-xs">#{card.number}</DialogDescription>
           {(onNavigatePrev || onNavigateNext) && (
@@ -509,8 +509,11 @@ function CardDetailForm({
         </div>
 
         {/* Right column — comments (below on mobile) */}
-        <div className="flex shrink-0 flex-col border-border px-5 py-4 max-md:w-full max-md:border-t md:w-[340px] md:overflow-y-auto md:border-l">
-          <h3 className="mb-3 text-sm font-semibold">Comments</h3>
+        <div className="flex shrink-0 flex-col border-border px-5 pt-2 pb-4 max-md:w-full max-md:border-t md:w-[340px] md:overflow-y-auto md:border-l">
+          <h3 className="mb-3 text-sm font-semibold">
+            Comments{' '}
+            <span className="font-normal text-muted-foreground">(Markdown supported)</span>
+          </h3>
           <CardComments
             cardId={card.id}
             currentUserId={currentUserId}
