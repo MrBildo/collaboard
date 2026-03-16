@@ -20,6 +20,7 @@ import {
   ItemActions,
 } from '@/components/editable-list';
 import { useEditableList } from '@/hooks/use-editable-list';
+import { ColorPicker } from '@/components/color-picker';
 import { Search, Trash2, Check } from 'lucide-react';
 import {
   createLabel,
@@ -528,18 +529,17 @@ function LabelsTab({ boardId }: { boardId: string }) {
           <EditableListRow key={label.id}>
             {list.editingId === label.id ? (
               <>
-                <div className="flex flex-1 items-center gap-2">
-                  <input
-                    type="color"
-                    value={editColor}
-                    onChange={(e) => setEditColor(e.target.value)}
-                    className="h-7 w-10 cursor-pointer rounded border-0"
-                  />
+                <div className="flex flex-1 flex-col gap-2">
                   <Input
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
                     className="h-7"
                     placeholder="Label name"
+                  />
+                  <ColorPicker
+                    value={editColor}
+                    onChange={setEditColor}
+                    globalPaste
                   />
                 </div>
                 <EditFormActions
@@ -573,29 +573,28 @@ function LabelsTab({ boardId }: { boardId: string }) {
 
       <div>
         <h3 className="mb-3 text-sm font-medium">Add Label</h3>
-        <div className="flex items-end gap-2">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="label-name">Name</Label>
-            <Input
-              id="label-name"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="e.g. Bug"
-            />
+        <div className="flex flex-col gap-3">
+          <div className="flex items-end gap-2">
+            <div className="flex flex-1 flex-col gap-1.5">
+              <Label htmlFor="label-name">Name</Label>
+              <Input
+                id="label-name"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="e.g. Bug"
+              />
+            </div>
+            <Button onClick={handleCreate} disabled={createMutation.isPending || !newName.trim()}>
+              {createMutation.isPending ? 'Adding...' : 'Add Label'}
+            </Button>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="label-color">Color</Label>
-            <input
-              id="label-color"
-              type="color"
-              value={newColor}
-              onChange={(e) => setNewColor(e.target.value)}
-              className="h-8 w-12 cursor-pointer rounded border-0"
-            />
-          </div>
-          <Button onClick={handleCreate} disabled={createMutation.isPending || !newName.trim()}>
-            {createMutation.isPending ? 'Adding...' : 'Add Label'}
-          </Button>
+          <ColorPicker
+            id="label-color"
+            label="Color"
+            value={newColor}
+            onChange={setNewColor}
+            globalPaste
+          />
         </div>
       </div>
     </div>
