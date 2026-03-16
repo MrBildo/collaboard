@@ -1343,12 +1343,11 @@ function HexInput(props: FormatInputProps) {
         aria-label="Alpha transparency percentage"
         position="last"
         {...inputProps}
+        type="number"
         placeholder="100"
-        inputMode="numeric"
-        pattern="[0-9]*"
-        min="0"
-        max="100"
-        className="w-14"
+        min={0}
+        max={100}
+        className="w-16"
         value={alphaValue}
         onChange={onAlphaChange}
         disabled={context.disabled}
