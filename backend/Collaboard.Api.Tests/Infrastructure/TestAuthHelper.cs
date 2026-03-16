@@ -6,6 +6,11 @@ namespace Collaboard.Api.Tests.Infrastructure;
 
 public static class TestAuthHelper
 {
+    public static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
+
     public static void SetAuth(HttpClient client, string userKey)
     {
         client.DefaultRequestHeaders.Remove("X-User-Key");

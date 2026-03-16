@@ -11,33 +11,23 @@ public class AttachmentEndpointTests(CollaboardApiFactory factory) : IClassFixtu
 {
     private readonly CollaboardApiFactory _factory = factory;
     private readonly HttpClient _client = factory.CreateClient();
-    private static int _nextPosition = 3000;
-
-    private static readonly JsonSerializerOptions _jsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    };
 
     private async Task<Guid> CreateCardAsync()
     {
         TestAuthHelper.SetAdminAuth(_client, _factory);
-
-        var boardResponse = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/board");
-        boardResponse.EnsureSuccessStatusCode();
-        var board = await boardResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
-        var laneId = board.GetProperty("lanes")[0].GetProperty("id").GetGuid();
+        var laneId = await TestDataHelper.GetFirstLaneIdAsync(_client, _factory.DefaultBoardId);
 
         var cardPayload = new
         {
             name = "Test Card",
             descriptionMarkdown = "Card for attachment tests",
             laneId,
-            position = Interlocked.Increment(ref _nextPosition),
+            position = Random.Shared.Next(10000, 99999),
         };
 
         var cardResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", cardPayload);
         cardResponse.EnsureSuccessStatusCode();
-        var card = await cardResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var card = await cardResponse.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
         return card.GetProperty("id").GetGuid();
     }
 
@@ -56,7 +46,7 @@ public class AttachmentEndpointTests(CollaboardApiFactory factory) : IClassFixtu
         var upload = CreateFileUpload();
         var response = await _client.PostAsync($"/api/v1/cards/{cardId}/attachments", upload);
         response.EnsureSuccessStatusCode();
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
         return json.GetProperty("id").GetGuid();
     }
 
@@ -74,7 +64,7 @@ public class AttachmentEndpointTests(CollaboardApiFactory factory) : IClassFixtu
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var attachments = await response.Content.ReadFromJsonAsync<JsonElement[]>(_jsonOptions);
+        var attachments = await response.Content.ReadFromJsonAsync<JsonElement[]>(TestAuthHelper.JsonOptions);
         attachments.ShouldNotBeNull();
         attachments.ShouldNotBeEmpty();
 
@@ -115,7 +105,7 @@ public class AttachmentEndpointTests(CollaboardApiFactory factory) : IClassFixtu
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
 
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
         json.TryGetProperty("id", out var idProp).ShouldBeTrue();
         idProp.GetGuid().ShouldNotBe(Guid.Empty);
         json.GetProperty("fileName").GetString().ShouldBe("document.bin");
@@ -147,7 +137,7 @@ public class AttachmentEndpointTests(CollaboardApiFactory factory) : IClassFixtu
 
         var uploadResponse = await _client.PostAsync($"/api/v1/cards/{cardId}/attachments", upload);
         uploadResponse.EnsureSuccessStatusCode();
-        var uploadJson = await uploadResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var uploadJson = await uploadResponse.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
         var attachmentId = uploadJson.GetProperty("id").GetGuid();
 
         // Act
@@ -203,7 +193,7 @@ public class AttachmentEndpointTests(CollaboardApiFactory factory) : IClassFixtu
         var upload = CreateFileUpload();
         var uploadResponse = await _client.PostAsync($"/api/v1/cards/{cardId}/attachments", upload);
         uploadResponse.EnsureSuccessStatusCode();
-        var uploadJson = await uploadResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var uploadJson = await uploadResponse.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
         var attachmentId = uploadJson.GetProperty("id").GetGuid();
 
         // Act
