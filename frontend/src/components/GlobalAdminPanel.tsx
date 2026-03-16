@@ -29,6 +29,7 @@ import {
   fetchUsers,
   updateBoard,
 } from '@/lib/api';
+import type { UpdateBoardPatch } from '@/types';
 import { queryKeys } from '@/lib/query-keys';
 
 type GlobalAdminPanelProps = {
@@ -94,7 +95,7 @@ function BoardsTab() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: Record<string, unknown> }) =>
+    mutationFn: ({ id, patch }: { id: string; patch: UpdateBoardPatch }) =>
       updateBoard(id, patch),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.boards.all() });

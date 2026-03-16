@@ -30,7 +30,7 @@ import {
 } from '@/lib/api';
 import { LabelPicker } from '@/components/LabelPicker';
 import { queryKeys } from '@/lib/query-keys';
-import type { CardItem, CardSize, Lane } from '@/types';
+import type { CardItem, CardSize, Lane, UpdateCardPatch } from '@/types';
 
 type CardDetailSheetProps = {
   card: CardItem | null;
@@ -198,7 +198,7 @@ function CardDetailForm({
   });
 
   const updateMutation = useMutation({
-    mutationFn: (patch: Record<string, unknown>) => updateCard(card.id, patch),
+    mutationFn: (patch: UpdateCardPatch) => updateCard(card.id, patch),
     onSuccess: () => {
       if (boardId) queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
       onOpenChange(false);
@@ -224,7 +224,7 @@ function CardDetailForm({
   });
 
   const handleSave = () => {
-    const patch: Record<string, unknown> = {};
+    const patch: UpdateCardPatch = {};
 
     if (name !== card.name) patch.name = name;
     if (description !== (card.descriptionMarkdown ?? '')) patch.descriptionMarkdown = description;
