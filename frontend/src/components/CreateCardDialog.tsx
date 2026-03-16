@@ -23,7 +23,7 @@ import { createCard, fetchBoardData, fetchLabels } from '@/lib/api';
 import { LabelPicker } from '@/components/LabelPicker';
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
-import type { CardSize, Lane } from '@/types';
+import type { BoardData, CardSize, Lane } from '@/types';
 
 type CreateCardDialogProps = {
   boardId: string;
@@ -87,7 +87,11 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
         labelIds: selectedLabelIds.length > 0 ? selectedLabelIds : undefined,
       });
     },
-    onSuccess: () => {
+    onSuccess: (newCard) => {
+      queryClient.setQueryData<BoardData>(
+        queryKeys.boards.data(boardId),
+        (old) => old ? { ...old, cards: [...old.cards, newCard] } : old,
+      );
       queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
       resetForm();
       onOpenChange(false);
