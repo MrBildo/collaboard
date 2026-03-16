@@ -738,7 +738,7 @@ function ColorPickerTrigger(
     <PopoverTrigger
       disabled={isDisabled}
       data-slot="color-picker-trigger"
-      className={cn(className)}
+      className={cn("inline-flex p-0 border-0 bg-transparent", className)}
       {...triggerProps}
     />
   );
