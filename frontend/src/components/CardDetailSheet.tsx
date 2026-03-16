@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 import { CardComments } from '@/components/CardComments';
 import { CardAttachments } from '@/components/CardAttachments';
 import {
@@ -451,16 +452,31 @@ function CardDetailForm({
         <div className="flex-1 px-6 py-4 md:overflow-y-auto">
           {/* Description */}
           <div className="mb-4">
-            <div className="mb-2 flex items-center justify-between">
-              <Label className="text-xs text-muted-foreground">Description</Label>
-              <Button
+            <div className="mb-2 flex items-center gap-1">
+              <button
                 type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => setEditingDescription(!editingDescription)}
+                className={cn(
+                  "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                  !editingDescription
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                onClick={() => setEditingDescription(false)}
               >
-                {editingDescription ? 'Preview' : 'Edit'}
-              </Button>
+                Preview
+              </button>
+              <button
+                type="button"
+                className={cn(
+                  "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                  editingDescription
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                onClick={() => setEditingDescription(true)}
+              >
+                Edit
+              </button>
             </div>
             {editingDescription ? (
               <Textarea
@@ -476,7 +492,7 @@ function CardDetailForm({
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{description}</ReactMarkdown>
                 ) : (
                   <p className="italic text-muted-foreground">
-                    No description yet. Click Edit to add one.
+                    No description yet. Switch to Edit to add one.
                   </p>
                 )}
               </div>
