@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -107,11 +107,10 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
 
   const expanded = newCommentFocused || newComment.length > 0;
 
-  useEffect(() => {
-    if (expanded) {
-      newCommentRef.current?.focus();
-    }
-  }, [expanded]);
+  const textareaCallbackRef = useCallback((node: HTMLTextAreaElement | null) => {
+    (newCommentRef as React.MutableRefObject<HTMLTextAreaElement | null>).current = node;
+    node?.focus();
+  }, []);
 
   return (
     <div className="flex flex-1 flex-col gap-3 overflow-hidden">
@@ -120,7 +119,7 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
         {expanded ? (
           <>
             <Textarea
-              ref={newCommentRef}
+              ref={textareaCallbackRef}
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
               placeholder="Add a comment..."
