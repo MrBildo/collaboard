@@ -670,10 +670,15 @@ function PruneTab({ boardId }: { boardId: string }) {
   };
 
   const handlePresetClick = (preset: string, days: number) => {
-    setSelectedPreset(preset);
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - days);
-    setOlderThan(cutoff.toISOString());
+    if (selectedPreset === preset) {
+      setSelectedPreset(null);
+      setOlderThan(null);
+    } else {
+      setSelectedPreset(preset);
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days);
+      setOlderThan(cutoff.toISOString());
+    }
     clearResults();
   };
 
