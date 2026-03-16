@@ -151,3 +151,24 @@
     background-color: var(--muted-foreground);
   }
 }
+
+/* Mobile responsive overrides */
+@media (max-width: 767px) {
+  /* Board grid: single-column vertical layout */
+  [aria-label="Kanban board"] {
+    grid-template-columns: 1fr !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+
+  /* Card detail dialog: full-screen on mobile */
+  [data-slot="dialog-content"][data-mobile-fullscreen] {
+    inset: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    transform: none !important;
+    border-radius: 0 !important;
+  }
+}

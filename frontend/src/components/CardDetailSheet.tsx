@@ -56,7 +56,7 @@ export function CardDetailSheet({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[85vh] !w-[80vw] !max-w-[80vw] flex-col overflow-hidden p-0">
+      <DialogContent data-mobile-fullscreen className="flex flex-col overflow-hidden p-0 md:max-h-[85vh] md:!w-[80vw] md:!max-w-[80vw]">
         <CardDetailForm
           key={card.id}
           card={card}
@@ -307,10 +307,10 @@ function CardDetailForm({
         </div>
       </DialogHeader>
 
-      {/* Two-column body */}
-      <div className="flex flex-1 gap-0 overflow-hidden">
+      {/* Two-column body (stacked on mobile) */}
+      <div className="flex flex-1 gap-0 overflow-hidden max-md:flex-col max-md:overflow-y-auto">
         {/* Left column — details */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="flex-1 px-6 py-4 md:overflow-y-auto">
           {/* Description */}
           <div className="mb-4">
             <div className="mb-2 flex items-center justify-between">
@@ -370,8 +370,8 @@ function CardDetailForm({
           </div>
         </div>
 
-        {/* Right column — comments */}
-        <div className="flex w-[340px] shrink-0 flex-col overflow-y-auto border-l border-border px-5 py-4">
+        {/* Right column — comments (below on mobile) */}
+        <div className="flex shrink-0 flex-col border-border px-5 py-4 max-md:w-full max-md:border-t md:w-[340px] md:overflow-y-auto md:border-l">
           <h3 className="mb-3 text-sm font-semibold">Comments</h3>
           <CardComments
             cardId={card.id}
