@@ -28,5 +28,72 @@ public class BoardDbContext(DbContextOptions<BoardDbContext> options) : DbContex
         builder.Entity<CardAttachment>().HasIndex(x => x.CardId);
         builder.Entity<Label>().HasIndex(x => new { x.BoardId, x.Name }).IsUnique();
         builder.Entity<CardLabel>().HasKey(x => new { x.CardId, x.LabelId });
+
+        // FK relationships
+        builder.Entity<Lane>()
+            .HasOne<Board>().WithMany()
+            .HasForeignKey(x => x.BoardId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<CardSize>()
+            .HasOne<Board>().WithMany()
+            .HasForeignKey(x => x.BoardId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<Label>()
+            .HasOne<Board>().WithMany()
+            .HasForeignKey(x => x.BoardId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<CardItem>()
+            .HasOne<Lane>().WithMany()
+            .HasForeignKey(x => x.LaneId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<CardItem>()
+            .HasOne<CardSize>().WithMany()
+            .HasForeignKey(x => x.SizeId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<CardItem>()
+            .HasOne<BoardUser>().WithMany()
+            .HasForeignKey(x => x.CreatedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<CardComment>()
+            .HasOne<CardItem>().WithMany()
+            .HasForeignKey(x => x.CardId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<CardComment>()
+            .HasOne<BoardUser>().WithMany()
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<CardLabel>()
+            .HasOne<CardItem>().WithMany()
+            .HasForeignKey(x => x.CardId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<CardLabel>()
+            .HasOne<Label>().WithMany()
+            .HasForeignKey(x => x.LabelId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<CardAttachment>()
+            .HasOne<CardItem>().WithMany()
+            .HasForeignKey(x => x.CardId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<CardAttachment>()
+            .HasOne<BoardUser>().WithMany()
+            .HasForeignKey(x => x.AddedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Additional indexes for FK columns
+        builder.Entity<CardItem>().HasIndex(x => x.CreatedByUserId);
+        builder.Entity<CardItem>().HasIndex(x => x.LastUpdatedByUserId);
+        builder.Entity<CardComment>().HasIndex(x => x.UserId);
+        builder.Entity<CardAttachment>().HasIndex(x => x.AddedByUserId);
     }
 }

@@ -23,11 +23,17 @@ public class AttachmentToolTests(CollaboardApiFactory factory) : IClassFixture<C
         var admin = await db.Users.FirstAsync(u => u.Role == UserRole.Administrator);
         var board = await db.Boards.FirstAsync();
         var lane = await db.Lanes.FirstAsync(l => l.BoardId == board.Id);
+        var defaultSize = await db.CardSizes
+            .Where(s => s.BoardId == board.Id)
+            .OrderBy(s => s.Ordinal)
+            .FirstAsync();
 
         var card = new CardItem
         {
             Id = Guid.NewGuid(),
+            BoardId = board.Id,
             LaneId = lane.Id,
+            SizeId = defaultSize.Id,
             Name = "MCP Upload Test Card",
             Number = Interlocked.Increment(ref _nextNumber),
             Position = 9000,
