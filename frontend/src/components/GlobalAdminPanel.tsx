@@ -21,6 +21,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  EditableListContainer,
+  EditableListRow,
+  EditFormActions,
+  ItemActions,
+} from '@/components/editable-list';
+import { useEditableList } from '@/hooks/use-editable-list';
+import {
   createBoard,
   createUser,
   deactivateUser,
@@ -74,10 +81,8 @@ export function GlobalAdminPanel({ open, onOpenChange }: GlobalAdminPanelProps) 
 function BoardsTab() {
   const queryClient = useQueryClient();
   const [newName, setNewName] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const list = useEditableList();
 
   const boardsQuery = useQuery({
     queryKey: queryKeys.boards.all(),
@@ -92,7 +97,7 @@ function BoardsTab() {
       setNewName('');
     },
     onError: (err) => {
-      setDeleteError(err instanceof Error ? err.message : 'Failed to create board.');
+      list.setDeleteError(err instanceof Error ? err.message : 'Failed to create board.');
     },
   });
 
@@ -101,7 +106,7 @@ function BoardsTab() {
       updateBoard(id, patch),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.boards.all() });
-      setEditingId(null);
+      list.setEditingId(null);
     },
   });
 
@@ -109,11 +114,10 @@ function BoardsTab() {
     mutationFn: (id: string) => deleteBoard(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.boards.all() });
-      setConfirmDeleteId(null);
-      setDeleteError(null);
+      list.clearDelete();
     },
     onError: () => {
-      setDeleteError('Cannot delete board — it may still have lanes.');
+      list.setDeleteError('Cannot delete board — it may still have lanes.');
     },
   });
 
@@ -123,27 +127,26 @@ function BoardsTab() {
   };
 
   const startEdit = (id: string, name: string) => {
-    setEditingId(id);
+    list.startEdit(id);
     setEditName(name);
   };
 
   const saveEdit = () => {
-    if (!editingId) return;
-    const board = boardsQuery.data?.find((b) => b.id === editingId);
+    if (!list.editingId) return;
+    const board = boardsQuery.data?.find((b) => b.id === list.editingId);
     if (!board) return;
     if (editName.trim() !== board.name) {
-      updateMutation.mutate({ id: editingId, patch: { name: editName.trim() } });
+      updateMutation.mutate({ id: list.editingId, patch: { name: editName.trim() } });
     } else {
-      setEditingId(null);
+      list.cancelEdit();
     }
   };
 
   const handleDelete = (id: string) => {
-    if (confirmDeleteId === id) {
+    if (list.confirmDeleteId === id) {
       deleteMutation.mutate(id);
     } else {
-      setConfirmDeleteId(id);
-      setDeleteError(null);
+      list.confirmDelete(id);
     }
   };
 
@@ -151,10 +154,10 @@ function BoardsTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col divide-y divide-border rounded-lg border">
+      <EditableListContainer error={list.deleteError}>
         {boards.map((board) => (
-          <div key={board.id} className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-muted/50">
-            {editingId === board.id ? (
+          <EditableListRow key={board.id}>
+            {list.editingId === board.id ? (
               <>
                 <div className="flex flex-1 items-center gap-2">
                   <Input
@@ -164,14 +167,11 @@ function BoardsTab() {
                     placeholder="Board name"
                   />
                 </div>
-                <div className="ml-2 flex gap-1">
-                  <Button size="xs" onClick={saveEdit} disabled={updateMutation.isPending}>
-                    Save
-                  </Button>
-                  <Button size="xs" variant="outline" onClick={() => setEditingId(null)}>
-                    Cancel
-                  </Button>
-                </div>
+                <EditFormActions
+                  onSave={saveEdit}
+                  onCancel={list.cancelEdit}
+                  isPending={updateMutation.isPending}
+                />
               </>
             ) : (
               <>
@@ -179,35 +179,17 @@ function BoardsTab() {
                   <span className="font-medium">{board.name}</span>
                   <Badge variant="secondary">/{board.slug}</Badge>
                 </div>
-                <div className="flex gap-1">
-                  <Button
-                    size="xs"
-                    variant="ghost"
-                    onClick={() => startEdit(board.id, board.name)}
-                    title="Edit"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></svg>
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="ghost"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => handleDelete(board.id)}
-                    disabled={deleteMutation.isPending}
-                    title={confirmDeleteId === board.id ? 'Confirm delete' : 'Delete'}
-                  >
-                    {confirmDeleteId === board.id ? 'Confirm' : (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
-                    )}
-                  </Button>
-                </div>
+                <ItemActions
+                  isConfirmingDelete={list.confirmDeleteId === board.id}
+                  isDeleting={deleteMutation.isPending}
+                  onEdit={() => startEdit(board.id, board.name)}
+                  onDelete={() => handleDelete(board.id)}
+                />
               </>
             )}
-          </div>
+          </EditableListRow>
         ))}
-      </div>
-
-      {deleteError && <p className="text-sm text-destructive">{deleteError}</p>}
+      </EditableListContainer>
 
       <Separator />
 
@@ -288,9 +270,9 @@ function UsersTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col divide-y divide-border rounded-lg border">
+      <EditableListContainer>
         {users.map((user) => (
-          <div key={user.id} className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-muted/50">
+          <EditableListRow key={user.id}>
             <div className="flex items-center gap-3">
               <span className="font-medium">{user.name}</span>
               <Badge variant="secondary" className={user.role === 0 ? 'bg-primary/15 text-primary' : user.role === 2 ? 'bg-accent/15 text-accent' : ''}>{ROLE_MAP[user.role] ?? `Role ${user.role}`}</Badge>
@@ -311,9 +293,9 @@ function UsersTab() {
                 </Button>
               )}
             </div>
-          </div>
+          </EditableListRow>
         ))}
-      </div>
+      </EditableListContainer>
 
       {createdKey && (
         <div className="rounded-lg border bg-muted/30 p-3">
