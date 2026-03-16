@@ -28,3 +28,18 @@ export type CardLabelSummary = z.infer<typeof cardLabelSummarySchema>;
 export type BoardData = z.infer<typeof boardDataSchema>;
 export type UserDirectoryEntry = z.infer<typeof userDirectoryEntrySchema>;
 export type AuthMe = z.infer<typeof authMeSchema>;
+
+export type UpdateBoardPatch = { name?: string };
+export type UpdateCardPatch = {
+  name?: string;
+  descriptionMarkdown?: string;
+  sizeId?: string;
+  laneId?: string;
+  position?: number;
+  labelIds?: string[];
+};
+export type UpdateLanePatch = { name?: string; position?: number };
+export type UpdateSizePatch = { name?: string; ordinal?: number };
+export type UpdateLabelPatch = { name?: string; color?: string | null };
+export type UpdateUserPatch = { name?: string; role?: number };
+export type UpdateCommentPatch = { contentMarkdown?: string };

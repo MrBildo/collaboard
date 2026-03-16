@@ -11,6 +11,13 @@ import type {
   CardSize,
   Label,
   Lane,
+  UpdateBoardPatch,
+  UpdateCardPatch,
+  UpdateCommentPatch,
+  UpdateLabelPatch,
+  UpdateLanePatch,
+  UpdateSizePatch,
+  UpdateUserPatch,
   UserDirectoryEntry,
 } from '@/types';
 import { getUserKey } from '@/lib/auth';
@@ -72,7 +79,7 @@ export async function createBoard(name: string): Promise<Board> {
   return boardSchema.parse(data);
 }
 
-export async function updateBoard(id: string, patch: Record<string, unknown>): Promise<Board> {
+export async function updateBoard(id: string, patch: UpdateBoardPatch): Promise<Board> {
   const { data } = await api.patch(`/boards/${id}`, patch);
   return boardSchema.parse(data);
 }
@@ -109,7 +116,7 @@ export async function createCard(boardId: string, card: {
   return cardItemSchema.parse(data);
 }
 
-export async function updateCard(id: string, patch: Record<string, unknown>): Promise<CardItem> {
+export async function updateCard(id: string, patch: UpdateCardPatch): Promise<CardItem> {
   const { data } = await api.patch(`/cards/${id}`, patch);
   return cardItemSchema.parse(data);
 }
@@ -157,8 +164,8 @@ export async function createComment(cardId: string, contentMarkdown: string): Pr
   return cardCommentSchema.parse(data);
 }
 
-export async function updateComment(id: string, contentMarkdown: string): Promise<CardComment> {
-  const { data } = await api.patch(`/comments/${id}`, { contentMarkdown });
+export async function updateComment(id: string, patch: UpdateCommentPatch): Promise<CardComment> {
+  const { data } = await api.patch(`/comments/${id}`, patch);
   return cardCommentSchema.parse(data);
 }
 
@@ -202,7 +209,7 @@ export async function createUser(name: string, role: number): Promise<BoardUser>
   return boardUserSchema.parse(data);
 }
 
-export async function updateUser(id: string, patch: Record<string, unknown>): Promise<BoardUser> {
+export async function updateUser(id: string, patch: UpdateUserPatch): Promise<BoardUser> {
   const { data } = await api.patch(`/users/${id}`, patch);
   return boardUserSchema.parse(data);
 }
@@ -222,7 +229,7 @@ export async function createLane(boardId: string, name: string, position: number
   return laneSchema.parse(data);
 }
 
-export async function updateLane(id: string, patch: Record<string, unknown>): Promise<Lane> {
+export async function updateLane(id: string, patch: UpdateLanePatch): Promise<Lane> {
   const { data } = await api.patch(`/lanes/${id}`, patch);
   return laneSchema.parse(data);
 }
@@ -242,7 +249,7 @@ export async function createSize(boardId: string, name: string, ordinal?: number
   return cardSizeSchema.parse(data);
 }
 
-export async function updateSize(id: string, patch: Record<string, unknown>): Promise<CardSize> {
+export async function updateSize(id: string, patch: UpdateSizePatch): Promise<CardSize> {
   const { data } = await api.patch(`/sizes/${id}`, patch);
   return cardSizeSchema.parse(data);
 }
@@ -257,7 +264,7 @@ export async function createLabel(boardId: string, name: string, color?: string)
   return labelSchema.parse(data);
 }
 
-export async function updateLabel(boardId: string, id: string, patch: Record<string, unknown>): Promise<Label> {
+export async function updateLabel(boardId: string, id: string, patch: UpdateLabelPatch): Promise<Label> {
   const { data } = await api.patch(`/boards/${boardId}/labels/${id}`, patch);
   return labelSchema.parse(data);
 }

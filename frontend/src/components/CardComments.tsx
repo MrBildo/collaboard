@@ -44,7 +44,7 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, content }: { id: string; content: string }) => updateComment(id, content),
+    mutationFn: ({ id, content }: { id: string; content: string }) => updateComment(id, { contentMarkdown: content }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.comments(cardId) });
       setEditingId(null);

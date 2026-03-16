@@ -27,6 +27,7 @@ import {
   updateLane,
   updateSize,
 } from '@/lib/api';
+import type { UpdateLabelPatch, UpdateLanePatch, UpdateSizePatch } from '@/types';
 import { queryKeys } from '@/lib/query-keys';
 
 type AdminPanelProps = {
@@ -103,7 +104,7 @@ function LanesTab({ boardId }: { boardId: string }) {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: Record<string, unknown> }) =>
+    mutationFn: ({ id, patch }: { id: string; patch: UpdateLanePatch }) =>
       updateLane(id, patch),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.lanes.all(boardId) });
@@ -138,7 +139,7 @@ function LanesTab({ boardId }: { boardId: string }) {
 
   const saveEdit = () => {
     if (!editingId) return;
-    const patch: Record<string, unknown> = {};
+    const patch: UpdateLanePatch = {};
     const lane = lanesQuery.data?.find((l) => l.id === editingId);
     if (!lane) return;
     if (editName.trim() !== lane.name) patch.name = editName.trim();
@@ -307,7 +308,7 @@ function SizesTab({ boardId }: { boardId: string }) {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: Record<string, unknown> }) =>
+    mutationFn: ({ id, patch }: { id: string; patch: UpdateSizePatch }) =>
       updateSize(id, patch),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.sizes.all(boardId) });
@@ -342,7 +343,7 @@ function SizesTab({ boardId }: { boardId: string }) {
 
   const saveEdit = () => {
     if (!editingId) return;
-    const patch: Record<string, unknown> = {};
+    const patch: UpdateSizePatch = {};
     const size = sizesQuery.data?.find((s) => s.id === editingId);
     if (!size) return;
     if (editName.trim() !== size.name) patch.name = editName.trim();
@@ -498,7 +499,7 @@ function LabelsTab({ boardId }: { boardId: string }) {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: Record<string, unknown> }) =>
+    mutationFn: ({ id, patch }: { id: string; patch: UpdateLabelPatch }) =>
       updateLabel(boardId, id, patch),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.labels.all(boardId) });
@@ -527,7 +528,7 @@ function LabelsTab({ boardId }: { boardId: string }) {
 
   const saveEdit = () => {
     if (!editingId) return;
-    const patch: Record<string, unknown> = {};
+    const patch: UpdateLabelPatch = {};
     const label = labelsQuery.data?.find((l) => l.id === editingId);
     if (!label) return;
     if (editName.trim() !== label.name) patch.name = editName.trim();
