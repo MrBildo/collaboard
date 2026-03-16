@@ -75,11 +75,12 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
       });
     },
     onSuccess: (newCard) => {
+      queryClient.cancelQueries({ queryKey: queryKeys.boards.data(boardId) });
       queryClient.setQueryData<BoardData>(
         queryKeys.boards.data(boardId),
         (old) => old ? { ...old, cards: [...old.cards, newCard] } : old,
       );
-      queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.boards.cards(boardId) });
       onOpenChange(false);
     },
   });

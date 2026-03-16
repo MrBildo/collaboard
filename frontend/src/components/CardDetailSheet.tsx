@@ -29,7 +29,7 @@ import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { useUserDirectory } from '@/hooks/use-user-directory';
 import { isTextInputFocused, buildPasteFileName } from '@/lib/utils';
-import type { CardItem, CardSize, Lane, UpdateCardPatch } from '@/types';
+import type { BoardData, CardItem, CardSize, Lane, UpdateCardPatch } from '@/types';
 
 type CardDetailSheetProps = {
   card: CardItem | null;
@@ -215,8 +215,16 @@ function CardDetailForm({
 
   const updateMutation = useMutation({
     mutationFn: (patch: UpdateCardPatch) => updateCard(card.id, patch),
-    onSuccess: () => {
-      if (boardId) queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
+    onSuccess: (updatedCard) => {
+      if (boardId) {
+        queryClient.setQueryData<BoardData>(
+          queryKeys.boards.data(boardId),
+          (old) => old ? {
+            ...old,
+            cards: old.cards.map((c) => c.id === card.id ? updatedCard : c),
+          } : old,
+        );
+      }
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.labels(card.id) });
       isDirtyRef.current = false;
       onClose();
