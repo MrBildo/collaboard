@@ -12,10 +12,7 @@ public class UserEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     private readonly CollaboardApiFactory _factory = factory;
     private readonly HttpClient _client = factory.CreateClient();
 
-    private static readonly JsonSerializerOptions _jsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    };
+    private static JsonSerializerOptions JsonOptions => TestAuthHelper.JsonOptions;
 
     [Fact]
     public async Task PostUser_AsAdmin_Returns201WithUserDetails()
@@ -30,7 +27,7 @@ public class UserEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
 
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         json.TryGetProperty("id", out var idProp).ShouldBeTrue();
         idProp.GetGuid().ShouldNotBe(Guid.Empty);
         json.TryGetProperty("authKey", out var authKeyProp).ShouldBeTrue();
@@ -81,7 +78,7 @@ public class UserEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var users = await response.Content.ReadFromJsonAsync<JsonElement[]>(_jsonOptions);
+        var users = await response.Content.ReadFromJsonAsync<JsonElement[]>(JsonOptions);
         users.ShouldNotBeNull();
         users.ShouldNotBeEmpty();
     }
@@ -139,7 +136,7 @@ public class UserEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         json.GetProperty("id").GetGuid().ShouldBe(user.Id);
         json.GetProperty("name").GetString().ShouldBe("GetById Target");
     }
@@ -171,7 +168,7 @@ public class UserEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         json.GetProperty("name").GetString().ShouldBe("PatchNameAfter");
     }
 
@@ -188,7 +185,7 @@ public class UserEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         json.GetProperty("role").GetInt32().ShouldBe((int)UserRole.AgentUser);
     }
 
@@ -245,6 +242,58 @@ public class UserEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         // Act — try to use the deactivated user's auth key
         TestAuthHelper.SetAuth(_client, user.AuthKey);
         var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/board");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    // --- /auth/me tests ---
+
+    [Fact]
+    public async Task GetAuthMe_AsAdmin_ReturnsCurrentUser()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        // Act
+        var response = await _client.GetAsync("/api/v1/auth/me");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        json.GetProperty("id").GetGuid().ShouldNotBe(Guid.Empty);
+        json.GetProperty("name").GetString().ShouldNotBeNullOrWhiteSpace();
+        json.GetProperty("role").GetInt32().ShouldBe((int)UserRole.Administrator);
+    }
+
+    [Fact]
+    public async Task GetAuthMe_AsHumanUser_ReturnsOwnDetails()
+    {
+        // Arrange
+        var human = await TestAuthHelper.CreateUserAsync(_client, _factory, "Me Human", UserRole.HumanUser);
+        TestAuthHelper.SetAuth(_client, human.AuthKey);
+
+        // Act
+        var response = await _client.GetAsync("/api/v1/auth/me");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        json.GetProperty("id").GetGuid().ShouldBe(human.Id);
+        json.GetProperty("name").GetString().ShouldBe("Me Human");
+        json.GetProperty("role").GetInt32().ShouldBe((int)UserRole.HumanUser);
+    }
+
+    [Fact]
+    public async Task GetAuthMe_Unauthenticated_Returns401()
+    {
+        // Arrange
+        _client.DefaultRequestHeaders.Remove("X-User-Key");
+
+        // Act
+        var response = await _client.GetAsync("/api/v1/auth/me");
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
