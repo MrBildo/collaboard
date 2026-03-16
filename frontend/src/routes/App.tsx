@@ -146,10 +146,17 @@ export function App() {
   const sizeMap = useMemo(() => new Map(sizes.map((s) => [s.id, s.name])), [sizes]);
   const serverCards = useMemo(() => boardDataQuery.data?.cards ?? [], [boardDataQuery.data]);
 
-  const sortedServerCards = useMemo(
-    () => [...serverCards].sort((a, b) => a.position - b.position),
-    [serverCards],
-  );
+  const sortedServerCards = useMemo(() => {
+    const seen = new Set<string>();
+    const unique: CardItem[] = [];
+    for (const card of serverCards) {
+      if (!seen.has(card.id)) {
+        seen.add(card.id);
+        unique.push(card);
+      }
+    }
+    return unique.sort((a, b) => a.position - b.position);
+  }, [serverCards]);
   const [dragCards, setDragCards] = useState<CardItem[] | null>(null);
   const localCards = dragPhase === 'idle' ? sortedServerCards : (dragCards ?? sortedServerCards);
 
