@@ -14,6 +14,7 @@ export function useBoardEvents(boardId: string | undefined) {
 
     es.addEventListener('board-updated', () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.boards.cards(boardId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.labels.all(boardId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.users.directory() });
       // Invalidate all card-scoped data (comments, labels, attachments) by prefix

@@ -3,6 +3,7 @@ export const queryKeys = {
     all: () => ['boards'] as const,
     detail: (slug: string) => ['boards', slug] as const,
     data: (boardId: string) => ['boards', boardId, 'data'] as const,
+    cards: (boardId: string) => ['boards', boardId, 'cards'] as const,
   },
   cards: {
     labels: (cardId: string) => ['cards', cardId, 'labels'] as const,

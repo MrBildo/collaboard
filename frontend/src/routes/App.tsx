@@ -21,12 +21,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Menu } from 'lucide-react';
-import { fetchBoardBySlug, fetchBoardData, fetchBoards, fetchMe, fetchUsers, fetchVersion, reorderCard } from '@/lib/api';
+import { fetchBoardBySlug, fetchBoardData, fetchBoards, fetchCards, fetchMe, fetchUsers, fetchVersion, reorderCard } from '@/lib/api';
 import { isLoggedIn, setUserKey, clearUserKey, setLastBoardSlug } from '@/lib/auth';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { queryKeys } from '@/lib/query-keys';
 import { useBoardEvents } from '@/lib/use-board-events';
-import type { CardItem } from '@/types';
+import type { CardItem, CardSummary } from '@/types';
 
 export function App() {
   const { slug, cardNumber } = useParams<{ slug: string; cardNumber: string }>();
@@ -74,6 +74,22 @@ export function App() {
     enabled: loggedIn && !!boardId,
     refetchOnWindowFocus: false,
   });
+
+  // Enriched cards with labels, commentCount, attachmentCount
+  const enrichedCardsQuery = useQuery({
+    queryKey: queryKeys.boards.cards(boardId!),
+    queryFn: () => fetchCards(boardId!),
+    enabled: loggedIn && !!boardId,
+    staleTime: 30_000,
+  });
+
+  const enrichedCardMap = useMemo(() => {
+    const map = new Map<string, CardSummary>();
+    for (const card of enrichedCardsQuery.data ?? []) {
+      map.set(card.id, card);
+    }
+    return map;
+  }, [enrichedCardsQuery.data]);
 
   const meQuery = useQuery({
     queryKey: queryKeys.users.me(),
@@ -372,6 +388,7 @@ export function App() {
               onAddCard={() => { setCreateLaneId(lane.id); setCreateOpen(true); }}
               activeCardId={activeCardId}
               sizeMap={sizeMap}
+              enrichedCardMap={enrichedCardMap}
             />
           ))}
         </section>

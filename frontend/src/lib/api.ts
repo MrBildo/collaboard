@@ -9,6 +9,7 @@ import type {
   CardComment,
   CardItem,
   CardSize,
+  CardSummary,
   Label,
   Lane,
   UpdateBoardPatch,
@@ -30,6 +31,7 @@ import {
   cardCommentSchema,
   cardItemSchema,
   cardSizeSchema,
+  cardSummarySchema,
   labelSchema,
   laneSchema,
   reorderResponseSchema,
@@ -95,9 +97,9 @@ export async function fetchBoardData(boardId: string): Promise<BoardData> {
 }
 
 // Cards (board-scoped creation/listing, flat by-ID)
-export async function fetchCards(boardId: string): Promise<CardItem[]> {
+export async function fetchCards(boardId: string): Promise<CardSummary[]> {
   const { data } = await api.get(`/boards/${boardId}/cards`);
-  return z.array(cardItemSchema).parse(data);
+  return z.array(cardSummarySchema).parse(data);
 }
 
 export async function fetchCard(id: string): Promise<CardItem> {
