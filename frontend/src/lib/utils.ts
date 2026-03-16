@@ -22,6 +22,13 @@ export function buildPasteFileName(mimeType: string): string {
   return `pasted-image-${ts}.${ext}`;
 }
 
+export function arraysEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const sorted1 = [...a].sort();
+  const sorted2 = [...b].sort();
+  return sorted1.every((v, i) => v === sorted2[i]);
+}
+
 function parseLuminance(hex: string): { r: number; g: number; b: number; luminance: number } {
   const h = hex.replace('#', '');
   const r = parseInt(h.substring(0, 2), 16);
