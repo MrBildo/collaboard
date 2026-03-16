@@ -132,9 +132,8 @@ internal static class BoardEndpoints
                 return Results.NotFound();
             }
 
-            var laneIds = await db.Lanes.Where(x => x.BoardId == boardId).Select(x => x.Id).ToListAsync();
             var lanes = await db.Lanes.Where(x => x.BoardId == boardId).OrderBy(x => x.Position).ToListAsync();
-            var cards = await db.Cards.Where(x => laneIds.Contains(x.LaneId)).OrderBy(x => x.LaneId).ThenBy(x => x.Position).ToListAsync();
+            var cards = await db.Cards.Where(x => x.BoardId == boardId).OrderBy(x => x.LaneId).ThenBy(x => x.Position).ToListAsync();
             var sizes = await db.CardSizes.Where(x => x.BoardId == boardId).OrderBy(x => x.Ordinal).ToListAsync();
             return Results.Ok(new { lanes, cards, sizes });
         });

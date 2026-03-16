@@ -16,7 +16,9 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
         [Description("Your auth key")] string authKey,
         [Description("The comment text (Markdown supported)")] string content,
         [Description("The ID (guid) of the card to comment on (provide this or cardNumber)")] Guid? cardId = null,
-        [Description("The card number (provide this or cardId)")] long? cardNumber = null,
+        [Description("The card number (provide this or cardId). Requires boardId or boardSlug.")] long? cardNumber = null,
+        [Description("Board ID (required when using cardNumber)")] Guid? boardId = null,
+        [Description("Board slug (alternative to boardId when using cardNumber)")] string? boardSlug = null,
         CancellationToken ct = default)
     {
         var (user, error) = await auth.RequireUserAsync(authKey, ct);
@@ -25,7 +27,7 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
             return error;
         }
 
-        var (resolvedCardId, resolveError) = await McpCardResolver.ResolveCardIdAsync(db, cardId, cardNumber, ct);
+        var (resolvedCardId, resolveError) = await McpCardResolver.ResolveCardIdAsync(db, cardId, cardNumber, boardId, boardSlug, ct);
         if (resolveError is not null)
         {
             return resolveError;

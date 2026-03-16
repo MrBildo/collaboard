@@ -1114,7 +1114,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         var broadcaster = scope.ServiceProvider.GetRequiredService<Events.BoardEventBroadcaster>();
         var cardTools = new Mcp.CardTools(db, authService, broadcaster);
 
-        var result = await cardTools.GetCardAsync(_factory.AdminAuthKey, cardNumber: cardNumber);
+        var result = await cardTools.GetCardAsync(_factory.AdminAuthKey, cardNumber: cardNumber, boardId: _factory.DefaultBoardId);
 
         // Assert
         var parsed = JsonSerializer.Deserialize<JsonElement>(result);
@@ -1150,7 +1150,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         var cardTools = new Mcp.CardTools(db, authService, broadcaster);
 
         // Act
-        var result = await cardTools.GetCardAsync(_factory.AdminAuthKey, cardNumber: 999999);
+        var result = await cardTools.GetCardAsync(_factory.AdminAuthKey, cardNumber: 999999, boardId: _factory.DefaultBoardId);
 
         // Assert
         result.ShouldContain("not found");

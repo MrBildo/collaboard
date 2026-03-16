@@ -24,8 +24,7 @@ internal static class CardEndpoints
                 return Results.NotFound();
             }
 
-            var boardLaneIds = await db.Lanes.Where(x => x.BoardId == boardId).Select(x => x.Id).ToListAsync();
-            var query = db.Cards.Where(x => boardLaneIds.Contains(x.LaneId));
+            var query = db.Cards.Where(x => x.BoardId == boardId);
 
             if (laneId.HasValue)
             {
@@ -126,11 +125,10 @@ internal static class CardEndpoints
 
             var now = DateTimeOffset.UtcNow;
             var currentUser = http.CurrentUser();
-            var nextNumber = (await db.Cards.MaxAsync(x => (long?)x.Number) ?? 0) + 1;
             var card = new CardItem
             {
                 Id = Guid.NewGuid(),
-                Number = nextNumber,
+                BoardId = boardId,
                 Name = requestName,
                 DescriptionMarkdown = requestDescription,
                 SizeId = sizeId,
@@ -141,8 +139,7 @@ internal static class CardEndpoints
                 CreatedByUserId = currentUser.Id,
                 LastUpdatedByUserId = currentUser.Id,
             };
-            db.Cards.Add(card);
-            await db.SaveChangesAsync();
+            await CardNumberHelper.InsertCardWithAutoNumberAsync(db, card, boardId);
             broadcaster.PublishBoardUpdated(boardId);
             return Results.Created($"/api/v1/cards/{card.Id}", card);
         });

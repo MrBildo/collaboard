@@ -50,6 +50,7 @@ public class CardItem
 {
     public Guid Id { get; set; }
     public long Number { get; set; }
+    public Guid BoardId { get; set; }
     [MaxLength(200)] public string Name { get; set; } = string.Empty;
     public string DescriptionMarkdown { get; set; } = string.Empty;
     public Guid SizeId { get; set; }

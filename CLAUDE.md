@@ -96,7 +96,7 @@ All endpoints under `/api/v1/`:
 | GET | /boards/{boardId}/sizes | All | List card sizes for a board (ordered by ordinal) |
 | POST | /boards/{boardId}/sizes | Admin | Create size in a board (auto-ordinal if omitted) |
 | GET | /boards/{boardId}/cards | All | List cards (enriched: labels, sizeId, sizeName, commentCount, attachmentCount). Optional query params: `since` (DateTimeOffset), `labelId` (Guid), `laneId` (Guid) |
-| POST | /boards/{boardId}/cards | All | Create card in a board (accepts `sizeId`, defaults to lowest-ordinal size) |
+| POST | /boards/{boardId}/cards | All | Create card in a board (accepts `sizeId`, defaults to lowest-ordinal size). Card numbers are board-scoped (each board starts at 1 independently) |
 | GET | /boards/{boardId}/labels | All | List labels for a board |
 | POST | /boards/{boardId}/labels | Admin | Create label in a board |
 | PATCH | /boards/{boardId}/labels/{id} | Admin | Update label name/color |
@@ -138,7 +138,7 @@ All endpoints under `/api/v1/`:
 - **AttachmentTools:** `upload_attachment` (5MB limit, base64), `delete_attachment`
 - **LabelTools:** `get_labels`, `add_label_to_card` (supports labelName), `remove_label_from_card` (supports labelName)
 
-**Cross-cutting:** All card-scoped tools accept `cardNumber` (long) as alternative to `cardId` (Guid). Label assignment tools accept `labelName` as alternative to `labelId`. Size tools accept `sizeName` as alternative to `sizeId`. Shared resolution via `McpCardResolver`.
+**Cross-cutting:** Card numbers are **board-scoped** (unique per board, not globally). All card-scoped tools accept `cardNumber` (long) as alternative to `cardId` (Guid), but **`cardNumber` requires `boardId` or `boardSlug`** — no fallback to global lookup. Label assignment tools accept `labelName` as alternative to `labelId`. Size tools accept `sizeName` as alternative to `sizeId`. Shared resolution via `McpCardResolver`.
 
 ## .agents/ Directory Structure
 
