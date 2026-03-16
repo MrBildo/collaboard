@@ -18,7 +18,9 @@ type LabelColorPickerProps = {
 function LabelColorPicker({ value, onValueChange }: LabelColorPickerProps) {
   return (
     <ColorPicker value={value} onValueChange={onValueChange}>
-      <ColorPickerTrigger className="size-8 rounded-md" />
+      <ColorPickerTrigger>
+        <ColorPickerSwatch className="size-8 cursor-pointer rounded-md" />
+      </ColorPickerTrigger>
       <ColorPickerContent>
         <ColorPickerArea />
         <ColorPickerHueSlider />
