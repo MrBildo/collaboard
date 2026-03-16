@@ -29,6 +29,7 @@ import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { useUserDirectory } from '@/hooks/use-user-directory';
 import { isTextInputFocused, buildPasteFileName } from '@/lib/utils';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { BoardData, CardItem, CardSize, Lane, UpdateCardPatch } from '@/types';
 
 type CardDetailSheetProps = {
@@ -40,6 +41,8 @@ type CardDetailSheetProps = {
   lanes?: Lane[];
   boardId?: string;
   sizes?: CardSize[];
+  cardsInLane?: CardItem[];
+  onNavigateCard?: (cardNumber: number) => void;
 };
 
 type CardDetailFormProps = {
@@ -50,6 +53,9 @@ type CardDetailFormProps = {
   lanes?: Lane[];
   boardId?: string;
   sizes?: CardSize[];
+  navPosition?: string | null;
+  onNavigatePrev?: () => void;
+  onNavigateNext?: () => void;
 };
 
 function arraysEqual(a: string[], b: string[]): boolean {
@@ -68,8 +74,49 @@ export function CardDetailSheet({
   lanes,
   boardId,
   sizes,
+  cardsInLane,
+  onNavigateCard,
 }: CardDetailSheetProps) {
   const isDirtyRef = useRef(false);
+
+  const { prevCard, nextCard } = useMemo(() => {
+    if (!card || !cardsInLane || cardsInLane.length === 0) return { prevCard: null, nextCard: null };
+    const idx = cardsInLane.findIndex((c) => c.id === card.id);
+    if (idx === -1) return { prevCard: null, nextCard: null };
+    return {
+      prevCard: idx > 0 ? cardsInLane[idx - 1] : null,
+      nextCard: idx < cardsInLane.length - 1 ? cardsInLane[idx + 1] : null,
+    };
+  }, [card, cardsInLane]);
+
+  const handleNavigate = useCallback(
+    (direction: 'prev' | 'next') => {
+      const target = direction === 'prev' ? prevCard : nextCard;
+      if (!target || !onNavigateCard) return;
+      if (isDirtyRef.current) {
+        if (!window.confirm('You have unsaved changes. Discard them?')) return;
+      }
+      isDirtyRef.current = false;
+      onNavigateCard(target.number);
+    },
+    [prevCard, nextCard, onNavigateCard],
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isTextInputFocused()) return;
+      if (e.key === 'ArrowLeft' && prevCard) {
+        e.preventDefault();
+        handleNavigate('prev');
+      } else if (e.key === 'ArrowRight' && nextCard) {
+        e.preventDefault();
+        handleNavigate('next');
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [open, prevCard, nextCard, handleNavigate]);
 
   const handleDialogOpenChange = useCallback(
     (nextOpen: boolean) => {
@@ -85,20 +132,50 @@ export function CardDetailSheet({
 
   if (!card) return null;
 
+  const navPosition = cardsInLane && cardsInLane.length > 1
+    ? `${(cardsInLane.findIndex((c) => c.id === card.id) ?? 0) + 1} / ${cardsInLane.length}`
+    : null;
+
   return (
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-      <DialogContent data-mobile-fullscreen className="flex flex-col overflow-hidden p-0 md:max-h-[85vh] md:!w-[80vw] md:!max-w-[80vw]">
-        <CardDetailForm
-          key={card.id}
-          card={card}
-          onClose={() => handleDialogOpenChange(false)}
-          currentUserId={currentUserId}
-          currentUserRole={currentUserRole}
-          lanes={lanes}
-          boardId={boardId}
-          sizes={sizes}
-          isDirtyRef={isDirtyRef}
-        />
+      <DialogContent data-mobile-fullscreen className="flex flex-col p-0 md:max-h-[85vh] md:!w-[80vw] md:!max-w-[80vw]" style={{ overflow: 'visible' }}>
+        {/* Floating nav buttons — desktop only, positioned outside the dialog */}
+        {prevCard && (
+          <button
+            type="button"
+            onClick={() => handleNavigate('prev')}
+            className="absolute top-1/2 -left-14 z-50 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-background shadow-lg ring-1 ring-border transition-colors hover:bg-accent md:flex"
+            aria-label="Previous card"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+        )}
+        {nextCard && (
+          <button
+            type="button"
+            onClick={() => handleNavigate('next')}
+            className="absolute top-1/2 -right-14 z-50 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-background shadow-lg ring-1 ring-border transition-colors hover:bg-accent md:flex"
+            aria-label="Next card"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        )}
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <CardDetailForm
+            key={card.id}
+            card={card}
+            onClose={() => handleDialogOpenChange(false)}
+            currentUserId={currentUserId}
+            currentUserRole={currentUserRole}
+            lanes={lanes}
+            boardId={boardId}
+            sizes={sizes}
+            isDirtyRef={isDirtyRef}
+            navPosition={navPosition}
+            onNavigatePrev={prevCard ? () => handleNavigate('prev') : undefined}
+            onNavigateNext={nextCard ? () => handleNavigate('next') : undefined}
+          />
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -113,6 +190,9 @@ function CardDetailForm({
   boardId,
   sizes,
   isDirtyRef,
+  navPosition,
+  onNavigatePrev,
+  onNavigateNext,
 }: CardDetailFormProps & { isDirtyRef: React.MutableRefObject<boolean> }) {
   const queryClient = useQueryClient();
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -279,7 +359,36 @@ function CardDetailForm({
 
       {/* Header */}
       <DialogHeader className="px-6 pt-6 pb-0">
-        <DialogDescription className="text-xs">#{card.number}</DialogDescription>
+        <div className="flex items-center gap-2">
+          <DialogDescription className="text-xs">#{card.number}</DialogDescription>
+          {(onNavigatePrev || onNavigateNext) && (
+            <div className="flex items-center gap-1 md:hidden">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={onNavigatePrev}
+                disabled={!onNavigatePrev}
+                aria-label="Previous card"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              {navPosition && (
+                <span className="text-xs text-muted-foreground tabular-nums">{navPosition}</span>
+              )}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={onNavigateNext}
+                disabled={!onNavigateNext}
+                aria-label="Next card"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </div>
         <div className="flex items-start gap-3">
           <div className="flex-1">
             <Input
