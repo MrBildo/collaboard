@@ -748,7 +748,7 @@ function PruneTab({ boardId }: { boardId: string }) {
     .map((l) => l.name);
 
   const formatDate = (iso: string) =>
-    new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    new Date(iso).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
   const customDateValue = olderThan && !selectedPreset
     ? new Date(olderThan).toISOString().split('T')[0]
