@@ -11,14 +11,8 @@ internal static class CardEndpoints
     public static RouteGroupBuilder MapCardEndpoints(this RouteGroupBuilder group)
     {
         // Board-scoped listing and creation
-        group.MapGet("/boards/{boardId:guid}/cards", async (BoardDbContext db, HttpContext http, Guid boardId, DateTimeOffset? since, Guid? labelId, Guid? laneId) =>
+        group.MapGet("/boards/{boardId:guid}/cards", async (BoardDbContext db, Guid boardId, DateTimeOffset? since, Guid? labelId, Guid? laneId) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             if (!await db.Boards.AnyAsync(x => x.Id == boardId))
             {
                 return Results.NotFound();
@@ -53,44 +47,77 @@ internal static class CardEndpoints
                 query = query.Where(x => cardIdsWithLabel.Contains(x.Id));
             }
 
-            var cards = await query.OrderBy(x => x.LaneId).ThenBy(x => x.Position)
-                .Select(c => new CardSummary(
-                    c.Id,
-                    c.Number,
-                    c.Name,
-                    c.DescriptionMarkdown,
-                    c.SizeId,
-                    db.CardSizes.Where(s => s.Id == c.SizeId).Select(s => s.Name).FirstOrDefault() ?? "?",
-                    c.LaneId,
-                    c.Position,
-                    c.CreatedByUserId,
-                    c.CreatedAtUtc,
-                    c.LastUpdatedByUserId,
-                    c.LastUpdatedAtUtc,
-                    db.CardLabels.Where(cl => cl.CardId == c.Id)
-                        .Join(db.Labels, cl => cl.LabelId, l => l.Id, (_, l) => new CardLabelSummary(l.Id, l.Name, l.Color))
-                        .ToList(),
-                    db.Comments.Count(cm => cm.CardId == c.Id),
-                    db.Attachments.Count(a => a.CardId == c.Id)))
+            var cards = await query.OrderBy(x => x.LaneId).ThenBy(x => x.Position).ToListAsync();
+
+            if (cards.Count == 0)
+            {
+                return Results.Ok(Array.Empty<CardSummary>());
+            }
+
+            var cardIds = cards.Select(c => c.Id).ToList();
+
+            // Batch load sizes
+            var sizeIds = cards.Select(c => c.SizeId).Distinct().ToList();
+            var sizeNames = await db.CardSizes
+                .Where(s => sizeIds.Contains(s.Id))
+                .ToDictionaryAsync(s => s.Id, s => s.Name);
+
+            // Batch load labels
+            var cardLabels = await db.CardLabels
+                .Where(cl => cardIds.Contains(cl.CardId))
+                .Join(db.Labels, cl => cl.LabelId, l => l.Id, (cl, l) => new { cl.CardId, Label = new CardLabelSummary(l.Id, l.Name, l.Color) })
                 .ToListAsync();
-            return Results.Ok(cards);
-        });
+            var labelsByCard = cardLabels.GroupBy(x => x.CardId).ToDictionary(g => g.Key, g => g.Select(x => x.Label).ToList());
+
+            // Batch load counts
+            var commentCounts = await db.Comments
+                .Where(cm => cardIds.Contains(cm.CardId))
+                .GroupBy(cm => cm.CardId)
+                .Select(g => new { CardId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.CardId, x => x.Count);
+
+            var attachmentCounts = await db.Attachments
+                .Where(a => cardIds.Contains(a.CardId))
+                .GroupBy(a => a.CardId)
+                .Select(g => new { CardId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.CardId, x => x.Count);
+
+            // Project
+            var summaries = cards.Select(c => new CardSummary(
+                c.Id, c.Number, c.Name, c.DescriptionMarkdown,
+                c.SizeId, sizeNames.GetValueOrDefault(c.SizeId, "?"),
+                c.LaneId, c.Position,
+                c.CreatedByUserId, c.CreatedAtUtc,
+                c.LastUpdatedByUserId, c.LastUpdatedAtUtc,
+                labelsByCard.GetValueOrDefault(c.Id, []),
+                commentCounts.GetValueOrDefault(c.Id, 0),
+                attachmentCounts.GetValueOrDefault(c.Id, 0)
+            )).ToList();
+
+            return Results.Ok(summaries);
+        }).RequireAuth();
 
         group.MapPost("/boards/{boardId:guid}/cards", async (BoardDbContext db, HttpContext http, Guid boardId, JsonElement body, BoardEventBroadcaster broadcaster) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             if (!await db.Boards.AnyAsync(x => x.Id == boardId))
             {
                 return Results.NotFound();
             }
 
-            var requestLaneId = body.GetProperty("laneId").GetGuid();
-            var requestName = body.GetProperty("name").GetString()!;
+            if (!body.TryGetProperty("laneId", out var laneIdProp) || laneIdProp.ValueKind == JsonValueKind.Null)
+            {
+                return Results.BadRequest("laneId is required.");
+            }
+
+            var requestLaneId = laneIdProp.GetGuid();
+
+            if (!body.TryGetProperty("name", out var nameProp) || string.IsNullOrWhiteSpace(nameProp.GetString()))
+            {
+                return Results.BadRequest("Name is required.");
+            }
+
+            var requestName = nameProp.GetString()!;
+
             var requestDescription = body.TryGetProperty("descriptionMarkdown", out var descProp) ? descProp.GetString() ?? "" : "";
             var requestPosition = body.TryGetProperty("position", out var posProp) ? posProp.GetInt32() : 0;
 
@@ -142,25 +169,22 @@ internal static class CardEndpoints
             await CardNumberHelper.InsertCardWithAutoNumberAsync(db, card, boardId);
             broadcaster.PublishBoardUpdated(boardId);
             return Results.Created($"/api/v1/cards/{card.Id}", card);
-        });
+        }).RequireAuth();
 
         // By-ID operations (flat)
-        group.MapGet("/cards/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id) =>
+        group.MapGet("/cards/{id:guid}", async (BoardDbContext db, Guid id) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             var card = await db.Cards.FindAsync(id);
             if (card is null)
             {
                 return Results.NotFound();
             }
 
-            var comments = await db.Comments.Where(c => c.CardId == id).ToListAsync();
-            comments.Sort((a, b) => a.LastUpdatedAtUtc.CompareTo(b.LastUpdatedAtUtc));
+            var comments = (await db.Comments
+                .Where(c => c.CardId == id)
+                .ToListAsync())
+                .OrderBy(c => c.LastUpdatedAtUtc)
+                .ToList();
 
             var userIds = comments.Select(c => c.UserId)
                 .Append(card.CreatedByUserId)
@@ -202,16 +226,10 @@ internal static class CardEndpoints
                 labels,
                 attachments,
             });
-        });
+        }).RequireAuth();
 
         group.MapPatch("/cards/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, JsonElement patch, BoardEventBroadcaster broadcaster) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             var card = await db.Cards.FindAsync(id);
             if (card is null)
             {
@@ -220,16 +238,27 @@ internal static class CardEndpoints
 
             if (patch.TryGetProperty("name", out var name))
             {
-                card.Name = name.GetString()!;
+                var nameStr = name.ValueKind == JsonValueKind.Null ? null : name.GetString();
+                if (string.IsNullOrWhiteSpace(nameStr))
+                {
+                    return Results.BadRequest("Name cannot be empty.");
+                }
+
+                card.Name = nameStr;
             }
 
             if (patch.TryGetProperty("descriptionMarkdown", out var desc))
             {
-                card.DescriptionMarkdown = desc.GetString()!;
+                card.DescriptionMarkdown = desc.ValueKind == JsonValueKind.Null ? "" : desc.GetString()!;
             }
 
             if (patch.TryGetProperty("sizeId", out var sizeIdPatch))
             {
+                if (sizeIdPatch.ValueKind == JsonValueKind.Null)
+                {
+                    return Results.BadRequest("sizeId cannot be null.");
+                }
+
                 var newSizeId = sizeIdPatch.GetGuid();
                 var sizeLane = await db.Lanes.FindAsync(card.LaneId);
                 if (sizeLane is null || !await db.CardSizes.AnyAsync(s => s.Id == newSizeId && s.BoardId == sizeLane.BoardId))
@@ -242,7 +271,18 @@ internal static class CardEndpoints
 
             if (patch.TryGetProperty("laneId", out var lane))
             {
-                card.LaneId = lane.GetGuid();
+                if (lane.ValueKind == JsonValueKind.Null)
+                {
+                    return Results.BadRequest("laneId cannot be null.");
+                }
+
+                var newLaneId = lane.GetGuid();
+                if (!await db.Lanes.AnyAsync(l => l.Id == newLaneId))
+                {
+                    return Results.BadRequest("Lane not found.");
+                }
+
+                card.LaneId = newLaneId;
             }
 
             if (patch.TryGetProperty("position", out var pos))
@@ -272,24 +312,29 @@ internal static class CardEndpoints
             }
 
             return Results.Ok(card);
-        });
+        }).RequireAuth();
 
         group.MapPost("/cards/{id:guid}/reorder", async (BoardDbContext db, HttpContext http, Guid id, JsonElement body, BoardEventBroadcaster broadcaster) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             var card = await db.Cards.FindAsync(id);
             if (card is null)
             {
                 return Results.NotFound();
             }
 
-            var targetLaneId = body.GetProperty("laneId").GetGuid();
-            var targetIndex = body.GetProperty("index").GetInt32();
+            if (!body.TryGetProperty("laneId", out var laneIdProp) || laneIdProp.ValueKind == JsonValueKind.Null)
+            {
+                return Results.BadRequest("laneId is required.");
+            }
+
+            var targetLaneId = laneIdProp.GetGuid();
+
+            if (!body.TryGetProperty("index", out var indexProp) || indexProp.ValueKind == JsonValueKind.Null)
+            {
+                return Results.BadRequest("index is required.");
+            }
+
+            var targetIndex = indexProp.GetInt32();
 
             var targetLane = await db.Lanes.FindAsync(targetLaneId);
             if (targetLane is null)
@@ -344,16 +389,10 @@ internal static class CardEndpoints
             var lanes = await db.Lanes.Where(x => x.BoardId == targetLane.BoardId).OrderBy(l => l.Position).ToListAsync();
             var cards = await db.Cards.Where(x => boardLaneIds.Contains(x.LaneId)).OrderBy(c => c.LaneId).ThenBy(c => c.Position).ToListAsync();
             return Results.Ok(new { lanes, cards });
-        });
+        }).RequireAuth();
 
         group.MapDelete("/cards/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, BoardEventBroadcaster broadcaster) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.HumanUser);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             var card = await db.Cards.FindAsync(id);
             if (card is null)
             {
@@ -377,7 +416,7 @@ internal static class CardEndpoints
             }
 
             return Results.NoContent();
-        });
+        }).RequireRole(UserRole.Administrator, UserRole.HumanUser);
 
         return group;
     }

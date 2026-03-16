@@ -5,7 +5,6 @@ namespace Collaboard.Api.Events;
 public class BoardEventBroadcaster
 {
     private readonly Dictionary<Guid, List<Channel<string>>> _boardSubscribers = [];
-    private readonly List<Channel<string>> _globalSubscribers = [];
     private readonly Lock _lock = new();
 
     public ChannelReader<string> Subscribe(Guid boardId)
@@ -47,13 +46,24 @@ public class BoardEventBroadcaster
 
     public void PublishBoardUpdated(Guid boardId) => PublishToBoard(boardId, "board-updated");
 
+    // Broadcasts to all board-scoped subscribers (every connected client regardless of board)
     public void PublishGlobal(string eventType)
     {
         lock (_lock)
         {
-            foreach (var (_, subscribers) in _boardSubscribers)
+            var emptyBoards = new List<Guid>();
+            foreach (var (boardId, subscribers) in _boardSubscribers)
             {
                 WriteToSubscribers(subscribers, eventType);
+                if (subscribers.Count == 0)
+                {
+                    emptyBoards.Add(boardId);
+                }
+            }
+
+            foreach (var boardId in emptyBoards)
+            {
+                _boardSubscribers.Remove(boardId);
             }
         }
     }
@@ -65,6 +75,10 @@ public class BoardEventBroadcaster
             if (_boardSubscribers.TryGetValue(boardId, out var subscribers))
             {
                 WriteToSubscribers(subscribers, eventType);
+                if (subscribers.Count == 0)
+                {
+                    _boardSubscribers.Remove(boardId);
+                }
             }
         }
     }

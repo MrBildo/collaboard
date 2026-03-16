@@ -10,36 +10,17 @@ namespace Collaboard.Api.Tests;
 
 public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<CollaboardApiFactory>
 {
-    private static int _nextPosition = 1000;
-
     private readonly CollaboardApiFactory _factory = factory;
     private readonly HttpClient _client = factory.CreateClient();
 
-    private static int NextPosition() => Interlocked.Increment(ref _nextPosition);
-
     private async Task<Guid> GetFirstLaneIdAsync()
-    {
-        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/board");
-        response.EnsureSuccessStatusCode();
-        var board = await response.Content.ReadFromJsonAsync<JsonElement>();
-        return board.GetProperty("lanes")[0].GetProperty("id").GetGuid();
-    }
+        => await TestDataHelper.GetFirstLaneIdAsync(_client, _factory.DefaultBoardId);
 
     private async Task<Guid> GetLaneIdByIndexAsync(int index)
-    {
-        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/board");
-        response.EnsureSuccessStatusCode();
-        var board = await response.Content.ReadFromJsonAsync<JsonElement>();
-        return board.GetProperty("lanes")[index].GetProperty("id").GetGuid();
-    }
+        => await TestDataHelper.GetLaneIdByIndexAsync(_client, _factory.DefaultBoardId, index);
 
     private async Task<Guid> GetSizeIdByNameAsync(string sizeName)
-    {
-        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/sizes");
-        response.EnsureSuccessStatusCode();
-        var sizes = await response.Content.ReadFromJsonAsync<JsonElement[]>();
-        return sizes!.First(s => s.GetProperty("name").GetString() == sizeName).GetProperty("id").GetGuid();
-    }
+        => await TestDataHelper.GetSizeIdByNameAsync(_client, _factory.DefaultBoardId, sizeName);
 
     [Fact]
     public async Task GetCards_ReturnsAllCards()
@@ -55,7 +36,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
 
@@ -83,7 +64,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "Find me",
             size = "S",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -154,7 +135,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "Some description",
             size = "L",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         };
 
         // Act
@@ -187,7 +168,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
                 descriptionMarkdown = "",
                 size = "S",
                 laneId,
-                position = NextPosition()
+                position = Random.Shared.Next(10000, 99999)
             });
             response.EnsureSuccessStatusCode();
             var card = await response.Content.ReadFromJsonAsync<JsonElement>();
@@ -213,7 +194,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "Created by agent",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         };
 
         // Act
@@ -236,7 +217,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "desc",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -263,7 +244,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         TestAuthHelper.SetAdminAuth(_client, _factory);
         var sourceLaneId = await GetLaneIdByIndexAsync(0);
         var targetLaneId = await GetLaneIdByIndexAsync(1);
-        var pos = NextPosition();
+        var pos = Random.Shared.Next(10000, 99999);
 
         var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
         {
@@ -307,7 +288,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         // Arrange
         TestAuthHelper.SetAdminAuth(_client, _factory);
         var laneId = await GetFirstLaneIdAsync();
-        var pos = NextPosition();
+        var pos = Random.Shared.Next(10000, 99999);
 
         var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
         {
@@ -349,7 +330,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -376,7 +357,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -402,7 +383,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -445,7 +426,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             sizeId = Guid.NewGuid(),
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         };
 
         // Act
@@ -473,7 +454,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             sizeId,
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         };
 
         // Act
@@ -498,7 +479,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -525,7 +506,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             name = "Card For Invalid Size Patch",
             descriptionMarkdown = "",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -601,7 +582,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "M",
             laneId = sourceLaneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -644,7 +625,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         var laneResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/lanes", new
         {
             name = $"Empty Lane {Guid.NewGuid()}",
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         laneResponse.EnsureSuccessStatusCode();
         var lane = await laneResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -656,7 +637,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "M",
             laneId = sourceLaneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -721,7 +702,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -751,7 +732,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -787,7 +768,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createCardResponse.EnsureSuccessStatusCode();
         var card = await createCardResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -829,7 +810,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = description,
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         };
 
         // Act
@@ -854,7 +835,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "initial",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -892,7 +873,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -939,7 +920,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "S",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -984,7 +965,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -1020,7 +1001,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -1064,7 +1045,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -1101,7 +1082,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "Find by number",
             size = "S",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -1169,7 +1150,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             descriptionMarkdown = "",
             size = "M",
             laneId,
-            position = NextPosition()
+            position = Random.Shared.Next(10000, 99999)
         });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -1209,5 +1190,475 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         var attachments = parsed.GetProperty("attachments");
         attachments.GetArrayLength().ShouldBe(1);
         attachments[0].GetProperty("fileName").GetString().ShouldBe("data.csv");
+    }
+
+    // ── Hardened enrichment tests (query optimization) ───────────────────────
+
+    [Fact]
+    public async Task GetCards_ReturnsCorrectSizeName()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+        var sizeId = await GetSizeIdByNameAsync("L");
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = $"SizeName-Test-{Guid.NewGuid()}",
+            descriptionMarkdown = "",
+            laneId,
+            position = Random.Shared.Next(10000, 99999),
+            sizeId
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards");
+        response.EnsureSuccessStatusCode();
+        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+
+        // Assert
+        var card = cards!.First(c => c.GetProperty("id").GetGuid() == cardId);
+        card.GetProperty("sizeName").GetString().ShouldBe("L");
+        card.GetProperty("sizeId").GetGuid().ShouldBe(sizeId);
+    }
+
+    [Fact]
+    public async Task GetCards_ReturnsCorrectLabelSummaries()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var label1Response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/labels",
+            new { name = $"QOpt1-{Guid.NewGuid()}", color = "red" });
+        label1Response.EnsureSuccessStatusCode();
+        var label1 = await label1Response.Content.ReadFromJsonAsync<JsonElement>();
+        var label1Id = label1.GetProperty("id").GetGuid();
+        var label1Name = label1.GetProperty("name").GetString();
+
+        var label2Response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/labels",
+            new { name = $"QOpt2-{Guid.NewGuid()}", color = "blue" });
+        label2Response.EnsureSuccessStatusCode();
+        var label2 = await label2Response.Content.ReadFromJsonAsync<JsonElement>();
+        var label2Id = label2.GetProperty("id").GetGuid();
+        var label2Name = label2.GetProperty("name").GetString();
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = $"LabelSummary-Test-{Guid.NewGuid()}",
+            descriptionMarkdown = "",
+            laneId,
+            position = Random.Shared.Next(10000, 99999)
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/labels", new { labelId = label1Id });
+        await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/labels", new { labelId = label2Id });
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards");
+        response.EnsureSuccessStatusCode();
+        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+
+        // Assert
+        var card = cards!.First(c => c.GetProperty("id").GetGuid() == cardId);
+        var labels = card.GetProperty("labels");
+        labels.GetArrayLength().ShouldBe(2);
+
+        var labelIds = labels.EnumerateArray().Select(l => l.GetProperty("id").GetGuid()).ToList();
+        labelIds.ShouldContain(label1Id);
+        labelIds.ShouldContain(label2Id);
+
+        var labelNames = labels.EnumerateArray().Select(l => l.GetProperty("name").GetString()).ToList();
+        labelNames.ShouldContain(label1Name);
+        labelNames.ShouldContain(label2Name);
+
+        var labelColors = labels.EnumerateArray().Select(l => l.GetProperty("color").GetString()).ToList();
+        labelColors.ShouldContain("red");
+        labelColors.ShouldContain("blue");
+    }
+
+    [Fact]
+    public async Task GetCards_ReturnsCorrectCommentCount()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = $"CommentCount-Test-{Guid.NewGuid()}",
+            descriptionMarkdown = "",
+            laneId,
+            position = Random.Shared.Next(10000, 99999)
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "Comment 1" });
+        await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "Comment 2" });
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards");
+        response.EnsureSuccessStatusCode();
+        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+
+        // Assert
+        var card = cards!.First(c => c.GetProperty("id").GetGuid() == cardId);
+        card.GetProperty("commentCount").GetInt32().ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task GetCards_ReturnsCorrectAttachmentCount()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = $"AttachCount-Test-{Guid.NewGuid()}",
+            descriptionMarkdown = "",
+            laneId,
+            position = Random.Shared.Next(10000, 99999)
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        using var attachContent = new MultipartFormDataContent();
+        attachContent.Add(new ByteArrayContent([1, 2, 3]), "file", "file1.txt");
+        await _client.PostAsync($"/api/v1/cards/{cardId}/attachments", attachContent);
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards");
+        response.EnsureSuccessStatusCode();
+        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+
+        // Assert
+        var card = cards!.First(c => c.GetProperty("id").GetGuid() == cardId);
+        card.GetProperty("attachmentCount").GetInt32().ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task GetCard_CommentsAreOrderedByDate()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = $"CommentOrder-Test-{Guid.NewGuid()}",
+            descriptionMarkdown = "",
+            laneId,
+            position = Random.Shared.Next(10000, 99999)
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        // Add 3 comments with slight delays so timestamps are distinct
+        var c1 = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "First comment" });
+        c1.EnsureSuccessStatusCode();
+        await Task.Delay(50);
+
+        var c2 = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "Second comment" });
+        c2.EnsureSuccessStatusCode();
+        await Task.Delay(50);
+
+        var c3 = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "Third comment" });
+        c3.EnsureSuccessStatusCode();
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/cards/{cardId}");
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        // Assert
+        var comments = body.GetProperty("comments");
+        comments.GetArrayLength().ShouldBe(3);
+
+        var timestamps = comments.EnumerateArray()
+            .Select(c => DateTimeOffset.Parse(c.GetProperty("lastUpdatedAtUtc").GetString()!))
+            .ToList();
+
+        // Comments should be in chronological order
+        for (var i = 1; i < timestamps.Count; i++)
+        {
+            timestamps[i].ShouldBeGreaterThanOrEqualTo(timestamps[i - 1]);
+        }
+
+        // Content order should match creation order
+        comments[0].GetProperty("contentMarkdown").GetString().ShouldBe("First comment");
+        comments[1].GetProperty("contentMarkdown").GetString().ShouldBe("Second comment");
+        comments[2].GetProperty("contentMarkdown").GetString().ShouldBe("Third comment");
+    }
+
+    [Fact]
+    public async Task GetComments_ReturnsOrderedByDate()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = $"CommentEndpointOrder-{Guid.NewGuid()}",
+            descriptionMarkdown = "",
+            laneId,
+            position = Random.Shared.Next(10000, 99999)
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "Alpha" });
+        await Task.Delay(50);
+        await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "Beta" });
+        await Task.Delay(50);
+        await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "Gamma" });
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/cards/{cardId}/comments");
+        response.EnsureSuccessStatusCode();
+        var comments = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+
+        // Assert
+        comments!.Length.ShouldBe(3);
+        comments[0].GetProperty("contentMarkdown").GetString().ShouldBe("Alpha");
+        comments[1].GetProperty("contentMarkdown").GetString().ShouldBe("Beta");
+        comments[2].GetProperty("contentMarkdown").GetString().ShouldBe("Gamma");
+
+        var timestamps = comments.Select(c => DateTimeOffset.Parse(c.GetProperty("lastUpdatedAtUtc").GetString()!)).ToList();
+        for (var i = 1; i < timestamps.Count; i++)
+        {
+            timestamps[i].ShouldBeGreaterThanOrEqualTo(timestamps[i - 1]);
+        }
+    }
+
+    [Fact]
+    public async Task GetCards_MultipleCardsWithDifferentEnrichment_AllCorrect()
+    {
+        // Arrange — create two cards: one with labels+comments, one bare
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var labelResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/labels",
+            new { name = $"MultiCard-{Guid.NewGuid()}", color = "teal" });
+        labelResponse.EnsureSuccessStatusCode();
+        var labelId = (await labelResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+
+        // Card A: with label and 2 comments
+        var cardAResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = $"MultiA-{Guid.NewGuid()}",
+            descriptionMarkdown = "",
+            laneId,
+            position = Random.Shared.Next(10000, 99999)
+        });
+        cardAResponse.EnsureSuccessStatusCode();
+        var cardAId = (await cardAResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        await _client.PostAsJsonAsync($"/api/v1/cards/{cardAId}/labels", new { labelId });
+        await _client.PostAsJsonAsync($"/api/v1/cards/{cardAId}/comments", new { contentMarkdown = "C1" });
+        await _client.PostAsJsonAsync($"/api/v1/cards/{cardAId}/comments", new { contentMarkdown = "C2" });
+
+        // Card B: bare (no labels, no comments, no attachments)
+        var cardBResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = $"MultiB-{Guid.NewGuid()}",
+            descriptionMarkdown = "",
+            laneId,
+            position = Random.Shared.Next(10000, 99999)
+        });
+        cardBResponse.EnsureSuccessStatusCode();
+        var cardBId = (await cardBResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards");
+        response.EnsureSuccessStatusCode();
+        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+
+        // Assert
+        var cardA = cards!.First(c => c.GetProperty("id").GetGuid() == cardAId);
+        cardA.GetProperty("labels").GetArrayLength().ShouldBe(1);
+        cardA.GetProperty("commentCount").GetInt32().ShouldBe(2);
+        cardA.GetProperty("attachmentCount").GetInt32().ShouldBe(0);
+        cardA.GetProperty("sizeName").GetString().ShouldNotBe("?");
+
+        var cardB = cards!.First(c => c.GetProperty("id").GetGuid() == cardBId);
+        cardB.GetProperty("labels").GetArrayLength().ShouldBe(0);
+        cardB.GetProperty("commentCount").GetInt32().ShouldBe(0);
+        cardB.GetProperty("attachmentCount").GetInt32().ShouldBe(0);
+        cardB.GetProperty("sizeName").GetString().ShouldNotBe("?");
+    }
+
+    // ── Validation tests ─────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task PostCard_WithoutLaneId_Returns400()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        // Act
+        var response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "No Lane Card"
+        });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task PostCard_WithoutName_Returns400()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        // Act
+        var response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            laneId,
+            position = Random.Shared.Next(10000, 99999)
+        });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task PostCard_WithEmptyName_Returns400()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        // Act
+        var response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "   ",
+            laneId,
+            position = Random.Shared.Next(10000, 99999)
+        });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task PostReorder_WithoutLaneId_Returns400()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "Reorder No LaneId",
+            laneId,
+            position = Random.Shared.Next(10000, 99999)
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/reorder", new
+        {
+            index = 0
+        });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task PostReorder_WithoutIndex_Returns400()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "Reorder No Index",
+            laneId,
+            position = Random.Shared.Next(10000, 99999)
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/reorder", new
+        {
+            laneId
+        });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task PatchCard_WithNonexistentLaneId_Returns400()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "Patch Bad Lane",
+            laneId,
+            position = Random.Shared.Next(10000, 99999)
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.PatchAsJsonAsync($"/api/v1/cards/{cardId}", new
+        {
+            laneId = Guid.NewGuid()
+        });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task PatchCard_WithEmptyName_Returns400()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "Patch Empty Name",
+            laneId,
+            position = Random.Shared.Next(10000, 99999)
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.PatchAsJsonAsync($"/api/v1/cards/{cardId}", new
+        {
+            name = "  "
+        });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 }

@@ -9,14 +9,8 @@ internal static class AttachmentEndpoints
 {
     public static RouteGroupBuilder MapAttachmentEndpoints(this RouteGroupBuilder group)
     {
-        group.MapGet("/cards/{id:guid}/attachments", async (BoardDbContext db, HttpContext http, Guid id) =>
+        group.MapGet("/cards/{id:guid}/attachments", async (BoardDbContext db, Guid id) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             if (!await db.Cards.AnyAsync(x => x.Id == id))
             {
                 return Results.NotFound();
@@ -27,16 +21,10 @@ internal static class AttachmentEndpoints
                 .Select(x => new { x.Id, x.FileName, x.ContentType, x.AddedByUserId, x.AddedAtUtc })
                 .ToListAsync();
             return Results.Ok(attachments);
-        });
+        }).RequireAuth();
 
         group.MapPost("/cards/{id:guid}/attachments", async (BoardDbContext db, HttpContext http, Guid id, IFormFile file, BoardEventBroadcaster broadcaster) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             if (!await db.Cards.AnyAsync(x => x.Id == id))
             {
                 return Results.NotFound();
@@ -58,28 +46,16 @@ internal static class AttachmentEndpoints
             await db.SaveChangesAsync();
             await db.PublishForCardAsync(id, broadcaster);
             return Results.Created($"/api/v1/cards/{id}/attachments/{attachment.Id}", new { attachment.Id, attachment.FileName });
-        }).DisableAntiforgery();
+        }).DisableAntiforgery().RequireAuth();
 
-        group.MapGet("/attachments/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id) =>
+        group.MapGet("/attachments/{id:guid}", async (BoardDbContext db, Guid id) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             var attachment = await db.Attachments.FindAsync(id);
             return attachment is null ? Results.NotFound() : Results.File(attachment.Payload, attachment.ContentType, attachment.FileName);
-        });
+        }).RequireAuth();
 
         group.MapDelete("/attachments/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, BoardEventBroadcaster broadcaster) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.HumanUser, UserRole.AgentUser);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             var attachment = await db.Attachments.FindAsync(id);
             if (attachment is null)
             {
@@ -97,7 +73,7 @@ internal static class AttachmentEndpoints
             await db.SaveChangesAsync();
             await db.PublishForCardAsync(cardId, broadcaster);
             return Results.NoContent();
-        });
+        }).RequireAuth();
 
         return group;
     }

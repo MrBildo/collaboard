@@ -11,33 +11,23 @@ public class CommentEndpointTests(CollaboardApiFactory factory) : IClassFixture<
 {
     private readonly CollaboardApiFactory _factory = factory;
     private readonly HttpClient _client = factory.CreateClient();
-    private static int _nextPosition = 2000;
-
-    private static readonly JsonSerializerOptions _jsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    };
 
     private async Task<Guid> CreateCardAsync()
     {
         TestAuthHelper.SetAdminAuth(_client, _factory);
-
-        var boardResponse = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/board");
-        boardResponse.EnsureSuccessStatusCode();
-        var board = await boardResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
-        var laneId = board.GetProperty("lanes")[0].GetProperty("id").GetGuid();
+        var laneId = await TestDataHelper.GetFirstLaneIdAsync(_client, _factory.DefaultBoardId);
 
         var cardPayload = new
         {
             name = "Test Card",
             descriptionMarkdown = "Card for comment tests",
             laneId,
-            position = Interlocked.Increment(ref _nextPosition),
+            position = Random.Shared.Next(10000, 99999),
         };
 
         var cardResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", cardPayload);
         cardResponse.EnsureSuccessStatusCode();
-        var card = await cardResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var card = await cardResponse.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
         return card.GetProperty("id").GetGuid();
     }
 
@@ -57,7 +47,7 @@ public class CommentEndpointTests(CollaboardApiFactory factory) : IClassFixture<
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var comments = await response.Content.ReadFromJsonAsync<JsonElement[]>(_jsonOptions);
+        var comments = await response.Content.ReadFromJsonAsync<JsonElement[]>(TestAuthHelper.JsonOptions);
         comments.ShouldNotBeNull();
         comments.Length.ShouldBeGreaterThanOrEqualTo(2);
     }
@@ -86,7 +76,7 @@ public class CommentEndpointTests(CollaboardApiFactory factory) : IClassFixture<
 
         var createResponse = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "Original content" });
         createResponse.EnsureSuccessStatusCode();
-        var comment = await createResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var comment = await createResponse.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
         var commentId = comment.GetProperty("id").GetGuid();
 
         // Act
@@ -95,7 +85,7 @@ public class CommentEndpointTests(CollaboardApiFactory factory) : IClassFixture<
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var updated = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var updated = await response.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
         updated.GetProperty("contentMarkdown").GetString().ShouldBe("Updated content");
     }
 
@@ -109,7 +99,7 @@ public class CommentEndpointTests(CollaboardApiFactory factory) : IClassFixture<
 
         var createResponse = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "Author's comment" });
         createResponse.EnsureSuccessStatusCode();
-        var comment = await createResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var comment = await createResponse.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
         var commentId = comment.GetProperty("id").GetGuid();
 
         TestAuthHelper.SetAdminAuth(_client, _factory);
@@ -120,7 +110,7 @@ public class CommentEndpointTests(CollaboardApiFactory factory) : IClassFixture<
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var updated = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var updated = await response.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
         updated.GetProperty("contentMarkdown").GetString().ShouldBe("Admin edited");
     }
 
@@ -134,7 +124,7 @@ public class CommentEndpointTests(CollaboardApiFactory factory) : IClassFixture<
 
         var createResponse = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "Author's comment" });
         createResponse.EnsureSuccessStatusCode();
-        var comment = await createResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var comment = await createResponse.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
         var commentId = comment.GetProperty("id").GetGuid();
 
         var otherUser = await TestAuthHelper.CreateUserAsync(_client, _factory, "Other Patch User", UserRole.HumanUser);
@@ -161,7 +151,7 @@ public class CommentEndpointTests(CollaboardApiFactory factory) : IClassFixture<
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
 
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
         json.TryGetProperty("id", out var idProp).ShouldBeTrue();
         idProp.GetGuid().ShouldNotBe(Guid.Empty);
         json.GetProperty("cardId").GetGuid().ShouldBe(cardId);
@@ -199,7 +189,7 @@ public class CommentEndpointTests(CollaboardApiFactory factory) : IClassFixture<
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
         json.GetProperty("contentMarkdown").GetString().ShouldBe(content);
     }
 
@@ -214,7 +204,7 @@ public class CommentEndpointTests(CollaboardApiFactory factory) : IClassFixture<
         var payload = new { contentMarkdown = "My comment to delete." };
         var createResponse = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", payload);
         createResponse.EnsureSuccessStatusCode();
-        var comment = await createResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var comment = await createResponse.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
         var commentId = comment.GetProperty("id").GetGuid();
 
         // Act
@@ -235,7 +225,7 @@ public class CommentEndpointTests(CollaboardApiFactory factory) : IClassFixture<
         var payload = new { contentMarkdown = "Someone else's comment." };
         var createResponse = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", payload);
         createResponse.EnsureSuccessStatusCode();
-        var comment = await createResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var comment = await createResponse.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
         var commentId = comment.GetProperty("id").GetGuid();
 
         TestAuthHelper.SetAdminAuth(_client, _factory);
@@ -258,7 +248,7 @@ public class CommentEndpointTests(CollaboardApiFactory factory) : IClassFixture<
         var payload = new { contentMarkdown = "Author's comment." };
         var createResponse = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", payload);
         createResponse.EnsureSuccessStatusCode();
-        var comment = await createResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var comment = await createResponse.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
         var commentId = comment.GetProperty("id").GetGuid();
 
         var otherUser = await TestAuthHelper.CreateUserAsync(_client, _factory, "Other User", UserRole.HumanUser);

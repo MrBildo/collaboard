@@ -11,27 +11,22 @@ internal static class SizeEndpoints
     public static RouteGroupBuilder MapSizeEndpoints(this RouteGroupBuilder group)
     {
         // Board-scoped listing and creation
-        group.MapGet("/boards/{boardId:guid}/sizes", async (BoardDbContext db, HttpContext http, Guid boardId) =>
-        {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
-            return forbidden is not null
-                ? forbidden
-                : !await db.Boards.AnyAsync(x => x.Id == boardId)
+        group.MapGet("/boards/{boardId:guid}/sizes", async (BoardDbContext db, Guid boardId) =>
+            !await db.Boards.AnyAsync(x => x.Id == boardId)
                 ? Results.NotFound()
-                : Results.Ok(await db.CardSizes.Where(x => x.BoardId == boardId).OrderBy(x => x.Ordinal).ToListAsync());
-        });
+                : Results.Ok(await db.CardSizes.Where(x => x.BoardId == boardId).OrderBy(x => x.Ordinal).ToListAsync()))
+            .RequireAuth();
 
-        group.MapPost("/boards/{boardId:guid}/sizes", async (BoardDbContext db, HttpContext http, Guid boardId, CardSize request, BoardEventBroadcaster broadcaster) =>
+        group.MapPost("/boards/{boardId:guid}/sizes", async (BoardDbContext db, Guid boardId, CardSize request, BoardEventBroadcaster broadcaster) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             if (!await db.Boards.AnyAsync(x => x.Id == boardId))
             {
                 return Results.NotFound();
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                return Results.BadRequest("Name is required.");
             }
 
             var ordinal = request.Ordinal;
@@ -45,29 +40,17 @@ internal static class SizeEndpoints
             await db.SaveChangesAsync();
             broadcaster.PublishBoardUpdated(boardId);
             return Results.Created($"/api/v1/sizes/{size.Id}", size);
-        });
+        }).RequireAdmin();
 
         // By-ID operations (flat)
-        group.MapGet("/sizes/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id) =>
+        group.MapGet("/sizes/{id:guid}", async (BoardDbContext db, Guid id) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             var size = await db.CardSizes.FindAsync(id);
             return size is null ? Results.NotFound() : Results.Ok(size);
-        });
+        }).RequireAuth();
 
-        group.MapDelete("/sizes/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, BoardEventBroadcaster broadcaster) =>
+        group.MapDelete("/sizes/{id:guid}", async (BoardDbContext db, Guid id, BoardEventBroadcaster broadcaster) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             var size = await db.CardSizes.FindAsync(id);
             if (size is null)
             {
@@ -83,16 +66,10 @@ internal static class SizeEndpoints
             await db.SaveChangesAsync();
             broadcaster.PublishBoardUpdated(size.BoardId);
             return Results.NoContent();
-        });
+        }).RequireAdmin();
 
-        group.MapPatch("/sizes/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, JsonElement patch, BoardEventBroadcaster broadcaster) =>
+        group.MapPatch("/sizes/{id:guid}", async (BoardDbContext db, Guid id, JsonElement patch, BoardEventBroadcaster broadcaster) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             var size = await db.CardSizes.FindAsync(id);
             if (size is null)
             {
@@ -101,7 +78,13 @@ internal static class SizeEndpoints
 
             if (patch.TryGetProperty("name", out var name))
             {
-                size.Name = name.GetString()!;
+                var nameStr = name.ValueKind == JsonValueKind.Null ? null : name.GetString();
+                if (string.IsNullOrWhiteSpace(nameStr))
+                {
+                    return Results.BadRequest("Name cannot be empty.");
+                }
+
+                size.Name = nameStr;
             }
 
             if (patch.TryGetProperty("ordinal", out var ord))
@@ -118,7 +101,7 @@ internal static class SizeEndpoints
             await db.SaveChangesAsync();
             broadcaster.PublishBoardUpdated(size.BoardId);
             return Results.Ok(size);
-        });
+        }).RequireAdmin();
 
         return group;
     }
