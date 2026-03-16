@@ -39,6 +39,7 @@ if (!string.IsNullOrEmpty(dbDir))
 builder.Services.AddDbContext<BoardDbContext>(options =>
     options.UseSqlite(connectionString));
 
+builder.Services.Configure<AttachmentSettings>(builder.Configuration.GetSection("Attachments"));
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<BoardEventBroadcaster>();
 builder.Services.AddScoped<McpAuthService>();

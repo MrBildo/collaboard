@@ -164,7 +164,7 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
         }
 
         var matches = await db.Labels
-            .Where(l => l.BoardId == boardId && l.Name.ToLower() == labelName!.ToLower())
+            .Where(l => l.BoardId == boardId && EF.Functions.Collate(l.Name, "NOCASE") == labelName!)
             .ToListAsync(ct);
 
         if (matches.Count == 0)

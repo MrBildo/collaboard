@@ -3,12 +3,13 @@ using System.Text.Json;
 using Collaboard.Api.Events;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using ModelContextProtocol.Server;
 
 namespace Collaboard.Api.Mcp;
 
 [McpServerToolType]
-public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, BoardEventBroadcaster broadcaster)
+public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, BoardEventBroadcaster broadcaster, IOptions<AttachmentSettings> attachmentSettings)
 {
     [McpServerTool(Name = "delete_attachment", Destructive = true)]
     [Description("Delete an attachment you added. Administrators can delete any attachment.")]
@@ -82,10 +83,11 @@ public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, Boar
             return "Error: Invalid base64 content.";
         }
 
-        const int maxBytes = 5 * 1024 * 1024;
+        var maxBytes = attachmentSettings.Value.MaxFileSizeBytes;
         if (payload.Length > maxBytes)
         {
-            return "Error: File exceeds 5MB limit for MCP uploads. Use the REST endpoint POST /api/v1/cards/{cardId}/attachments for larger files (up to 50MB).";
+            var maxMb = maxBytes / (1024 * 1024);
+            return $"Error: File exceeds {maxMb}MB limit for MCP uploads. Use the REST endpoint POST /api/v1/cards/{{cardId}}/attachments for larger files (up to 50MB).";
         }
 
         var attachment = new CardAttachment
