@@ -20,9 +20,7 @@ export function CardAttachments({ cardId, currentUserId, currentUserRole }: Card
   const [isDragging, setIsDragging] = useState(false);
   const dragCounter = useRef(0);
 
-  const directoryQuery = useUserDirectory();
-  const userName = (id: string) =>
-    directoryQuery.data?.find((u) => u.id === id)?.name ?? 'Unknown';
+  const { getUserName } = useUserDirectory();
 
   const attachmentsQuery = useQuery({
     queryKey: queryKeys.cards.attachments(cardId),
@@ -145,7 +143,7 @@ export function CardAttachments({ cardId, currentUserId, currentUserRole }: Card
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{attachment.fileName}</p>
             <p className="text-xs text-muted-foreground">
-              {userName(attachment.addedByUserId)} &middot; {new Date(attachment.addedAtUtc).toLocaleString()}
+              {getUserName(attachment.addedByUserId)} &middot; {new Date(attachment.addedAtUtc).toLocaleString()}
             </p>
           </div>
           <div className="ml-2 flex shrink-0 gap-1">

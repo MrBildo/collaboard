@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Dialog,
@@ -20,6 +20,7 @@ import {
   ItemActions,
 } from '@/components/editable-list';
 import { useEditableList } from '@/hooks/use-editable-list';
+import { useClickOutside } from '@/hooks/use-click-outside';
 import { Search, Trash2, Check } from 'lucide-react';
 import { LabelColorPicker } from '@/components/LabelColorPicker';
 import {
@@ -689,19 +690,10 @@ function PruneTab({ boardId }: { boardId: string }) {
     clearResults();
   };
 
-  // Outside-click handlers for dropdowns
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (laneDropdownRef.current && !laneDropdownRef.current.contains(e.target as Node)) {
-        setLaneDropdownOpen(false);
-      }
-      if (labelDropdownRef.current && !labelDropdownRef.current.contains(e.target as Node)) {
-        setLabelDropdownOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
+  const closeLaneDropdown = useCallback(() => setLaneDropdownOpen(false), []);
+  const closeLabelDropdown = useCallback(() => setLabelDropdownOpen(false), []);
+  useClickOutside(laneDropdownRef, closeLaneDropdown);
+  useClickOutside(labelDropdownRef, closeLabelDropdown);
 
   const hasActiveFilter = olderThan !== null || selectedLaneIds.length > 0 || selectedLabelIds.length > 0;
 

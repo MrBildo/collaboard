@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useClickOutside } from '@/hooks/use-click-outside';
 import { Check, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -84,16 +85,8 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
     [filtered, focusedIndex, toggle],
   );
 
-  useEffect(() => {
-    if (!open) return;
-    function handleClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [open]);
+  const handleClose = useCallback(() => setOpen(false), []);
+  useClickOutside(containerRef, handleClose);
 
   return (
     <div ref={containerRef} className="relative" aria-label="Label picker">

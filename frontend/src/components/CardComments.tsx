@@ -18,10 +18,7 @@ type CardCommentsProps = {
 export function CardComments({ cardId, currentUserId, currentUserRole }: CardCommentsProps) {
   const queryClient = useQueryClient();
 
-  const directoryQuery = useUserDirectory();
-  const userMap = new Map<string, string>(
-    (directoryQuery.data ?? []).map((u) => [u.id, u.name]),
-  );
+  const { getUserName } = useUserDirectory();
   const [newComment, setNewComment] = useState('');
   const [newCommentFocused, setNewCommentFocused] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -164,7 +161,7 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
                 <div className="mt-2 flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">
                     <span className="font-medium text-foreground">
-                      {userMap.get(comment.userId) ?? 'Unknown'}
+                      {getUserName(comment.userId)}
                     </span>
                     {' · '}
                     {new Date(comment.lastUpdatedAtUtc).toLocaleString()}

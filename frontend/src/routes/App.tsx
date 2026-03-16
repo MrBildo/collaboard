@@ -25,7 +25,7 @@ import { fetchBoardBySlug, fetchBoardData, fetchBoards, fetchCards, fetchMe, fet
 import { isLoggedIn, setUserKey, clearUserKey, setLastBoardSlug } from '@/lib/auth';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { queryKeys } from '@/lib/query-keys';
-import { useBoardEvents } from '@/lib/use-board-events';
+import { useBoardEvents } from '@/hooks/use-board-events';
 import type { CardItem, CardSummary } from '@/types';
 
 const kanbanCollision: CollisionDetection = (args) => {
