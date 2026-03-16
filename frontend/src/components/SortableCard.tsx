@@ -65,7 +65,7 @@ export function SortableCard({
     >
       <div className="flex items-start justify-between gap-2">
         <h3 className="text-sm font-medium leading-snug">{card.name}</h3>
-        <Badge variant="outline" className="mt-0.5 shrink-0 text-[10px]">{sizeMap.get(card.sizeId) ?? '?'}</Badge>
+        <Badge variant="outline" className="mt-0.5 shrink-0 text-xs">{sizeMap.get(card.sizeId) ?? '?'}</Badge>
       </div>
 
       <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
@@ -93,7 +93,7 @@ export function SortableCard({
             <Badge
               key={label.id}
               variant="secondary"
-              className="text-[10px]"
+              className="text-xs"
               style={label.color ? { backgroundColor: label.color, color: getContrastColor(label.color) } : undefined}
             >
               {label.name}

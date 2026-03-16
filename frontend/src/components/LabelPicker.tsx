@@ -3,7 +3,7 @@ import { Check, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { getContrastColor, getReadableColor } from '@/lib/utils';
+import { cn, getContrastColor, getReadableColor } from '@/lib/utils';
 import type { Label } from '@/types';
 
 type LabelPickerProps = {
@@ -112,7 +112,7 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
               <Badge
                 key={label.id}
                 variant="secondary"
-                className="rounded-full px-1.5 py-0 text-[10px] leading-4"
+                className="rounded-full px-1.5 py-0 text-xs leading-4"
                 style={{
                   backgroundColor: label.color ?? '#6b7280',
                   color: getContrastColor(label.color),
@@ -160,14 +160,18 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
               const selected = assignedIds.has(label.id);
               const focused = index === focusedIndex;
               return (
-                <button
+                <Button
                   key={label.id}
                   id={`label-option-${label.id}`}
-                  type="button"
+                  variant="ghost"
+                  size="sm"
                   role="option"
                   aria-selected={selected}
                   onClick={() => toggle(label.id)}
-                  className={`relative flex w-full cursor-default items-center gap-2 rounded-md py-1.5 pr-8 pl-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground ${focused ? 'bg-accent text-accent-foreground' : ''}`}
+                  className={cn(
+                    'relative w-full justify-start gap-2 pr-8',
+                    focused && 'bg-accent text-accent-foreground',
+                  )}
                 >
                   <span
                     className="size-3 shrink-0 rounded-full border"
@@ -180,7 +184,7 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
                   {selected && (
                     <Check className="absolute right-2 h-4 w-4" />
                   )}
-                </button>
+                </Button>
               );
             })}
             {filtered.length === 0 && (

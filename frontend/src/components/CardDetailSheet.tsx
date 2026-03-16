@@ -142,24 +142,26 @@ export function CardDetailSheet({
       <DialogContent data-mobile-fullscreen className="flex flex-col p-0 md:max-h-[85vh] md:!w-[80vw] md:!max-w-[80vw]" style={{ overflow: 'visible' }}>
         {/* Floating nav buttons — desktop only, positioned outside the dialog */}
         {prevCard && (
-          <button
-            type="button"
+          <Button
+            variant="outline"
+            size="icon"
             onClick={() => handleNavigate('prev')}
-            className="absolute top-1/2 -left-14 z-50 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-background shadow-lg ring-1 ring-border transition-colors hover:bg-accent md:flex"
+            className="absolute top-1/2 -left-14 z-50 hidden -translate-y-1/2 rounded-full shadow-lg md:flex"
             aria-label="Previous card"
           >
             <ChevronLeft className="h-5 w-5" />
-          </button>
+          </Button>
         )}
         {nextCard && (
-          <button
-            type="button"
+          <Button
+            variant="outline"
+            size="icon"
             onClick={() => handleNavigate('next')}
-            className="absolute top-1/2 -right-14 z-50 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-background shadow-lg ring-1 ring-border transition-colors hover:bg-accent md:flex"
+            className="absolute top-1/2 -right-14 z-50 hidden -translate-y-1/2 rounded-full shadow-lg md:flex"
             aria-label="Next card"
           >
             <ChevronRight className="h-5 w-5" />
-          </button>
+          </Button>
         )}
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <CardDetailForm
@@ -453,30 +455,20 @@ function CardDetailForm({
           {/* Description */}
           <div className="mb-4">
             <div className="mb-2 flex items-center gap-1">
-              <button
-                type="button"
-                className={cn(
-                  "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-                  !editingDescription
-                    ? "bg-muted text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
+              <Button
+                variant={!editingDescription ? 'secondary' : 'ghost'}
+                size="xs"
                 onClick={() => setEditingDescription(false)}
               >
                 Preview
-              </button>
-              <button
-                type="button"
-                className={cn(
-                  "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-                  editingDescription
-                    ? "bg-muted text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
+              </Button>
+              <Button
+                variant={editingDescription ? 'secondary' : 'ghost'}
+                size="xs"
                 onClick={() => setEditingDescription(true)}
               >
                 Edit
-              </button>
+              </Button>
             </div>
             {editingDescription ? (
               <Textarea
