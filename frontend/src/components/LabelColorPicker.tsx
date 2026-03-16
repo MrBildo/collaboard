@@ -13,13 +13,14 @@ import {
 type LabelColorPickerProps = {
   value: string;
   onValueChange: (value: string) => void;
+  className?: string;
 };
 
-function LabelColorPicker({ value, onValueChange }: LabelColorPickerProps) {
+function LabelColorPicker({ value, onValueChange, className }: LabelColorPickerProps) {
   return (
     <ColorPicker value={value} onValueChange={onValueChange}>
       <ColorPickerTrigger>
-        <ColorPickerSwatch className="size-8 cursor-pointer rounded-md" />
+        <ColorPickerSwatch className={className ?? "size-7 cursor-pointer rounded-md"} />
       </ColorPickerTrigger>
       <ColorPickerContent>
         <ColorPickerArea />

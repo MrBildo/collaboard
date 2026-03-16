@@ -579,7 +579,7 @@ function LabelsTab({ boardId }: { boardId: string }) {
               placeholder="e.g. Bug"
             />
           </div>
-          <LabelColorPicker value={newColor} onValueChange={setNewColor} />
+          <LabelColorPicker value={newColor} onValueChange={setNewColor} className="size-8 cursor-pointer rounded-md" />
           <Button onClick={handleCreate} disabled={createMutation.isPending || !newName.trim()}>
             {createMutation.isPending ? 'Adding...' : 'Add Label'}
           </Button>
