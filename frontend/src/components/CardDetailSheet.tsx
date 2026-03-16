@@ -29,6 +29,7 @@ import {
   uploadAttachment,
 } from '@/lib/api';
 import { LabelPicker } from '@/components/LabelPicker';
+import { queryKeys } from '@/lib/query-keys';
 import type { CardItem, CardSize, Lane } from '@/types';
 
 type CardDetailSheetProps = {
@@ -120,7 +121,7 @@ function CardDetailForm({
   const pasteMutation = useMutation({
     mutationFn: (file: File) => uploadAttachment(card.id, file),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['attachments', card.id] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.cards.attachments(card.id) });
       setPasteStatus(`Attached "${data.fileName}"`);
       setTimeout(() => setPasteStatus(null), 3000);
     },
@@ -163,19 +164,19 @@ function CardDetailForm({
     currentUserRole === 0 || (currentUserRole === 1 && card.createdByUserId === currentUserId);
 
   const directoryQuery = useQuery({
-    queryKey: ['userDirectory'],
+    queryKey: queryKeys.users.directory(),
     queryFn: fetchUserDirectory,
     staleTime: 60_000,
   });
   const userName = (id: string) => directoryQuery.data?.find((u) => u.id === id)?.name ?? 'Unknown';
 
   const labelsQuery = useQuery({
-    queryKey: ['cardLabels', card.id],
+    queryKey: queryKeys.cards.labels(card.id),
     queryFn: () => fetchCardLabels(card.id),
   });
 
   const allLabelsQuery = useQuery({
-    queryKey: ['labels', boardId],
+    queryKey: queryKeys.labels.all(boardId!),
     queryFn: () => fetchLabels(boardId!),
     enabled: !!boardId,
   });
@@ -183,23 +184,23 @@ function CardDetailForm({
   const addLabelMutation = useMutation({
     mutationFn: (labelId: string) => addCardLabel(card.id, labelId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cardLabels', card.id] });
-      queryClient.invalidateQueries({ queryKey: ['board'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.cards.labels(card.id) });
+      if (boardId) queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
     },
   });
 
   const removeLabelMutation = useMutation({
     mutationFn: (labelId: string) => removeCardLabel(card.id, labelId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cardLabels', card.id] });
-      queryClient.invalidateQueries({ queryKey: ['board'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.cards.labels(card.id) });
+      if (boardId) queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
     },
   });
 
   const updateMutation = useMutation({
     mutationFn: (patch: Record<string, unknown>) => updateCard(card.id, patch),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['board'] });
+      if (boardId) queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
       onOpenChange(false);
     },
   });
@@ -207,7 +208,7 @@ function CardDetailForm({
   const deleteMutation = useMutation({
     mutationFn: () => deleteCard(card.id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['board'] });
+      if (boardId) queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
       onOpenChange(false);
     },
   });
@@ -218,7 +219,7 @@ function CardDetailForm({
       setCurrentLaneId(laneId);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['boardData', boardId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId!) });
     },
   });
 

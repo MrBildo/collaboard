@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/select';
 import { addCardLabel, createCard, fetchBoardData, fetchLabels } from '@/lib/api';
 import { LabelPicker } from '@/components/LabelPicker';
+import { queryKeys } from '@/lib/query-keys';
 import type { CardSize, Lane } from '@/types';
 
 type CreateCardDialogProps = {
@@ -52,12 +53,12 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
   }
 
   const allLabelsQuery = useQuery({
-    queryKey: ['labels', boardId],
+    queryKey: queryKeys.labels.all(boardId),
     queryFn: () => fetchLabels(boardId),
   });
 
   const boardDataQuery = useQuery({
-    queryKey: ['boardData', boardId],
+    queryKey: queryKeys.boards.data(boardId),
     queryFn: () => fetchBoardData(boardId),
   });
 
@@ -82,7 +83,7 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
       if (selectedLabelIds.length > 0) {
         await Promise.all(selectedLabelIds.map((labelId) => addCardLabel(card.id, labelId)));
       }
-      queryClient.invalidateQueries({ queryKey: ['boardData', boardId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
       resetForm();
       onOpenChange(false);
     },

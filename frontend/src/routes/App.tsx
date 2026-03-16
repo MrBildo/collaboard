@@ -24,6 +24,7 @@ import { isLoggedIn, setUserKey, clearUserKey, setLastBoardSlug } from '@/lib/au
 import { useBoardEvents } from '@/lib/use-board-events';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { cn, getContrastColor } from '@/lib/utils';
+import { queryKeys } from '@/lib/query-keys';
 import type { Board, CardItem, Lane } from '@/types';
 
 export function App() {
@@ -45,7 +46,7 @@ export function App() {
 
   // Fetch the board metadata by slug
   const boardMetaQuery = useQuery({
-    queryKey: ['board', slug],
+    queryKey: queryKeys.boards.detail(slug!),
     queryFn: () => fetchBoardBySlug(slug!),
     enabled: loggedIn && !!slug,
   });
@@ -64,7 +65,7 @@ export function App() {
 
   // Fetch board data (lanes + cards)
   const boardDataQuery = useQuery({
-    queryKey: ['boardData', boardId],
+    queryKey: queryKeys.boards.data(boardId!),
     queryFn: () => fetchBoardData(boardId!),
     retry: 2,
     staleTime: 30_000,
@@ -73,7 +74,7 @@ export function App() {
   });
 
   const meQuery = useQuery({
-    queryKey: ['me'],
+    queryKey: queryKeys.users.me(),
     queryFn: fetchMe,
     enabled: loggedIn,
     staleTime: Infinity,
@@ -81,7 +82,7 @@ export function App() {
   const currentUserId = meQuery.data?.id;
   const currentUserRole = meQuery.data?.role;
   const adminCheck = useQuery({
-    queryKey: ['adminCheck'],
+    queryKey: queryKeys.users.adminCheck(),
     queryFn: async () => { await fetchUsers(); return true; },
     retry: false,
     enabled: loggedIn,
@@ -90,14 +91,14 @@ export function App() {
 
   // Board list for switcher
   const boardsQuery = useQuery({
-    queryKey: ['boards'],
+    queryKey: queryKeys.boards.all(),
     queryFn: fetchBoards,
     enabled: loggedIn,
     staleTime: 60_000,
   });
 
   const versionQuery = useQuery({
-    queryKey: ['version'],
+    queryKey: queryKeys.version(),
     queryFn: fetchVersion,
     staleTime: Infinity,
   });
@@ -155,13 +156,13 @@ export function App() {
     mutationFn: (vars: { cardId: string; laneId: string; index: number }) =>
       reorderCard(vars.cardId, vars.laneId, vars.index),
     onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: ['boardData', boardId] });
+      await queryClient.cancelQueries({ queryKey: queryKeys.boards.data(boardId!) });
     },
     onSuccess: (data) => {
-      queryClient.setQueryData(['boardData', boardId], data);
+      queryClient.setQueryData(queryKeys.boards.data(boardId!), data);
     },
     onError: () => {
-      queryClient.invalidateQueries({ queryKey: ['boardData', boardId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId!) });
     },
     onSettled: () => {
       setDragPhase('idle');
@@ -483,16 +484,16 @@ function SortableCard({
     transition,
   };
   const labelsQuery = useQuery({
-    queryKey: ['cardLabels', card.id],
+    queryKey: queryKeys.cards.labels(card.id),
     queryFn: () => fetchCardLabels(card.id),
   });
   const commentsQuery = useQuery({
-    queryKey: ['comments', card.id],
+    queryKey: queryKeys.cards.comments(card.id),
     queryFn: () => fetchComments(card.id),
     staleTime: 30_000,
   });
   const attachmentsQuery = useQuery({
-    queryKey: ['attachments', card.id],
+    queryKey: queryKeys.cards.attachments(card.id),
     queryFn: () => fetchCardAttachments(card.id),
     staleTime: 30_000,
   });

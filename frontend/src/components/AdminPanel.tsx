@@ -27,6 +27,7 @@ import {
   updateLane,
   updateSize,
 } from '@/lib/api';
+import { queryKeys } from '@/lib/query-keys';
 
 type AdminPanelProps = {
   boardId: string;
@@ -77,7 +78,7 @@ function LanesTab({ boardId }: { boardId: string }) {
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const lanesQuery = useQuery({
-    queryKey: ['lanes', boardId],
+    queryKey: queryKeys.lanes.all(boardId),
     queryFn: () => fetchLanes(boardId),
   });
 
@@ -90,8 +91,8 @@ function LanesTab({ boardId }: { boardId: string }) {
       return createLane(boardId, newName.trim(), pos);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['lanes', boardId] });
-      queryClient.invalidateQueries({ queryKey: ['boardData', boardId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.lanes.all(boardId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
       setNewName('');
       setNewPosition('');
       setTimeout(() => nameInputRef.current?.focus(), 0);
@@ -105,8 +106,8 @@ function LanesTab({ boardId }: { boardId: string }) {
     mutationFn: ({ id, patch }: { id: string; patch: Record<string, unknown> }) =>
       updateLane(id, patch),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['lanes', boardId] });
-      queryClient.invalidateQueries({ queryKey: ['boardData', boardId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.lanes.all(boardId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
       setEditingId(null);
     },
   });
@@ -114,8 +115,8 @@ function LanesTab({ boardId }: { boardId: string }) {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteLane(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['lanes', boardId] });
-      queryClient.invalidateQueries({ queryKey: ['boardData', boardId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.lanes.all(boardId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
       setConfirmDeleteId(null);
       setDeleteError(null);
     },
@@ -281,7 +282,7 @@ function SizesTab({ boardId }: { boardId: string }) {
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const sizesQuery = useQuery({
-    queryKey: ['sizes', boardId],
+    queryKey: queryKeys.sizes.all(boardId),
     queryFn: () => fetchSizes(boardId),
   });
 
@@ -294,8 +295,8 @@ function SizesTab({ boardId }: { boardId: string }) {
       return createSize(boardId, newName.trim(), ord);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sizes', boardId] });
-      queryClient.invalidateQueries({ queryKey: ['boardData', boardId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.sizes.all(boardId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
       setNewName('');
       setNewOrdinal('');
       setTimeout(() => nameInputRef.current?.focus(), 0);
@@ -309,8 +310,8 @@ function SizesTab({ boardId }: { boardId: string }) {
     mutationFn: ({ id, patch }: { id: string; patch: Record<string, unknown> }) =>
       updateSize(id, patch),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sizes', boardId] });
-      queryClient.invalidateQueries({ queryKey: ['boardData', boardId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.sizes.all(boardId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
       setEditingId(null);
     },
   });
@@ -318,8 +319,8 @@ function SizesTab({ boardId }: { boardId: string }) {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteSize(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sizes', boardId] });
-      queryClient.invalidateQueries({ queryKey: ['boardData', boardId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.sizes.all(boardId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
       setConfirmDeleteId(null);
       setDeleteError(null);
     },
@@ -483,14 +484,14 @@ function LabelsTab({ boardId }: { boardId: string }) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const labelsQuery = useQuery({
-    queryKey: ['labels', boardId],
+    queryKey: queryKeys.labels.all(boardId),
     queryFn: () => fetchLabels(boardId),
   });
 
   const createMutation = useMutation({
     mutationFn: () => createLabel(boardId, newName.trim(), newColor || undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['labels', boardId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.labels.all(boardId) });
       setNewName('');
       setNewColor('#3b82f6');
     },
@@ -500,7 +501,7 @@ function LabelsTab({ boardId }: { boardId: string }) {
     mutationFn: ({ id, patch }: { id: string; patch: Record<string, unknown> }) =>
       updateLabel(boardId, id, patch),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['labels', boardId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.labels.all(boardId) });
       setEditingId(null);
     },
   });
@@ -508,7 +509,7 @@ function LabelsTab({ boardId }: { boardId: string }) {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteLabel(boardId, id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['labels', boardId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.labels.all(boardId) });
       setConfirmDeleteId(null);
     },
   });
