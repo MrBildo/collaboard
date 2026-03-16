@@ -128,6 +128,7 @@ export function App() {
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [createLaneId, setCreateLaneId] = useState<string | undefined>(undefined);
+  const [createDialogKey, setCreateDialogKey] = useState(0);
   const [adminOpen, setAdminOpen] = useState(false);
   const [globalAdminOpen, setGlobalAdminOpen] = useState(false);
 
@@ -302,7 +303,7 @@ export function App() {
         </div>
         {/* Desktop actions */}
         <div className="hidden items-center gap-2 md:flex">
-          <Button onClick={() => { setCreateLaneId(undefined); setCreateOpen(true); }}>+ New Card</Button>
+          <Button onClick={() => { setCreateLaneId(undefined); setCreateDialogKey((k) => k + 1); setCreateOpen(true); }}>+ New Card</Button>
           {isAdmin && (
             <>
               <Button variant="outline" onClick={() => setAdminOpen(true)}>
@@ -329,7 +330,7 @@ export function App() {
               <Menu className="h-5 w-5" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={() => { setCreateLaneId(undefined); setCreateOpen(true); }}>
+              <DropdownMenuItem onClick={() => { setCreateLaneId(undefined); setCreateDialogKey((k) => k + 1); setCreateOpen(true); }}>
                 + New Card
               </DropdownMenuItem>
               {isAdmin && (
@@ -386,7 +387,7 @@ export function App() {
               lane={lane}
               cards={byLane.get(lane.id) ?? []}
               onCardClick={handleCardClick}
-              onAddCard={() => { setCreateLaneId(lane.id); setCreateOpen(true); }}
+              onAddCard={() => { setCreateLaneId(lane.id); setCreateDialogKey((k) => k + 1); setCreateOpen(true); }}
               activeCardId={activeCardId}
               sizeMap={sizeMap}
               enrichedCardMap={enrichedCardMap}
@@ -403,7 +404,7 @@ export function App() {
       <CardDetailSheet card={selectedCard} open={detailOpen} onOpenChange={handleDetailOpenChange} currentUserId={currentUserId} currentUserRole={currentUserRole} lanes={lanes} boardId={boardId} sizes={sizes} />
 
       {boardId && (
-        <CreateCardDialog boardId={boardId} lanes={lanes} sizes={sizes} open={createOpen} onOpenChange={setCreateOpen} defaultLaneId={createLaneId} />
+        <CreateCardDialog key={createDialogKey} boardId={boardId} lanes={lanes} sizes={sizes} open={createOpen} onOpenChange={setCreateOpen} defaultLaneId={createLaneId} />
       )}
 
       {boardId && (
