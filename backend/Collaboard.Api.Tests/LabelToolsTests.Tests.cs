@@ -31,12 +31,20 @@ public class LabelToolsTests(CollaboardApiFactory factory) : IClassFixture<Colla
     private async Task<Guid> CreateCardAsync(BoardDbContext db, Guid laneId)
     {
         var admin = await db.Users.FirstAsync(u => u.Role == UserRole.Administrator);
-        var nextNumber = (await db.Cards.MaxAsync(c => (long?)c.Number) ?? 0) + 1;
+        var lane = await db.Lanes.FindAsync(laneId);
+        var boardId = lane!.BoardId;
+        var defaultSize = await db.CardSizes
+            .Where(s => s.BoardId == boardId)
+            .OrderBy(s => s.Ordinal)
+            .FirstAsync();
+        var nextNumber = (await db.Cards.Where(c => c.BoardId == boardId).MaxAsync(c => (long?)c.Number) ?? 0) + 1;
         var card = new CardItem
         {
             Id = Guid.NewGuid(),
             Name = $"Test Card {Guid.NewGuid()}",
             Number = nextNumber,
+            BoardId = boardId,
+            SizeId = defaultSize.Id,
             LaneId = laneId,
             Position = Random.Shared.Next(10000, 99999),
             CreatedByUserId = admin.Id,
