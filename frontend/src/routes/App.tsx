@@ -1,4 +1,4 @@
-import { DndContext, DragEndEvent, DragOverEvent, DragOverlay, DragStartEvent, MouseSensor, TouchSensor, closestCorners, useSensor, useSensors } from '@dnd-kit/core';
+import { DndContext, DragEndEvent, DragOverEvent, DragOverlay, DragStartEvent, MouseSensor, TouchSensor, closestCenter, pointerWithin, useSensor, useSensors, type CollisionDetection } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -27,6 +27,12 @@ import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { queryKeys } from '@/lib/query-keys';
 import { useBoardEvents } from '@/lib/use-board-events';
 import type { CardItem, CardSummary } from '@/types';
+
+const kanbanCollision: CollisionDetection = (args) => {
+  const pointerCollisions = pointerWithin(args);
+  if (pointerCollisions.length > 0) return pointerCollisions;
+  return closestCenter(args);
+};
 
 export function App() {
   const { slug, cardNumber } = useParams<{ slug: string; cardNumber: string }>();
@@ -366,7 +372,7 @@ export function App() {
       )}
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCorners}
+        collisionDetection={kanbanCollision}
         onDragStart={onDragStart}
         onDragOver={onDragOver}
         onDragEnd={onDragEnd}
