@@ -42,16 +42,10 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
     [assignedIds, onAdd, onRemove],
   );
 
-  useEffect(() => {
-    if (open) {
-      setFocusedIndex(-1);
-      setTimeout(() => inputRef.current?.focus(), 0);
-    }
-  }, [open]);
-
-  useEffect(() => {
+  const handleFilterChange = useCallback((value: string) => {
+    setFilter(value);
     setFocusedIndex(-1);
-  }, [filter]);
+  }, []);
 
   useEffect(() => {
     if (focusedIndex >= 0 && listRef.current) {
@@ -63,7 +57,11 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
   }, [focusedIndex]);
 
   const handleOpen = () => {
-    if (!open) setFilter('');
+    if (!open) {
+      setFilter('');
+      setFocusedIndex(-1);
+      setTimeout(() => inputRef.current?.focus(), 0);
+    }
     setOpen(!open);
   };
 
@@ -139,7 +137,7 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
             <Input
               ref={inputRef}
               value={filter}
-              onChange={(e) => setFilter(e.target.value)}
+              onChange={(e) => handleFilterChange(e.target.value)}
               placeholder="Search labels..."
               className="h-7 text-sm"
               aria-label="Search labels"

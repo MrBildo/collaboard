@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Dialog,
@@ -52,11 +52,10 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
     setSelectedLabelIds([]);
   };
 
-  useEffect(() => {
-    if (open) {
-      resetForm();
-    }
-  }, [open]);
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) resetForm();
+    onOpenChange(nextOpen);
+  };
 
   const allLabelsQuery = useQuery({
     queryKey: queryKeys.labels.all(boardId),
@@ -102,7 +101,7 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <form onSubmit={handleSubmit}>
           <DialogHeader>

@@ -138,12 +138,12 @@ export function App() {
   const sizeMap = useMemo(() => new Map(sizes.map((s) => [s.id, s.name])), [sizes]);
   const serverCards = useMemo(() => boardDataQuery.data?.cards ?? [], [boardDataQuery.data]);
 
-  const [localCards, setLocalCards] = useState<CardItem[]>([]);
-  useEffect(() => {
-    if (dragPhase === 'idle' && serverCards.length > 0) {
-      setLocalCards([...serverCards].sort((a, b) => a.position - b.position));
-    }
-  }, [serverCards, dragPhase]);
+  const sortedServerCards = useMemo(
+    () => [...serverCards].sort((a, b) => a.position - b.position),
+    [serverCards],
+  );
+  const [dragCards, setDragCards] = useState<CardItem[] | null>(null);
+  const localCards = dragPhase === 'idle' ? sortedServerCards : (dragCards ?? sortedServerCards);
 
   // Derive selected card and detail-open state from URL (cardNumber param is the source of truth)
   const selectedCard = useMemo(() => {
@@ -197,7 +197,8 @@ export function App() {
     const activeId = String(active.id);
     const overId = String(over.id);
 
-    setLocalCards((prev) => {
+    setDragCards((prev) => {
+      prev = prev ?? sortedServerCards;
       const activeIdx = prev.findIndex((c) => c.id === activeId);
       if (activeIdx === -1) return prev;
 
@@ -251,7 +252,7 @@ export function App() {
 
     if (!over) {
       setDragPhase('idle');
-      setLocalCards([...serverCards].sort((a, b) => a.position - b.position));
+      setDragCards(null);
       setActiveCardId(null);
       return;
     }
