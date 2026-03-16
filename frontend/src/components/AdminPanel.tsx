@@ -37,7 +37,7 @@ import {
   updateLane,
   updateSize,
 } from '@/lib/api';
-import type { PruneFilters, UpdateLabelPatch, UpdateLanePatch, UpdateSizePatch } from '@/types';
+import type { PruneFilters, PrunePreviewResponse, UpdateLabelPatch, UpdateLanePatch, UpdateSizePatch } from '@/types';
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
 
@@ -619,7 +619,7 @@ function PruneTab({ boardId }: { boardId: string }) {
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
   const [laneDropdownOpen, setLaneDropdownOpen] = useState(false);
   const [labelDropdownOpen, setLabelDropdownOpen] = useState(false);
-  const [preview, setPreview] = useState<Awaited<ReturnType<typeof prunePreview>> | null>(null);
+  const [preview, setPreview] = useState<PrunePreviewResponse | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deletedCount, setDeletedCount] = useState<number | null>(null);
 
@@ -913,7 +913,7 @@ function PruneTab({ boardId }: { boardId: string }) {
 
       {/* Success state */}
       {deletedCount !== null && (
-        <div className="flex items-center gap-2 text-sm font-medium text-green-600">
+        <div className="flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--chart-3)' }}>
           <Check className="w-4 h-4" />
           Deleted {deletedCount} cards
         </div>
