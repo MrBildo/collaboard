@@ -1210,4 +1210,311 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         attachments.GetArrayLength().ShouldBe(1);
         attachments[0].GetProperty("fileName").GetString().ShouldBe("data.csv");
     }
+
+    // ── Hardened enrichment tests (query optimization) ───────────────────────
+
+    [Fact]
+    public async Task GetCards_ReturnsCorrectSizeName()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+        var sizeId = await GetSizeIdByNameAsync("L");
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = $"SizeName-Test-{Guid.NewGuid()}",
+            descriptionMarkdown = "",
+            laneId,
+            position = NextPosition(),
+            sizeId
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards");
+        response.EnsureSuccessStatusCode();
+        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+
+        // Assert
+        var card = cards!.First(c => c.GetProperty("id").GetGuid() == cardId);
+        card.GetProperty("sizeName").GetString().ShouldBe("L");
+        card.GetProperty("sizeId").GetGuid().ShouldBe(sizeId);
+    }
+
+    [Fact]
+    public async Task GetCards_ReturnsCorrectLabelSummaries()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var label1Response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/labels",
+            new { name = $"QOpt1-{Guid.NewGuid()}", color = "red" });
+        label1Response.EnsureSuccessStatusCode();
+        var label1 = await label1Response.Content.ReadFromJsonAsync<JsonElement>();
+        var label1Id = label1.GetProperty("id").GetGuid();
+        var label1Name = label1.GetProperty("name").GetString();
+
+        var label2Response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/labels",
+            new { name = $"QOpt2-{Guid.NewGuid()}", color = "blue" });
+        label2Response.EnsureSuccessStatusCode();
+        var label2 = await label2Response.Content.ReadFromJsonAsync<JsonElement>();
+        var label2Id = label2.GetProperty("id").GetGuid();
+        var label2Name = label2.GetProperty("name").GetString();
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = $"LabelSummary-Test-{Guid.NewGuid()}",
+            descriptionMarkdown = "",
+            laneId,
+            position = NextPosition()
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/labels", new { labelId = label1Id });
+        await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/labels", new { labelId = label2Id });
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards");
+        response.EnsureSuccessStatusCode();
+        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+
+        // Assert
+        var card = cards!.First(c => c.GetProperty("id").GetGuid() == cardId);
+        var labels = card.GetProperty("labels");
+        labels.GetArrayLength().ShouldBe(2);
+
+        var labelIds = labels.EnumerateArray().Select(l => l.GetProperty("id").GetGuid()).ToList();
+        labelIds.ShouldContain(label1Id);
+        labelIds.ShouldContain(label2Id);
+
+        var labelNames = labels.EnumerateArray().Select(l => l.GetProperty("name").GetString()).ToList();
+        labelNames.ShouldContain(label1Name);
+        labelNames.ShouldContain(label2Name);
+
+        var labelColors = labels.EnumerateArray().Select(l => l.GetProperty("color").GetString()).ToList();
+        labelColors.ShouldContain("red");
+        labelColors.ShouldContain("blue");
+    }
+
+    [Fact]
+    public async Task GetCards_ReturnsCorrectCommentCount()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = $"CommentCount-Test-{Guid.NewGuid()}",
+            descriptionMarkdown = "",
+            laneId,
+            position = NextPosition()
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "Comment 1" });
+        await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "Comment 2" });
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards");
+        response.EnsureSuccessStatusCode();
+        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+
+        // Assert
+        var card = cards!.First(c => c.GetProperty("id").GetGuid() == cardId);
+        card.GetProperty("commentCount").GetInt32().ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task GetCards_ReturnsCorrectAttachmentCount()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = $"AttachCount-Test-{Guid.NewGuid()}",
+            descriptionMarkdown = "",
+            laneId,
+            position = NextPosition()
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        using var attachContent = new MultipartFormDataContent();
+        attachContent.Add(new ByteArrayContent([1, 2, 3]), "file", "file1.txt");
+        await _client.PostAsync($"/api/v1/cards/{cardId}/attachments", attachContent);
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards");
+        response.EnsureSuccessStatusCode();
+        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+
+        // Assert
+        var card = cards!.First(c => c.GetProperty("id").GetGuid() == cardId);
+        card.GetProperty("attachmentCount").GetInt32().ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task GetCard_CommentsAreOrderedByDate()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = $"CommentOrder-Test-{Guid.NewGuid()}",
+            descriptionMarkdown = "",
+            laneId,
+            position = NextPosition()
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        // Add 3 comments with slight delays so timestamps are distinct
+        var c1 = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "First comment" });
+        c1.EnsureSuccessStatusCode();
+        await Task.Delay(50);
+
+        var c2 = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "Second comment" });
+        c2.EnsureSuccessStatusCode();
+        await Task.Delay(50);
+
+        var c3 = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "Third comment" });
+        c3.EnsureSuccessStatusCode();
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/cards/{cardId}");
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        // Assert
+        var comments = body.GetProperty("comments");
+        comments.GetArrayLength().ShouldBe(3);
+
+        var timestamps = comments.EnumerateArray()
+            .Select(c => DateTimeOffset.Parse(c.GetProperty("lastUpdatedAtUtc").GetString()!))
+            .ToList();
+
+        // Comments should be in chronological order
+        for (var i = 1; i < timestamps.Count; i++)
+        {
+            timestamps[i].ShouldBeGreaterThanOrEqualTo(timestamps[i - 1]);
+        }
+
+        // Content order should match creation order
+        comments[0].GetProperty("contentMarkdown").GetString().ShouldBe("First comment");
+        comments[1].GetProperty("contentMarkdown").GetString().ShouldBe("Second comment");
+        comments[2].GetProperty("contentMarkdown").GetString().ShouldBe("Third comment");
+    }
+
+    [Fact]
+    public async Task GetComments_ReturnsOrderedByDate()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = $"CommentEndpointOrder-{Guid.NewGuid()}",
+            descriptionMarkdown = "",
+            laneId,
+            position = NextPosition()
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "Alpha" });
+        await Task.Delay(50);
+        await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "Beta" });
+        await Task.Delay(50);
+        await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "Gamma" });
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/cards/{cardId}/comments");
+        response.EnsureSuccessStatusCode();
+        var comments = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+
+        // Assert
+        comments!.Length.ShouldBe(3);
+        comments[0].GetProperty("contentMarkdown").GetString().ShouldBe("Alpha");
+        comments[1].GetProperty("contentMarkdown").GetString().ShouldBe("Beta");
+        comments[2].GetProperty("contentMarkdown").GetString().ShouldBe("Gamma");
+
+        var timestamps = comments.Select(c => DateTimeOffset.Parse(c.GetProperty("lastUpdatedAtUtc").GetString()!)).ToList();
+        for (var i = 1; i < timestamps.Count; i++)
+        {
+            timestamps[i].ShouldBeGreaterThanOrEqualTo(timestamps[i - 1]);
+        }
+    }
+
+    [Fact]
+    public async Task GetCards_MultipleCardsWithDifferentEnrichment_AllCorrect()
+    {
+        // Arrange — create two cards: one with labels+comments, one bare
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var labelResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/labels",
+            new { name = $"MultiCard-{Guid.NewGuid()}", color = "teal" });
+        labelResponse.EnsureSuccessStatusCode();
+        var labelId = (await labelResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+
+        // Card A: with label and 2 comments
+        var cardAResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = $"MultiA-{Guid.NewGuid()}",
+            descriptionMarkdown = "",
+            laneId,
+            position = NextPosition()
+        });
+        cardAResponse.EnsureSuccessStatusCode();
+        var cardAId = (await cardAResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        await _client.PostAsJsonAsync($"/api/v1/cards/{cardAId}/labels", new { labelId });
+        await _client.PostAsJsonAsync($"/api/v1/cards/{cardAId}/comments", new { contentMarkdown = "C1" });
+        await _client.PostAsJsonAsync($"/api/v1/cards/{cardAId}/comments", new { contentMarkdown = "C2" });
+
+        // Card B: bare (no labels, no comments, no attachments)
+        var cardBResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = $"MultiB-{Guid.NewGuid()}",
+            descriptionMarkdown = "",
+            laneId,
+            position = NextPosition()
+        });
+        cardBResponse.EnsureSuccessStatusCode();
+        var cardBId = (await cardBResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards");
+        response.EnsureSuccessStatusCode();
+        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+
+        // Assert
+        var cardA = cards!.First(c => c.GetProperty("id").GetGuid() == cardAId);
+        cardA.GetProperty("labels").GetArrayLength().ShouldBe(1);
+        cardA.GetProperty("commentCount").GetInt32().ShouldBe(2);
+        cardA.GetProperty("attachmentCount").GetInt32().ShouldBe(0);
+        cardA.GetProperty("sizeName").GetString().ShouldNotBe("?");
+
+        var cardB = cards!.First(c => c.GetProperty("id").GetGuid() == cardBId);
+        cardB.GetProperty("labels").GetArrayLength().ShouldBe(0);
+        cardB.GetProperty("commentCount").GetInt32().ShouldBe(0);
+        cardB.GetProperty("attachmentCount").GetInt32().ShouldBe(0);
+        cardB.GetProperty("sizeName").GetString().ShouldNotBe("?");
+    }
 }
