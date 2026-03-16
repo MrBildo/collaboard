@@ -11,6 +11,34 @@ namespace Collaboard.Api.Mcp;
 [McpServerToolType]
 public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, BoardEventBroadcaster broadcaster, IOptions<AttachmentSettings> attachmentSettings)
 {
+    [McpServerTool(Name = "download_attachment", ReadOnly = true, Destructive = false)]
+    [Description("Download an attachment's content as base64. Returns the file name, content type, and base64-encoded payload.")]
+    public async Task<string> DownloadAttachmentAsync(
+        [Description("Your auth key")] string authKey,
+        [Description("The ID (guid) of the attachment to download")] Guid attachmentId,
+        CancellationToken ct = default)
+    {
+        var (_, error) = await auth.RequireUserAsync(authKey, ct);
+        if (error is not null)
+        {
+            return error;
+        }
+
+        var attachment = await db.Attachments.FindAsync([attachmentId], ct);
+        if (attachment is null)
+        {
+            return "Error: Attachment not found.";
+        }
+
+        return JsonSerializer.Serialize(new
+        {
+            attachment.Id,
+            attachment.FileName,
+            attachment.ContentType,
+            Base64Content = Convert.ToBase64String(attachment.Payload),
+        }, JsonSerializerOptions.Web);
+    }
+
     [McpServerTool(Name = "delete_attachment", Destructive = true)]
     [Description("Delete an attachment you added. Administrators can delete any attachment.")]
     public async Task<string> DeleteAttachmentAsync(
