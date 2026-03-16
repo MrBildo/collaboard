@@ -4,6 +4,8 @@ namespace Collaboard.Api.Events;
 
 internal static class EventExtensions
 {
+    // Silent no-op when card is not found — this is expected during delete operations
+    // where the card may already be removed before the event fires
     public static async Task PublishForCardAsync(this BoardDbContext db, Guid cardId, BoardEventBroadcaster broadcaster)
     {
         var boardId = await db.Cards
