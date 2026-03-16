@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/query-keys';
 
 export function useBoardEvents(boardId: string | undefined) {
   const queryClient = useQueryClient();
@@ -12,16 +13,16 @@ export function useBoardEvents(boardId: string | undefined) {
     const es = new EventSource(`/api/v1/boards/${boardId}/events`);
 
     es.addEventListener('board-updated', () => {
-      queryClient.invalidateQueries({ queryKey: ['boardData', boardId] });
-      queryClient.invalidateQueries({ queryKey: ['labels'] });
-      queryClient.invalidateQueries({ queryKey: ['cardLabels'] });
-      queryClient.invalidateQueries({ queryKey: ['comments'] });
-      queryClient.invalidateQueries({ queryKey: ['attachments'] });
-      queryClient.invalidateQueries({ queryKey: ['userDirectory'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.boards.cards(boardId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.labels.all(boardId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.directory() });
+      // Invalidate all card-scoped data (comments, labels, attachments) by prefix
+      queryClient.invalidateQueries({ queryKey: ['cards'] });
     });
 
     es.onerror = () => {
-      // EventSource auto-reconnects — no action needed
+      console.error('[SSE] Connection error for board', boardId);
     };
 
     return () => es.close();

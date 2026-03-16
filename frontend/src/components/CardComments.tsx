@@ -1,10 +1,13 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { createComment, deleteComment, fetchComments, fetchUserDirectory, updateComment } from '@/lib/api';
+import { createComment, deleteComment, fetchComments, updateComment } from '@/lib/api';
+import { queryKeys } from '@/lib/query-keys';
+import { QUERY_DEFAULTS } from '@/lib/query-config';
+import { useUserDirectory } from '@/hooks/use-user-directory';
 
 type CardCommentsProps = {
   cardId: string;
@@ -15,11 +18,7 @@ type CardCommentsProps = {
 export function CardComments({ cardId, currentUserId, currentUserRole }: CardCommentsProps) {
   const queryClient = useQueryClient();
 
-  const directoryQuery = useQuery({
-    queryKey: ['userDirectory'],
-    queryFn: fetchUserDirectory,
-    staleTime: 60_000,
-  });
+  const directoryQuery = useUserDirectory();
   const userMap = new Map<string, string>(
     (directoryQuery.data ?? []).map((u) => [u.id, u.name]),
   );
@@ -30,22 +29,23 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const commentsQuery = useQuery({
-    queryKey: ['comments', cardId],
+    queryKey: queryKeys.cards.comments(cardId),
     queryFn: () => fetchComments(cardId),
+    ...QUERY_DEFAULTS.comments,
   });
 
   const createMutation = useMutation({
     mutationFn: (content: string) => createComment(cardId, content),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['comments', cardId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.cards.comments(cardId) });
       setNewComment('');
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, content }: { id: string; content: string }) => updateComment(id, content),
+    mutationFn: ({ id, content }: { id: string; content: string }) => updateComment(id, { contentMarkdown: content }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['comments', cardId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.cards.comments(cardId) });
       setEditingId(null);
       setEditText('');
     },
@@ -54,7 +54,7 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteComment(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['comments', cardId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.cards.comments(cardId) });
       setConfirmDeleteId(null);
     },
   });
@@ -85,8 +85,11 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
     }
   };
 
-  const comments = [...(commentsQuery.data ?? [])].sort(
-    (a, b) => new Date(b.lastUpdatedAtUtc).getTime() - new Date(a.lastUpdatedAtUtc).getTime(),
+  const comments = useMemo(
+    () => [...(commentsQuery.data ?? [])].sort(
+      (a, b) => new Date(b.lastUpdatedAtUtc).getTime() - new Date(a.lastUpdatedAtUtc).getTime(),
+    ),
+    [commentsQuery.data],
   );
 
   return (

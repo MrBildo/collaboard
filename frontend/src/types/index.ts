@@ -1,65 +1,45 @@
-export type Board = {
-  id: string;
-  name: string;
-  slug: string;
-  createdAtUtc: string;
-};
+import type { z } from 'zod';
+import type {
+  boardSchema,
+  laneSchema,
+  cardSizeSchema,
+  cardItemSchema,
+  labelSchema,
+  cardCommentSchema,
+  boardUserSchema,
+  attachmentMetaSchema,
+  cardSummarySchema,
+  cardLabelSummarySchema,
+  boardDataSchema,
+  userDirectoryEntrySchema,
+  authMeSchema,
+} from '@/lib/schemas';
 
-export type Lane = {
-  id: string;
-  boardId: string;
-  name: string;
-  position: number;
-};
+export type Board = z.infer<typeof boardSchema>;
+export type Lane = z.infer<typeof laneSchema>;
+export type CardSize = z.infer<typeof cardSizeSchema>;
+export type CardItem = z.infer<typeof cardItemSchema>;
+export type Label = z.infer<typeof labelSchema>;
+export type CardComment = z.infer<typeof cardCommentSchema>;
+export type BoardUser = z.infer<typeof boardUserSchema>;
+export type AttachmentMeta = z.infer<typeof attachmentMetaSchema>;
+export type CardSummary = z.infer<typeof cardSummarySchema>;
+export type CardLabelSummary = z.infer<typeof cardLabelSummarySchema>;
+export type BoardData = z.infer<typeof boardDataSchema>;
+export type UserDirectoryEntry = z.infer<typeof userDirectoryEntrySchema>;
+export type AuthMe = z.infer<typeof authMeSchema>;
 
-export type CardSize = {
-  id: string;
-  boardId: string;
-  name: string;
-  ordinal: number;
+export type UpdateBoardPatch = { name?: string };
+export type UpdateCardPatch = {
+  name?: string;
+  descriptionMarkdown?: string;
+  sizeId?: string;
+  laneId?: string;
+  position?: number;
+  labelIds?: string[];
 };
-
-export type CardItem = {
-  id: string;
-  number: number;
-  name: string;
-  descriptionMarkdown: string;
-  laneId: string;
-  position: number;
-  sizeId: string;
-  createdByUserId: string;
-  createdAtUtc: string;
-  lastUpdatedByUserId: string;
-  lastUpdatedAtUtc: string;
-};
-
-export type Label = {
-  id: string;
-  boardId: string;
-  name: string;
-  color?: string | null;
-};
-
-export type CardComment = {
-  id: string;
-  cardId: string;
-  userId: string;
-  contentMarkdown: string;
-  lastUpdatedAtUtc: string;
-};
-
-export type BoardUser = {
-  id: string;
-  name: string;
-  role: number;
-  authKey: string;
-  isActive: boolean;
-};
-
-export type AttachmentMeta = {
-  id: string;
-  fileName: string;
-  contentType: string;
-  addedByUserId: string;
-  addedAtUtc: string;
-};
+export type UpdateLanePatch = { name?: string; position?: number };
+export type UpdateSizePatch = { name?: string; ordinal?: number };
+export type UpdateLabelPatch = { name?: string; color?: string | null };
+export type UpdateUserPatch = { name?: string; role?: number };
+export type UpdateCommentPatch = { contentMarkdown?: string };

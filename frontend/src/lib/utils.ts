@@ -5,6 +5,23 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function isTextInputFocused(): boolean {
+  const el = document.activeElement;
+  if (!el) return false;
+  const tag = el.tagName.toLowerCase();
+  if (tag === 'textarea') return true;
+  if (tag === 'input' && (el as HTMLInputElement).type !== 'file') return true;
+  if ((el as HTMLElement).isContentEditable) return true;
+  return false;
+}
+
+export function buildPasteFileName(mimeType: string): string {
+  const ext = mimeType.split('/')[1]?.replace('jpeg', 'jpg') ?? 'bin';
+  const now = new Date();
+  const ts = now.toISOString().replace(/[-:T]/g, '').replace(/\..+/, '').slice(0, 15);
+  return `pasted-image-${ts}.${ext}`;
+}
+
 function parseLuminance(hex: string): { r: number; g: number; b: number; luminance: number } {
   const h = hex.replace('#', '');
   const r = parseInt(h.substring(0, 2), 16);
