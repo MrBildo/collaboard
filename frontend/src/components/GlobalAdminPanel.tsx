@@ -29,6 +29,7 @@ import {
   fetchUsers,
   updateBoard,
 } from '@/lib/api';
+import { queryKeys } from '@/lib/query-keys';
 
 type GlobalAdminPanelProps = {
   open: boolean;
@@ -77,14 +78,14 @@ function BoardsTab() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const boardsQuery = useQuery({
-    queryKey: ['boards'],
+    queryKey: queryKeys.boards.all(),
     queryFn: fetchBoards,
   });
 
   const createMutation = useMutation({
     mutationFn: () => createBoard(newName.trim()),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['boards'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.boards.all() });
       setNewName('');
     },
     onError: (err) => {
@@ -96,7 +97,7 @@ function BoardsTab() {
     mutationFn: ({ id, patch }: { id: string; patch: Record<string, unknown> }) =>
       updateBoard(id, patch),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['boards'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.boards.all() });
       setEditingId(null);
     },
   });
@@ -104,7 +105,7 @@ function BoardsTab() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteBoard(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['boards'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.boards.all() });
       setConfirmDeleteId(null);
       setDeleteError(null);
     },
@@ -240,14 +241,14 @@ function UsersTab() {
   const [confirmDeactivateId, setConfirmDeactivateId] = useState<string | null>(null);
 
   const usersQuery = useQuery({
-    queryKey: ['users'],
+    queryKey: queryKeys.users.all(),
     queryFn: fetchUsers,
   });
 
   const createMutation = useMutation({
     mutationFn: () => createUser(newName.trim(), parseInt(newRole, 10)),
     onSuccess: (user) => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.all() });
       setNewName('');
       setNewRole('1');
       setCreatedKey(user.authKey);
@@ -257,7 +258,7 @@ function UsersTab() {
   const deactivateMutation = useMutation({
     mutationFn: (id: string) => deactivateUser(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.all() });
       setConfirmDeactivateId(null);
     },
   });

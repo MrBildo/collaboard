@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { LoginScreen } from '@/components/LoginScreen';
 import { fetchBoards } from '@/lib/api';
 import { getLastBoardSlug, isLoggedIn, setUserKey } from '@/lib/auth';
+import { queryKeys } from '@/lib/query-keys';
 import { useCallback, useState } from 'react';
 
 export function BoardRedirect() {
@@ -14,7 +15,7 @@ export function BoardRedirect() {
   }, []);
 
   const boardsQuery = useQuery({
-    queryKey: ['boards'],
+    queryKey: queryKeys.boards.all(),
     queryFn: fetchBoards,
     enabled: loggedIn,
   });

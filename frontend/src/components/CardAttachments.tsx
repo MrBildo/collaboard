@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { api, deleteAttachment, fetchCardAttachments, fetchUserDirectory, uploadAttachment } from '@/lib/api';
+import { queryKeys } from '@/lib/query-keys';
 import type { AttachmentMeta } from '@/types';
 
 type CardAttachmentsProps = {
@@ -18,7 +19,7 @@ export function CardAttachments({ cardId, currentUserId, currentUserRole }: Card
   const dragCounter = useRef(0);
 
   const directoryQuery = useQuery({
-    queryKey: ['userDirectory'],
+    queryKey: queryKeys.users.directory(),
     queryFn: fetchUserDirectory,
     staleTime: 60_000,
   });
@@ -26,14 +27,14 @@ export function CardAttachments({ cardId, currentUserId, currentUserRole }: Card
     directoryQuery.data?.find((u) => u.id === id)?.name ?? 'Unknown';
 
   const attachmentsQuery = useQuery({
-    queryKey: ['attachments', cardId],
+    queryKey: queryKeys.cards.attachments(cardId),
     queryFn: () => fetchCardAttachments(cardId),
   });
 
   const uploadMutation = useMutation({
     mutationFn: (file: File) => uploadAttachment(cardId, file),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['attachments', cardId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.cards.attachments(cardId) });
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -43,7 +44,7 @@ export function CardAttachments({ cardId, currentUserId, currentUserRole }: Card
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteAttachment(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['attachments', cardId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.cards.attachments(cardId) });
       setConfirmDeleteId(null);
     },
   });

@@ -5,6 +5,7 @@ import remarkGfm from 'remark-gfm';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { createComment, deleteComment, fetchComments, fetchUserDirectory, updateComment } from '@/lib/api';
+import { queryKeys } from '@/lib/query-keys';
 
 type CardCommentsProps = {
   cardId: string;
@@ -16,7 +17,7 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
   const queryClient = useQueryClient();
 
   const directoryQuery = useQuery({
-    queryKey: ['userDirectory'],
+    queryKey: queryKeys.users.directory(),
     queryFn: fetchUserDirectory,
     staleTime: 60_000,
   });
@@ -30,14 +31,14 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const commentsQuery = useQuery({
-    queryKey: ['comments', cardId],
+    queryKey: queryKeys.cards.comments(cardId),
     queryFn: () => fetchComments(cardId),
   });
 
   const createMutation = useMutation({
     mutationFn: (content: string) => createComment(cardId, content),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['comments', cardId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.cards.comments(cardId) });
       setNewComment('');
     },
   });
@@ -45,7 +46,7 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
   const updateMutation = useMutation({
     mutationFn: ({ id, content }: { id: string; content: string }) => updateComment(id, content),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['comments', cardId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.cards.comments(cardId) });
       setEditingId(null);
       setEditText('');
     },
@@ -54,7 +55,7 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteComment(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['comments', cardId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.cards.comments(cardId) });
       setConfirmDeleteId(null);
     },
   });
