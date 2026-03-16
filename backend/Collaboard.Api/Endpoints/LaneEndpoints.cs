@@ -11,24 +11,14 @@ internal static class LaneEndpoints
     public static RouteGroupBuilder MapLaneEndpoints(this RouteGroupBuilder group)
     {
         // Board-scoped listing and creation
-        group.MapGet("/boards/{boardId:guid}/lanes", async (BoardDbContext db, HttpContext http, Guid boardId) =>
-        {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
-            return forbidden is not null
-                ? forbidden
-                : !await db.Boards.AnyAsync(x => x.Id == boardId)
+        group.MapGet("/boards/{boardId:guid}/lanes", async (BoardDbContext db, Guid boardId) =>
+            !await db.Boards.AnyAsync(x => x.Id == boardId)
                 ? Results.NotFound()
-                : Results.Ok(await db.Lanes.Where(x => x.BoardId == boardId).OrderBy(x => x.Position).ToListAsync());
-        });
+                : Results.Ok(await db.Lanes.Where(x => x.BoardId == boardId).OrderBy(x => x.Position).ToListAsync()))
+            .RequireAuth();
 
-        group.MapPost("/boards/{boardId:guid}/lanes", async (BoardDbContext db, HttpContext http, Guid boardId, Lane request, BoardEventBroadcaster broadcaster) =>
+        group.MapPost("/boards/{boardId:guid}/lanes", async (BoardDbContext db, Guid boardId, Lane request, BoardEventBroadcaster broadcaster) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             if (!await db.Boards.AnyAsync(x => x.Id == boardId))
             {
                 return Results.NotFound();
@@ -39,29 +29,17 @@ internal static class LaneEndpoints
             await db.SaveChangesAsync();
             broadcaster.PublishBoardUpdated(boardId);
             return Results.Created($"/api/v1/lanes/{lane.Id}", lane);
-        });
+        }).RequireAdmin();
 
         // By-ID operations (flat)
-        group.MapGet("/lanes/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id) =>
+        group.MapGet("/lanes/{id:guid}", async (BoardDbContext db, Guid id) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             var lane = await db.Lanes.FindAsync(id);
             return lane is null ? Results.NotFound() : Results.Ok(lane);
-        });
+        }).RequireAuth();
 
-        group.MapDelete("/lanes/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, BoardEventBroadcaster broadcaster) =>
+        group.MapDelete("/lanes/{id:guid}", async (BoardDbContext db, Guid id, BoardEventBroadcaster broadcaster) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             var lane = await db.Lanes.FindAsync(id);
             if (lane is null)
             {
@@ -77,16 +55,10 @@ internal static class LaneEndpoints
             await db.SaveChangesAsync();
             broadcaster.PublishBoardUpdated(lane.BoardId);
             return Results.NoContent();
-        });
+        }).RequireAdmin();
 
-        group.MapPatch("/lanes/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, JsonElement patch, BoardEventBroadcaster broadcaster) =>
+        group.MapPatch("/lanes/{id:guid}", async (BoardDbContext db, Guid id, JsonElement patch, BoardEventBroadcaster broadcaster) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             var lane = await db.Lanes.FindAsync(id);
             if (lane is null)
             {
@@ -112,7 +84,7 @@ internal static class LaneEndpoints
             await db.SaveChangesAsync();
             broadcaster.PublishBoardUpdated(lane.BoardId);
             return Results.Ok(lane);
-        });
+        }).RequireAdmin();
 
         return group;
     }

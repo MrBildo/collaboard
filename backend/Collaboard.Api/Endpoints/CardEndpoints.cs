@@ -11,14 +11,8 @@ internal static class CardEndpoints
     public static RouteGroupBuilder MapCardEndpoints(this RouteGroupBuilder group)
     {
         // Board-scoped listing and creation
-        group.MapGet("/boards/{boardId:guid}/cards", async (BoardDbContext db, HttpContext http, Guid boardId, DateTimeOffset? since, Guid? labelId, Guid? laneId) =>
+        group.MapGet("/boards/{boardId:guid}/cards", async (BoardDbContext db, Guid boardId, DateTimeOffset? since, Guid? labelId, Guid? laneId) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             if (!await db.Boards.AnyAsync(x => x.Id == boardId))
             {
                 return Results.NotFound();
@@ -74,16 +68,10 @@ internal static class CardEndpoints
                     db.Attachments.Count(a => a.CardId == c.Id)))
                 .ToListAsync();
             return Results.Ok(cards);
-        });
+        }).RequireAuth();
 
         group.MapPost("/boards/{boardId:guid}/cards", async (BoardDbContext db, HttpContext http, Guid boardId, JsonElement body, BoardEventBroadcaster broadcaster) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             if (!await db.Boards.AnyAsync(x => x.Id == boardId))
             {
                 return Results.NotFound();
@@ -142,17 +130,11 @@ internal static class CardEndpoints
             await CardNumberHelper.InsertCardWithAutoNumberAsync(db, card, boardId);
             broadcaster.PublishBoardUpdated(boardId);
             return Results.Created($"/api/v1/cards/{card.Id}", card);
-        });
+        }).RequireAuth();
 
         // By-ID operations (flat)
-        group.MapGet("/cards/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id) =>
+        group.MapGet("/cards/{id:guid}", async (BoardDbContext db, Guid id) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             var card = await db.Cards.FindAsync(id);
             if (card is null)
             {
@@ -202,16 +184,10 @@ internal static class CardEndpoints
                 labels,
                 attachments,
             });
-        });
+        }).RequireAuth();
 
         group.MapPatch("/cards/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, JsonElement patch, BoardEventBroadcaster broadcaster) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             var card = await db.Cards.FindAsync(id);
             if (card is null)
             {
@@ -272,16 +248,10 @@ internal static class CardEndpoints
             }
 
             return Results.Ok(card);
-        });
+        }).RequireAuth();
 
         group.MapPost("/cards/{id:guid}/reorder", async (BoardDbContext db, HttpContext http, Guid id, JsonElement body, BoardEventBroadcaster broadcaster) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             var card = await db.Cards.FindAsync(id);
             if (card is null)
             {
@@ -344,16 +314,10 @@ internal static class CardEndpoints
             var lanes = await db.Lanes.Where(x => x.BoardId == targetLane.BoardId).OrderBy(l => l.Position).ToListAsync();
             var cards = await db.Cards.Where(x => boardLaneIds.Contains(x.LaneId)).OrderBy(c => c.LaneId).ThenBy(c => c.Position).ToListAsync();
             return Results.Ok(new { lanes, cards });
-        });
+        }).RequireAuth();
 
         group.MapDelete("/cards/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, BoardEventBroadcaster broadcaster) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.HumanUser);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             var card = await db.Cards.FindAsync(id);
             if (card is null)
             {
@@ -377,7 +341,7 @@ internal static class CardEndpoints
             }
 
             return Results.NoContent();
-        });
+        }).RequireRole(UserRole.Administrator, UserRole.HumanUser);
 
         return group;
     }
