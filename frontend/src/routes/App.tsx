@@ -1,4 +1,4 @@
-import { DndContext, DragEndEvent, DragOverEvent, DragOverlay, DragStartEvent, MouseSensor, TouchSensor, closestCenter, pointerWithin, useSensor, useSensors, type CollisionDetection } from '@dnd-kit/core';
+import { DndContext, type DragEndEvent, type DragOverEvent, DragOverlay, type DragStartEvent, MouseSensor, TouchSensor, closestCenter, pointerWithin, useSensor, useSensors, type CollisionDetection } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -166,7 +166,7 @@ export function App() {
     const num = parseInt(cardNumber, 10);
     return serverCards.find((c) => c.number === num) ?? null;
   }, [cardNumber, serverCards]);
-  const detailOpen = selectedCard !== null;
+  const isDetailOpen = selectedCard !== null;
 
   const handleDetailOpenChange = useCallback((open: boolean) => {
     if (!open) {
@@ -422,7 +422,7 @@ export function App() {
 
       <CardDetailSheet
         card={selectedCard}
-        open={detailOpen}
+        open={isDetailOpen}
         onOpenChange={handleDetailOpenChange}
         currentUserId={currentUserId}
         currentUserRole={currentUserRole}

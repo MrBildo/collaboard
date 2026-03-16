@@ -26,7 +26,7 @@ function normalizeHex(raw: string): string | null {
 }
 
 function LabelColorPicker({ value, onValueChange, className }: LabelColorPickerProps) {
-  const [open, setOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   const handlePaste = useCallback(
     (e: React.ClipboardEvent) => {
@@ -44,7 +44,7 @@ function LabelColorPicker({ value, onValueChange, className }: LabelColorPickerP
     (e: React.KeyboardEvent) => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        setOpen(false);
+        setIsOpen(false);
       }
     },
     [],
@@ -54,8 +54,8 @@ function LabelColorPicker({ value, onValueChange, className }: LabelColorPickerP
     <ColorPicker
       value={value}
       onValueChange={onValueChange}
-      open={open}
-      onOpenChange={setOpen}
+      open={isOpen}
+      onOpenChange={setIsOpen}
       format="hex"
       className="inline-flex"
     >

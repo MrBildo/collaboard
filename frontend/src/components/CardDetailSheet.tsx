@@ -203,8 +203,8 @@ function CardDetailForm({
   const [description, setDescription] = useState(card.descriptionMarkdown ?? '');
   const [sizeId, setSizeId] = useState(card.sizeId);
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[] | null>(null);
-  const [editingDescription, setEditingDescription] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [pasteStatus, setPasteStatus] = useState<string | null>(null);
 
   const pasteMutation = useMutation({
@@ -340,8 +340,8 @@ function CardDetailForm({
   };
 
   const handleDelete = () => {
-    if (!confirmDelete) {
-      setConfirmDelete(true);
+    if (!isConfirmingDelete) {
+      setIsConfirmingDelete(true);
       return;
     }
     deleteMutation.mutate();
@@ -457,11 +457,11 @@ function CardDetailForm({
                 type="button"
                 className={cn(
                   "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-                  !editingDescription
+                  !isEditingDescription
                     ? "bg-muted text-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 )}
-                onClick={() => setEditingDescription(false)}
+                onClick={() => setIsEditingDescription(false)}
               >
                 Preview
               </button>
@@ -469,16 +469,16 @@ function CardDetailForm({
                 type="button"
                 className={cn(
                   "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-                  editingDescription
+                  isEditingDescription
                     ? "bg-muted text-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 )}
-                onClick={() => setEditingDescription(true)}
+                onClick={() => setIsEditingDescription(true)}
               >
                 Edit
               </button>
             </div>
-            {editingDescription ? (
+            {isEditingDescription ? (
               <Textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -547,7 +547,7 @@ function CardDetailForm({
             onClick={handleDelete}
             disabled={deleteMutation.isPending}
           >
-            {confirmDelete ? 'Confirm delete' : 'Delete'}
+            {isConfirmingDelete ? 'Confirm delete' : 'Delete'}
           </Button>
         ) : (
           <div />
