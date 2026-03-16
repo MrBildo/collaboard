@@ -1,5 +1,6 @@
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { Plus } from 'lucide-react';
 import { useMemo } from 'react';
 import { SortableCard } from '@/components/SortableCard';
 import { cn } from '@/lib/utils';
@@ -46,10 +47,7 @@ export function LaneColumn({
           onClick={onAddCard}
           className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
         >
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <line x1="8" y1="3" x2="8" y2="13" />
-            <line x1="3" y1="8" x2="13" y2="8" />
-          </svg>
+          <Plus className="h-3.5 w-3.5" />
         </button>
       </div>
       <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
