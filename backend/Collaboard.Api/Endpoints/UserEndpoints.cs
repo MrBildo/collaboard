@@ -12,6 +12,11 @@ internal static class UserEndpoints
     {
         group.MapPost("/users", async (BoardDbContext db, BoardUser request, BoardEventBroadcaster broadcaster) =>
         {
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                return Results.BadRequest("Name is required.");
+            }
+
             var user = new BoardUser
             {
                 Id = Guid.NewGuid(),
@@ -55,7 +60,13 @@ internal static class UserEndpoints
 
             if (patch.TryGetProperty("name", out var name))
             {
-                user.Name = name.GetString()!;
+                var nameStr = name.ValueKind == JsonValueKind.Null ? null : name.GetString();
+                if (string.IsNullOrWhiteSpace(nameStr))
+                {
+                    return Results.BadRequest("Name cannot be empty.");
+                }
+
+                user.Name = nameStr;
             }
 
             if (patch.TryGetProperty("role", out var role))

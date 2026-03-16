@@ -24,6 +24,11 @@ internal static class LaneEndpoints
                 return Results.NotFound();
             }
 
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                return Results.BadRequest("Name is required.");
+            }
+
             var lane = new Lane { Id = Guid.NewGuid(), BoardId = boardId, Name = request.Name, Position = request.Position };
             db.Lanes.Add(lane);
             await db.SaveChangesAsync();
@@ -67,7 +72,13 @@ internal static class LaneEndpoints
 
             if (patch.TryGetProperty("name", out var name))
             {
-                lane.Name = name.GetString()!;
+                var nameStr = name.ValueKind == JsonValueKind.Null ? null : name.GetString();
+                if (string.IsNullOrWhiteSpace(nameStr))
+                {
+                    return Results.BadRequest("Name cannot be empty.");
+                }
+
+                lane.Name = nameStr;
             }
 
             if (patch.TryGetProperty("position", out var pos))

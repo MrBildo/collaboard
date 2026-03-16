@@ -325,4 +325,31 @@ public class LabelEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         var labels = await labelsResponse.Content.ReadFromJsonAsync<JsonElement>();
         labels.GetArrayLength().ShouldBe(0);
     }
+
+    [Fact]
+    public async Task PostLabel_WithEmptyName_Returns400()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        // Act
+        var response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/labels", new { name = " ", color = "red" });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task PatchLabel_WithEmptyName_Returns400()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var (labelId, _) = await CreateLabelAsync();
+
+        // Act
+        var response = await _client.PatchAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/labels/{labelId}", new { name = "" });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
 }

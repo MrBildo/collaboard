@@ -83,7 +83,13 @@ internal static class CommentEndpoints
 
             if (patch.TryGetProperty("contentMarkdown", out var content))
             {
-                comment.ContentMarkdown = content.GetString()!;
+                var contentStr = content.ValueKind == JsonValueKind.Null ? null : content.GetString();
+                if (string.IsNullOrWhiteSpace(contentStr))
+                {
+                    return Results.BadRequest("Content cannot be empty.");
+                }
+
+                comment.ContentMarkdown = contentStr;
             }
 
             comment.LastUpdatedAtUtc = DateTimeOffset.UtcNow;

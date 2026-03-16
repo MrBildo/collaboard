@@ -24,6 +24,11 @@ internal static class SizeEndpoints
                 return Results.NotFound();
             }
 
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                return Results.BadRequest("Name is required.");
+            }
+
             var ordinal = request.Ordinal;
             if (ordinal == 0 && await db.CardSizes.AnyAsync(x => x.BoardId == boardId))
             {
@@ -73,7 +78,13 @@ internal static class SizeEndpoints
 
             if (patch.TryGetProperty("name", out var name))
             {
-                size.Name = name.GetString()!;
+                var nameStr = name.ValueKind == JsonValueKind.Null ? null : name.GetString();
+                if (string.IsNullOrWhiteSpace(nameStr))
+                {
+                    return Results.BadRequest("Name cannot be empty.");
+                }
+
+                size.Name = nameStr;
             }
 
             if (patch.TryGetProperty("ordinal", out var ord))

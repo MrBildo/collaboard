@@ -67,7 +67,13 @@ internal static class BoardEndpoints
 
             if (patch.TryGetProperty("name", out var name))
             {
-                board.Name = name.GetString()!;
+                var nameStr = name.ValueKind == JsonValueKind.Null ? null : name.GetString();
+                if (string.IsNullOrWhiteSpace(nameStr))
+                {
+                    return Results.BadRequest("Name cannot be empty.");
+                }
+
+                board.Name = nameStr;
             }
 
             await db.SaveChangesAsync();
