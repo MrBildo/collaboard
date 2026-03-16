@@ -31,6 +31,7 @@ import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { useUserDirectory } from '@/hooks/use-user-directory';
 import { isTextInputFocused, buildPasteFileName } from '@/lib/utils';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ROLES } from '@/lib/roles';
 import type { BoardData, CardItem, CardSize, Lane, UpdateCardPatch } from '@/types';
 
 type CardDetailSheetProps = {
@@ -253,7 +254,7 @@ function CardDetailForm({
   }, [handlePaste]);
 
   const canDelete =
-    currentUserRole === 0 || (currentUserRole === 1 && card.createdByUserId === currentUserId);
+    currentUserRole === ROLES.Administrator || (currentUserRole === ROLES.Human && card.createdByUserId === currentUserId);
 
   const directoryQuery = useUserDirectory();
   const userName = (id: string) => directoryQuery.data?.find((u) => u.id === id)?.name ?? 'Unknown';

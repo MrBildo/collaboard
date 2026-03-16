@@ -8,6 +8,7 @@ import { createComment, deleteComment, fetchComments, updateComment } from '@/li
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { useUserDirectory } from '@/hooks/use-user-directory';
+import { ROLES } from '@/lib/roles';
 
 type CardCommentsProps = {
   cardId: string;
@@ -170,7 +171,7 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
                     {new Date(comment.lastUpdatedAtUtc).toLocaleString()}
                   </span>
                   <div className="flex gap-1">
-                    {(currentUserRole === 0 || comment.userId === currentUserId) && (
+                    {(currentUserRole === ROLES.Administrator || comment.userId === currentUserId) && (
                       <>
                         <Button
                           size="xs"

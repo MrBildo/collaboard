@@ -5,6 +5,7 @@ import { api, deleteAttachment, fetchCardAttachments, uploadAttachment } from '@
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { useUserDirectory } from '@/hooks/use-user-directory';
+import { ROLES } from '@/lib/roles';
 import type { AttachmentMeta } from '@/types';
 
 type CardAttachmentsProps = {
@@ -152,7 +153,7 @@ export function CardAttachments({ cardId, currentUserId, currentUserRole }: Card
             <Button size="xs" variant="outline" onClick={() => handleDownload(attachment)}>
               Download
             </Button>
-            {(currentUserRole === 0 || attachment.addedByUserId === currentUserId) && (
+            {(currentUserRole === ROLES.Administrator || attachment.addedByUserId === currentUserId) && (
               <Button
                 size="xs"
                 variant="destructive"
