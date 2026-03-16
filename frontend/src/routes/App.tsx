@@ -402,9 +402,10 @@ export function App() {
           ))}
         </section>
         <DragOverlay>
-          {activeCardId ? (
-            <CardOverlay card={localCards.find((c) => c.id === activeCardId)!} sizeMap={sizeMap} />
-          ) : null}
+          {(() => {
+            const activeCard = activeCardId ? localCards.find((c) => c.id === activeCardId) : undefined;
+            return activeCard ? <CardOverlay card={activeCard} sizeMap={sizeMap} /> : null;
+          })()}
         </DragOverlay>
       </DndContext>
 
