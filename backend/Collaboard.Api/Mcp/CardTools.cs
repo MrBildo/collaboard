@@ -35,66 +35,17 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         }
 
         // Resolve size
-        Guid resolvedSizeId;
-        if (sizeId.HasValue)
+        var (resolvedSizeId, sizeError) = await ResolveSizeAsync(lane.BoardId, sizeId, sizeName, ct);
+        if (sizeError is not null)
         {
-            if (!await db.CardSizes.AnyAsync(s => s.Id == sizeId.Value && s.BoardId == lane.BoardId, ct))
-            {
-                return "Error: Size not found or does not belong to this board.";
-            }
-
-            resolvedSizeId = sizeId.Value;
-        }
-        else if (!string.IsNullOrWhiteSpace(sizeName))
-        {
-            var size = await db.CardSizes.FirstOrDefaultAsync(s => s.BoardId == lane.BoardId && s.Name == sizeName, ct);
-            if (size is null)
-            {
-                return $"Error: Size '{sizeName}' not found on this board.";
-            }
-
-            resolvedSizeId = size.Id;
-        }
-        else
-        {
-            var defaultSize = await db.CardSizes.Where(s => s.BoardId == lane.BoardId).OrderBy(s => s.Ordinal).FirstOrDefaultAsync(ct);
-            if (defaultSize is null)
-            {
-                return "Error: Board has no sizes configured.";
-            }
-
-            resolvedSizeId = defaultSize.Id;
+            return sizeError;
         }
 
         // Parse and validate label IDs if provided
-        var parsedLabelIds = new List<Guid>();
-        if (!string.IsNullOrWhiteSpace(labelIds))
+        var (parsedLabelIds, labelError) = await ParseAndValidateLabelIdsAsync(labelIds, lane.BoardId, ct);
+        if (labelError is not null)
         {
-            var parts = labelIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            foreach (var part in parts)
-            {
-                if (!Guid.TryParse(part, out var parsedId))
-                {
-                    return $"Error: Invalid label ID format: '{part}'. Expected a GUID.";
-                }
-
-                parsedLabelIds.Add(parsedId);
-            }
-
-            // Validate all labels exist and belong to the same board as the lane
-            foreach (var labelId in parsedLabelIds)
-            {
-                var label = await db.Labels.FindAsync([labelId], ct);
-                if (label is null)
-                {
-                    return $"Error: Label '{labelId}' not found.";
-                }
-
-                if (label.BoardId != lane.BoardId)
-                {
-                    return $"Error: Label '{labelId}' does not belong to the same board as the target lane.";
-                }
-            }
+            return labelError;
         }
 
         var minPosition = await db.Cards.Where(c => c.LaneId == laneId).MinAsync(c => (int?)c.Position, ct) ?? 10;
@@ -106,7 +57,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             BoardId = lane.BoardId,
             Name = name,
             DescriptionMarkdown = descriptionMarkdown ?? string.Empty,
-            SizeId = resolvedSizeId,
+            SizeId = resolvedSizeId!.Value,
             LaneId = laneId,
             Position = minPosition - 10,
             CreatedAtUtc = now,
@@ -165,35 +116,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             return "Error: Lane not found.";
         }
 
-        var sourceLaneId = card.LaneId;
-
-        var targetCards = await db.Cards
-            .Where(c => c.LaneId == laneId && c.Id != card.Id)
-            .OrderBy(c => c.Position)
-            .ToListAsync(ct);
-
-        var resolvedIndex = Math.Clamp(index ?? targetCards.Count, 0, targetCards.Count);
-        targetCards.Insert(resolvedIndex, card);
-
-        for (var i = 0; i < targetCards.Count; i++)
-        {
-            targetCards[i].Position = i * 10;
-        }
-
-        if (sourceLaneId != laneId)
-        {
-            card.LaneId = laneId;
-
-            var sourceCards = await db.Cards
-                .Where(c => c.LaneId == sourceLaneId && c.Id != card.Id)
-                .OrderBy(c => c.Position)
-                .ToListAsync(ct);
-
-            for (var i = 0; i < sourceCards.Count; i++)
-            {
-                sourceCards[i].Position = i * 10;
-            }
-        }
+        var resolvedIndex = await MoveCardToLaneAsync(card, laneId, index, ct);
 
         card.LastUpdatedByUserId = user!.Id;
         card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
@@ -256,26 +179,13 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         if (sizeId.HasValue || sizeName is not null)
         {
             var cardBoardId = await db.Lanes.Where(l => l.Id == card.LaneId).Select(l => l.BoardId).FirstOrDefaultAsync(ct);
-
-            if (sizeId.HasValue)
+            var (resolvedSizeId, sizeError) = await ResolveSizeAsync(cardBoardId, sizeId, sizeName, ct);
+            if (sizeError is not null)
             {
-                if (!await db.CardSizes.AnyAsync(s => s.Id == sizeId.Value && s.BoardId == cardBoardId, ct))
-                {
-                    return "Error: Size not found or does not belong to this board.";
-                }
-
-                card.SizeId = sizeId.Value;
+                return sizeError;
             }
-            else
-            {
-                var size = await db.CardSizes.FirstOrDefaultAsync(s => s.BoardId == cardBoardId && s.Name == sizeName, ct);
-                if (size is null)
-                {
-                    return $"Error: Size '{sizeName}' not found on this board.";
-                }
 
-                card.SizeId = size.Id;
-            }
+            card.SizeId = resolvedSizeId!.Value;
         }
 
         // Lane move: if laneId provided, move card to that lane with optional index
@@ -286,71 +196,20 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
                 return "Error: Lane not found.";
             }
 
-            var sourceLaneId = card.LaneId;
-
-            var targetCards = await db.Cards
-                .Where(c => c.LaneId == laneId.Value && c.Id != card.Id)
-                .OrderBy(c => c.Position)
-                .ToListAsync(ct);
-
-            var targetIndex = index.HasValue
-                ? Math.Clamp(index.Value, 0, targetCards.Count)
-                : targetCards.Count;
-
-            targetCards.Insert(targetIndex, card);
-
-            for (var i = 0; i < targetCards.Count; i++)
-            {
-                targetCards[i].Position = i * 10;
-            }
-
-            if (sourceLaneId != laneId.Value)
-            {
-                card.LaneId = laneId.Value;
-
-                var sourceCards = await db.Cards
-                    .Where(c => c.LaneId == sourceLaneId && c.Id != card.Id)
-                    .OrderBy(c => c.Position)
-                    .ToListAsync(ct);
-
-                for (var i = 0; i < sourceCards.Count; i++)
-                {
-                    sourceCards[i].Position = i * 10;
-                }
-            }
+            await MoveCardToLaneAsync(card, laneId.Value, index, ct);
         }
 
         // Label replace: diff against current assignments
         if (labelIds is not null)
         {
             var cardBoardId = await db.Lanes.Where(l => l.Id == card.LaneId).Select(l => l.BoardId).FirstOrDefaultAsync(ct);
-
-            var desiredLabelIds = new HashSet<Guid>();
-            if (!string.IsNullOrWhiteSpace(labelIds))
+            var (desiredLabelIdList, labelError) = await ParseAndValidateLabelIdsAsync(labelIds, cardBoardId, ct);
+            if (labelError is not null)
             {
-                foreach (var part in labelIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                {
-                    if (!Guid.TryParse(part, out var parsedId))
-                    {
-                        return $"Error: Invalid label ID '{part}'.";
-                    }
-
-                    desiredLabelIds.Add(parsedId);
-                }
-
-                // Validate all labels exist and belong to the same board
-                var validLabels = await db.Labels
-                    .Where(l => desiredLabelIds.Contains(l.Id) && l.BoardId == cardBoardId)
-                    .Select(l => l.Id)
-                    .ToListAsync(ct);
-
-                var invalidIds = desiredLabelIds.Except(validLabels).ToList();
-                if (invalidIds.Count > 0)
-                {
-                    return $"Error: Labels not found or not on the same board: {string.Join(", ", invalidIds)}";
-                }
+                return labelError;
             }
 
+            var desiredLabelIds = desiredLabelIdList.ToHashSet();
             var currentLabels = await db.CardLabels.Where(cl => cl.CardId == card.Id).ToListAsync(ct);
             var currentLabelIds = currentLabels.Select(cl => cl.LabelId).ToHashSet();
 
@@ -516,5 +375,104 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             labels,
             attachments,
         }, JsonSerializerOptions.Web);
+    }
+
+    private async Task<int> MoveCardToLaneAsync(CardItem card, Guid targetLaneId, int? index, CancellationToken ct)
+    {
+        var sourceLaneId = card.LaneId;
+
+        var targetCards = await db.Cards
+            .Where(c => c.LaneId == targetLaneId && c.Id != card.Id)
+            .OrderBy(c => c.Position)
+            .ToListAsync(ct);
+
+        var resolvedIndex = Math.Clamp(index ?? targetCards.Count, 0, targetCards.Count);
+        targetCards.Insert(resolvedIndex, card);
+
+        for (var i = 0; i < targetCards.Count; i++)
+        {
+            targetCards[i].Position = i * 10;
+        }
+
+        if (sourceLaneId != targetLaneId)
+        {
+            card.LaneId = targetLaneId;
+
+            var sourceCards = await db.Cards
+                .Where(c => c.LaneId == sourceLaneId && c.Id != card.Id)
+                .OrderBy(c => c.Position)
+                .ToListAsync(ct);
+
+            for (var i = 0; i < sourceCards.Count; i++)
+            {
+                sourceCards[i].Position = i * 10;
+            }
+        }
+
+        return resolvedIndex;
+    }
+
+    private async Task<(Guid? SizeId, string? Error)> ResolveSizeAsync(Guid boardId, Guid? sizeId, string? sizeName, CancellationToken ct)
+    {
+        if (sizeId.HasValue)
+        {
+            if (!await db.CardSizes.AnyAsync(s => s.Id == sizeId.Value && s.BoardId == boardId, ct))
+            {
+                return (null, "Error: Size not found or does not belong to this board.");
+            }
+
+            return (sizeId.Value, null);
+        }
+
+        if (!string.IsNullOrWhiteSpace(sizeName))
+        {
+            var size = await db.CardSizes.FirstOrDefaultAsync(s => s.BoardId == boardId && s.Name == sizeName, ct);
+            if (size is null)
+            {
+                return (null, $"Error: Size '{sizeName}' not found on this board.");
+            }
+
+            return (size.Id, null);
+        }
+
+        var defaultSize = await db.CardSizes.Where(s => s.BoardId == boardId).OrderBy(s => s.Ordinal).FirstOrDefaultAsync(ct);
+        if (defaultSize is null)
+        {
+            return (null, "Error: Board has no sizes configured.");
+        }
+
+        return (defaultSize.Id, null);
+    }
+
+    private async Task<(List<Guid> LabelIds, string? Error)> ParseAndValidateLabelIdsAsync(string? labelIds, Guid boardId, CancellationToken ct)
+    {
+        var parsedIds = new List<Guid>();
+        if (string.IsNullOrWhiteSpace(labelIds))
+        {
+            return (parsedIds, null);
+        }
+
+        foreach (var part in labelIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!Guid.TryParse(part, out var parsedId))
+            {
+                return (parsedIds, $"Error: Invalid label ID format: '{part}'. Expected a GUID.");
+            }
+
+            parsedIds.Add(parsedId);
+        }
+
+        var validLabels = await db.Labels
+            .Where(l => parsedIds.Contains(l.Id) && l.BoardId == boardId)
+            .Select(l => l.Id)
+            .ToListAsync(ct);
+
+        var invalidIds = parsedIds.Except(validLabels).ToList();
+        if (invalidIds.Count > 0)
+        {
+            return (parsedIds, $"Error: Labels not found or not on the same board: {string.Join(", ", invalidIds)}");
+        }
+
+        return (parsedIds, null);
     }
 }

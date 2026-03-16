@@ -378,6 +378,147 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
         result.ShouldNotContain("Error");
     }
 
+    // ── Hardened reorder/move tests ─────────────────────────────────────
+
+    [Fact]
+    public async Task MoveCard_SameLaneReorder_PositionsAreContiguous()
+    {
+        // Arrange
+        var (db, tools, authKey) = CreateTools();
+        var (lane1, _) = await GetTwoLaneIdsAsync(db);
+
+        var card1Id = await CreateCardInLaneAsync(tools, authKey, lane1, "Reorder A");
+        var card2Id = await CreateCardInLaneAsync(tools, authKey, lane1, "Reorder B");
+        var card3Id = await CreateCardInLaneAsync(tools, authKey, lane1, "Reorder C");
+
+        // Act — move card3 to index 0 (front) within same lane
+        await tools.MoveCardAsync(authKey, lane1, cardId: card3Id, index: 0);
+
+        // Assert — all cards in lane should have contiguous positions: 0, 10, 20
+        var cards = db.Cards.Where(c => c.LaneId == lane1 && (c.Id == card1Id || c.Id == card2Id || c.Id == card3Id))
+            .OrderBy(c => c.Position).ToList();
+        cards.Count.ShouldBe(3);
+        cards[0].Position.ShouldBe(0);
+        cards[1].Position.ShouldBe(10);
+        cards[2].Position.ShouldBe(20);
+        cards[0].Id.ShouldBe(card3Id);
+    }
+
+    [Fact]
+    public async Task MoveCard_CrossLane_SourceAndTargetBothReordered()
+    {
+        // Arrange
+        var (db, tools, authKey) = CreateTools();
+        var (lane1, lane2) = await GetTwoLaneIdsAsync(db);
+
+        var s1 = await CreateCardInLaneAsync(tools, authKey, lane1, "Source 1");
+        var s2 = await CreateCardInLaneAsync(tools, authKey, lane1, "Source 2");
+        var s3 = await CreateCardInLaneAsync(tools, authKey, lane1, "Source 3");
+        var t1 = await CreateCardInLaneAsync(tools, authKey, lane2, "Target 1");
+
+        // Act — move s2 to lane2 at index 0
+        await tools.MoveCardAsync(authKey, lane2, cardId: s2, index: 0);
+
+        // Assert — source lane: s1, s3 with positions 0, 10
+        var sourceCards = db.Cards.Where(c => c.LaneId == lane1 && (c.Id == s1 || c.Id == s3))
+            .OrderBy(c => c.Position).ToList();
+        sourceCards.Count.ShouldBe(2);
+        sourceCards[0].Position.ShouldBe(0);
+        sourceCards[1].Position.ShouldBe(10);
+
+        // Assert — target lane: s2 at front, t1 after
+        var targetCards = db.Cards.Where(c => c.LaneId == lane2 && (c.Id == s2 || c.Id == t1))
+            .OrderBy(c => c.Position).ToList();
+        targetCards.Count.ShouldBe(2);
+        targetCards[0].Id.ShouldBe(s2);
+        targetCards[0].Position.ShouldBe(0);
+        targetCards[1].Position.ShouldBe(10);
+    }
+
+    [Fact]
+    public async Task MoveCard_IndexBeyondEnd_ClampsToEnd()
+    {
+        // Arrange
+        var (db, tools, authKey) = CreateTools();
+        var (lane1, lane2) = await GetTwoLaneIdsAsync(db);
+
+        var existing = await CreateCardInLaneAsync(tools, authKey, lane2, "Existing");
+        var card = await CreateCardInLaneAsync(tools, authKey, lane1, "Clamp Test");
+
+        // Count cards already in lane2 (excluding the card being moved)
+        var existingCount = db.Cards.Count(c => c.LaneId == lane2);
+
+        // Act — move with index 999 (way beyond end)
+        var result = await tools.MoveCardAsync(authKey, lane2, cardId: card, index: 999);
+
+        // Assert — clamped to end (after all existing cards)
+        result.ShouldContain($"moved to lane at index {existingCount}");
+    }
+
+    [Fact]
+    public async Task MoveCard_NegativeIndex_ClampsToZero()
+    {
+        // Arrange
+        var (db, tools, authKey) = CreateTools();
+        var (lane1, lane2) = await GetTwoLaneIdsAsync(db);
+
+        var card = await CreateCardInLaneAsync(tools, authKey, lane1, "Negative Test");
+
+        // Act
+        var result = await tools.MoveCardAsync(authKey, lane2, cardId: card, index: -5);
+
+        // Assert
+        result.ShouldContain("moved to lane at index 0");
+    }
+
+    [Fact]
+    public async Task UpdateCard_MoveWithinSameLane_PositionsContiguous()
+    {
+        // Arrange
+        var (db, tools, authKey) = CreateTools();
+        var lanes = db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToList();
+        var lane = lanes[0];
+
+        var c1 = await CreateCardInLaneAsync(tools, authKey, lane, "Same Lane A");
+        var c2 = await CreateCardInLaneAsync(tools, authKey, lane, "Same Lane B");
+        var c3 = await CreateCardInLaneAsync(tools, authKey, lane, "Same Lane C");
+
+        // Act — move c1 to index 2 (end) via update_card
+        await tools.UpdateCardAsync(authKey, c1, laneId: lane, index: 2);
+
+        // Assert
+        var cards = db.Cards.Where(c => c.LaneId == lane && (c.Id == c1 || c.Id == c2 || c.Id == c3))
+            .OrderBy(c => c.Position).ToList();
+        cards.Count.ShouldBe(3);
+        cards[0].Position.ShouldBe(0);
+        cards[1].Position.ShouldBe(10);
+        cards[2].Position.ShouldBe(20);
+        cards[2].Id.ShouldBe(c1);
+    }
+
+    [Fact]
+    public async Task MoveCard_EmptyTargetLane_CardGetsPositionZero()
+    {
+        // Arrange
+        var (db, tools, authKey) = CreateTools();
+        var (lane1, _) = await GetTwoLaneIdsAsync(db);
+
+        // Create a fresh empty lane to guarantee no pre-existing cards
+        var emptyLane = new Lane { Id = Guid.NewGuid(), BoardId = _factory.DefaultBoardId, Name = "Empty Lane", Position = 999 };
+        db.Lanes.Add(emptyLane);
+        await db.SaveChangesAsync();
+
+        var card = await CreateCardInLaneAsync(tools, authKey, lane1, "Empty Target");
+
+        // Act
+        await tools.MoveCardAsync(authKey, emptyLane.Id, cardId: card);
+
+        // Assert
+        var movedCard = await db.Cards.FindAsync(card);
+        movedCard!.LaneId.ShouldBe(emptyLane.Id);
+        movedCard.Position.ShouldBe(0);
+    }
+
     // ── Combined operations ─────────────────────────────────────────────────
 
     [Fact]
