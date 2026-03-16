@@ -31,11 +31,22 @@ import { LabelPicker } from '@/components/LabelPicker';
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { useUserDirectory } from '@/hooks/use-user-directory';
+import { isTextInputFocused, buildPasteFileName } from '@/lib/utils';
 import type { CardItem, CardSize, Lane, UpdateCardPatch } from '@/types';
 
 type CardDetailSheetProps = {
   card: CardItem | null;
   open: boolean;
+  onOpenChange: (open: boolean) => void;
+  currentUserId?: string;
+  currentUserRole?: number;
+  lanes?: Lane[];
+  boardId?: string;
+  sizes?: CardSize[];
+};
+
+type CardDetailFormProps = {
+  card: CardItem;
   onOpenChange: (open: boolean) => void;
   currentUserId?: string;
   currentUserRole?: number;
@@ -74,23 +85,6 @@ export function CardDetailSheet({
   );
 }
 
-function isTextInputFocused(): boolean {
-  const el = document.activeElement;
-  if (!el) return false;
-  const tag = el.tagName.toLowerCase();
-  if (tag === 'textarea') return true;
-  if (tag === 'input' && (el as HTMLInputElement).type !== 'file') return true;
-  if ((el as HTMLElement).isContentEditable) return true;
-  return false;
-}
-
-function buildPasteFileName(mimeType: string): string {
-  const ext = mimeType.split('/')[1]?.replace('jpeg', 'jpg') ?? 'bin';
-  const now = new Date();
-  const ts = now.toISOString().replace(/[-:T]/g, '').replace(/\..+/, '').slice(0, 15);
-  return `pasted-image-${ts}.${ext}`;
-}
-
 function CardDetailForm({
   card,
   onOpenChange,
@@ -99,15 +93,7 @@ function CardDetailForm({
   lanes,
   boardId,
   sizes,
-}: {
-  card: CardItem;
-  onOpenChange: (open: boolean) => void;
-  currentUserId?: string;
-  currentUserRole?: number;
-  lanes?: Lane[];
-  boardId?: string;
-  sizes?: CardSize[];
-}) {
+}: CardDetailFormProps) {
   const queryClient = useQueryClient();
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -281,22 +267,27 @@ function CardDetailForm({
             </Select>
           )}
           {lanes && lanes.length > 0 && (
-            <select
+            <Select
               value={currentLaneId}
-              onChange={(e) => {
-                const v = e.target.value;
+              onValueChange={(v) => {
                 if (v && v !== currentLaneId) {
                   moveMutation.mutate(v);
                 }
               }}
-              className="rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground"
             >
-              {lanes.map((lane) => (
-                <option key={lane.id} value={lane.id}>
-                  {lane.name}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="w-36">
+                <SelectValue>
+                  {lanes.find((l) => l.id === currentLaneId)?.name ?? '?'}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {lanes.map((lane) => (
+                  <SelectItem key={lane.id} value={lane.id}>
+                    {lane.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
           <LabelPicker
             allLabels={allLabelsQuery.data ?? []}
