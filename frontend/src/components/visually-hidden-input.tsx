@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/refs -- third-party component (Dice UI) */
 "use client";
 
 import * as React from "react";
