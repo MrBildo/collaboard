@@ -16,8 +16,10 @@ type LabelPickerProps = {
 export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: LabelPickerProps) {
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState('');
+  const [focusedIndex, setFocusedIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const assignedIds = useMemo(() => new Set(assignedLabels.map((l) => l.id)), [assignedLabels]);
 
@@ -42,14 +44,47 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
 
   useEffect(() => {
     if (open) {
+      setFocusedIndex(-1);
       setTimeout(() => inputRef.current?.focus(), 0);
     }
   }, [open]);
+
+  useEffect(() => {
+    setFocusedIndex(-1);
+  }, [filter]);
+
+  useEffect(() => {
+    if (focusedIndex >= 0 && listRef.current) {
+      const items = listRef.current.querySelectorAll('[role="option"]');
+      if (items[focusedIndex]) {
+        (items[focusedIndex] as HTMLElement).scrollIntoView({ block: 'nearest' });
+      }
+    }
+  }, [focusedIndex]);
 
   const handleOpen = () => {
     if (!open) setFilter('');
     setOpen(!open);
   };
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setFocusedIndex((prev) => Math.min(prev + 1, filtered.length - 1));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setFocusedIndex((prev) => Math.max(prev - 1, 0));
+      } else if ((e.key === 'Enter' || e.key === ' ') && focusedIndex >= 0) {
+        e.preventDefault();
+        toggle(filtered[focusedIndex].id);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setOpen(false);
+      }
+    },
+    [filtered, focusedIndex, toggle],
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -62,22 +97,15 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
     return () => document.removeEventListener('mousedown', handleClick);
   }, [open]);
 
-  useEffect(() => {
-    if (!open) return;
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false);
-    }
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
-  }, [open]);
-
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className="relative" aria-label="Label picker">
       <Button
         variant="outline"
         size="sm"
         className="h-auto min-h-8 gap-1.5 px-2.5 py-1"
         onClick={handleOpen}
+        aria-expanded={open}
+        aria-haspopup="listbox"
       >
         <Tag className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
         {assignedLabels.length > 0 ? (
@@ -103,7 +131,10 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
       </Button>
 
       {open && (
-        <div className="absolute top-full left-0 z-50 mt-1 min-w-[12rem] overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-md">
+        <div
+          className="absolute top-full left-0 z-50 mt-1 min-w-[12rem] overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-md"
+          onKeyDown={handleKeyDown}
+        >
           <div className="p-1">
             <Input
               ref={inputRef}
@@ -111,17 +142,34 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
               onChange={(e) => setFilter(e.target.value)}
               placeholder="Search labels..."
               className="h-7 text-sm"
+              aria-label="Search labels"
+              role="combobox"
+              aria-expanded={true}
+              aria-controls="label-picker-listbox"
+              aria-activedescendant={
+                focusedIndex >= 0 ? `label-option-${filtered[focusedIndex]?.id}` : undefined
+              }
             />
           </div>
-          <div className="max-h-48 overflow-y-auto p-1">
-            {filtered.map((label) => {
+          <div
+            ref={listRef}
+            className="max-h-48 overflow-y-auto p-1"
+            role="listbox"
+            id="label-picker-listbox"
+            aria-label="Available labels"
+          >
+            {filtered.map((label, index) => {
               const selected = assignedIds.has(label.id);
+              const focused = index === focusedIndex;
               return (
                 <button
                   key={label.id}
+                  id={`label-option-${label.id}`}
                   type="button"
+                  role="option"
+                  aria-selected={selected}
                   onClick={() => toggle(label.id)}
-                  className="relative flex w-full cursor-default items-center gap-2 rounded-md py-1.5 pr-8 pl-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                  className={`relative flex w-full cursor-default items-center gap-2 rounded-md py-1.5 pr-8 pl-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground ${focused ? 'bg-accent text-accent-foreground' : ''}`}
                 >
                   <span
                     className="size-3 shrink-0 rounded-full border"
