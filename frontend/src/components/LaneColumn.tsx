@@ -32,8 +32,8 @@ export function LaneColumn({
     <article
       ref={setNodeRef}
       className={cn(
-        'flex flex-col rounded-lg border border-lane-border bg-lane-bg border-t-2 border-t-primary md:overflow-hidden',
-        isOver && 'ring-2 ring-primary/40',
+        'flex flex-col rounded-lg border border-lane-border bg-lane-bg border-t-2 border-t-primary md:overflow-hidden transition-all duration-150',
+        isOver && 'ring-2 ring-primary/60 bg-primary/5',
       )}
     >
       <div className="flex shrink-0 items-center justify-between px-4 py-3">

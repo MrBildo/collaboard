@@ -23,7 +23,7 @@ import { createCard, fetchBoardData, fetchLabels } from '@/lib/api';
 import { LabelPicker } from '@/components/LabelPicker';
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
-import type { CardSize, Lane } from '@/types';
+import type { BoardData, CardSize, Lane } from '@/types';
 
 type CreateCardDialogProps = {
   boardId: string;
@@ -43,19 +43,6 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
   const [sizeId, setSizeId] = useState(defaultSizeId);
   const [laneId, setLaneId] = useState(defaultLaneId ?? lanes[0]?.id ?? '');
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
-
-  const resetForm = () => {
-    setName('');
-    setDescription('');
-    setSizeId(defaultSizeId);
-    setLaneId(defaultLaneId ?? lanes[0]?.id ?? '');
-    setSelectedLabelIds([]);
-  };
-
-  const handleOpenChange = (nextOpen: boolean) => {
-    if (nextOpen) resetForm();
-    onOpenChange(nextOpen);
-  };
 
   const allLabelsQuery = useQuery({
     queryKey: queryKeys.labels.all(boardId),
@@ -87,9 +74,13 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
         labelIds: selectedLabelIds.length > 0 ? selectedLabelIds : undefined,
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
-      resetForm();
+    onSuccess: (newCard) => {
+      queryClient.cancelQueries({ queryKey: queryKeys.boards.data(boardId) });
+      queryClient.setQueryData<BoardData>(
+        queryKeys.boards.data(boardId),
+        (old) => old ? { ...old, cards: [...old.cards, newCard] } : old,
+      );
+      queryClient.invalidateQueries({ queryKey: queryKeys.boards.cards(boardId) });
       onOpenChange(false);
     },
   });
@@ -101,7 +92,7 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
