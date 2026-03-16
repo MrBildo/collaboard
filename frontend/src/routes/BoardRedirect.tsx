@@ -4,6 +4,7 @@ import { LoginScreen } from '@/components/LoginScreen';
 import { fetchBoards } from '@/lib/api';
 import { getLastBoardSlug, isLoggedIn, setUserKey } from '@/lib/auth';
 import { queryKeys } from '@/lib/query-keys';
+import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { useCallback, useState } from 'react';
 
 export function BoardRedirect() {
@@ -18,6 +19,7 @@ export function BoardRedirect() {
     queryKey: queryKeys.boards.all(),
     queryFn: fetchBoards,
     enabled: loggedIn,
+    ...QUERY_DEFAULTS.boards,
   });
 
   if (!loggedIn) {

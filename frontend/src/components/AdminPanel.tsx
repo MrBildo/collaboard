@@ -29,6 +29,7 @@ import {
 } from '@/lib/api';
 import type { UpdateLabelPatch, UpdateLanePatch, UpdateSizePatch } from '@/types';
 import { queryKeys } from '@/lib/query-keys';
+import { QUERY_DEFAULTS } from '@/lib/query-config';
 
 type AdminPanelProps = {
   boardId: string;
@@ -81,6 +82,7 @@ function LanesTab({ boardId }: { boardId: string }) {
   const lanesQuery = useQuery({
     queryKey: queryKeys.lanes.all(boardId),
     queryFn: () => fetchLanes(boardId),
+    ...QUERY_DEFAULTS.boardData,
   });
 
   const createMutation = useMutation({
@@ -285,6 +287,7 @@ function SizesTab({ boardId }: { boardId: string }) {
   const sizesQuery = useQuery({
     queryKey: queryKeys.sizes.all(boardId),
     queryFn: () => fetchSizes(boardId),
+    ...QUERY_DEFAULTS.boardData,
   });
 
   const createMutation = useMutation({
@@ -487,6 +490,7 @@ function LabelsTab({ boardId }: { boardId: string }) {
   const labelsQuery = useQuery({
     queryKey: queryKeys.labels.all(boardId),
     queryFn: () => fetchLabels(boardId),
+    ...QUERY_DEFAULTS.labels,
   });
 
   const createMutation = useMutation({

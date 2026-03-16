@@ -31,6 +31,7 @@ import {
 } from '@/lib/api';
 import type { UpdateBoardPatch } from '@/types';
 import { queryKeys } from '@/lib/query-keys';
+import { QUERY_DEFAULTS } from '@/lib/query-config';
 
 type GlobalAdminPanelProps = {
   open: boolean;
@@ -81,6 +82,7 @@ function BoardsTab() {
   const boardsQuery = useQuery({
     queryKey: queryKeys.boards.all(),
     queryFn: fetchBoards,
+    ...QUERY_DEFAULTS.boards,
   });
 
   const createMutation = useMutation({
@@ -244,6 +246,7 @@ function UsersTab() {
   const usersQuery = useQuery({
     queryKey: queryKeys.users.all(),
     queryFn: fetchUsers,
+    ...QUERY_DEFAULTS.userDirectory,
   });
 
   const createMutation = useMutation({

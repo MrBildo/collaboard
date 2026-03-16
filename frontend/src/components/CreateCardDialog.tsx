@@ -22,6 +22,7 @@ import {
 import { createCard, fetchBoardData, fetchLabels } from '@/lib/api';
 import { LabelPicker } from '@/components/LabelPicker';
 import { queryKeys } from '@/lib/query-keys';
+import { QUERY_DEFAULTS } from '@/lib/query-config';
 import type { CardSize, Lane } from '@/types';
 
 type CreateCardDialogProps = {
@@ -60,11 +61,13 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
   const allLabelsQuery = useQuery({
     queryKey: queryKeys.labels.all(boardId),
     queryFn: () => fetchLabels(boardId),
+    ...QUERY_DEFAULTS.labels,
   });
 
   const boardDataQuery = useQuery({
     queryKey: queryKeys.boards.data(boardId),
     queryFn: () => fetchBoardData(boardId),
+    ...QUERY_DEFAULTS.boardData,
   });
 
   const createMutation = useMutation({

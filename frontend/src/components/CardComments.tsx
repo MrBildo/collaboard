@@ -4,8 +4,10 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { createComment, deleteComment, fetchComments, fetchUserDirectory, updateComment } from '@/lib/api';
+import { createComment, deleteComment, fetchComments, updateComment } from '@/lib/api';
 import { queryKeys } from '@/lib/query-keys';
+import { QUERY_DEFAULTS } from '@/lib/query-config';
+import { useUserDirectory } from '@/hooks/use-user-directory';
 
 type CardCommentsProps = {
   cardId: string;
@@ -16,11 +18,7 @@ type CardCommentsProps = {
 export function CardComments({ cardId, currentUserId, currentUserRole }: CardCommentsProps) {
   const queryClient = useQueryClient();
 
-  const directoryQuery = useQuery({
-    queryKey: queryKeys.users.directory(),
-    queryFn: fetchUserDirectory,
-    staleTime: 60_000,
-  });
+  const directoryQuery = useUserDirectory();
   const userMap = new Map<string, string>(
     (directoryQuery.data ?? []).map((u) => [u.id, u.name]),
   );
@@ -33,6 +31,7 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
   const commentsQuery = useQuery({
     queryKey: queryKeys.cards.comments(cardId),
     queryFn: () => fetchComments(cardId),
+    ...QUERY_DEFAULTS.comments,
   });
 
   const createMutation = useMutation({
