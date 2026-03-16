@@ -144,7 +144,7 @@ export function CardDetailSheet({
           <button
             type="button"
             onClick={() => handleNavigate('prev')}
-            className="absolute top-1/2 -left-14 z-50 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-background/90 shadow-lg ring-1 ring-foreground/10 transition-colors hover:bg-accent md:flex"
+            className="absolute top-1/2 -left-14 z-50 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-background shadow-lg ring-1 ring-border transition-colors hover:bg-accent md:flex"
             aria-label="Previous card"
           >
             <ChevronLeft className="h-5 w-5" />
@@ -154,7 +154,7 @@ export function CardDetailSheet({
           <button
             type="button"
             onClick={() => handleNavigate('next')}
-            className="absolute top-1/2 -right-14 z-50 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-background/90 shadow-lg ring-1 ring-foreground/10 transition-colors hover:bg-accent md:flex"
+            className="absolute top-1/2 -right-14 z-50 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-background shadow-lg ring-1 ring-border transition-colors hover:bg-accent md:flex"
             aria-label="Next card"
           >
             <ChevronRight className="h-5 w-5" />
