@@ -11,6 +11,14 @@ import { CreateCardDialog } from '@/components/CreateCardDialog';
 import { LoginScreen } from '@/components/LoginScreen';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Menu } from 'lucide-react';
 import { fetchBoardBySlug, fetchBoardData, fetchBoards, fetchCardAttachments, fetchCardLabels, fetchComments, fetchMe, fetchUsers, fetchVersion, reorderCard } from '@/lib/api';
 import { isLoggedIn, setUserKey, clearUserKey, setLastBoardSlug } from '@/lib/auth';
 import { useBoardEvents } from '@/lib/use-board-events';
@@ -264,17 +272,18 @@ export function App() {
           <img
             src="/collaboard-logo.png"
             alt="Collaboard"
-            className="w-48"
+            className="w-32 md:w-48"
             style={{ imageRendering: 'pixelated' }}
           />
           {boards.length > 1 && (
             <BoardSwitcher boards={boards} currentSlug={slug} />
           )}
           {boards.length === 1 && board && (
-            <span className="text-sm font-medium text-muted-foreground">{board.name}</span>
+            <span className="hidden text-sm font-medium text-muted-foreground md:inline">{board.name}</span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        {/* Desktop actions */}
+        <div className="hidden items-center gap-2 md:flex">
           <Button onClick={() => { setCreateLaneId(undefined); setCreateOpen(true); }}>+ New Card</Button>
           {isAdmin && (
             <>
@@ -293,6 +302,40 @@ export function App() {
           {versionQuery.data && (
             <span className="text-xs text-muted-foreground/50">v{versionQuery.data.version}</span>
           )}
+        </div>
+        {/* Mobile menu */}
+        <div className="flex items-center gap-1 md:hidden">
+          <ThemeToggle />
+          <DropdownMenu>
+            <DropdownMenuTrigger className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground">
+              <Menu className="h-5 w-5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => { setCreateLaneId(undefined); setCreateOpen(true); }}>
+                + New Card
+              </DropdownMenuItem>
+              {isAdmin && (
+                <>
+                  <DropdownMenuItem onClick={() => setAdminOpen(true)}>
+                    Board Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setGlobalAdminOpen(true)}>
+                    Admin
+                  </DropdownMenuItem>
+                </>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout}>
+                Logout
+              </DropdownMenuItem>
+              {versionQuery.data && (
+                <>
+                  <DropdownMenuSeparator />
+                  <div className="px-1.5 py-1 text-xs text-muted-foreground">v{versionQuery.data.version}</div>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
       {boardDataQuery.isError && (
@@ -391,7 +434,7 @@ function LaneColumn({
     <article
       ref={setNodeRef}
       className={cn(
-        'flex flex-col overflow-hidden rounded-lg border border-lane-border bg-lane-bg border-t-2 border-t-primary',
+        'flex flex-col rounded-lg border border-lane-border bg-lane-bg border-t-2 border-t-primary md:overflow-hidden',
         isOver && 'ring-2 ring-primary/40',
       )}
     >
@@ -413,7 +456,7 @@ function LaneColumn({
         </button>
       </div>
       <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
-        <div className="flex-1 space-y-2 overflow-y-auto px-3 pb-3">
+        <div className="space-y-2 px-3 pb-3 md:flex-1 md:overflow-y-auto">
           {cards.map((card) => (
             <SortableCard key={card.id} card={card} onCardClick={onCardClick} isDragging={card.id === activeCardId} sizeMap={sizeMap} />
           ))}
