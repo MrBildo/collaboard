@@ -101,12 +101,9 @@ internal static class CardEndpoints
             }
 
             Guid sizeId;
-            if (body.TryGetProperty("sizeId", out var sizeIdProp)
-                && sizeIdProp.ValueKind != JsonValueKind.Null
-                && sizeIdProp.TryGetGuid(out var parsedSizeId)
-                && parsedSizeId != Guid.Empty)
+            if (body.TryGetProperty("sizeId", out var sizeIdProp) && sizeIdProp.ValueKind != JsonValueKind.Null)
             {
-                sizeId = parsedSizeId;
+                sizeId = sizeIdProp.GetGuid();
                 if (!await db.CardSizes.AnyAsync(s => s.Id == sizeId && s.BoardId == boardId))
                 {
                     return Results.BadRequest("Size does not belong to this board.");
