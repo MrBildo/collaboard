@@ -38,20 +38,27 @@ public sealed class BoardTools(BoardDbContext db, McpAuthService auth)
             return error;
         }
 
+        var cardCounts = await db.Cards
+            .Where(c => c.BoardId == boardId)
+            .GroupBy(c => c.LaneId)
+            .Select(g => new { LaneId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.LaneId, x => x.Count, ct);
+
         var lanes = await db.Lanes
             .Where(l => l.BoardId == boardId)
             .OrderBy(l => l.Position)
-            .Select(l => new
-            {
-                l.Id,
-                l.BoardId,
-                l.Name,
-                l.Position,
-                CardCount = db.Cards.Count(c => c.LaneId == l.Id)
-            })
             .ToListAsync(ct);
 
-        return JsonSerializer.Serialize(lanes, JsonSerializerOptions.Web);
+        var result = lanes.Select(l => new
+        {
+            l.Id,
+            l.BoardId,
+            l.Name,
+            l.Position,
+            CardCount = cardCounts.GetValueOrDefault(l.Id, 0)
+        }).ToList();
+
+        return JsonSerializer.Serialize(result, JsonSerializerOptions.Web);
     }
 
     [McpServerTool(Name = "get_sizes", ReadOnly = true, Destructive = false)]

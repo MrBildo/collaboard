@@ -17,8 +17,12 @@ internal static class CommentEndpoints
                 return Results.NotFound();
             }
 
-            var comments = await db.Comments.Where(x => x.CardId == id).ToListAsync();
-            return Results.Ok(comments.OrderBy(x => x.LastUpdatedAtUtc).ToList());
+            var comments = (await db.Comments
+                .Where(x => x.CardId == id)
+                .ToListAsync())
+                .OrderBy(x => x.LastUpdatedAtUtc)
+                .ToList();
+            return Results.Ok(comments);
         }).RequireAuth();
 
         group.MapPost("/cards/{id:guid}/comments", async (BoardDbContext db, HttpContext http, Guid id, CardComment request, BoardEventBroadcaster broadcaster) =>
