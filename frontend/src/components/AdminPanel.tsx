@@ -14,6 +14,13 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
+  EditableListContainer,
+  EditableListRow,
+  EditFormActions,
+  ItemActions,
+} from '@/components/editable-list';
+import { useEditableList } from '@/hooks/use-editable-list';
+import {
   createLabel,
   createLane,
   createSize,
@@ -73,17 +80,20 @@ function LanesTab({ boardId }: { boardId: string }) {
   const nameInputRef = useRef<HTMLInputElement>(null);
   const [newName, setNewName] = useState('');
   const [newPosition, setNewPosition] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editPosition, setEditPosition] = useState('');
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const list = useEditableList();
 
   const lanesQuery = useQuery({
     queryKey: queryKeys.lanes.all(boardId),
     queryFn: () => fetchLanes(boardId),
     ...QUERY_DEFAULTS.boardData,
   });
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.lanes.all(boardId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
+  };
 
   const createMutation = useMutation({
     mutationFn: () => {
@@ -94,14 +104,13 @@ function LanesTab({ boardId }: { boardId: string }) {
       return createLane(boardId, newName.trim(), pos);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.lanes.all(boardId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
+      invalidate();
       setNewName('');
       setNewPosition('');
       setTimeout(() => nameInputRef.current?.focus(), 0);
     },
     onError: (err) => {
-      setDeleteError(err instanceof Error ? err.message : 'Failed to create lane.');
+      list.setDeleteError(err instanceof Error ? err.message : 'Failed to create lane.');
     },
   });
 
@@ -109,22 +118,19 @@ function LanesTab({ boardId }: { boardId: string }) {
     mutationFn: ({ id, patch }: { id: string; patch: UpdateLanePatch }) =>
       updateLane(id, patch),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.lanes.all(boardId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
-      setEditingId(null);
+      invalidate();
+      list.setEditingId(null);
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteLane(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.lanes.all(boardId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
-      setConfirmDeleteId(null);
-      setDeleteError(null);
+      invalidate();
+      list.clearDelete();
     },
     onError: () => {
-      setDeleteError('Cannot delete lane — it may still contain cards.');
+      list.setDeleteError('Cannot delete lane — it may still contain cards.');
     },
   });
 
@@ -134,32 +140,31 @@ function LanesTab({ boardId }: { boardId: string }) {
   };
 
   const startEdit = (id: string, name: string, position: number) => {
-    setEditingId(id);
+    list.startEdit(id);
     setEditName(name);
     setEditPosition(String(position));
   };
 
   const saveEdit = () => {
-    if (!editingId) return;
+    if (!list.editingId) return;
     const patch: UpdateLanePatch = {};
-    const lane = lanesQuery.data?.find((l) => l.id === editingId);
+    const lane = lanesQuery.data?.find((l) => l.id === list.editingId);
     if (!lane) return;
     if (editName.trim() !== lane.name) patch.name = editName.trim();
     const pos = parseInt(editPosition, 10);
     if (!isNaN(pos) && pos !== lane.position) patch.position = pos;
     if (Object.keys(patch).length > 0) {
-      updateMutation.mutate({ id: editingId, patch });
+      updateMutation.mutate({ id: list.editingId, patch });
     } else {
-      setEditingId(null);
+      list.cancelEdit();
     }
   };
 
   const handleDelete = (id: string) => {
-    if (confirmDeleteId === id) {
+    if (list.confirmDeleteId === id) {
       deleteMutation.mutate(id);
     } else {
-      setConfirmDeleteId(id);
-      setDeleteError(null);
+      list.confirmDelete(id);
     }
   };
 
@@ -167,10 +172,10 @@ function LanesTab({ boardId }: { boardId: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col divide-y divide-border rounded-lg border">
+      <EditableListContainer error={list.deleteError}>
         {lanes.map((lane) => (
-          <div key={lane.id} className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-muted/50">
-            {editingId === lane.id ? (
+          <EditableListRow key={lane.id}>
+            {list.editingId === lane.id ? (
               <>
                 <div className="flex flex-1 items-center gap-2">
                   <Input
@@ -187,14 +192,11 @@ function LanesTab({ boardId }: { boardId: string }) {
                     placeholder="Position"
                   />
                 </div>
-                <div className="ml-2 flex gap-1">
-                  <Button size="xs" onClick={saveEdit} disabled={updateMutation.isPending}>
-                    Save
-                  </Button>
-                  <Button size="xs" variant="outline" onClick={() => setEditingId(null)}>
-                    Cancel
-                  </Button>
-                </div>
+                <EditFormActions
+                  onSave={saveEdit}
+                  onCancel={list.cancelEdit}
+                  isPending={updateMutation.isPending}
+                />
               </>
             ) : (
               <>
@@ -202,35 +204,17 @@ function LanesTab({ boardId }: { boardId: string }) {
                   <span className="font-medium">{lane.name}</span>
                   <Badge variant="secondary">pos {lane.position}</Badge>
                 </div>
-                <div className="flex gap-1">
-                  <Button
-                    size="xs"
-                    variant="ghost"
-                    onClick={() => startEdit(lane.id, lane.name, lane.position)}
-                    title="Edit"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></svg>
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="ghost"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => handleDelete(lane.id)}
-                    disabled={deleteMutation.isPending}
-                    title={confirmDeleteId === lane.id ? 'Confirm delete' : 'Delete'}
-                  >
-                    {confirmDeleteId === lane.id ? 'Confirm' : (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
-                    )}
-                  </Button>
-                </div>
+                <ItemActions
+                  isConfirmingDelete={list.confirmDeleteId === lane.id}
+                  isDeleting={deleteMutation.isPending}
+                  onEdit={() => startEdit(lane.id, lane.name, lane.position)}
+                  onDelete={() => handleDelete(lane.id)}
+                />
               </>
             )}
-          </div>
+          </EditableListRow>
         ))}
-      </div>
-
-      {deleteError && <p className="text-sm text-destructive">{deleteError}</p>}
+      </EditableListContainer>
 
       <Separator />
 
@@ -278,17 +262,20 @@ function SizesTab({ boardId }: { boardId: string }) {
   const nameInputRef = useRef<HTMLInputElement>(null);
   const [newName, setNewName] = useState('');
   const [newOrdinal, setNewOrdinal] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editOrdinal, setEditOrdinal] = useState('');
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const list = useEditableList();
 
   const sizesQuery = useQuery({
     queryKey: queryKeys.sizes.all(boardId),
     queryFn: () => fetchSizes(boardId),
     ...QUERY_DEFAULTS.boardData,
   });
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.sizes.all(boardId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
+  };
 
   const createMutation = useMutation({
     mutationFn: () => {
@@ -299,14 +286,13 @@ function SizesTab({ boardId }: { boardId: string }) {
       return createSize(boardId, newName.trim(), ord);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.sizes.all(boardId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
+      invalidate();
       setNewName('');
       setNewOrdinal('');
       setTimeout(() => nameInputRef.current?.focus(), 0);
     },
     onError: (err) => {
-      setDeleteError(err instanceof Error ? err.message : 'Failed to create size.');
+      list.setDeleteError(err instanceof Error ? err.message : 'Failed to create size.');
     },
   });
 
@@ -314,22 +300,19 @@ function SizesTab({ boardId }: { boardId: string }) {
     mutationFn: ({ id, patch }: { id: string; patch: UpdateSizePatch }) =>
       updateSize(id, patch),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.sizes.all(boardId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
-      setEditingId(null);
+      invalidate();
+      list.setEditingId(null);
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteSize(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.sizes.all(boardId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
-      setConfirmDeleteId(null);
-      setDeleteError(null);
+      invalidate();
+      list.clearDelete();
     },
     onError: () => {
-      setDeleteError('Cannot delete size — it may still be in use by cards.');
+      list.setDeleteError('Cannot delete size — it may still be in use by cards.');
     },
   });
 
@@ -339,32 +322,31 @@ function SizesTab({ boardId }: { boardId: string }) {
   };
 
   const startEdit = (id: string, name: string, ordinal: number) => {
-    setEditingId(id);
+    list.startEdit(id);
     setEditName(name);
     setEditOrdinal(String(ordinal));
   };
 
   const saveEdit = () => {
-    if (!editingId) return;
+    if (!list.editingId) return;
     const patch: UpdateSizePatch = {};
-    const size = sizesQuery.data?.find((s) => s.id === editingId);
+    const size = sizesQuery.data?.find((s) => s.id === list.editingId);
     if (!size) return;
     if (editName.trim() !== size.name) patch.name = editName.trim();
     const ord = parseInt(editOrdinal, 10);
     if (!isNaN(ord) && ord !== size.ordinal) patch.ordinal = ord;
     if (Object.keys(patch).length > 0) {
-      updateMutation.mutate({ id: editingId, patch });
+      updateMutation.mutate({ id: list.editingId, patch });
     } else {
-      setEditingId(null);
+      list.cancelEdit();
     }
   };
 
   const handleDelete = (id: string) => {
-    if (confirmDeleteId === id) {
+    if (list.confirmDeleteId === id) {
       deleteMutation.mutate(id);
     } else {
-      setConfirmDeleteId(id);
-      setDeleteError(null);
+      list.confirmDelete(id);
     }
   };
 
@@ -372,10 +354,10 @@ function SizesTab({ boardId }: { boardId: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col divide-y divide-border rounded-lg border">
+      <EditableListContainer error={list.deleteError}>
         {sizes.map((size) => (
-          <div key={size.id} className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-muted/50">
-            {editingId === size.id ? (
+          <EditableListRow key={size.id}>
+            {list.editingId === size.id ? (
               <>
                 <div className="flex flex-1 items-center gap-2">
                   <Input
@@ -392,14 +374,11 @@ function SizesTab({ boardId }: { boardId: string }) {
                     placeholder="Ordinal"
                   />
                 </div>
-                <div className="ml-2 flex gap-1">
-                  <Button size="xs" onClick={saveEdit} disabled={updateMutation.isPending}>
-                    Save
-                  </Button>
-                  <Button size="xs" variant="outline" onClick={() => setEditingId(null)}>
-                    Cancel
-                  </Button>
-                </div>
+                <EditFormActions
+                  onSave={saveEdit}
+                  onCancel={list.cancelEdit}
+                  isPending={updateMutation.isPending}
+                />
               </>
             ) : (
               <>
@@ -407,35 +386,17 @@ function SizesTab({ boardId }: { boardId: string }) {
                   <span className="font-medium">{size.name}</span>
                   <Badge variant="secondary">ord {size.ordinal}</Badge>
                 </div>
-                <div className="flex gap-1">
-                  <Button
-                    size="xs"
-                    variant="ghost"
-                    onClick={() => startEdit(size.id, size.name, size.ordinal)}
-                    title="Edit"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></svg>
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="ghost"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => handleDelete(size.id)}
-                    disabled={deleteMutation.isPending}
-                    title={confirmDeleteId === size.id ? 'Confirm delete' : 'Delete'}
-                  >
-                    {confirmDeleteId === size.id ? 'Confirm' : (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
-                    )}
-                  </Button>
-                </div>
+                <ItemActions
+                  isConfirmingDelete={list.confirmDeleteId === size.id}
+                  isDeleting={deleteMutation.isPending}
+                  onEdit={() => startEdit(size.id, size.name, size.ordinal)}
+                  onDelete={() => handleDelete(size.id)}
+                />
               </>
             )}
-          </div>
+          </EditableListRow>
         ))}
-      </div>
-
-      {deleteError && <p className="text-sm text-destructive">{deleteError}</p>}
+      </EditableListContainer>
 
       <Separator />
 
@@ -482,10 +443,9 @@ function LabelsTab({ boardId }: { boardId: string }) {
   const queryClient = useQueryClient();
   const [newName, setNewName] = useState('');
   const [newColor, setNewColor] = useState('#3b82f6');
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editColor, setEditColor] = useState('');
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const list = useEditableList();
 
   const labelsQuery = useQuery({
     queryKey: queryKeys.labels.all(boardId),
@@ -507,7 +467,7 @@ function LabelsTab({ boardId }: { boardId: string }) {
       updateLabel(boardId, id, patch),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.labels.all(boardId) });
-      setEditingId(null);
+      list.setEditingId(null);
     },
   });
 
@@ -515,7 +475,7 @@ function LabelsTab({ boardId }: { boardId: string }) {
     mutationFn: (id: string) => deleteLabel(boardId, id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.labels.all(boardId) });
-      setConfirmDeleteId(null);
+      list.clearDelete();
     },
   });
 
@@ -525,30 +485,30 @@ function LabelsTab({ boardId }: { boardId: string }) {
   };
 
   const startEdit = (id: string, name: string, color: string | null | undefined) => {
-    setEditingId(id);
+    list.startEdit(id);
     setEditName(name);
     setEditColor(color ?? '#3b82f6');
   };
 
   const saveEdit = () => {
-    if (!editingId) return;
+    if (!list.editingId) return;
     const patch: UpdateLabelPatch = {};
-    const label = labelsQuery.data?.find((l) => l.id === editingId);
+    const label = labelsQuery.data?.find((l) => l.id === list.editingId);
     if (!label) return;
     if (editName.trim() !== label.name) patch.name = editName.trim();
     if (editColor !== (label.color ?? '')) patch.color = editColor;
     if (Object.keys(patch).length > 0) {
-      updateMutation.mutate({ id: editingId, patch });
+      updateMutation.mutate({ id: list.editingId, patch });
     } else {
-      setEditingId(null);
+      list.cancelEdit();
     }
   };
 
   const handleDelete = (id: string) => {
-    if (confirmDeleteId === id) {
+    if (list.confirmDeleteId === id) {
       deleteMutation.mutate(id);
     } else {
-      setConfirmDeleteId(id);
+      list.confirmDelete(id);
     }
   };
 
@@ -556,10 +516,10 @@ function LabelsTab({ boardId }: { boardId: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col divide-y divide-border rounded-lg border">
+      <EditableListContainer>
         {labels.map((label) => (
-          <div key={label.id} className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-muted/50">
-            {editingId === label.id ? (
+          <EditableListRow key={label.id}>
+            {list.editingId === label.id ? (
               <>
                 <div className="flex flex-1 items-center gap-2">
                   <input
@@ -575,14 +535,11 @@ function LabelsTab({ boardId }: { boardId: string }) {
                     placeholder="Label name"
                   />
                 </div>
-                <div className="ml-2 flex gap-1">
-                  <Button size="xs" onClick={saveEdit} disabled={updateMutation.isPending}>
-                    Save
-                  </Button>
-                  <Button size="xs" variant="outline" onClick={() => setEditingId(null)}>
-                    Cancel
-                  </Button>
-                </div>
+                <EditFormActions
+                  onSave={saveEdit}
+                  onCancel={list.cancelEdit}
+                  isPending={updateMutation.isPending}
+                />
               </>
             ) : (
               <>
@@ -593,33 +550,17 @@ function LabelsTab({ boardId }: { boardId: string }) {
                   />
                   <span className="font-medium">{label.name}</span>
                 </div>
-                <div className="flex gap-1">
-                  <Button
-                    size="xs"
-                    variant="ghost"
-                    onClick={() => startEdit(label.id, label.name, label.color)}
-                    title="Edit"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></svg>
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="ghost"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => handleDelete(label.id)}
-                    disabled={deleteMutation.isPending}
-                    title={confirmDeleteId === label.id ? 'Confirm delete' : 'Delete'}
-                  >
-                    {confirmDeleteId === label.id ? 'Confirm' : (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
-                    )}
-                  </Button>
-                </div>
+                <ItemActions
+                  isConfirmingDelete={list.confirmDeleteId === label.id}
+                  isDeleting={deleteMutation.isPending}
+                  onEdit={() => startEdit(label.id, label.name, label.color)}
+                  onDelete={() => handleDelete(label.id)}
+                />
               </>
             )}
-          </div>
+          </EditableListRow>
         ))}
-      </div>
+      </EditableListContainer>
 
       <Separator />
 
