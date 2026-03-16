@@ -1,5 +1,4 @@
 using Collaboard.Api.Models;
-using Microsoft.EntityFrameworkCore;
 
 namespace Collaboard.Api.Auth;
 
@@ -7,25 +6,16 @@ public static class AuthExtensions
 {
     public const string UserKeyHeader = "X-User-Key";
 
-    public static async Task<BoardUser?> ResolveUserAsync(this HttpContext context, BoardDbContext db)
-    {
-        var userKey = context.Request.Headers[UserKeyHeader].ToString();
-        return string.IsNullOrWhiteSpace(userKey)
-            ? null
-            : await db.Users.SingleOrDefaultAsync(x => x.AuthKey == userKey && x.IsActive);
-    }
+    public static BoardUser CurrentUser(this HttpContext context)
+        => context.Items[nameof(BoardUser)] as BoardUser
+           ?? throw new InvalidOperationException("User not resolved. Ensure RequireRoleFilter is applied.");
 
-    public static async Task<IResult?> RequireRoleAsync(this HttpContext context, BoardDbContext db, params UserRole[] roles)
-    {
-        var user = await context.ResolveUserAsync(db);
-        if (user is null)
-        {
-            return Results.Unauthorized();
-        }
+    public static RouteHandlerBuilder RequireRole(this RouteHandlerBuilder builder, params UserRole[] roles)
+        => builder.AddEndpointFilter(new RequireRoleFilter(roles));
 
-        context.Items[nameof(BoardUser)] = user;
-        return roles.Contains(user.Role) ? null : Results.StatusCode(StatusCodes.Status403Forbidden);
-    }
+    public static RouteHandlerBuilder RequireAuth(this RouteHandlerBuilder builder)
+        => builder.RequireRole(UserRole.Administrator, UserRole.HumanUser, UserRole.AgentUser);
 
-    public static BoardUser CurrentUser(this HttpContext context) => (BoardUser)context.Items[nameof(BoardUser)]!;
+    public static RouteHandlerBuilder RequireAdmin(this RouteHandlerBuilder builder)
+        => builder.RequireRole(UserRole.Administrator);
 }

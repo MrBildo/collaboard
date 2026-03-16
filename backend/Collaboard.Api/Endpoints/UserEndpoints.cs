@@ -10,14 +10,8 @@ internal static class UserEndpoints
 {
     public static RouteGroupBuilder MapUserEndpoints(this RouteGroupBuilder group)
     {
-        group.MapPost("/users", async (BoardDbContext db, HttpContext http, BoardUser request, BoardEventBroadcaster broadcaster) =>
+        group.MapPost("/users", async (BoardDbContext db, BoardUser request, BoardEventBroadcaster broadcaster) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             var user = new BoardUser
             {
                 Id = Guid.NewGuid(),
@@ -29,50 +23,30 @@ internal static class UserEndpoints
             await db.SaveChangesAsync();
             broadcaster.PublishGlobal("board-updated");
             return Results.Created($"/api/v1/users/{user.Id}", user);
-        });
+        }).RequireAdmin();
 
-        group.MapGet("/users/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id) =>
+        group.MapGet("/users/{id:guid}", async (BoardDbContext db, Guid id) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             var user = await db.Users.FindAsync(id);
             return user is null ? Results.NotFound() : Results.Ok(user);
-        });
+        }).RequireAdmin();
 
-        group.MapGet("/users", async (BoardDbContext db, HttpContext http) =>
+        group.MapGet("/users", async (BoardDbContext db) =>
+            Results.Ok(await db.Users.OrderBy(x => x.Name).ToListAsync()))
+            .RequireAdmin();
+
+        group.MapGet("/users/directory", async (BoardDbContext db) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
-            return forbidden is not null ? forbidden : Results.Ok(await db.Users.OrderBy(x => x.Name).ToListAsync());
-        });
-
-        group.MapGet("/users/directory", async (BoardDbContext db, HttpContext http) =>
-        {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             var users = await db.Users
                 .Where(x => x.IsActive)
                 .OrderBy(x => x.Name)
                 .Select(x => new { x.Id, x.Name })
                 .ToListAsync();
             return Results.Ok(users);
-        });
+        }).RequireAuth();
 
-        group.MapPatch("/users/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, JsonElement patch, BoardEventBroadcaster broadcaster) =>
+        group.MapPatch("/users/{id:guid}", async (BoardDbContext db, Guid id, JsonElement patch, BoardEventBroadcaster broadcaster) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             var user = await db.Users.FindAsync(id);
             if (user is null)
             {
@@ -92,16 +66,10 @@ internal static class UserEndpoints
             await db.SaveChangesAsync();
             broadcaster.PublishGlobal("board-updated");
             return Results.Ok(user);
-        });
+        }).RequireAdmin();
 
-        group.MapPatch("/users/{id:guid}/deactivate", async (BoardDbContext db, HttpContext http, Guid id, BoardEventBroadcaster broadcaster) =>
+        group.MapPatch("/users/{id:guid}/deactivate", async (BoardDbContext db, Guid id, BoardEventBroadcaster broadcaster) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             var user = await db.Users.FindAsync(id);
             if (user is null)
             {
@@ -112,19 +80,13 @@ internal static class UserEndpoints
             await db.SaveChangesAsync();
             broadcaster.PublishGlobal("board-updated");
             return Results.NoContent();
-        });
+        }).RequireAdmin();
 
-        group.MapGet("/auth/me", async (BoardDbContext db, HttpContext http) =>
+        group.MapGet("/auth/me", (HttpContext http) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.HumanUser, UserRole.AgentUser);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             var user = http.CurrentUser();
             return Results.Ok(new { user.Id, user.Name, user.Role });
-        });
+        }).RequireAuth();
 
         return group;
     }

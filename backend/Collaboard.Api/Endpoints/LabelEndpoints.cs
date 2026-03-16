@@ -11,14 +11,8 @@ internal static class LabelEndpoints
     public static RouteGroupBuilder MapLabelEndpoints(this RouteGroupBuilder group)
     {
         // Board-scoped label CRUD
-        group.MapGet("/boards/{boardId:guid}/labels", async (BoardDbContext db, HttpContext http, Guid boardId) =>
+        group.MapGet("/boards/{boardId:guid}/labels", async (BoardDbContext db, Guid boardId) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             if (!await db.Boards.AnyAsync(x => x.Id == boardId))
             {
                 return Results.NotFound();
@@ -26,16 +20,10 @@ internal static class LabelEndpoints
 
             var labels = await db.Labels.Where(x => x.BoardId == boardId).OrderBy(x => x.Name).ToListAsync();
             return Results.Ok(labels);
-        });
+        }).RequireAuth();
 
-        group.MapPost("/boards/{boardId:guid}/labels", async (BoardDbContext db, HttpContext http, Guid boardId, Label request, BoardEventBroadcaster broadcaster) =>
+        group.MapPost("/boards/{boardId:guid}/labels", async (BoardDbContext db, Guid boardId, Label request, BoardEventBroadcaster broadcaster) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             if (!await db.Boards.AnyAsync(x => x.Id == boardId))
             {
                 return Results.NotFound();
@@ -57,16 +45,10 @@ internal static class LabelEndpoints
             await db.SaveChangesAsync();
             broadcaster.PublishBoardUpdated(boardId);
             return Results.Created($"/api/v1/boards/{boardId}/labels/{label.Id}", label);
-        });
+        }).RequireAdmin();
 
-        group.MapPatch("/boards/{boardId:guid}/labels/{id:guid}", async (BoardDbContext db, HttpContext http, Guid boardId, Guid id, JsonElement patch, BoardEventBroadcaster broadcaster) =>
+        group.MapPatch("/boards/{boardId:guid}/labels/{id:guid}", async (BoardDbContext db, Guid boardId, Guid id, JsonElement patch, BoardEventBroadcaster broadcaster) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             var label = await db.Labels.FindAsync(id);
             if (label is null || label.BoardId != boardId)
             {
@@ -86,16 +68,10 @@ internal static class LabelEndpoints
             await db.SaveChangesAsync();
             broadcaster.PublishBoardUpdated(boardId);
             return Results.Ok(label);
-        });
+        }).RequireAdmin();
 
-        group.MapDelete("/boards/{boardId:guid}/labels/{id:guid}", async (BoardDbContext db, HttpContext http, Guid boardId, Guid id, BoardEventBroadcaster broadcaster) =>
+        group.MapDelete("/boards/{boardId:guid}/labels/{id:guid}", async (BoardDbContext db, Guid boardId, Guid id, BoardEventBroadcaster broadcaster) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             var label = await db.Labels.FindAsync(id);
             if (label is null || label.BoardId != boardId)
             {
@@ -108,17 +84,11 @@ internal static class LabelEndpoints
             await db.SaveChangesAsync();
             broadcaster.PublishBoardUpdated(boardId);
             return Results.NoContent();
-        });
+        }).RequireAdmin();
 
         // Card-label operations (card-scoped routes, unchanged)
-        group.MapGet("/cards/{id:guid}/labels", async (BoardDbContext db, HttpContext http, Guid id) =>
+        group.MapGet("/cards/{id:guid}/labels", async (BoardDbContext db, Guid id) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             if (!await db.Cards.AnyAsync(x => x.Id == id))
             {
                 return Results.NotFound();
@@ -130,16 +100,10 @@ internal static class LabelEndpoints
                 .ToListAsync();
 
             return Results.Ok(labels);
-        });
+        }).RequireAuth();
 
-        group.MapPost("/cards/{id:guid}/labels", async (BoardDbContext db, HttpContext http, Guid id, JsonElement body, BoardEventBroadcaster broadcaster) =>
+        group.MapPost("/cards/{id:guid}/labels", async (BoardDbContext db, Guid id, JsonElement body, BoardEventBroadcaster broadcaster) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             var card = await db.Cards.FindAsync(id);
             if (card is null)
             {
@@ -170,16 +134,10 @@ internal static class LabelEndpoints
             await db.SaveChangesAsync();
             broadcaster.PublishBoardUpdated(cardBoardId);
             return Results.Created($"/api/v1/cards/{id}/labels/{labelId}", cardLabel);
-        });
+        }).RequireAuth();
 
-        group.MapDelete("/cards/{id:guid}/labels/{labelId:guid}", async (BoardDbContext db, HttpContext http, Guid id, Guid labelId, BoardEventBroadcaster broadcaster) =>
+        group.MapDelete("/cards/{id:guid}/labels/{labelId:guid}", async (BoardDbContext db, Guid id, Guid labelId, BoardEventBroadcaster broadcaster) =>
         {
-            var forbidden = await http.RequireRoleAsync(db, UserRole.Administrator, UserRole.AgentUser, UserRole.HumanUser);
-            if (forbidden is not null)
-            {
-                return forbidden;
-            }
-
             var cardLabel = await db.CardLabels.FindAsync(id, labelId);
             if (cardLabel is null)
             {
@@ -199,7 +157,7 @@ internal static class LabelEndpoints
             }
 
             return Results.NoContent();
-        });
+        }).RequireAuth();
 
         return group;
     }
