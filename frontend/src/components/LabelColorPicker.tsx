@@ -1,0 +1,36 @@
+import {
+  ColorPicker,
+  ColorPickerArea,
+  ColorPickerContent,
+  ColorPickerEyeDropper,
+  ColorPickerFormatSelect,
+  ColorPickerHueSlider,
+  ColorPickerInput,
+  ColorPickerSwatch,
+  ColorPickerTrigger,
+} from '@/components/ui/color-picker';
+
+type LabelColorPickerProps = {
+  value: string;
+  onValueChange: (value: string) => void;
+};
+
+function LabelColorPicker({ value, onValueChange }: LabelColorPickerProps) {
+  return (
+    <ColorPicker value={value} onValueChange={onValueChange}>
+      <ColorPickerTrigger className="size-8 rounded-md" />
+      <ColorPickerContent>
+        <ColorPickerArea />
+        <ColorPickerHueSlider />
+        <div className="flex items-center gap-2">
+          <ColorPickerEyeDropper />
+          <ColorPickerSwatch className="size-8 shrink-0 rounded-md" />
+          <ColorPickerInput />
+          <ColorPickerFormatSelect />
+        </div>
+      </ColorPickerContent>
+    </ColorPicker>
+  );
+}
+
+export { LabelColorPicker };
