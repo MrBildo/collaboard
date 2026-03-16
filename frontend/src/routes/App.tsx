@@ -167,6 +167,10 @@ export function App() {
     }
   }, [slug, navigate]);
 
+  const handleNavigateCard = useCallback((cardNumber: number) => {
+    navigate(`/boards/${slug}/cards/${cardNumber}`, { replace: true });
+  }, [slug, navigate]);
+
   const laneIds = useMemo(() => new Set(lanes.map((l) => l.id)), [lanes]);
 
   const byLane = useMemo(() => {
@@ -409,7 +413,18 @@ export function App() {
         </DragOverlay>
       </DndContext>
 
-      <CardDetailSheet card={selectedCard} open={detailOpen} onOpenChange={handleDetailOpenChange} currentUserId={currentUserId} currentUserRole={currentUserRole} lanes={lanes} boardId={boardId} sizes={sizes} />
+      <CardDetailSheet
+        card={selectedCard}
+        open={detailOpen}
+        onOpenChange={handleDetailOpenChange}
+        currentUserId={currentUserId}
+        currentUserRole={currentUserRole}
+        lanes={lanes}
+        boardId={boardId}
+        sizes={sizes}
+        cardsInLane={selectedCard ? (byLane.get(selectedCard.laneId) ?? []) : []}
+        onNavigateCard={handleNavigateCard}
+      />
 
       {boardId && (
         <CreateCardDialog key={createDialogKey} boardId={boardId} lanes={lanes} sizes={sizes} open={createOpen} onOpenChange={setCreateOpen} defaultLaneId={createLaneId} />
