@@ -22,7 +22,6 @@ import {
   deleteCard,
   fetchCardLabels,
   fetchLabels,
-  fetchUserDirectory,
   reorderCard,
   removeCardLabel,
   updateCard,
@@ -30,6 +29,8 @@ import {
 } from '@/lib/api';
 import { LabelPicker } from '@/components/LabelPicker';
 import { queryKeys } from '@/lib/query-keys';
+import { QUERY_DEFAULTS } from '@/lib/query-config';
+import { useUserDirectory } from '@/hooks/use-user-directory';
 import type { CardItem, CardSize, Lane, UpdateCardPatch } from '@/types';
 
 type CardDetailSheetProps = {
@@ -163,22 +164,20 @@ function CardDetailForm({
   const canDelete =
     currentUserRole === 0 || (currentUserRole === 1 && card.createdByUserId === currentUserId);
 
-  const directoryQuery = useQuery({
-    queryKey: queryKeys.users.directory(),
-    queryFn: fetchUserDirectory,
-    staleTime: 60_000,
-  });
+  const directoryQuery = useUserDirectory();
   const userName = (id: string) => directoryQuery.data?.find((u) => u.id === id)?.name ?? 'Unknown';
 
   const labelsQuery = useQuery({
     queryKey: queryKeys.cards.labels(card.id),
     queryFn: () => fetchCardLabels(card.id),
+    ...QUERY_DEFAULTS.labels,
   });
 
   const allLabelsQuery = useQuery({
     queryKey: queryKeys.labels.all(boardId!),
     queryFn: () => fetchLabels(boardId!),
     enabled: !!boardId,
+    ...QUERY_DEFAULTS.labels,
   });
 
   const addLabelMutation = useMutation({

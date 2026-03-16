@@ -22,6 +22,7 @@ import { Menu } from 'lucide-react';
 import { fetchBoardBySlug, fetchBoardData, fetchBoards, fetchCardAttachments, fetchCardLabels, fetchComments, fetchMe, fetchUsers, fetchVersion, reorderCard } from '@/lib/api';
 import { isLoggedIn, setUserKey, clearUserKey, setLastBoardSlug } from '@/lib/auth';
 import { useBoardEvents } from '@/lib/use-board-events';
+import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { cn, getContrastColor } from '@/lib/utils';
 import { queryKeys } from '@/lib/query-keys';
@@ -49,6 +50,7 @@ export function App() {
     queryKey: queryKeys.boards.detail(slug!),
     queryFn: () => fetchBoardBySlug(slug!),
     enabled: loggedIn && !!slug,
+    ...QUERY_DEFAULTS.boards,
   });
   const board = boardMetaQuery.data;
   const boardId = board?.id;
@@ -486,16 +488,17 @@ function SortableCard({
   const labelsQuery = useQuery({
     queryKey: queryKeys.cards.labels(card.id),
     queryFn: () => fetchCardLabels(card.id),
+    ...QUERY_DEFAULTS.labels,
   });
   const commentsQuery = useQuery({
     queryKey: queryKeys.cards.comments(card.id),
     queryFn: () => fetchComments(card.id),
-    staleTime: 30_000,
+    ...QUERY_DEFAULTS.comments,
   });
   const attachmentsQuery = useQuery({
     queryKey: queryKeys.cards.attachments(card.id),
     queryFn: () => fetchCardAttachments(card.id),
-    staleTime: 30_000,
+    ...QUERY_DEFAULTS.attachments,
   });
   const labels = labelsQuery.data ?? [];
   const commentCount = commentsQuery.data?.length ?? 0;

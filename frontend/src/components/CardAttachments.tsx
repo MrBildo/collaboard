@@ -1,8 +1,10 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { api, deleteAttachment, fetchCardAttachments, fetchUserDirectory, uploadAttachment } from '@/lib/api';
+import { api, deleteAttachment, fetchCardAttachments, uploadAttachment } from '@/lib/api';
 import { queryKeys } from '@/lib/query-keys';
+import { QUERY_DEFAULTS } from '@/lib/query-config';
+import { useUserDirectory } from '@/hooks/use-user-directory';
 import type { AttachmentMeta } from '@/types';
 
 type CardAttachmentsProps = {
@@ -18,17 +20,14 @@ export function CardAttachments({ cardId, currentUserId, currentUserRole }: Card
   const [isDragging, setIsDragging] = useState(false);
   const dragCounter = useRef(0);
 
-  const directoryQuery = useQuery({
-    queryKey: queryKeys.users.directory(),
-    queryFn: fetchUserDirectory,
-    staleTime: 60_000,
-  });
+  const directoryQuery = useUserDirectory();
   const userName = (id: string) =>
     directoryQuery.data?.find((u) => u.id === id)?.name ?? 'Unknown';
 
   const attachmentsQuery = useQuery({
     queryKey: queryKeys.cards.attachments(cardId),
     queryFn: () => fetchCardAttachments(cardId),
+    ...QUERY_DEFAULTS.attachments,
   });
 
   const uploadMutation = useMutation({
