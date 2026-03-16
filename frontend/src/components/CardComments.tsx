@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -86,8 +86,11 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
     }
   };
 
-  const comments = [...(commentsQuery.data ?? [])].sort(
-    (a, b) => new Date(b.lastUpdatedAtUtc).getTime() - new Date(a.lastUpdatedAtUtc).getTime(),
+  const comments = useMemo(
+    () => [...(commentsQuery.data ?? [])].sort(
+      (a, b) => new Date(b.lastUpdatedAtUtc).getTime() - new Date(a.lastUpdatedAtUtc).getTime(),
+    ),
+    [commentsQuery.data],
   );
 
   return (

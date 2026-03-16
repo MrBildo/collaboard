@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { api, deleteAttachment, fetchCardAttachments, fetchUserDirectory, uploadAttachment } from '@/lib/api';
@@ -109,8 +109,11 @@ export function CardAttachments({ cardId, currentUserId, currentUserRole }: Card
     }
   };
 
-  const attachments = [...(attachmentsQuery.data ?? [])].sort(
-    (a, b) => new Date(b.addedAtUtc).getTime() - new Date(a.addedAtUtc).getTime(),
+  const attachments = useMemo(
+    () => [...(attachmentsQuery.data ?? [])].sort(
+      (a, b) => new Date(b.addedAtUtc).getTime() - new Date(a.addedAtUtc).getTime(),
+    ),
+    [attachmentsQuery.data],
   );
 
   return (
