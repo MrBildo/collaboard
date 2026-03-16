@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -18,12 +18,9 @@ import {
 import { CardComments } from '@/components/CardComments';
 import { CardAttachments } from '@/components/CardAttachments';
 import {
-  addCardLabel,
   deleteCard,
   fetchCardLabels,
   fetchLabels,
-  reorderCard,
-  removeCardLabel,
   updateCard,
   uploadAttachment,
 } from '@/lib/api';
@@ -47,13 +44,20 @@ type CardDetailSheetProps = {
 
 type CardDetailFormProps = {
   card: CardItem;
-  onOpenChange: (open: boolean) => void;
+  onClose: () => void;
   currentUserId?: string;
   currentUserRole?: number;
   lanes?: Lane[];
   boardId?: string;
   sizes?: CardSize[];
 };
+
+function arraysEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const sorted1 = [...a].sort();
+  const sorted2 = [...b].sort();
+  return sorted1.every((v, i) => v === sorted2[i]);
+}
 
 export function CardDetailSheet({
   card,
@@ -65,20 +69,35 @@ export function CardDetailSheet({
   boardId,
   sizes,
 }: CardDetailSheetProps) {
+  const isDirtyRef = useRef(false);
+
+  const handleDialogOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen) {
+        if (isDirtyRef.current) {
+          if (!window.confirm('You have unsaved changes. Discard them?')) return;
+        }
+      }
+      onOpenChange(nextOpen);
+    },
+    [onOpenChange],
+  );
+
   if (!card) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent data-mobile-fullscreen className="flex flex-col overflow-hidden p-0 md:max-h-[85vh] md:!w-[80vw] md:!max-w-[80vw]">
         <CardDetailForm
           key={card.id}
           card={card}
-          onOpenChange={onOpenChange}
+          onClose={() => handleDialogOpenChange(false)}
           currentUserId={currentUserId}
           currentUserRole={currentUserRole}
           lanes={lanes}
           boardId={boardId}
           sizes={sizes}
+          isDirtyRef={isDirtyRef}
         />
       </DialogContent>
     </Dialog>
@@ -87,13 +106,14 @@ export function CardDetailSheet({
 
 function CardDetailForm({
   card,
-  onOpenChange,
+  onClose,
   currentUserId,
   currentUserRole,
   lanes,
   boardId,
   sizes,
-}: CardDetailFormProps) {
+  isDirtyRef,
+}: CardDetailFormProps & { isDirtyRef: React.MutableRefObject<boolean> }) {
   const queryClient = useQueryClient();
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -101,6 +121,7 @@ function CardDetailForm({
   const [currentLaneId, setCurrentLaneId] = useState(card.laneId);
   const [description, setDescription] = useState(card.descriptionMarkdown ?? '');
   const [sizeId, setSizeId] = useState(card.sizeId);
+  const [selectedLabelIds, setSelectedLabelIds] = useState<string[] | null>(null);
   const [editingDescription, setEditingDescription] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pasteStatus, setPasteStatus] = useState<string | null>(null);
@@ -169,27 +190,36 @@ function CardDetailForm({
     ...QUERY_DEFAULTS.labels,
   });
 
-  const addLabelMutation = useMutation({
-    mutationFn: (labelId: string) => addCardLabel(card.id, labelId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.cards.labels(card.id) });
-      if (boardId) queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
-    },
-  });
+  const originalLabelIds = useMemo(
+    () => (labelsQuery.data ?? []).map((l) => l.id),
+    [labelsQuery.data],
+  );
 
-  const removeLabelMutation = useMutation({
-    mutationFn: (labelId: string) => removeCardLabel(card.id, labelId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.cards.labels(card.id) });
-      if (boardId) queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
-    },
-  });
+  const effectiveLabelIds = selectedLabelIds ?? originalLabelIds;
+
+  const assignedLabels = useMemo(
+    () => (allLabelsQuery.data ?? []).filter((l) => effectiveLabelIds.includes(l.id)),
+    [allLabelsQuery.data, effectiveLabelIds],
+  );
+
+  const isDirty =
+    name !== card.name ||
+    description !== (card.descriptionMarkdown ?? '') ||
+    sizeId !== card.sizeId ||
+    currentLaneId !== card.laneId ||
+    !arraysEqual(effectiveLabelIds, originalLabelIds);
+
+  useEffect(() => {
+    isDirtyRef.current = isDirty;
+  }, [isDirty, isDirtyRef]);
 
   const updateMutation = useMutation({
     mutationFn: (patch: UpdateCardPatch) => updateCard(card.id, patch),
     onSuccess: () => {
       if (boardId) queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
-      onOpenChange(false);
+      queryClient.invalidateQueries({ queryKey: queryKeys.cards.labels(card.id) });
+      isDirtyRef.current = false;
+      onClose();
     },
   });
 
@@ -197,32 +227,27 @@ function CardDetailForm({
     mutationFn: () => deleteCard(card.id),
     onSuccess: () => {
       if (boardId) queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
-      onOpenChange(false);
-    },
-  });
-
-  const moveMutation = useMutation({
-    mutationFn: (laneId: string) => reorderCard(card.id, laneId, 0),
-    onMutate: (laneId) => {
-      setCurrentLaneId(laneId);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId!) });
+      isDirtyRef.current = false;
+      onClose();
     },
   });
 
   const handleSave = () => {
+    if (!isDirty) {
+      isDirtyRef.current = false;
+      onClose();
+      return;
+    }
+
     const patch: UpdateCardPatch = {};
 
     if (name !== card.name) patch.name = name;
     if (description !== (card.descriptionMarkdown ?? '')) patch.descriptionMarkdown = description;
     if (sizeId !== card.sizeId) patch.sizeId = sizeId;
+    if (currentLaneId !== card.laneId) patch.laneId = currentLaneId;
+    if (!arraysEqual(effectiveLabelIds, originalLabelIds)) patch.labelIds = effectiveLabelIds;
 
-    if (Object.keys(patch).length > 0) {
-      updateMutation.mutate(patch);
-    } else {
-      onOpenChange(false);
-    }
+    updateMutation.mutate(patch);
   };
 
   const handleDelete = () => {
@@ -233,7 +258,9 @@ function CardDetailForm({
     deleteMutation.mutate();
   };
 
-  const labels = labelsQuery.data ?? [];
+  const handleClose = () => {
+    onClose();
+  };
 
   return (
     <div ref={dialogRef} tabIndex={-1} className="flex min-h-0 flex-1 flex-col overflow-hidden outline-none">
@@ -274,7 +301,7 @@ function CardDetailForm({
               value={currentLaneId}
               onValueChange={(v) => {
                 if (v && v !== currentLaneId) {
-                  moveMutation.mutate(v);
+                  setCurrentLaneId(v);
                 }
               }}
             >
@@ -294,9 +321,9 @@ function CardDetailForm({
           )}
           <LabelPicker
             allLabels={allLabelsQuery.data ?? []}
-            assignedLabels={labels}
-            onAdd={(id) => addLabelMutation.mutate(id)}
-            onRemove={(id) => removeLabelMutation.mutate(id)}
+            assignedLabels={assignedLabels}
+            onAdd={(id) => setSelectedLabelIds((prev) => [...(prev ?? originalLabelIds), id])}
+            onRemove={(id) => setSelectedLabelIds((prev) => (prev ?? originalLabelIds).filter((x) => x !== id))}
           />
         </div>
       </DialogHeader>
@@ -390,10 +417,14 @@ function CardDetailForm({
           <div />
         )}
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
-            Cancel
+          <Button variant="outline" size="sm" onClick={handleClose}>
+            Close
           </Button>
-          <Button size="sm" onClick={handleSave} disabled={updateMutation.isPending}>
+          <Button
+            size="sm"
+            onClick={handleSave}
+            disabled={!isDirty || updateMutation.isPending}
+          >
             {updateMutation.isPending ? 'Saving...' : 'Save'}
           </Button>
         </div>
