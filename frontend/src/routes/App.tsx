@@ -53,8 +53,8 @@ export function App() {
 
   // Fetch the board metadata by slug
   const boardMetaQuery = useQuery({
-    queryKey: queryKeys.boards.detail(slug!),
-    queryFn: () => fetchBoardBySlug(slug!),
+    queryKey: queryKeys.boards.detail(slug as string),
+    queryFn: () => fetchBoardBySlug(slug as string),
     enabled: loggedIn && !!slug,
     ...QUERY_DEFAULTS.boards,
   });
@@ -73,8 +73,8 @@ export function App() {
 
   // Fetch board data (lanes + cards)
   const boardDataQuery = useQuery({
-    queryKey: queryKeys.boards.data(boardId!),
-    queryFn: () => fetchBoardData(boardId!),
+    queryKey: queryKeys.boards.data(boardId as string),
+    queryFn: () => fetchBoardData(boardId as string),
     retry: 2,
     staleTime: 30_000,
     enabled: loggedIn && !!boardId,
@@ -83,8 +83,8 @@ export function App() {
 
   // Enriched cards with labels, commentCount, attachmentCount
   const enrichedCardsQuery = useQuery({
-    queryKey: queryKeys.boards.cards(boardId!),
-    queryFn: () => fetchCards(boardId!),
+    queryKey: queryKeys.boards.cards(boardId as string),
+    queryFn: () => fetchCards(boardId as string),
     enabled: loggedIn && !!boardId,
     staleTime: 30_000,
   });
@@ -191,13 +191,16 @@ export function App() {
     mutationFn: (vars: { cardId: string; laneId: string; index: number }) =>
       reorderCard(vars.cardId, vars.laneId, vars.index),
     onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.boards.data(boardId!) });
+      if (!boardId) return;
+      await queryClient.cancelQueries({ queryKey: queryKeys.boards.data(boardId) });
     },
     onSuccess: (data) => {
-      queryClient.setQueryData(queryKeys.boards.data(boardId!), data);
+      if (!boardId) return;
+      queryClient.setQueryData(queryKeys.boards.data(boardId), data);
     },
     onError: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId!) });
+      if (!boardId) return;
+      queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
     },
     onSettled: () => {
       setDragPhase('idle');

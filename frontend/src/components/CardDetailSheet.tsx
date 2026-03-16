@@ -265,8 +265,8 @@ function CardDetailForm({
   });
 
   const allLabelsQuery = useQuery({
-    queryKey: queryKeys.labels.all(boardId!),
-    queryFn: () => fetchLabels(boardId!),
+    queryKey: queryKeys.labels.all(boardId as string),
+    queryFn: () => fetchLabels(boardId as string),
     enabled: !!boardId,
     ...QUERY_DEFAULTS.labels,
   });

@@ -23,7 +23,7 @@ export function useBoardEvents(boardId: string | undefined) {
     });
 
     es.onerror = () => {
-      console.error('[SSE] Connection error for board', boardId);
+      if (import.meta.env.DEV) console.error('[SSE] Connection error for board', boardId);
     };
 
     return () => es.close();
