@@ -118,7 +118,8 @@ export function App() {
   const versionQuery = useQuery({
     queryKey: queryKeys.version(),
     queryFn: fetchVersion,
-    staleTime: Infinity,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: true,
   });
 
   const mouseSensor = useSensor(MouseSensor, { activationConstraint: { distance: 8 } });
