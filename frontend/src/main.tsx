@@ -4,6 +4,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister';
 import { RouterProvider, createBrowserRouter } from 'react-router-dom';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { App } from './routes/App';
 import { BoardRedirect } from './routes/BoardRedirect';
 import './styles.css';
@@ -28,8 +29,10 @@ const router = createBrowserRouter([
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <PersistQueryClientProvider client={queryClient} persistOptions={{ persister }}>
-      <RouterProvider router={router} />
-    </PersistQueryClientProvider>
+    <ErrorBoundary>
+      <PersistQueryClientProvider client={queryClient} persistOptions={{ persister }}>
+        <RouterProvider router={router} />
+      </PersistQueryClientProvider>
+    </ErrorBoundary>
   </React.StrictMode>,
 );

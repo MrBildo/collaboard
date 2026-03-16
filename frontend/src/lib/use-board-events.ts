@@ -21,7 +21,7 @@ export function useBoardEvents(boardId: string | undefined) {
     });
 
     es.onerror = () => {
-      // EventSource auto-reconnects — no action needed
+      console.error('[SSE] Connection error for board', boardId);
     };
 
     return () => es.close();
