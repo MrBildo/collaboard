@@ -530,7 +530,7 @@ function LabelsTab({ boardId }: { boardId: string }) {
             {list.editingId === label.id ? (
               <>
                 <div className="flex flex-1 items-center gap-2">
-                  <LabelColorPicker value={editColor} onValueChange={setEditColor} />
+                  <LabelColorPicker value={editColor} onValueChange={setEditColor} className="h-7 w-7" />
                   <Input
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
@@ -579,7 +579,7 @@ function LabelsTab({ boardId }: { boardId: string }) {
               placeholder="e.g. Bug"
             />
           </div>
-          <LabelColorPicker value={newColor} onValueChange={setNewColor} className="size-8 cursor-pointer rounded-md" />
+          <LabelColorPicker value={newColor} onValueChange={setNewColor} />
           <Button onClick={handleCreate} disabled={createMutation.isPending || !newName.trim()}>
             {createMutation.isPending ? 'Adding...' : 'Add Label'}
           </Button>
