@@ -12,6 +12,9 @@ import type {
   CardSummary,
   Label,
   Lane,
+  PruneFilters,
+  PrunePreviewResponse,
+  PruneResponse,
   UpdateBoardPatch,
   UpdateCardPatch,
   UpdateCommentPatch,
@@ -34,6 +37,8 @@ import {
   cardSummarySchema,
   labelSchema,
   laneSchema,
+  prunePreviewResponseSchema,
+  pruneResponseSchema,
   reorderResponseSchema,
   uploadAttachmentResponseSchema,
   userDirectoryEntrySchema,
@@ -281,4 +286,15 @@ export async function updateLabel(boardId: string, id: string, patch: UpdateLabe
 
 export async function deleteLabel(boardId: string, id: string): Promise<void> {
   await api.delete(`/boards/${boardId}/labels/${id}`);
+}
+
+// Prune (board-scoped admin)
+export async function prunePreview(boardId: string, filters: PruneFilters): Promise<PrunePreviewResponse> {
+  const { data } = await api.post(`/boards/${boardId}/prune/preview`, filters);
+  return prunePreviewResponseSchema.parse(data);
+}
+
+export async function pruneCards(boardId: string, filters: PruneFilters): Promise<PruneResponse> {
+  const { data } = await api.post(`/boards/${boardId}/prune`, filters);
+  return pruneResponseSchema.parse(data);
 }

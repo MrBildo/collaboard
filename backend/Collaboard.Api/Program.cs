@@ -159,6 +159,7 @@ api.MapCardEndpoints();
 api.MapLabelEndpoints();
 api.MapCommentEndpoints();
 api.MapAttachmentEndpoints();
+api.MapPruneEndpoints();
 
 app.MapEventEndpoints();
 

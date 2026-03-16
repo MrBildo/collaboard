@@ -120,3 +120,20 @@ export const uploadAttachmentResponseSchema = z.object({
   id: z.string(),
   fileName: z.string(),
 });
+
+export const prunePreviewCardSchema = z.object({
+  id: z.string(),
+  number: z.number(),
+  name: z.string(),
+  laneName: z.string(),
+  lastUpdatedAtUtc: z.string(),
+});
+
+export const prunePreviewResponseSchema = z.object({
+  matchCount: z.number(),
+  cards: z.array(prunePreviewCardSchema),
+});
+
+export const pruneResponseSchema = z.object({
+  deletedCount: z.number(),
+});
