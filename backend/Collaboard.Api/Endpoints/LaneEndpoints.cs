@@ -17,7 +17,7 @@ internal static class LaneEndpoints
                 : Results.Ok(await db.Lanes.Where(x => x.BoardId == boardId).OrderBy(x => x.Position).ToListAsync()))
             .RequireAuth();
 
-        group.MapPost("/boards/{boardId:guid}/lanes", async (BoardDbContext db, Guid boardId, Lane request, BoardEventBroadcaster broadcaster) =>
+        group.MapPost("/boards/{boardId:guid}/lanes", async (BoardDbContext db, Guid boardId, CreateLaneRequest request, BoardEventBroadcaster broadcaster) =>
         {
             if (!await db.Boards.AnyAsync(x => x.Id == boardId))
             {

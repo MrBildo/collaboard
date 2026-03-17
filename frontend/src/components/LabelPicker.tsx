@@ -15,7 +15,7 @@ type LabelPickerProps = {
 };
 
 export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: LabelPickerProps) {
-  const [open, setOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const [filter, setFilter] = useState('');
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -58,12 +58,12 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
   }, [focusedIndex]);
 
   const handleOpen = () => {
-    if (!open) {
+    if (!isOpen) {
       setFilter('');
       setFocusedIndex(-1);
       setTimeout(() => inputRef.current?.focus(), 0);
     }
-    setOpen(!open);
+    setIsOpen(!isOpen);
   };
 
   const handleKeyDown = useCallback(
@@ -79,13 +79,13 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
         toggle(filtered[focusedIndex].id);
       } else if (e.key === 'Escape') {
         e.preventDefault();
-        setOpen(false);
+        setIsOpen(false);
       }
     },
     [filtered, focusedIndex, toggle],
   );
 
-  const handleClose = useCallback(() => setOpen(false), []);
+  const handleClose = useCallback(() => setIsOpen(false), []);
   useClickOutside(containerRef, handleClose);
 
   return (
@@ -95,7 +95,7 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
         size="sm"
         className="h-auto min-h-8 gap-1.5 px-2.5 py-1"
         onClick={handleOpen}
-        aria-expanded={open}
+        aria-expanded={isOpen}
         aria-haspopup="listbox"
       >
         <Tag className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
@@ -121,7 +121,7 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
         )}
       </Button>
 
-      {open && (
+      {isOpen && (
         <div
           className="absolute top-full left-0 z-50 mt-1 min-w-[12rem] overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-md"
           onKeyDown={handleKeyDown}

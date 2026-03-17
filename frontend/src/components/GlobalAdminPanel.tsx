@@ -37,6 +37,7 @@ import {
   updateBoard,
 } from '@/lib/api';
 import type { UpdateBoardPatch } from '@/types';
+import { ROLES } from '@/lib/roles';
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
 
@@ -46,9 +47,9 @@ type GlobalAdminPanelProps = {
 };
 
 const ROLE_MAP: Record<number, string> = {
-  0: 'Administrator',
-  1: 'Human',
-  2: 'Agent',
+  [ROLES.Administrator]: 'Administrator',
+  [ROLES.Human]: 'Human',
+  [ROLES.Agent]: 'Agent',
 };
 
 export function GlobalAdminPanel({ open, onOpenChange }: GlobalAdminPanelProps) {
@@ -275,7 +276,7 @@ function UsersTab() {
           <EditableListRow key={user.id}>
             <div className="flex items-center gap-3">
               <span className="font-medium">{user.name}</span>
-              <Badge variant="secondary" className={user.role === 0 ? 'bg-primary/15 text-primary' : user.role === 2 ? 'bg-accent/15 text-accent' : ''}>{ROLE_MAP[user.role] ?? `Role ${user.role}`}</Badge>
+              <Badge variant="secondary" className={user.role === ROLES.Administrator ? 'bg-primary/15 text-primary' : user.role === ROLES.Agent ? 'bg-accent/15 text-accent' : ''}>{ROLE_MAP[user.role] ?? `Role ${user.role}`}</Badge>
               <Badge variant={user.isActive ? 'outline' : 'destructive'}>
                 {user.isActive ? 'Active' : 'Inactive'}
               </Badge>

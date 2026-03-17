@@ -1,7 +1,7 @@
 const AUTH_KEY = 'collaboard-user-key';
 const LAST_BOARD_KEY = 'collaboard-last-board';
 
-export function getUserKey(): string | null {
+export function findUserKey(): string | null {
   return localStorage.getItem(AUTH_KEY);
 }
 
@@ -14,11 +14,11 @@ export function clearUserKey(): void {
 }
 
 export function isLoggedIn(): boolean {
-  const key = getUserKey();
+  const key = findUserKey();
   return key !== null && key.trim() !== '';
 }
 
-export function getLastBoardSlug(): string | null {
+export function findLastBoardSlug(): string | null {
   return localStorage.getItem(LAST_BOARD_KEY);
 }
 

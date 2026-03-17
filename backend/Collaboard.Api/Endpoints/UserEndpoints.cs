@@ -10,11 +10,16 @@ internal static class UserEndpoints
 {
     public static RouteGroupBuilder MapUserEndpoints(this RouteGroupBuilder group)
     {
-        group.MapPost("/users", async (BoardDbContext db, BoardUser request, BoardEventBroadcaster broadcaster) =>
+        group.MapPost("/users", async (BoardDbContext db, CreateUserRequest request, BoardEventBroadcaster broadcaster) =>
         {
             if (string.IsNullOrWhiteSpace(request.Name))
             {
                 return Results.BadRequest("Name is required.");
+            }
+
+            if (!Enum.IsDefined(request.Role))
+            {
+                return Results.BadRequest("Invalid role.");
             }
 
             var user = new BoardUser
@@ -71,7 +76,13 @@ internal static class UserEndpoints
 
             if (patch.TryGetProperty("role", out var role))
             {
-                user.Role = (UserRole)role.GetInt32();
+                var newRole = (UserRole)role.GetInt32();
+                if (!Enum.IsDefined(newRole))
+                {
+                    return Results.BadRequest("Invalid role.");
+                }
+
+                user.Role = newRole;
             }
 
             await db.SaveChangesAsync();

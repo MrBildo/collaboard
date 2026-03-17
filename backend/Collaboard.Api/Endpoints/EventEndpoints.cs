@@ -1,3 +1,4 @@
+using Collaboard.Api.Auth;
 using Collaboard.Api.Events;
 
 namespace Collaboard.Api.Endpoints;
@@ -30,7 +31,7 @@ internal static class EventEndpoints
             {
                 broadcaster.Unsubscribe(boardId, reader);
             }
-        });
+        }).RequireAuth();
 
         return app;
     }

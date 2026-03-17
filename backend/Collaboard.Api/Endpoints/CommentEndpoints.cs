@@ -25,7 +25,7 @@ internal static class CommentEndpoints
             return Results.Ok(comments);
         }).RequireAuth();
 
-        group.MapPost("/cards/{id:guid}/comments", async (BoardDbContext db, HttpContext http, Guid id, CardComment request, BoardEventBroadcaster broadcaster) =>
+        group.MapPost("/cards/{id:guid}/comments", async (BoardDbContext db, HttpContext http, Guid id, CreateCommentRequest request, BoardEventBroadcaster broadcaster) =>
         {
             if (!await db.Cards.AnyAsync(x => x.Id == id))
             {

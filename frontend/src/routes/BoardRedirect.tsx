@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Navigate } from 'react-router-dom';
 import { LoginScreen } from '@/components/LoginScreen';
 import { fetchBoards } from '@/lib/api';
-import { getLastBoardSlug, isLoggedIn, setUserKey } from '@/lib/auth';
+import { findLastBoardSlug, isLoggedIn, setUserKey } from '@/lib/auth';
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { useCallback, useState } from 'react';
@@ -43,7 +43,7 @@ export function BoardRedirect() {
     );
   }
 
-  const lastSlug = getLastBoardSlug();
+  const lastSlug = findLastBoardSlug();
   const lastBoard = lastSlug ? boards.find((b) => b.slug === lastSlug) : null;
   const targetSlug = lastBoard ? lastBoard.slug : boards[0].slug;
 

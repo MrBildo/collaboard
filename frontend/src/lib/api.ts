@@ -24,7 +24,7 @@ import type {
   UpdateUserPatch,
   UserDirectoryEntry,
 } from '@/types';
-import { getUserKey } from '@/lib/auth';
+import { findUserKey } from '@/lib/auth';
 import {
   attachmentMetaSchema,
   authMeSchema,
@@ -51,7 +51,7 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const key = getUserKey();
+  const key = findUserKey();
   if (key) {
     config.headers['X-User-Key'] = key;
   }
