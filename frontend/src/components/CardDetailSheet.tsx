@@ -256,8 +256,7 @@ function CardDetailForm({
   const canDelete =
     currentUserRole === ROLES.Administrator || (currentUserRole === ROLES.Human && card.createdByUserId === currentUserId);
 
-  const directoryQuery = useUserDirectory();
-  const userName = (id: string) => directoryQuery.data?.find((u) => u.id === id)?.name ?? 'Unknown';
+  const { getUserName } = useUserDirectory();
 
   const labelsQuery = useQuery({
     queryKey: queryKeys.cards.labels(card.id),
@@ -515,11 +514,11 @@ function CardDetailForm({
           {/* Metadata */}
           <div className="mt-4 text-xs text-muted-foreground">
             <p>
-              Created by {userName(card.createdByUserId)} ·{' '}
+              Created by {getUserName(card.createdByUserId)} ·{' '}
               {new Date(card.createdAtUtc).toLocaleString()}
             </p>
             <p>
-              Updated by {userName(card.lastUpdatedByUserId)} ·{' '}
+              Updated by {getUserName(card.lastUpdatedByUserId)} ·{' '}
               {new Date(card.lastUpdatedAtUtc).toLocaleString()}
             </p>
           </div>
