@@ -46,9 +46,7 @@ Most kanban tools are either too heavy (Jira), too locked-in (Trello), or don't 
 
 <a href="docs/images/dark-mode.png"><img src="docs/images/dark-mode.png" alt="Dark mode" width="700"></a>
 
-<p align="center">
-  <a href="docs/images/drag-drop-demo.gif"><img src="docs/images/drag-drop-demo.gif" alt="Drag and drop demo" width="700"></a>
-</p>
+<a href="docs/images/drag-drop-demo.gif"><img src="docs/images/drag-drop-demo.gif" alt="Drag and drop demo" width="700"></a>
 
 ## Quick Start
 
