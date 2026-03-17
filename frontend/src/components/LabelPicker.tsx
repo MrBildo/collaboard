@@ -105,7 +105,7 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
               <Badge
                 key={label.id}
                 variant="secondary"
-                className="rounded-full px-1.5 py-0 text-xs leading-4"
+                className="rounded-sm px-1.5 py-0 text-xs leading-4"
                 style={{
                   backgroundColor: label.color ?? '#6b7280',
                   color: getContrastColor(label.color),

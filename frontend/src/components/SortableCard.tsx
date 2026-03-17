@@ -93,7 +93,7 @@ export function SortableCard({
             <Badge
               key={label.id}
               variant="secondary"
-              className="text-xs"
+              className="rounded-sm text-xs"
               style={label.color ? { backgroundColor: label.color, color: getContrastColor(label.color) } : undefined}
             >
               {label.name}

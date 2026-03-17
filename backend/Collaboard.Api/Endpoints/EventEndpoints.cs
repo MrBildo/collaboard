@@ -31,7 +31,7 @@ internal static class EventEndpoints
             {
                 broadcaster.Unsubscribe(boardId, reader);
             }
-        }).RequireAuth();
+        });
 
         return app;
     }
