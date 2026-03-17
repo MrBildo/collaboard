@@ -12,7 +12,7 @@ export function SearchCommand() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [open, setOpen] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -24,20 +24,19 @@ export function SearchCommand() {
     return () => clearTimeout(timer);
   }, [query]);
 
-  // Open dropdown when there is a valid debounced query
+  // Derive open state: show dropdown when query is valid and not manually dismissed
+  const open = debouncedQuery.length >= 2 && !dismissed;
+
+  // Reset dismissed when query changes
   useEffect(() => {
-    if (debouncedQuery.length >= 2) {
-      setOpen(true);
-    } else {
-      setOpen(false);
-    }
+    setDismissed(false);
   }, [debouncedQuery]);
 
   // Close on outside click
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setOpen(false);
+        setDismissed(true);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -71,7 +70,7 @@ export function SearchCommand() {
   const totalCards = results.reduce((sum, r) => sum + r.cards.length, 0);
 
   const handleSelect = useCallback((boardSlug: string, cardNumber: number) => {
-    setOpen(false);
+    setDismissed(true);
     setQuery('');
     setDebouncedQuery('');
     navigate(`/boards/${boardSlug}/cards/${cardNumber}`);
@@ -80,13 +79,13 @@ export function SearchCommand() {
   const handleClear = useCallback(() => {
     setQuery('');
     setDebouncedQuery('');
-    setOpen(false);
+    setDismissed(true);
     inputRef.current?.focus();
   }, []);
 
   const handleInputKeyDown = useCallback((event: React.KeyboardEvent) => {
     if (event.key === 'Escape') {
-      setOpen(false);
+      setDismissed(true);
       inputRef.current?.blur();
     }
   }, []);
@@ -105,7 +104,7 @@ export function SearchCommand() {
           placeholder="Search cards... (/ or Ctrl+K)"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onFocus={() => { if (debouncedQuery.length >= 2) setOpen(true); }}
+          onFocus={() => { if (debouncedQuery.length >= 2) setDismissed(false); }}
           onKeyDown={handleInputKeyDown}
           className="pl-8 pr-8"
         />
