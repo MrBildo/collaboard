@@ -12,7 +12,7 @@ import {
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { reorderCard } from '@/lib/api';
 import { queryKeys } from '@/lib/query-keys';
 import type { CardItem } from '@/types';
@@ -47,6 +47,12 @@ export function useBoardDnd(boardId: string | undefined, serverCards: CardItem[]
 
   const [dragCards, setDragCards] = useState<CardItem[] | null>(null);
   const localCards = dragPhase === 'idle' ? sortedServerCards : (dragCards ?? sortedServerCards);
+
+  useEffect(() => {
+    setDragPhase('idle');
+    setDragCards(null);
+    setActiveCardId(null);
+  }, [boardId]);
 
   const reorderMutation = useMutation({
     mutationFn: (vars: { cardId: string; laneId: string; index: number }) =>
