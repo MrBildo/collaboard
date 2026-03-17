@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Search, X } from 'lucide-react';
@@ -64,26 +64,26 @@ export function SearchCommand() {
   const results: SearchResult[] = searchQuery.data ?? [];
   const totalCards = results.reduce((sum, r) => sum + r.cards.length, 0);
 
-  const handleSelect = useCallback((boardSlug: string, cardNumber: number) => {
+  const handleSelect = (boardSlug: string, cardNumber: number) => {
     setDismissedQuery(debouncedQuery);
     setQuery('');
     setDebouncedQuery('');
     navigate(`/boards/${boardSlug}/cards/${cardNumber}`);
-  }, [navigate]);
+  };
 
-  const handleClear = useCallback(() => {
+  const handleClear = () => {
     setQuery('');
     setDebouncedQuery('');
     setDismissedQuery(debouncedQuery);
     inputRef.current?.focus();
-  }, []);
+  };
 
-  const handleInputKeyDown = useCallback((event: React.KeyboardEvent) => {
+  const handleInputKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Escape') {
       setDismissedQuery(debouncedQuery);
       inputRef.current?.blur();
     }
-  }, []);
+  };
 
   return (
     <div ref={containerRef} className="relative w-full max-w-md">
