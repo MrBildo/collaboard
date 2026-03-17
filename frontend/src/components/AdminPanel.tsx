@@ -892,7 +892,7 @@ function PruneTab({ boardId }: { boardId: string }) {
 
       {/* Success state */}
       {deletedCount !== null && (
-        <div className="flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--chart-3)' }}>
+        <div className="flex items-center gap-2 text-sm font-medium text-chart-3">
           <Check className="w-4 h-4" />
           Deleted {deletedCount} cards
         </div>
