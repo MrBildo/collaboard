@@ -114,3 +114,5 @@ public record CardSummary(
     List<CardLabelSummary> Labels,
     int CommentCount,
     int AttachmentCount);
+
+public record SearchResult(Guid BoardId, string BoardName, string BoardSlug, List<CardSummary> Cards);

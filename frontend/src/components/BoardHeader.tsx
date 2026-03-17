@@ -1,4 +1,5 @@
 import { BoardSwitcher } from '@/components/BoardSwitcher';
+import { SearchCommand } from '@/components/SearchCommand';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import {
@@ -49,6 +50,9 @@ export function BoardHeader({
         {boards.length === 1 && boardName && (
           <span className="hidden text-sm font-medium text-muted-foreground md:inline">{boardName}</span>
         )}
+      </div>
+      <div className="hidden flex-1 justify-center px-4 md:flex">
+        <SearchCommand />
       </div>
       {/* Desktop actions */}
       <div className="hidden items-center gap-2 md:flex">

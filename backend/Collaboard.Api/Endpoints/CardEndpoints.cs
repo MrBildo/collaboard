@@ -11,7 +11,7 @@ internal static class CardEndpoints
     public static RouteGroupBuilder MapCardEndpoints(this RouteGroupBuilder group)
     {
         // Board-scoped listing and creation
-        group.MapGet("/boards/{boardId:guid}/cards", async (BoardDbContext db, Guid boardId, DateTimeOffset? since, Guid? labelId, Guid? laneId) =>
+        group.MapGet("/boards/{boardId:guid}/cards", async (BoardDbContext db, Guid boardId, DateTimeOffset? since, Guid? labelId, Guid? laneId, string? search) =>
         {
             if (!await db.Boards.AnyAsync(x => x.Id == boardId))
             {
@@ -35,6 +35,8 @@ internal static class CardEndpoints
                 var cardIdsWithLabel = db.CardLabels.Where(cl => cl.LabelId == labelId.Value).Select(cl => cl.CardId);
                 query = query.Where(x => cardIdsWithLabel.Contains(x.Id));
             }
+
+            query = SearchHelper.ApplySearchFilter(query, search);
 
             var cards = await query.OrderBy(x => x.LaneId).ThenBy(x => x.Position).ToListAsync();
             var summaries = await CardSummaryBuilder.BuildAsync(db, cards);

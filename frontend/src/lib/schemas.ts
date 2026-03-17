@@ -137,3 +137,10 @@ export const prunePreviewResponseSchema = z.object({
 export const pruneResponseSchema = z.object({
   deletedCount: z.number(),
 });
+
+export const searchResultSchema = z.object({
+  boardId: z.string(),
+  boardName: z.string(),
+  boardSlug: z.string(),
+  cards: z.array(cardSummarySchema),
+});
