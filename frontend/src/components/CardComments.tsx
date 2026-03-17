@@ -105,7 +105,7 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
     [commentsQuery.data],
   );
 
-  const expanded = newCommentFocused || newComment.length > 0;
+  const isExpanded = newCommentFocused || newComment.length > 0;
 
   return (
     <div className="flex flex-1 flex-col gap-3 overflow-hidden">
@@ -117,10 +117,10 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
           onChange={(e) => setNewComment(e.target.value)}
           onFocus={() => setNewCommentFocused(true)}
           placeholder="Add a comment..."
-          rows={expanded ? 3 : 1}
+          rows={isExpanded ? 3 : 1}
           className="bg-muted transition-all"
         />
-        {expanded && (
+        {isExpanded && (
           <div className="flex justify-end gap-2">
             <Button size="sm" variant="outline" onClick={handleCancelNew}>
               Cancel

@@ -604,10 +604,10 @@ function PruneTab({ boardId }: { boardId: string }) {
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const [selectedLaneIds, setSelectedLaneIds] = useState<string[]>([]);
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
-  const [laneDropdownOpen, setLaneDropdownOpen] = useState(false);
-  const [labelDropdownOpen, setLabelDropdownOpen] = useState(false);
+  const [isLaneDropdownOpen, setIsLaneDropdownOpen] = useState(false);
+  const [isLabelDropdownOpen, setIsLabelDropdownOpen] = useState(false);
   const [preview, setPreview] = useState<PrunePreviewResponse | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [deletedCount, setDeletedCount] = useState<number | null>(null);
 
   const laneDropdownRef = useRef<HTMLDivElement>(null);
@@ -629,7 +629,7 @@ function PruneTab({ boardId }: { boardId: string }) {
     mutationFn: (filters: PruneFilters) => prunePreview(boardId, filters),
     onSuccess: (data) => {
       setPreview(data);
-      setConfirmDelete(false);
+      setIsConfirmingDelete(false);
       setDeletedCount(null);
     },
   });
@@ -639,7 +639,7 @@ function PruneTab({ boardId }: { boardId: string }) {
     onSuccess: (data) => {
       setDeletedCount(data.deletedCount);
       setPreview(null);
-      setConfirmDelete(false);
+      setIsConfirmingDelete(false);
       setOlderThan(null);
       setSelectedPreset(null);
       setSelectedLaneIds([]);
@@ -652,7 +652,7 @@ function PruneTab({ boardId }: { boardId: string }) {
   // Reset preview/delete state when filters change
   const clearResults = () => {
     setPreview(null);
-    setConfirmDelete(false);
+    setIsConfirmingDelete(false);
     setDeletedCount(null);
   };
 
@@ -693,10 +693,10 @@ function PruneTab({ boardId }: { boardId: string }) {
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (laneDropdownRef.current && !laneDropdownRef.current.contains(e.target as Node)) {
-        setLaneDropdownOpen(false);
+        setIsLaneDropdownOpen(false);
       }
       if (labelDropdownRef.current && !labelDropdownRef.current.contains(e.target as Node)) {
-        setLabelDropdownOpen(false);
+        setIsLabelDropdownOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClick);
@@ -716,8 +716,8 @@ function PruneTab({ boardId }: { boardId: string }) {
   };
 
   const handleDelete = () => {
-    if (!confirmDelete) {
-      setConfirmDelete(true);
+    if (!isConfirmingDelete) {
+      setIsConfirmingDelete(true);
     } else {
       pruneMutation.mutate(buildFilters());
     }
@@ -778,12 +778,12 @@ function PruneTab({ boardId }: { boardId: string }) {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setLaneDropdownOpen((o) => !o)}
+            onClick={() => setIsLaneDropdownOpen((o) => !o)}
             className="w-full justify-start"
           >
             {selectedLaneNames.length > 0 ? selectedLaneNames.join(', ') : 'Any lane'}
           </Button>
-          {laneDropdownOpen && (
+          {isLaneDropdownOpen && (
             <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-card p-2 shadow-md">
               {lanes.map((lane) => (
                 <label
@@ -811,12 +811,12 @@ function PruneTab({ boardId }: { boardId: string }) {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setLabelDropdownOpen((o) => !o)}
+            onClick={() => setIsLabelDropdownOpen((o) => !o)}
             className="w-full justify-start"
           >
             {selectedLabelNames.length > 0 ? selectedLabelNames.join(', ') : 'Any label'}
           </Button>
-          {labelDropdownOpen && (
+          {isLabelDropdownOpen && (
             <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-card p-2 shadow-md">
               {labels.map((label) => (
                 <label
@@ -890,7 +890,7 @@ function PruneTab({ boardId }: { boardId: string }) {
               <Trash2 className="mr-2 w-4 h-4" />
               {pruneMutation.isPending
                 ? 'Deleting...'
-                : confirmDelete
+                : isConfirmingDelete
                   ? `Confirm delete ${preview.matchCount} cards permanently?`
                   : `Delete ${preview.matchCount} cards`}
             </Button>
