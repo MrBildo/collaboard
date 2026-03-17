@@ -1,4 +1,4 @@
-import { DndContext, DragEndEvent, DragOverEvent, DragOverlay, DragStartEvent, MouseSensor, TouchSensor, closestCenter, pointerWithin, useSensor, useSensors, type CollisionDetection } from '@dnd-kit/core';
+import { DndContext, type DragEndEvent, type DragOverEvent, DragOverlay, type DragStartEvent, MouseSensor, TouchSensor, closestCenter, pointerWithin, useSensor, useSensors, type CollisionDetection } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -25,7 +25,7 @@ import { fetchBoardBySlug, fetchBoardData, fetchBoards, fetchCards, fetchMe, fet
 import { isLoggedIn, setUserKey, clearUserKey, setLastBoardSlug } from '@/lib/auth';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { queryKeys } from '@/lib/query-keys';
-import { useBoardEvents } from '@/lib/use-board-events';
+import { useBoardEvents } from '@/hooks/use-board-events';
 import type { CardItem, CardSummary } from '@/types';
 
 const kanbanCollision: CollisionDetection = (args) => {
@@ -53,8 +53,8 @@ export function App() {
 
   // Fetch the board metadata by slug
   const boardMetaQuery = useQuery({
-    queryKey: queryKeys.boards.detail(slug!),
-    queryFn: () => fetchBoardBySlug(slug!),
+    queryKey: queryKeys.boards.detail(slug as string),
+    queryFn: () => fetchBoardBySlug(slug as string),
     enabled: loggedIn && !!slug,
     ...QUERY_DEFAULTS.boards,
   });
@@ -73,8 +73,8 @@ export function App() {
 
   // Fetch board data (lanes + cards)
   const boardDataQuery = useQuery({
-    queryKey: queryKeys.boards.data(boardId!),
-    queryFn: () => fetchBoardData(boardId!),
+    queryKey: queryKeys.boards.data(boardId as string),
+    queryFn: () => fetchBoardData(boardId as string),
     retry: 2,
     staleTime: 30_000,
     enabled: loggedIn && !!boardId,
@@ -83,8 +83,8 @@ export function App() {
 
   // Enriched cards with labels, commentCount, attachmentCount
   const enrichedCardsQuery = useQuery({
-    queryKey: queryKeys.boards.cards(boardId!),
-    queryFn: () => fetchCards(boardId!),
+    queryKey: queryKeys.boards.cards(boardId as string),
+    queryFn: () => fetchCards(boardId as string),
     enabled: loggedIn && !!boardId,
     staleTime: 30_000,
   });
@@ -166,7 +166,7 @@ export function App() {
     const num = parseInt(cardNumber, 10);
     return serverCards.find((c) => c.number === num) ?? null;
   }, [cardNumber, serverCards]);
-  const detailOpen = selectedCard !== null;
+  const isDetailOpen = selectedCard !== null;
 
   const handleDetailOpenChange = useCallback((open: boolean) => {
     if (!open) {
@@ -191,13 +191,16 @@ export function App() {
     mutationFn: (vars: { cardId: string; laneId: string; index: number }) =>
       reorderCard(vars.cardId, vars.laneId, vars.index),
     onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.boards.data(boardId!) });
+      if (!boardId) return;
+      await queryClient.cancelQueries({ queryKey: queryKeys.boards.data(boardId) });
     },
     onSuccess: (data) => {
-      queryClient.setQueryData(queryKeys.boards.data(boardId!), data);
+      if (!boardId) return;
+      queryClient.setQueryData(queryKeys.boards.data(boardId), data);
     },
     onError: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId!) });
+      if (!boardId) return;
+      queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
     },
     onSettled: () => {
       setDragPhase('idle');
@@ -422,7 +425,7 @@ export function App() {
 
       <CardDetailSheet
         card={selectedCard}
-        open={detailOpen}
+        open={isDetailOpen}
         onOpenChange={handleDetailOpenChange}
         currentUserId={currentUserId}
         currentUserRole={currentUserRole}

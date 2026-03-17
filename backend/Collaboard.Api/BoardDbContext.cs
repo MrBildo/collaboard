@@ -60,6 +60,11 @@ public class BoardDbContext(DbContextOptions<BoardDbContext> options) : DbContex
             .HasForeignKey(x => x.CreatedByUserId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.Entity<CardItem>()
+            .HasOne<BoardUser>().WithMany()
+            .HasForeignKey(x => x.LastUpdatedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.Entity<CardComment>()
             .HasOne<CardItem>().WithMany()
             .HasForeignKey(x => x.CardId)

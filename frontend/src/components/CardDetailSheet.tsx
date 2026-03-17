@@ -31,6 +31,7 @@ import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { useUserDirectory } from '@/hooks/use-user-directory';
 import { isTextInputFocused, buildPasteFileName } from '@/lib/utils';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ROLES } from '@/lib/roles';
 import type { BoardData, CardItem, CardSize, Lane, UpdateCardPatch } from '@/types';
 
 type CardDetailSheetProps = {
@@ -205,8 +206,8 @@ function CardDetailForm({
   const [description, setDescription] = useState(card.descriptionMarkdown ?? '');
   const [sizeId, setSizeId] = useState(card.sizeId);
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[] | null>(null);
-  const [editingDescription, setEditingDescription] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [pasteStatus, setPasteStatus] = useState<string | null>(null);
 
   const pasteMutation = useMutation({
@@ -255,10 +256,9 @@ function CardDetailForm({
   }, [handlePaste]);
 
   const canDelete =
-    currentUserRole === 0 || (currentUserRole === 1 && card.createdByUserId === currentUserId);
+    currentUserRole === ROLES.Administrator || (currentUserRole === ROLES.Human && card.createdByUserId === currentUserId);
 
-  const directoryQuery = useUserDirectory();
-  const userName = (id: string) => directoryQuery.data?.find((u) => u.id === id)?.name ?? 'Unknown';
+  const { getUserName } = useUserDirectory();
 
   const labelsQuery = useQuery({
     queryKey: queryKeys.cards.labels(card.id),
@@ -267,8 +267,8 @@ function CardDetailForm({
   });
 
   const allLabelsQuery = useQuery({
-    queryKey: queryKeys.labels.all(boardId!),
-    queryFn: () => fetchLabels(boardId!),
+    queryKey: queryKeys.labels.all(boardId as string),
+    queryFn: () => fetchLabels(boardId as string),
     enabled: !!boardId,
     ...QUERY_DEFAULTS.labels,
   });
@@ -342,8 +342,8 @@ function CardDetailForm({
   };
 
   const handleDelete = () => {
-    if (!confirmDelete) {
-      setConfirmDelete(true);
+    if (!isConfirmingDelete) {
+      setIsConfirmingDelete(true);
       return;
     }
     deleteMutation.mutate();
@@ -456,21 +456,21 @@ function CardDetailForm({
           <div className="mb-4">
             <div className="mb-2 flex items-center gap-1">
               <Button
-                variant={!editingDescription ? 'secondary' : 'ghost'}
+                variant={!isEditingDescription ? 'secondary' : 'ghost'}
                 size="xs"
-                onClick={() => setEditingDescription(false)}
+                onClick={() => setIsEditingDescription(false)}
               >
                 Preview
               </Button>
               <Button
-                variant={editingDescription ? 'secondary' : 'ghost'}
+                variant={isEditingDescription ? 'secondary' : 'ghost'}
                 size="xs"
-                onClick={() => setEditingDescription(true)}
+                onClick={() => setIsEditingDescription(true)}
               >
                 Edit
               </Button>
             </div>
-            {editingDescription ? (
+            {isEditingDescription ? (
               <Textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -506,11 +506,11 @@ function CardDetailForm({
           {/* Metadata */}
           <div className="mt-4 text-xs text-muted-foreground">
             <p>
-              Created by {userName(card.createdByUserId)} ·{' '}
+              Created by {getUserName(card.createdByUserId)} ·{' '}
               {new Date(card.createdAtUtc).toLocaleString()}
             </p>
             <p>
-              Updated by {userName(card.lastUpdatedByUserId)} ·{' '}
+              Updated by {getUserName(card.lastUpdatedByUserId)} ·{' '}
               {new Date(card.lastUpdatedAtUtc).toLocaleString()}
             </p>
           </div>
@@ -539,7 +539,7 @@ function CardDetailForm({
             onClick={handleDelete}
             disabled={deleteMutation.isPending}
           >
-            {confirmDelete ? 'Confirm delete' : 'Delete'}
+            {isConfirmingDelete ? 'Confirm delete' : 'Delete'}
           </Button>
         ) : (
           <div />
