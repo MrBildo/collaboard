@@ -23,9 +23,13 @@ backend/**/appsettings.Development.json
 .aspire/
 
 # Claude Code local settings
-.claude/*
-!.claude/skills/
-**/.claude/settings.local.json
+.claude/
+
+# Playwright MCP
+.playwright-mcp/
+
+# MCP config (local)
+.mcp.json
 
 # Agent workspace (local only)
 .agents/
