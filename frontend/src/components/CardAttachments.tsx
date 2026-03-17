@@ -5,6 +5,7 @@ import { api, deleteAttachment, fetchCardAttachments, uploadAttachment } from '@
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { useUserDirectory } from '@/hooks/use-user-directory';
+import { ROLES } from '@/lib/roles';
 import type { AttachmentMeta } from '@/types';
 
 type CardAttachmentsProps = {
@@ -20,9 +21,7 @@ export function CardAttachments({ cardId, currentUserId, currentUserRole }: Card
   const [isDragging, setIsDragging] = useState(false);
   const dragCounter = useRef(0);
 
-  const directoryQuery = useUserDirectory();
-  const userName = (id: string) =>
-    directoryQuery.data?.find((u) => u.id === id)?.name ?? 'Unknown';
+  const { getUserName } = useUserDirectory();
 
   const attachmentsQuery = useQuery({
     queryKey: queryKeys.cards.attachments(cardId),
@@ -145,14 +144,14 @@ export function CardAttachments({ cardId, currentUserId, currentUserRole }: Card
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{attachment.fileName}</p>
             <p className="text-xs text-muted-foreground">
-              {userName(attachment.addedByUserId)} &middot; {new Date(attachment.addedAtUtc).toLocaleString()}
+              {getUserName(attachment.addedByUserId)} &middot; {new Date(attachment.addedAtUtc).toLocaleString()}
             </p>
           </div>
           <div className="ml-2 flex shrink-0 gap-1">
             <Button size="xs" variant="outline" onClick={() => handleDownload(attachment)}>
               Download
             </Button>
-            {(currentUserRole === 0 || attachment.addedByUserId === currentUserId) && (
+            {(currentUserRole === ROLES.Administrator || attachment.addedByUserId === currentUserId) && (
               <Button
                 size="xs"
                 variant="destructive"

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useClickOutside } from '@/hooks/use-click-outside';
 import { Check, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { getContrastColor, getReadableColor } from '@/lib/utils';
+import { cn, getContrastColor, getReadableColor } from '@/lib/utils';
 import type { Label } from '@/types';
 
 type LabelPickerProps = {
@@ -14,7 +15,7 @@ type LabelPickerProps = {
 };
 
 export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: LabelPickerProps) {
-  const [open, setOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const [filter, setFilter] = useState('');
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -57,12 +58,12 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
   }, [focusedIndex]);
 
   const handleOpen = () => {
-    if (!open) {
+    if (!isOpen) {
       setFilter('');
       setFocusedIndex(-1);
       setTimeout(() => inputRef.current?.focus(), 0);
     }
-    setOpen(!open);
+    setIsOpen(!isOpen);
   };
 
   const handleKeyDown = useCallback(
@@ -78,22 +79,14 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
         toggle(filtered[focusedIndex].id);
       } else if (e.key === 'Escape') {
         e.preventDefault();
-        setOpen(false);
+        setIsOpen(false);
       }
     },
     [filtered, focusedIndex, toggle],
   );
 
-  useEffect(() => {
-    if (!open) return;
-    function handleClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [open]);
+  const handleClose = useCallback(() => setIsOpen(false), []);
+  useClickOutside(containerRef, handleClose);
 
   return (
     <div ref={containerRef} className="relative" aria-label="Label picker">
@@ -102,7 +95,7 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
         size="sm"
         className="h-auto min-h-8 gap-1.5 px-2.5 py-1"
         onClick={handleOpen}
-        aria-expanded={open}
+        aria-expanded={isOpen}
         aria-haspopup="listbox"
       >
         <Tag className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
@@ -112,7 +105,7 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
               <Badge
                 key={label.id}
                 variant="secondary"
-                className="rounded-full px-1.5 py-0 text-[10px] leading-4"
+                className="rounded-sm px-1.5 py-0 text-xs leading-4"
                 style={{
                   backgroundColor: label.color ?? '#6b7280',
                   color: getContrastColor(label.color),
@@ -128,7 +121,7 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
         )}
       </Button>
 
-      {open && (
+      {isOpen && (
         <div
           className="absolute top-full left-0 z-50 mt-1 min-w-[12rem] overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-md"
           onKeyDown={handleKeyDown}
@@ -160,14 +153,18 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
               const selected = assignedIds.has(label.id);
               const focused = index === focusedIndex;
               return (
-                <button
+                <Button
                   key={label.id}
                   id={`label-option-${label.id}`}
-                  type="button"
+                  variant="ghost"
+                  size="sm"
                   role="option"
                   aria-selected={selected}
                   onClick={() => toggle(label.id)}
-                  className={`relative flex w-full cursor-default items-center gap-2 rounded-md py-1.5 pr-8 pl-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground ${focused ? 'bg-accent text-accent-foreground' : ''}`}
+                  className={cn(
+                    'relative w-full justify-start gap-2 pr-8',
+                    focused && 'bg-accent text-accent-foreground',
+                  )}
                 >
                   <span
                     className="size-3 shrink-0 rounded-full border"
@@ -180,7 +177,7 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
                   {selected && (
                     <Check className="absolute right-2 h-4 w-4" />
                   )}
-                </button>
+                </Button>
               );
             })}
             {filtered.length === 0 && (

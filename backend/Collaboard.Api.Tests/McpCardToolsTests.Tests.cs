@@ -7,18 +7,28 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<CollaboardApiFactory>
+public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<CollaboardApiFactory>, IDisposable
 {
     private readonly CollaboardApiFactory _factory = factory;
+    private readonly List<IServiceScope> _scopes = [];
 
     private (BoardDbContext Db, CardTools Tools, string AuthKey) CreateTools()
     {
         var scope = _factory.Services.CreateScope();
+        _scopes.Add(scope);
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
         var broadcaster = scope.ServiceProvider.GetRequiredService<BoardEventBroadcaster>();
         var auth = new McpAuthService(db);
         var tools = new CardTools(db, auth, broadcaster);
         return (db, tools, CollaboardApiFactory.TestAdminAuthKey);
+    }
+
+    public void Dispose()
+    {
+        foreach (var scope in _scopes)
+        {
+            scope.Dispose();
+        }
     }
 
     private async Task<(Guid LaneId1, Guid LaneId2)> GetTwoLaneIdsAsync(BoardDbContext db)

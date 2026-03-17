@@ -336,6 +336,12 @@ namespace Collaboard.Api.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Collaboard.Api.Models.BoardUser", null)
+                        .WithMany()
+                        .HasForeignKey("LastUpdatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Collaboard.Api.Models.CardSize", null)
                         .WithMany()
                         .HasForeignKey("SizeId")

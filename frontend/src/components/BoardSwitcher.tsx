@@ -1,4 +1,11 @@
 import { useNavigate } from 'react-router-dom';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import type { Board } from '@/types';
 
 type BoardSwitcherProps = {
@@ -10,14 +17,20 @@ export function BoardSwitcher({ boards, currentSlug }: BoardSwitcherProps) {
   const navigate = useNavigate();
 
   return (
-    <select
+    <Select
       value={currentSlug ?? ''}
-      onChange={(e) => navigate(`/boards/${e.target.value}`)}
-      className="rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground"
+      onValueChange={(v) => navigate(`/boards/${v}`)}
     >
-      {boards.map((b) => (
-        <option key={b.id} value={b.slug}>{b.name}</option>
-      ))}
-    </select>
+      <SelectTrigger size="sm">
+        <SelectValue>
+          {boards.find((b) => b.slug === currentSlug)?.name ?? 'Select board'}
+        </SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        {boards.map((b) => (
+          <SelectItem key={b.id} value={b.slug}>{b.name}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

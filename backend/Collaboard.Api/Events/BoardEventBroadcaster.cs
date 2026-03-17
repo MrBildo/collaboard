@@ -51,7 +51,7 @@ public class BoardEventBroadcaster
     {
         lock (_lock)
         {
-            var emptyBoards = new List<Guid>();
+            List<Guid> emptyBoards = [];
             foreach (var (boardId, subscribers) in _boardSubscribers)
             {
                 WriteToSubscribers(subscribers, eventType);

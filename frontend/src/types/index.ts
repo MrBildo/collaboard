@@ -16,6 +16,7 @@ import type {
   prunePreviewCardSchema,
   prunePreviewResponseSchema,
   pruneResponseSchema,
+  searchResultSchema,
 } from '@/lib/schemas';
 
 export type Board = z.infer<typeof boardSchema>;
@@ -55,3 +56,5 @@ export type PruneFilters = {
   laneIds?: string[];
   labelIds?: string[];
 };
+
+export type SearchResult = z.infer<typeof searchResultSchema>;
