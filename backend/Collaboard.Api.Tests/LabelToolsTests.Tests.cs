@@ -8,17 +8,27 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-public class LabelToolsTests(CollaboardApiFactory factory) : IClassFixture<CollaboardApiFactory>
+public class LabelToolsTests(CollaboardApiFactory factory) : IClassFixture<CollaboardApiFactory>, IDisposable
 {
     private readonly CollaboardApiFactory _factory = factory;
+    private readonly List<IServiceScope> _scopes = [];
 
     private (BoardDbContext Db, LabelTools Tools) CreateTools()
     {
         var scope = _factory.Services.CreateScope();
+        _scopes.Add(scope);
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
         var auth = new McpAuthService(db);
         var broadcaster = scope.ServiceProvider.GetRequiredService<BoardEventBroadcaster>();
         return (db, new LabelTools(db, auth, broadcaster));
+    }
+
+    public void Dispose()
+    {
+        foreach (var scope in _scopes)
+        {
+            scope.Dispose();
+        }
     }
 
     private async Task<(Guid BoardId, Guid LaneId)> GetDefaultBoardAndLaneAsync(BoardDbContext db)

@@ -8,6 +8,7 @@ import { createComment, deleteComment, fetchComments, updateComment } from '@/li
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { useUserDirectory } from '@/hooks/use-user-directory';
+import { ROLES } from '@/lib/roles';
 
 type CardCommentsProps = {
   cardId: string;
@@ -18,10 +19,7 @@ type CardCommentsProps = {
 export function CardComments({ cardId, currentUserId, currentUserRole }: CardCommentsProps) {
   const queryClient = useQueryClient();
 
-  const directoryQuery = useUserDirectory();
-  const userMap = new Map<string, string>(
-    (directoryQuery.data ?? []).map((u) => [u.id, u.name]),
-  );
+  const { getUserName } = useUserDirectory();
   const [newComment, setNewComment] = useState('');
   const [newCommentFocused, setNewCommentFocused] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -105,7 +103,7 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
     [commentsQuery.data],
   );
 
-  const expanded = newCommentFocused || newComment.length > 0;
+  const isExpanded = newCommentFocused || newComment.length > 0;
 
   return (
     <div className="flex flex-1 flex-col gap-3 overflow-hidden">
@@ -117,10 +115,10 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
           onChange={(e) => setNewComment(e.target.value)}
           onFocus={() => setNewCommentFocused(true)}
           placeholder="Add a comment..."
-          rows={expanded ? 3 : 1}
+          rows={isExpanded ? 3 : 1}
           className="bg-muted transition-all"
         />
-        {expanded && (
+        {isExpanded && (
           <div className="flex justify-end gap-2">
             <Button size="sm" variant="outline" onClick={handleCancelNew}>
               Cancel
@@ -164,13 +162,13 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
                 <div className="mt-2 flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">
                     <span className="font-medium text-foreground">
-                      {userMap.get(comment.userId) ?? 'Unknown'}
+                      {getUserName(comment.userId)}
                     </span>
                     {' · '}
                     {new Date(comment.lastUpdatedAtUtc).toLocaleString()}
                   </span>
                   <div className="flex gap-1">
-                    {(currentUserRole === 0 || comment.userId === currentUserId) && (
+                    {(currentUserRole === ROLES.Administrator || comment.userId === currentUserId) && (
                       <>
                         <Button
                           size="xs"

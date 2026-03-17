@@ -23,17 +23,23 @@ internal static class SearchHelper
         // Plain number — match card number OR name/description
         if (long.TryParse(term, out var num))
         {
-            var pattern = $"%{term}%";
+            var pattern = $"%{EscapeLike(term)}%";
             return query.Where(c =>
                 c.Number == num
-                || EF.Functions.Like(c.Name, pattern)
-                || EF.Functions.Like(c.DescriptionMarkdown, pattern));
+                || EF.Functions.Like(c.Name, pattern, "\\")
+                || EF.Functions.Like(c.DescriptionMarkdown, pattern, "\\"));
         }
 
         // Free-text — match name or description
-        var likePattern = $"%{term}%";
+        var likePattern = $"%{EscapeLike(term)}%";
         return query.Where(c =>
-            EF.Functions.Like(c.Name, likePattern)
-            || EF.Functions.Like(c.DescriptionMarkdown, likePattern));
+            EF.Functions.Like(c.Name, likePattern, "\\")
+            || EF.Functions.Like(c.DescriptionMarkdown, likePattern, "\\"));
     }
+
+    private static string EscapeLike(string term) =>
+        term.Replace("\\", "\\\\")
+            .Replace("%", "\\%")
+            .Replace("_", "\\_")
+            .Replace("[", "\\[");
 }

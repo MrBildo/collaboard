@@ -37,6 +37,13 @@ export function getContrastColor(hex: string | null | undefined): string {
   return parseLuminance(hex).luminance > 0.179 ? '#000' : '#fff';
 }
 
+export function arraysEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const sorted1 = [...a].sort();
+  const sorted2 = [...b].sort();
+  return sorted1.every((v, i) => v === sorted2[i]);
+}
+
 export function getReadableColor(hex: string | null | undefined): string {
   if (!hex) return '#6b7280';
   const { r, g, b, luminance } = parseLuminance(hex);

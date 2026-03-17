@@ -27,18 +27,7 @@ internal static class CardEndpoints
 
             if (since.HasValue)
             {
-                var cardIdsWithRecentComments = db.Comments
-                    .Where(c => c.LastUpdatedAtUtc >= since.Value)
-                    .Select(c => c.CardId);
-                var cardIdsWithRecentAttachments = db.Attachments
-                    .Where(a => a.AddedAtUtc >= since.Value)
-                    .Select(a => a.CardId);
-
-                query = query.Where(x =>
-                    x.CreatedAtUtc >= since.Value
-                    || x.LastUpdatedAtUtc >= since.Value
-                    || cardIdsWithRecentComments.Contains(x.Id)
-                    || cardIdsWithRecentAttachments.Contains(x.Id));
+                query = CardQueryHelper.ApplySinceFilter(query, db, since.Value);
             }
 
             if (labelId.HasValue)
@@ -50,52 +39,7 @@ internal static class CardEndpoints
             query = SearchHelper.ApplySearchFilter(query, search);
 
             var cards = await query.OrderBy(x => x.LaneId).ThenBy(x => x.Position).ToListAsync();
-
-            if (cards.Count == 0)
-            {
-                return Results.Ok(Array.Empty<CardSummary>());
-            }
-
-            var cardIds = cards.Select(c => c.Id).ToList();
-
-            // Batch load sizes
-            var sizeIds = cards.Select(c => c.SizeId).Distinct().ToList();
-            var sizeNames = await db.CardSizes
-                .Where(s => sizeIds.Contains(s.Id))
-                .ToDictionaryAsync(s => s.Id, s => s.Name);
-
-            // Batch load labels
-            var cardLabels = await db.CardLabels
-                .Where(cl => cardIds.Contains(cl.CardId))
-                .Join(db.Labels, cl => cl.LabelId, l => l.Id, (cl, l) => new { cl.CardId, Label = new CardLabelSummary(l.Id, l.Name, l.Color) })
-                .ToListAsync();
-            var labelsByCard = cardLabels.GroupBy(x => x.CardId).ToDictionary(g => g.Key, g => g.Select(x => x.Label).ToList());
-
-            // Batch load counts
-            var commentCounts = await db.Comments
-                .Where(cm => cardIds.Contains(cm.CardId))
-                .GroupBy(cm => cm.CardId)
-                .Select(g => new { CardId = g.Key, Count = g.Count() })
-                .ToDictionaryAsync(x => x.CardId, x => x.Count);
-
-            var attachmentCounts = await db.Attachments
-                .Where(a => cardIds.Contains(a.CardId))
-                .GroupBy(a => a.CardId)
-                .Select(g => new { CardId = g.Key, Count = g.Count() })
-                .ToDictionaryAsync(x => x.CardId, x => x.Count);
-
-            // Project
-            var summaries = cards.Select(c => new CardSummary(
-                c.Id, c.Number, c.Name, c.DescriptionMarkdown,
-                c.SizeId, sizeNames.GetValueOrDefault(c.SizeId, "?"),
-                c.LaneId, c.Position,
-                c.CreatedByUserId, c.CreatedAtUtc,
-                c.LastUpdatedByUserId, c.LastUpdatedAtUtc,
-                labelsByCard.GetValueOrDefault(c.Id, []),
-                commentCounts.GetValueOrDefault(c.Id, 0),
-                attachmentCounts.GetValueOrDefault(c.Id, 0)
-            )).ToList();
-
+            var summaries = await CardSummaryBuilder.BuildAsync(db, cards);
             return Results.Ok(summaries);
         }).RequireAuth();
 
@@ -182,52 +126,8 @@ internal static class CardEndpoints
                 return Results.NotFound();
             }
 
-            var comments = (await db.Comments
-                .Where(c => c.CardId == id)
-                .ToListAsync())
-                .OrderBy(c => c.LastUpdatedAtUtc)
-                .ToList();
-
-            var userIds = comments.Select(c => c.UserId)
-                .Append(card.CreatedByUserId)
-                .Append(card.LastUpdatedByUserId)
-                .Distinct()
-                .ToList();
-            var userNames = await db.Users
-                .Where(u => userIds.Contains(u.Id))
-                .ToDictionaryAsync(u => u.Id, u => u.Name);
-
-            var commentsWithUserNames = comments.Select(c => new
-            {
-                c.Id,
-                c.CardId,
-                c.UserId,
-                userName = userNames.GetValueOrDefault(c.UserId),
-                c.ContentMarkdown,
-                c.LastUpdatedAtUtc,
-            });
-
-            var labels = await db.CardLabels.Where(cl => cl.CardId == id)
-                .Join(db.Labels, cl => cl.LabelId, l => l.Id, (_, l) => l)
-                .ToListAsync();
-
-            var attachments = await db.Attachments
-                .Where(a => a.CardId == id)
-                .Select(a => new { a.Id, a.FileName, a.ContentType, a.AddedByUserId, a.AddedAtUtc })
-                .ToListAsync();
-
-            var sizeName = await db.CardSizes.Where(s => s.Id == card.SizeId).Select(s => s.Name).FirstOrDefaultAsync() ?? "?";
-
-            return Results.Ok(new
-            {
-                card,
-                sizeName,
-                createdByUserName = userNames.GetValueOrDefault(card.CreatedByUserId),
-                lastUpdatedByUserName = userNames.GetValueOrDefault(card.LastUpdatedByUserId),
-                comments = commentsWithUserNames,
-                labels,
-                attachments,
-            });
+            var detail = await CardDetailBuilder.BuildAsync(db, card);
+            return Results.Ok(detail);
         }).RequireAuth();
 
         group.MapPatch("/cards/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, JsonElement patch, BoardEventBroadcaster broadcaster) =>
@@ -350,36 +250,7 @@ internal static class CardEndpoints
                 return Results.BadRequest("Cannot move cards between boards.");
             }
 
-            var sourceLaneId = card.LaneId;
-
-            var targetCards = await db.Cards
-                .Where(c => c.LaneId == targetLaneId && c.Id != id)
-                .OrderBy(c => c.Position)
-                .ToListAsync();
-
-            targetIndex = Math.Clamp(targetIndex, 0, targetCards.Count);
-
-            targetCards.Insert(targetIndex, card);
-
-            for (var i = 0; i < targetCards.Count; i++)
-            {
-                targetCards[i].Position = i * 10;
-            }
-
-            if (sourceLaneId != targetLaneId)
-            {
-                card.LaneId = targetLaneId;
-
-                var sourceCards = await db.Cards
-                    .Where(c => c.LaneId == sourceLaneId && c.Id != id)
-                    .OrderBy(c => c.Position)
-                    .ToListAsync();
-
-                for (var i = 0; i < sourceCards.Count; i++)
-                {
-                    sourceCards[i].Position = i * 10;
-                }
-            }
+            await CardReorderHelper.MoveCardToLaneAsync(db, card, targetLaneId, targetIndex);
 
             card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
             card.LastUpdatedByUserId = http.CurrentUser().Id;

@@ -2,6 +2,7 @@ using Collaboard.Api.Auth;
 using Collaboard.Api.Events;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace Collaboard.Api.Endpoints;
 
@@ -23,11 +24,16 @@ internal static class AttachmentEndpoints
             return Results.Ok(attachments);
         }).RequireAuth();
 
-        group.MapPost("/cards/{id:guid}/attachments", async (BoardDbContext db, HttpContext http, Guid id, IFormFile file, BoardEventBroadcaster broadcaster) =>
+        group.MapPost("/cards/{id:guid}/attachments", async (BoardDbContext db, HttpContext http, Guid id, IFormFile file, BoardEventBroadcaster broadcaster, IOptions<AttachmentSettings> settings) =>
         {
             if (!await db.Cards.AnyAsync(x => x.Id == id))
             {
                 return Results.NotFound();
+            }
+
+            if (file.Length > settings.Value.MaxFileSizeBytes)
+            {
+                return Results.BadRequest("File too large.");
             }
 
             await using var ms = new MemoryStream();

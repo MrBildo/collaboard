@@ -22,7 +22,7 @@ internal static class LabelEndpoints
             return Results.Ok(labels);
         }).RequireAuth();
 
-        group.MapPost("/boards/{boardId:guid}/labels", async (BoardDbContext db, Guid boardId, Label request, BoardEventBroadcaster broadcaster) =>
+        group.MapPost("/boards/{boardId:guid}/labels", async (BoardDbContext db, Guid boardId, CreateLabelRequest request, BoardEventBroadcaster broadcaster) =>
         {
             if (!await db.Boards.AnyAsync(x => x.Id == boardId))
             {

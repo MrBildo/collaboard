@@ -17,7 +17,7 @@ internal static class SizeEndpoints
                 : Results.Ok(await db.CardSizes.Where(x => x.BoardId == boardId).OrderBy(x => x.Ordinal).ToListAsync()))
             .RequireAuth();
 
-        group.MapPost("/boards/{boardId:guid}/sizes", async (BoardDbContext db, Guid boardId, CardSize request, BoardEventBroadcaster broadcaster) =>
+        group.MapPost("/boards/{boardId:guid}/sizes", async (BoardDbContext db, Guid boardId, CreateSizeRequest request, BoardEventBroadcaster broadcaster) =>
         {
             if (!await db.Boards.AnyAsync(x => x.Id == boardId))
             {
@@ -29,7 +29,7 @@ internal static class SizeEndpoints
                 return Results.BadRequest("Name is required.");
             }
 
-            var ordinal = request.Ordinal;
+            var ordinal = request.Ordinal ?? 0;
             if (ordinal == 0 && await db.CardSizes.AnyAsync(x => x.BoardId == boardId))
             {
                 ordinal = await db.CardSizes.Where(x => x.BoardId == boardId).MaxAsync(x => x.Ordinal) + 1;

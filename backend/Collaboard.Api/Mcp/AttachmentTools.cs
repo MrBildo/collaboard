@@ -25,12 +25,9 @@ public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, Boar
         }
 
         var attachment = await db.Attachments.FindAsync([attachmentId], ct);
-        if (attachment is null)
-        {
-            return "Error: Attachment not found.";
-        }
-
-        return JsonSerializer.Serialize(new
+        return attachment is null
+            ? "Error: Attachment not found."
+            : JsonSerializer.Serialize(new
         {
             attachment.Id,
             attachment.FileName,
