@@ -146,7 +146,7 @@ If you set `Admin:AuthKey` in config, that value is used instead. If you lose th
 
 ### Admin Customization
 
-Admins can configure boards via the **Board Settings** panel (gear icon in the header):
+Admins can configure boards via the **Board Settings** panel:
 
 <a href="docs/images/board-settings.png"><img src="docs/images/board-settings.png" alt="Board Settings" width="600"></a>
 
