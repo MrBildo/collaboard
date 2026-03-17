@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
+using Collaboard.Api.Endpoints;
 using Collaboard.Api.Events;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
@@ -116,7 +117,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             return "Error: Lane not found.";
         }
 
-        var resolvedIndex = await MoveCardToLaneAsync(card, laneId, index, ct);
+        var resolvedIndex = await CardReorderHelper.MoveCardToLaneAsync(db, card, laneId, index, ct);
 
         card.LastUpdatedByUserId = user!.Id;
         card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
@@ -196,7 +197,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
                 return "Error: Lane not found.";
             }
 
-            await MoveCardToLaneAsync(card, laneId.Value, index, ct);
+            await CardReorderHelper.MoveCardToLaneAsync(db, card, laneId.Value, index, ct);
         }
 
         // Label replace: diff against current assignments
@@ -261,18 +262,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
 
         if (since.HasValue)
         {
-            var cardIdsWithRecentComments = db.Comments
-                .Where(cm => cm.LastUpdatedAtUtc >= since.Value)
-                .Select(cm => cm.CardId);
-            var cardIdsWithRecentAttachments = db.Attachments
-                .Where(a => a.AddedAtUtc >= since.Value)
-                .Select(a => a.CardId);
-
-            query = query.Where(c =>
-                c.CreatedAtUtc >= since.Value
-                || c.LastUpdatedAtUtc >= since.Value
-                || cardIdsWithRecentComments.Contains(c.Id)
-                || cardIdsWithRecentAttachments.Contains(c.Id));
+            query = CardQueryHelper.ApplySinceFilter(query, db, since.Value);
         }
 
         if (labelId.HasValue)
@@ -282,52 +272,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         }
 
         var cards = await query.OrderBy(c => c.LaneId).ThenBy(c => c.Position).ToListAsync(ct);
-
-        if (cards.Count == 0)
-        {
-            return JsonSerializer.Serialize(Array.Empty<CardSummary>(), JsonSerializerOptions.Web);
-        }
-
-        var cardIds = cards.Select(c => c.Id).ToList();
-
-        // Batch load sizes
-        var sizeIds = cards.Select(c => c.SizeId).Distinct().ToList();
-        var sizeNames = await db.CardSizes
-            .Where(s => sizeIds.Contains(s.Id))
-            .ToDictionaryAsync(s => s.Id, s => s.Name, ct);
-
-        // Batch load labels
-        var cardLabels = await db.CardLabels
-            .Where(cl => cardIds.Contains(cl.CardId))
-            .Join(db.Labels, cl => cl.LabelId, l => l.Id, (cl, l) => new { cl.CardId, Label = new CardLabelSummary(l.Id, l.Name, l.Color) })
-            .ToListAsync(ct);
-        var labelsByCard = cardLabels.GroupBy(x => x.CardId).ToDictionary(g => g.Key, g => g.Select(x => x.Label).ToList());
-
-        // Batch load counts
-        var commentCounts = await db.Comments
-            .Where(cm => cardIds.Contains(cm.CardId))
-            .GroupBy(cm => cm.CardId)
-            .Select(g => new { CardId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.CardId, x => x.Count, ct);
-
-        var attachmentCounts = await db.Attachments
-            .Where(a => cardIds.Contains(a.CardId))
-            .GroupBy(a => a.CardId)
-            .Select(g => new { CardId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.CardId, x => x.Count, ct);
-
-        // Project
-        var summaries = cards.Select(c => new CardSummary(
-            c.Id, c.Number, c.Name, c.DescriptionMarkdown,
-            c.SizeId, sizeNames.GetValueOrDefault(c.SizeId, "?"),
-            c.LaneId, c.Position,
-            c.CreatedByUserId, c.CreatedAtUtc,
-            c.LastUpdatedByUserId, c.LastUpdatedAtUtc,
-            labelsByCard.GetValueOrDefault(c.Id, []),
-            commentCounts.GetValueOrDefault(c.Id, 0),
-            attachmentCounts.GetValueOrDefault(c.Id, 0)
-        )).ToList();
-
+        var summaries = await CardSummaryBuilder.BuildAsync(db, cards, ct);
         return JsonSerializer.Serialize(summaries, JsonSerializerOptions.Web);
     }
 
@@ -359,87 +304,8 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             return "Error: Card not found.";
         }
 
-        var comments = (await db.Comments
-            .Where(c => c.CardId == card.Id)
-            .ToListAsync(ct))
-            .OrderBy(c => c.LastUpdatedAtUtc)
-            .ToList();
-
-        var userIds = comments.Select(c => c.UserId)
-            .Append(card.CreatedByUserId)
-            .Append(card.LastUpdatedByUserId)
-            .Distinct()
-            .ToList();
-        var userNames = await db.Users
-            .Where(u => userIds.Contains(u.Id))
-            .ToDictionaryAsync(u => u.Id, u => u.Name, ct);
-
-        var commentsWithUserNames = comments.Select(c => new
-        {
-            c.Id,
-            c.CardId,
-            c.UserId,
-            userName = userNames.GetValueOrDefault(c.UserId),
-            c.ContentMarkdown,
-            c.LastUpdatedAtUtc,
-        });
-
-        var labels = await db.CardLabels.Where(cl => cl.CardId == card.Id)
-            .Join(db.Labels, cl => cl.LabelId, l => l.Id, (_, l) => l)
-            .ToListAsync(ct);
-
-        var attachments = await db.Attachments
-            .Where(a => a.CardId == card.Id)
-            .Select(a => new { a.Id, a.FileName, a.ContentType, a.AddedByUserId, a.AddedAtUtc })
-            .ToListAsync(ct);
-
-        var sizeName = await db.CardSizes.Where(s => s.Id == card.SizeId).Select(s => s.Name).FirstOrDefaultAsync(ct) ?? "?";
-
-        return JsonSerializer.Serialize(new
-        {
-            card,
-            sizeName,
-            createdByUserName = userNames.GetValueOrDefault(card.CreatedByUserId),
-            lastUpdatedByUserName = userNames.GetValueOrDefault(card.LastUpdatedByUserId),
-            comments = commentsWithUserNames,
-            labels,
-            attachments,
-        }, JsonSerializerOptions.Web);
-    }
-
-    private async Task<int> MoveCardToLaneAsync(CardItem card, Guid targetLaneId, int? index, CancellationToken ct)
-    {
-        var sourceLaneId = card.LaneId;
-
-        var targetCards = await db.Cards
-            .Where(c => c.LaneId == targetLaneId && c.Id != card.Id)
-            .OrderBy(c => c.Position)
-            .ToListAsync(ct);
-
-        var resolvedIndex = Math.Clamp(index ?? targetCards.Count, 0, targetCards.Count);
-        targetCards.Insert(resolvedIndex, card);
-
-        for (var i = 0; i < targetCards.Count; i++)
-        {
-            targetCards[i].Position = i * 10;
-        }
-
-        if (sourceLaneId != targetLaneId)
-        {
-            card.LaneId = targetLaneId;
-
-            var sourceCards = await db.Cards
-                .Where(c => c.LaneId == sourceLaneId && c.Id != card.Id)
-                .OrderBy(c => c.Position)
-                .ToListAsync(ct);
-
-            for (var i = 0; i < sourceCards.Count; i++)
-            {
-                sourceCards[i].Position = i * 10;
-            }
-        }
-
-        return resolvedIndex;
+        var detail = await CardDetailBuilder.BuildAsync(db, card, ct);
+        return JsonSerializer.Serialize(detail, JsonSerializerOptions.Web);
     }
 
     private async Task<(Guid? SizeId, string? Error)> ResolveSizeAsync(Guid boardId, Guid? sizeId, string? sizeName, CancellationToken ct)
@@ -476,7 +342,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
 
     private async Task<(List<Guid> LabelIds, string? Error)> ParseAndValidateLabelIdsAsync(string? labelIds, Guid boardId, CancellationToken ct)
     {
-        var parsedIds = new List<Guid>();
+        List<Guid> parsedIds = [];
         if (string.IsNullOrWhiteSpace(labelIds))
         {
             return (parsedIds, null);
