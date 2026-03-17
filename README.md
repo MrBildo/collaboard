@@ -16,10 +16,8 @@
 
 ---
 
-<!-- SCREENSHOT: Full board view with cards in lanes, labels visible, light theme -->
-<!-- Capture: Default board with 3-4 lanes, 6-8 cards with labels, 800px wide -->
 <p align="center">
-  <img src="docs/images/board-overview.png" alt="Collaboard board view" width="700">
+  <a href="docs/images/board-overview.png"><img src="docs/images/board-overview.png" alt="Collaboard board view" width="700"></a>
 </p>
 
 ## Why Collaboard?
@@ -33,9 +31,7 @@ Most kanban tools are either too heavy (Jira), too locked-in (Trello), or don't 
 
 ## Features
 
-<!-- SCREENSHOT: Card detail view showing description, comments, labels, attachments -->
-<!-- Capture: Open a card with markdown description, 2-3 comments, labels, 700px wide -->
-<img src="docs/images/card-detail.png" alt="Card detail view" width="700">
+<a href="docs/images/card-detail.png"><img src="docs/images/card-detail.png" alt="Card detail view" width="700"></a>
 
 - **First-class AI agent support** — 16 MCP tools for full board management. Agents reference cards by number (`#42`) or ID, labels by name, and get enriched data in single calls
 - **Real-time collaboration** — SSE streams every change to all clients. Agent moves a card? You see it live
@@ -48,14 +44,10 @@ Most kanban tools are either too heavy (Jira), too locked-in (Trello), or don't 
 - **Deep linking** — direct URLs to boards and cards (`/boards/my-board/cards/42`)
 - **Dark and light themes** — toggle between themes, persisted per browser
 
-<!-- SCREENSHOT: Same board in dark mode, showing theme toggle -->
-<!-- Capture: Same Default board in dark theme, 700px wide -->
-<img src="docs/images/dark-mode.png" alt="Dark mode" width="700">
+<a href="docs/images/dark-mode.png"><img src="docs/images/dark-mode.png" alt="Dark mode" width="700"></a>
 
-<!-- GIF: Drag-and-drop reorder demo -->
-<!-- Capture: Drag a card from one lane to another, then reorder within lane. ScreenToGif, 800px wide, 10-15 FPS, under 5 MB -->
 <p align="center">
-  <img src="docs/images/drag-drop-demo.gif" alt="Drag and drop demo" width="700">
+  <a href="docs/images/drag-drop-demo.gif"><img src="docs/images/drag-drop-demo.gif" alt="Drag and drop demo" width="700"></a>
 </p>
 
 ## Quick Start
@@ -158,9 +150,7 @@ If you set `Admin:AuthKey` in config, that value is used instead. If you lose th
 
 Admins can configure boards via the **Board Settings** panel (gear icon in the header):
 
-<!-- SCREENSHOT: Board Settings dialog showing Lanes tab -->
-<!-- Capture: Board Settings open on Lanes tab, showing editable lanes, 600px wide -->
-<img src="docs/images/board-settings.png" alt="Board Settings" width="600">
+<a href="docs/images/board-settings.png"><img src="docs/images/board-settings.png" alt="Board Settings" width="600"></a>
 
 - **Lanes** — add, rename, reorder, or delete lanes
 - **Sizes** — define card size options (e.g. S, M, L, XL) with custom ordinals
@@ -193,9 +183,7 @@ The response includes the new user's `authKey`. Share it — they enter it on th
 
 Press `/` or `Ctrl+K` to open the search bar. Search across all boards by card name, description, or card number (`#42`). Results appear in a dropdown grouped by board.
 
-<!-- SCREENSHOT: Search dropdown showing results grouped by board -->
-<!-- Capture: Search bar with query, dropdown showing 3-4 results, 600px wide -->
-<img src="docs/images/search.png" alt="Search" width="600">
+<a href="docs/images/search.png"><img src="docs/images/search.png" alt="Search" width="600"></a>
 
 ### Attachments
 
