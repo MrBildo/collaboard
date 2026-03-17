@@ -12,10 +12,7 @@ public class BoardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
     private readonly CollaboardApiFactory _factory = factory;
     private readonly HttpClient _client = factory.CreateClient();
 
-    private static readonly JsonSerializerOptions _jsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    };
+    private static JsonSerializerOptions JsonOptions => TestAuthHelper.JsonOptions;
 
     // --- Composite board view tests (boards/{boardId}/board) ---
 
@@ -31,7 +28,7 @@ public class BoardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         json.TryGetProperty("lanes", out var lanes).ShouldBeTrue();
         lanes.GetArrayLength().ShouldBe(3);
         json.TryGetProperty("cards", out var cards).ShouldBeTrue();
@@ -91,7 +88,7 @@ public class BoardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         var lanes = json.GetProperty("lanes");
         lanes.GetArrayLength().ShouldBe(3);
 
@@ -114,7 +111,7 @@ public class BoardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         TestAuthHelper.SetAdminAuth(_client, _factory);
 
         var boardResponse = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/board");
-        var boardJson = await boardResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var boardJson = await boardResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         var firstLaneId = boardJson.GetProperty("lanes")[0].GetProperty("id").GetGuid();
 
         var cardPayload = new
@@ -135,7 +132,7 @@ public class BoardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         // Assert
         refreshedBoard.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var refreshedJson = await refreshedBoard.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var refreshedJson = await refreshedBoard.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         var cards = refreshedJson.GetProperty("cards");
         cards.GetArrayLength().ShouldBeGreaterThanOrEqualTo(1);
 
@@ -168,7 +165,7 @@ public class BoardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var boards = await response.Content.ReadFromJsonAsync<JsonElement[]>(_jsonOptions);
+        var boards = await response.Content.ReadFromJsonAsync<JsonElement[]>(JsonOptions);
         boards.ShouldNotBeNull();
         boards.ShouldNotBeEmpty();
     }
@@ -185,7 +182,7 @@ public class BoardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var board = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var board = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         board.GetProperty("id").GetGuid().ShouldBe(_factory.DefaultBoardId);
         board.GetProperty("name").GetString().ShouldBe("Default");
     }
@@ -202,7 +199,7 @@ public class BoardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var board = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var board = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         board.GetProperty("slug").GetString().ShouldBe("default");
     }
 
@@ -219,7 +216,7 @@ public class BoardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
 
-        var board = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var board = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         board.GetProperty("name").GetString().ShouldBe(boardName);
         board.GetProperty("id").GetGuid().ShouldNotBe(Guid.Empty);
         board.GetProperty("slug").GetString().ShouldNotBeNullOrWhiteSpace();
@@ -246,7 +243,7 @@ public class BoardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         TestAuthHelper.SetAdminAuth(_client, _factory);
         var createResponse = await _client.PostAsJsonAsync("/api/v1/boards", new { name = $"Patch Board {Guid.NewGuid()}" });
         createResponse.EnsureSuccessStatusCode();
-        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         var boardId = created.GetProperty("id").GetGuid();
         var originalSlug = created.GetProperty("slug").GetString();
 
@@ -256,7 +253,7 @@ public class BoardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var updated = await response.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var updated = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         updated.GetProperty("name").GetString().ShouldBe("Renamed Board");
         updated.GetProperty("slug").GetString().ShouldBe(originalSlug);
     }
@@ -268,7 +265,7 @@ public class BoardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         TestAuthHelper.SetAdminAuth(_client, _factory);
         var createResponse = await _client.PostAsJsonAsync("/api/v1/boards", new { name = $"Delete Me {Guid.NewGuid()}" });
         createResponse.EnsureSuccessStatusCode();
-        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>(_jsonOptions);
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         var boardId = created.GetProperty("id").GetGuid();
 
         // Act
