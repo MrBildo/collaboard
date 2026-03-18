@@ -1,3 +1,4 @@
+// Vendored from Dice UI / Radix — do not modify directly
 import * as React from "react";
 
 import { useIsomorphicLayoutEffect } from "@/hooks/use-isomorphic-layout-effect";
