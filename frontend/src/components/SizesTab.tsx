@@ -67,6 +67,9 @@ export function SizesTab({ boardId }: SizesTabProps) {
       invalidate();
       list.setEditingId(null);
     },
+    onError: (error: unknown) => {
+      console.error('Failed to update size:', error);
+    },
   });
 
   const deleteMutation = useMutation({

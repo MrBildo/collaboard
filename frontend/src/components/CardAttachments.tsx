@@ -37,6 +37,9 @@ export function CardAttachments({ cardId, currentUserId, currentUserRole }: Card
         fileInputRef.current.value = '';
       }
     },
+    onError: (error: unknown) => {
+      console.error('Failed to upload attachment:', error);
+    },
   });
 
   const deleteMutation = useMutation({
@@ -44,6 +47,9 @@ export function CardAttachments({ cardId, currentUserId, currentUserRole }: Card
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.attachments(cardId) });
       setConfirmDeleteId(null);
+    },
+    onError: (error: unknown) => {
+      console.error('Failed to delete attachment:', error);
     },
   });
 

@@ -67,6 +67,9 @@ export function LanesTab({ boardId }: LanesTabProps) {
       invalidate();
       list.setEditingId(null);
     },
+    onError: (error: unknown) => {
+      console.error('Failed to update lane:', error);
+    },
   });
 
   const deleteMutation = useMutation({

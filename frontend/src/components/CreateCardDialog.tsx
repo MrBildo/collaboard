@@ -83,6 +83,9 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
       queryClient.invalidateQueries({ queryKey: queryKeys.boards.cards(boardId) });
       onOpenChange(false);
     },
+    onError: (error: unknown) => {
+      console.error('Failed to create card:', error);
+    },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
