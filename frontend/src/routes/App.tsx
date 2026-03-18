@@ -10,7 +10,7 @@ import { CreateCardDialog } from '@/components/CreateCardDialog';
 import { GlobalAdminPanel } from '@/components/GlobalAdminPanel';
 import { LaneColumn } from '@/components/LaneColumn';
 import { LoginScreen } from '@/components/LoginScreen';
-import { fetchBoardBySlug, fetchBoardData, fetchBoards, fetchCards, fetchMe, fetchUsers, fetchVersion } from '@/lib/api';
+import { fetchBoardBySlug, fetchBoardData, fetchBoards, fetchMe, fetchUsers, fetchVersion } from '@/lib/api';
 import { isLoggedIn, setUserKey, clearUserKey, setLastBoardSlug } from '@/lib/auth';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { queryKeys } from '@/lib/query-keys';
@@ -66,21 +66,14 @@ export function App() {
     refetchOnWindowFocus: false,
   });
 
-  // Enriched cards with labels, commentCount, attachmentCount
-  const enrichedCardsQuery = useQuery({
-    queryKey: queryKeys.boards.cards(boardId as string),
-    queryFn: () => fetchCards(boardId as string),
-    enabled: loggedIn && !!boardId,
-    staleTime: 30_000,
-  });
-
+  // Enriched card map — derived from composite board data (now includes CardSummary)
   const enrichedCardMap = useMemo(() => {
     const map = new Map<string, CardSummary>();
-    for (const card of enrichedCardsQuery.data ?? []) {
+    for (const card of boardDataQuery.data?.cards ?? []) {
       map.set(card.id, card);
     }
     return map;
-  }, [enrichedCardsQuery.data]);
+  }, [boardDataQuery.data]);
 
   const meQuery = useQuery({
     queryKey: queryKeys.users.me(),
