@@ -176,6 +176,9 @@ export function CardDetailForm({
       isDirtyRef.current = false;
       onClose();
     },
+    onError: (error: unknown) => {
+      console.error('Failed to update card:', error);
+    },
   });
 
   const deleteMutation = useMutation({
@@ -190,6 +193,9 @@ export function CardDetailForm({
       }
       isDirtyRef.current = false;
       onClose();
+    },
+    onError: (error: unknown) => {
+      console.error('Failed to delete card:', error);
     },
   });
 

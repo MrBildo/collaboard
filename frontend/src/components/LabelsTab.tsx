@@ -42,6 +42,9 @@ export function LabelsTab({ boardId }: LabelsTabProps) {
       setNewName('');
       setNewColor('#3b82f6');
     },
+    onError: (error: unknown) => {
+      console.error('Failed to create label:', error);
+    },
   });
 
   const updateMutation = useMutation({
@@ -51,6 +54,9 @@ export function LabelsTab({ boardId }: LabelsTabProps) {
       queryClient.invalidateQueries({ queryKey: queryKeys.labels.all(boardId) });
       list.setEditingId(null);
     },
+    onError: (error: unknown) => {
+      console.error('Failed to update label:', error);
+    },
   });
 
   const deleteMutation = useMutation({
@@ -58,6 +64,9 @@ export function LabelsTab({ boardId }: LabelsTabProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.labels.all(boardId) });
       list.clearDelete();
+    },
+    onError: (error: unknown) => {
+      console.error('Failed to delete label:', error);
     },
   });
 

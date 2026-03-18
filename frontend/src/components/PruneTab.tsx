@@ -63,6 +63,9 @@ export function PruneTab({ boardId }: PruneTabProps) {
       setIsConfirmingDelete(false);
       setDeletedCount(null);
     },
+    onError: (error: unknown) => {
+      console.error('Failed to preview prune:', error);
+    },
   });
 
   const pruneMutation = useMutation({
@@ -77,6 +80,9 @@ export function PruneTab({ boardId }: PruneTabProps) {
       setSelectedLabelIds([]);
       queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.boards.cards(boardId) });
+    },
+    onError: (error: unknown) => {
+      console.error('Failed to prune cards:', error);
     },
   });
 
