@@ -4,6 +4,7 @@ const STORAGE_KEY = 'collaboard-comments-width';
 const DEFAULT_WIDTH = 340;
 const MIN_COMMENTS_WIDTH = 280;
 const MIN_DETAILS_WIDTH = 300;
+const HANDLE_WIDTH = 12;
 
 function loadWidth(): number {
   try {
@@ -45,7 +46,7 @@ export function usePanelResize(containerRef: React.RefObject<HTMLElement | null>
       if (!container) return;
 
       const containerWidth = container.getBoundingClientRect().width;
-      const maxWidth = containerWidth - MIN_DETAILS_WIDTH;
+      const maxWidth = containerWidth - MIN_DETAILS_WIDTH - HANDLE_WIDTH;
 
       // Dragging left increases comments width (panel is on the right)
       const delta = startXRef.current - e.clientX;

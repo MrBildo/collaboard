@@ -335,7 +335,7 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
       {/* Two-column body (stacked on mobile) */}
       <div ref={bodyRef} className="flex flex-1 gap-0 overflow-hidden max-md:flex-col max-md:overflow-y-auto">
         {/* Left column — details */}
-        <div className="flex-1 px-6 py-4 md:overflow-y-auto">
+        <div className="min-w-0 flex-1 px-6 py-4 md:overflow-y-auto">
           {/* Description */}
           <div className="mb-4">
             <div className="mb-2 flex items-center gap-1">
