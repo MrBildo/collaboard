@@ -2,18 +2,13 @@ import { useQuery } from '@tanstack/react-query';
 import { Navigate } from 'react-router-dom';
 import { LoginScreen } from '@/components/LoginScreen';
 import { fetchBoards } from '@/lib/api';
-import { findLastBoardSlug, isLoggedIn, setUserKey } from '@/lib/auth';
+import { findLastBoardSlug } from '@/lib/auth';
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
-import { useCallback, useState } from 'react';
+import { useAuth } from '@/hooks/use-auth';
 
 export function BoardRedirect() {
-  const [loggedIn, setLoggedIn] = useState(isLoggedIn());
-
-  const handleLogin = useCallback((key: string) => {
-    setUserKey(key);
-    setLoggedIn(true);
-  }, []);
+  const { loggedIn, handleLogin } = useAuth();
 
   const boardsQuery = useQuery({
     queryKey: queryKeys.boards.all(),
