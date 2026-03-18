@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Collaboard.Api.Auth;
 using Collaboard.Api.Events;
 using Collaboard.Api.Models;
@@ -55,7 +54,7 @@ internal static class UserEndpoints
             return Results.Ok(users);
         }).RequireAuth();
 
-        group.MapPatch("/users/{id:guid}", async (BoardDbContext db, Guid id, JsonElement patch, BoardEventBroadcaster broadcaster) =>
+        group.MapPatch("/users/{id:guid}", async (BoardDbContext db, Guid id, UpdateUserRequest request, BoardEventBroadcaster broadcaster) =>
         {
             var user = await db.Users.FindAsync(id);
             if (user is null)
@@ -63,26 +62,24 @@ internal static class UserEndpoints
                 return Results.NotFound();
             }
 
-            if (patch.TryGetProperty("name", out var name))
+            if (request.Name is not null)
             {
-                var nameStr = name.ValueKind == JsonValueKind.Null ? null : name.GetString();
-                if (string.IsNullOrWhiteSpace(nameStr))
+                if (string.IsNullOrWhiteSpace(request.Name))
                 {
                     return Results.BadRequest("Name cannot be empty.");
                 }
 
-                user.Name = nameStr;
+                user.Name = request.Name;
             }
 
-            if (patch.TryGetProperty("role", out var role))
+            if (request.Role is not null)
             {
-                var newRole = (UserRole)role.GetInt32();
-                if (!Enum.IsDefined(newRole))
+                if (!Enum.IsDefined(request.Role.Value))
                 {
                     return Results.BadRequest("Invalid role.");
                 }
 
-                user.Role = newRole;
+                user.Role = request.Role.Value;
             }
 
             await db.SaveChangesAsync();

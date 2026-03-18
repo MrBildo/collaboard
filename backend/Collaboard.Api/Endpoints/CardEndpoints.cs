@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Collaboard.Api.Auth;
 using Collaboard.Api.Events;
 using Collaboard.Api.Models;
@@ -43,40 +42,31 @@ internal static class CardEndpoints
             return Results.Ok(summaries);
         }).RequireAuth();
 
-        group.MapPost("/boards/{boardId:guid}/cards", async (BoardDbContext db, HttpContext http, Guid boardId, JsonElement body, BoardEventBroadcaster broadcaster) =>
+        group.MapPost("/boards/{boardId:guid}/cards", async (BoardDbContext db, HttpContext http, Guid boardId, CreateCardRequest request, BoardEventBroadcaster broadcaster) =>
         {
             if (!await db.Boards.AnyAsync(x => x.Id == boardId))
             {
                 return Results.NotFound();
             }
 
-            if (!body.TryGetProperty("laneId", out var laneIdProp) || laneIdProp.ValueKind == JsonValueKind.Null)
-            {
-                return Results.BadRequest("laneId is required.");
-            }
-
-            var requestLaneId = laneIdProp.GetGuid();
-
-            if (!body.TryGetProperty("name", out var nameProp) || string.IsNullOrWhiteSpace(nameProp.GetString()))
+            if (string.IsNullOrWhiteSpace(request.Name))
             {
                 return Results.BadRequest("Name is required.");
             }
 
-            var requestName = nameProp.GetString()!;
-
-            var requestDescription = body.TryGetProperty("descriptionMarkdown", out var descProp) ? descProp.GetString() ?? "" : "";
-            var requestPosition = body.TryGetProperty("position", out var posProp) ? posProp.GetInt32() : 0;
+            var requestDescription = request.DescriptionMarkdown ?? "";
+            var requestPosition = request.Position ?? 0;
 
             // Verify the lane belongs to this board
-            if (!await db.Lanes.AnyAsync(x => x.Id == requestLaneId && x.BoardId == boardId))
+            if (!await db.Lanes.AnyAsync(x => x.Id == request.LaneId && x.BoardId == boardId))
             {
                 return Results.BadRequest("Lane does not belong to this board.");
             }
 
             Guid sizeId;
-            if (body.TryGetProperty("sizeId", out var sizeIdProp) && sizeIdProp.ValueKind != JsonValueKind.Null)
+            if (request.SizeId is not null)
             {
-                sizeId = sizeIdProp.GetGuid();
+                sizeId = request.SizeId.Value;
                 if (!await db.CardSizes.AnyAsync(s => s.Id == sizeId && s.BoardId == boardId))
                 {
                     return Results.BadRequest("Size does not belong to this board.");
@@ -102,10 +92,10 @@ internal static class CardEndpoints
             {
                 Id = Guid.NewGuid(),
                 BoardId = boardId,
-                Name = requestName,
+                Name = request.Name,
                 DescriptionMarkdown = requestDescription,
                 SizeId = sizeId,
-                LaneId = requestLaneId,
+                LaneId = request.LaneId,
                 Position = requestPosition,
                 CreatedAtUtc = now,
                 LastUpdatedAtUtc = now,
@@ -130,7 +120,7 @@ internal static class CardEndpoints
             return Results.Ok(detail);
         }).RequireAuth();
 
-        group.MapPatch("/cards/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, JsonElement patch, BoardEventBroadcaster broadcaster) =>
+        group.MapPatch("/cards/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, UpdateCardRequest request, BoardEventBroadcaster broadcaster) =>
         {
             var card = await db.Cards.FindAsync(id);
             if (card is null)
@@ -138,30 +128,24 @@ internal static class CardEndpoints
                 return Results.NotFound();
             }
 
-            if (patch.TryGetProperty("name", out var name))
+            if (request.Name is not null)
             {
-                var nameStr = name.ValueKind == JsonValueKind.Null ? null : name.GetString();
-                if (string.IsNullOrWhiteSpace(nameStr))
+                if (string.IsNullOrWhiteSpace(request.Name))
                 {
                     return Results.BadRequest("Name cannot be empty.");
                 }
 
-                card.Name = nameStr;
+                card.Name = request.Name;
             }
 
-            if (patch.TryGetProperty("descriptionMarkdown", out var desc))
+            if (request.DescriptionMarkdown is not null)
             {
-                card.DescriptionMarkdown = desc.ValueKind == JsonValueKind.Null ? "" : desc.GetString()!;
+                card.DescriptionMarkdown = request.DescriptionMarkdown;
             }
 
-            if (patch.TryGetProperty("sizeId", out var sizeIdPatch))
+            if (request.SizeId is not null)
             {
-                if (sizeIdPatch.ValueKind == JsonValueKind.Null)
-                {
-                    return Results.BadRequest("sizeId cannot be null.");
-                }
-
-                var newSizeId = sizeIdPatch.GetGuid();
+                var newSizeId = request.SizeId.Value;
                 var sizeLane = await db.Lanes.FindAsync(card.LaneId);
                 if (sizeLane is null || !await db.CardSizes.AnyAsync(s => s.Id == newSizeId && s.BoardId == sizeLane.BoardId))
                 {
@@ -171,14 +155,9 @@ internal static class CardEndpoints
                 card.SizeId = newSizeId;
             }
 
-            if (patch.TryGetProperty("laneId", out var lane))
+            if (request.LaneId is not null)
             {
-                if (lane.ValueKind == JsonValueKind.Null)
-                {
-                    return Results.BadRequest("laneId cannot be null.");
-                }
-
-                var newLaneId = lane.GetGuid();
+                var newLaneId = request.LaneId.Value;
                 var targetLane = await db.Lanes.FindAsync(newLaneId);
                 if (targetLane is null)
                 {
@@ -193,18 +172,17 @@ internal static class CardEndpoints
                 card.LaneId = newLaneId;
             }
 
-            if (patch.TryGetProperty("position", out var pos))
+            if (request.Position is not null)
             {
-                card.Position = pos.GetInt32();
+                card.Position = request.Position.Value;
             }
 
-            if (patch.TryGetProperty("labelIds", out var labelIds))
+            if (request.LabelIds is not null)
             {
-                var newLabelIds = labelIds.EnumerateArray().Select(e => e.GetGuid()).ToList();
-                if (newLabelIds.Count > 0)
+                if (request.LabelIds.Length > 0)
                 {
-                    var validCount = await db.Labels.CountAsync(l => newLabelIds.Contains(l.Id) && l.BoardId == card.BoardId);
-                    if (validCount != newLabelIds.Count)
+                    var validCount = await db.Labels.CountAsync(l => request.LabelIds.Contains(l.Id) && l.BoardId == card.BoardId);
+                    if (validCount != request.LabelIds.Length)
                     {
                         return Results.BadRequest("One or more labels do not belong to this board.");
                     }
@@ -212,7 +190,7 @@ internal static class CardEndpoints
 
                 var existingLabels = await db.CardLabels.Where(x => x.CardId == id).ToListAsync();
                 db.CardLabels.RemoveRange(existingLabels);
-                foreach (var labelId in newLabelIds)
+                foreach (var labelId in request.LabelIds)
                 {
                     db.CardLabels.Add(new CardLabel { CardId = id, LabelId = labelId });
                 }
@@ -226,7 +204,7 @@ internal static class CardEndpoints
             return Results.Ok(card);
         }).RequireAuth();
 
-        group.MapPost("/cards/{id:guid}/reorder", async (BoardDbContext db, HttpContext http, Guid id, JsonElement body, BoardEventBroadcaster broadcaster) =>
+        group.MapPost("/cards/{id:guid}/reorder", async (BoardDbContext db, HttpContext http, Guid id, ReorderCardRequest request, BoardEventBroadcaster broadcaster) =>
         {
             var card = await db.Cards.FindAsync(id);
             if (card is null)
@@ -234,19 +212,19 @@ internal static class CardEndpoints
                 return Results.NotFound();
             }
 
-            if (!body.TryGetProperty("laneId", out var laneIdProp) || laneIdProp.ValueKind == JsonValueKind.Null)
+            if (request.LaneId is null)
             {
                 return Results.BadRequest("laneId is required.");
             }
 
-            var targetLaneId = laneIdProp.GetGuid();
+            var targetLaneId = request.LaneId.Value;
 
-            if (!body.TryGetProperty("index", out var indexProp) || indexProp.ValueKind == JsonValueKind.Null)
+            if (request.Index is null)
             {
                 return Results.BadRequest("index is required.");
             }
 
-            var targetIndex = indexProp.GetInt32();
+            var targetIndex = request.Index.Value;
 
             var targetLane = await db.Lanes.FindAsync(targetLaneId);
             if (targetLane is null)

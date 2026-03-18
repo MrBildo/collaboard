@@ -28,12 +28,12 @@ public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, Boar
         return attachment is null
             ? "Error: Attachment not found."
             : JsonSerializer.Serialize(new
-        {
-            attachment.Id,
-            attachment.FileName,
-            attachment.ContentType,
-            Base64Content = Convert.ToBase64String(attachment.Payload),
-        }, JsonSerializerOptions.Web);
+            {
+                attachment.Id,
+                attachment.FileName,
+                attachment.ContentType,
+                Base64Content = Convert.ToBase64String(attachment.Payload),
+            }, JsonSerializerOptions.Web);
     }
 
     [McpServerTool(Name = "delete_attachment", Destructive = true)]

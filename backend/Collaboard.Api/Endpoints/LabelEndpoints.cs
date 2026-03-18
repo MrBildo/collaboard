@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Collaboard.Api.Auth;
 using Collaboard.Api.Events;
 using Collaboard.Api.Models;
@@ -52,7 +51,7 @@ internal static class LabelEndpoints
             return Results.Created($"/api/v1/boards/{boardId}/labels/{label.Id}", label);
         }).RequireAdmin();
 
-        group.MapPatch("/boards/{boardId:guid}/labels/{id:guid}", async (BoardDbContext db, Guid boardId, Guid id, JsonElement patch, BoardEventBroadcaster broadcaster) =>
+        group.MapPatch("/boards/{boardId:guid}/labels/{id:guid}", async (BoardDbContext db, Guid boardId, Guid id, UpdateLabelRequest request, BoardEventBroadcaster broadcaster) =>
         {
             var label = await db.Labels.FindAsync(id);
             if (label is null || label.BoardId != boardId)
@@ -60,20 +59,19 @@ internal static class LabelEndpoints
                 return Results.NotFound();
             }
 
-            if (patch.TryGetProperty("name", out var name))
+            if (request.Name is not null)
             {
-                var nameStr = name.ValueKind == JsonValueKind.Null ? null : name.GetString();
-                if (string.IsNullOrWhiteSpace(nameStr))
+                if (string.IsNullOrWhiteSpace(request.Name))
                 {
                     return Results.BadRequest("Name cannot be empty.");
                 }
 
-                label.Name = nameStr;
+                label.Name = request.Name;
             }
 
-            if (patch.TryGetProperty("color", out var color))
+            if (request.Color is not null)
             {
-                label.Color = color.ValueKind == JsonValueKind.Null ? null : color.GetString();
+                label.Color = request.Color;
             }
 
             await db.SaveChangesAsync();
@@ -113,7 +111,7 @@ internal static class LabelEndpoints
             return Results.Ok(labels);
         }).RequireAuth();
 
-        group.MapPost("/cards/{id:guid}/labels", async (BoardDbContext db, Guid id, JsonElement body, BoardEventBroadcaster broadcaster) =>
+        group.MapPost("/cards/{id:guid}/labels", async (BoardDbContext db, Guid id, AddCardLabelRequest request, BoardEventBroadcaster broadcaster) =>
         {
             var card = await db.Cards.FindAsync(id);
             if (card is null)
@@ -121,7 +119,7 @@ internal static class LabelEndpoints
                 return Results.NotFound();
             }
 
-            var labelId = body.GetProperty("labelId").GetGuid();
+            var labelId = request.LabelId;
             var label = await db.Labels.FindAsync(labelId);
             if (label is null)
             {
