@@ -161,6 +161,7 @@
   /* Board grid: single-column vertical layout */
   [aria-label="Kanban board"] {
     grid-template-columns: 1fr !important;
+    align-content: start;
     overflow-x: hidden !important;
     overflow-y: auto !important;
   }
