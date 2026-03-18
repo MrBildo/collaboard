@@ -335,7 +335,7 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
       {/* Two-column body (stacked on mobile) */}
       <div ref={bodyRef} className="flex flex-1 gap-0 overflow-hidden max-md:flex-col max-md:overflow-y-auto">
         {/* Left column — details */}
-        <div className="scroll-fade flex-1 px-6 py-4 md:overflow-y-auto">
+        <div className="flex-1 px-6 py-4 md:overflow-y-auto">
           {/* Description */}
           <div className="mb-4">
             <div className="mb-2 flex items-center gap-1">
@@ -411,7 +411,7 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
 
         {/* Right column — comments (below on mobile) */}
         <div
-          className="comments-panel-resizable scroll-fade flex shrink-0 flex-col border-border px-5 pt-2 pb-4 max-md:w-full max-md:border-t md:overflow-y-auto"
+          className="comments-panel-resizable flex shrink-0 flex-col border-border px-5 pt-2 pb-4 max-md:w-full max-md:border-t md:overflow-y-auto"
           style={{ '--comments-width': `${Math.round(commentsWidth)}px` } as React.CSSProperties}
         >
           <h3 className="mb-3 text-sm font-semibold">
