@@ -400,12 +400,13 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
           </div>
         </div>
 
-        {/* Drag handle (desktop only) */}
+        {/* Drag handle (desktop only) — wide hit area, thin visible line via pseudo-element */}
         <div
           onMouseDown={onMouseDown}
           className={cn(
-            'hidden w-1 shrink-0 cursor-col-resize bg-border transition-colors hover:bg-primary/50 md:block',
-            isDragging && 'bg-primary/50',
+            'relative hidden w-3 shrink-0 cursor-col-resize md:block',
+            'after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-border after:transition-colors',
+            isDragging ? 'after:bg-primary/50' : 'hover:after:bg-primary/50',
           )}
         />
 
