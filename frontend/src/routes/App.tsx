@@ -16,6 +16,7 @@ import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { queryKeys } from '@/lib/query-keys';
 import { useBoardEvents } from '@/hooks/use-board-events';
 import { useBoardDnd } from '@/hooks/use-board-dnd';
+import { useLaneCollapse } from '@/hooks/use-lane-collapse';
 import type { CardItem, CardSummary } from '@/types';
 
 export function App() {
@@ -161,6 +162,15 @@ export function App() {
     return map;
   }, [lanes, localCards]);
 
+  const { isCollapsed, toggle: toggleLaneCollapse, initDefaults: initCollapseDefaults } = useLaneCollapse(boardId);
+
+  // Auto-collapse empty lanes on first data load (when no saved state exists)
+  useEffect(() => {
+    if (lanes.length > 0 && byLane.size > 0) {
+      initCollapseDefaults(lanes.map((l) => ({ id: l.id, cardCount: byLane.get(l.id)?.length ?? 0 })));
+    }
+  }, [lanes, byLane, initCollapseDefaults]);
+
   const handleCardClick = (card: CardItem) => {
     navigate(`/boards/${slug}/cards/${card.number}`, { replace: true });
   };
@@ -224,6 +234,8 @@ export function App() {
               activeCardId={activeCardId}
               sizeMap={sizeMap}
               enrichedCardMap={enrichedCardMap}
+              isCollapsed={isCollapsed(lane.id)}
+              onToggleCollapse={() => toggleLaneCollapse(lane.id)}
             />
           ))}
         </section>
