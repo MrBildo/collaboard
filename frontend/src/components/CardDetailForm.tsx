@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -33,6 +33,10 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { ROLES } from '@/lib/roles';
 import type { BoardData, CardItem, CardSize, Lane, UpdateCardPatch } from '@/types';
 
+export type CardDetailFormHandle = {
+  save: () => void;
+};
+
 type CardDetailFormProps = {
   card: CardItem;
   onClose: () => void;
@@ -42,13 +46,12 @@ type CardDetailFormProps = {
   boardId?: string;
   sizes?: CardSize[];
   isDirtyRef: React.MutableRefObject<boolean>;
-  saveRef?: React.MutableRefObject<(() => void) | null>;
   navPosition?: string | null;
   onNavigatePrev?: () => void;
   onNavigateNext?: () => void;
 };
 
-export function CardDetailForm({
+export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormProps>(function CardDetailForm({
   card,
   onClose,
   currentUserId,
@@ -57,11 +60,10 @@ export function CardDetailForm({
   boardId,
   sizes,
   isDirtyRef,
-  saveRef,
   navPosition,
   onNavigatePrev,
   onNavigateNext,
-}: CardDetailFormProps) {
+}, ref) {
   const queryClient = useQueryClient();
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -211,17 +213,7 @@ export function CardDetailForm({
     updateMutation.mutate(patch);
   }, [isDirty, isDirtyRef, onClose, name, card.name, description, card.descriptionMarkdown, sizeId, card.sizeId, currentLaneId, card.laneId, effectiveLabelIds, originalLabelIds, updateMutation]);
 
-  // Expose save function to parent for "Save & Close" in UnsavedChangesDialog
-  useEffect(() => {
-    if (saveRef) {
-      saveRef.current = handleSave;
-    }
-    return () => {
-      if (saveRef) {
-        saveRef.current = null;
-      }
-    };
-  }, [saveRef, handleSave]);
+  useImperativeHandle(ref, () => ({ save: handleSave }), [handleSave]);
 
   const handleDelete = () => {
     if (!isConfirmingDelete) {
@@ -441,4 +433,4 @@ export function CardDetailForm({
       </div>
     </div>
   );
-}
+});
