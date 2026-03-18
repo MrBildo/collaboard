@@ -363,7 +363,7 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
                 placeholder="Write a description..."
               />
             ) : (
-              <div className="prose prose-sm max-w-none rounded-md border bg-muted/30 p-4 text-sm text-foreground">
+              <div className="prose prose-sm max-w-none overflow-x-auto rounded-md border bg-muted/30 p-4 text-sm text-foreground">
                 {description ? (
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{description}</ReactMarkdown>
                 ) : (
