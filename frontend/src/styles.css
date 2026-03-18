@@ -156,6 +156,19 @@
   }
 }
 
+/* Scroll fade — top/bottom gradient mask for scrollable panels (desktop only) */
+@media (min-width: 768px) {
+  .scroll-fade {
+    mask-image: linear-gradient(to bottom, transparent 0%, black 24px, black calc(100% - 24px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 24px, black calc(100% - 24px), transparent 100%);
+  }
+
+  /* Resizable comments panel — width driven by CSS custom property on desktop */
+  .comments-panel-resizable {
+    width: var(--comments-width, 340px);
+  }
+}
+
 /* Mobile responsive overrides */
 @media (max-width: 767px) {
   /* Board grid: single-column vertical layout */

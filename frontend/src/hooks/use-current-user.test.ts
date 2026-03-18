@@ -40,8 +40,7 @@ describe('useCurrentUser', () => {
     mockFetchMe.mockResolvedValue({
       id: 'user-1',
       name: 'Test User',
-      role: 'HumanUser',
-      authKey: 'key-123',
+      role: 1,
     });
     mockFetchUsers.mockResolvedValue([]);
 
@@ -51,7 +50,7 @@ describe('useCurrentUser', () => {
       expect(result.current.currentUserId).toBe('user-1');
     });
 
-    expect(result.current.currentUserRole).toBe('HumanUser');
+    expect(result.current.currentUserRole).toBe(1);
     expect(result.current.isAdmin).toBe(true);
   });
 
@@ -59,8 +58,7 @@ describe('useCurrentUser', () => {
     mockFetchMe.mockResolvedValue({
       id: 'user-2',
       name: 'Agent',
-      role: 'AgentUser',
-      authKey: 'key-456',
+      role: 2,
     });
     mockFetchUsers.mockRejectedValue(new Error('403'));
 
