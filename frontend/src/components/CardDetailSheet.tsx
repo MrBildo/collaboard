@@ -142,6 +142,7 @@ export function CardDetailSheet({
               variant="outline"
               size="icon"
               onClick={() => handleNavigate('prev')}
+              onPointerDown={(e) => e.stopPropagation()}
               className="absolute top-1/2 -left-14 z-50 hidden -translate-y-1/2 rounded-full shadow-lg md:flex"
               aria-label="Previous card"
             >
@@ -153,6 +154,7 @@ export function CardDetailSheet({
               variant="outline"
               size="icon"
               onClick={() => handleNavigate('next')}
+              onPointerDown={(e) => e.stopPropagation()}
               className="absolute top-1/2 -right-14 z-50 hidden -translate-y-1/2 rounded-full shadow-lg md:flex"
               aria-label="Next card"
             >
