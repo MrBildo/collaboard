@@ -1,5 +1,5 @@
 import { DndContext, DragOverlay } from '@dnd-kit/core';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AdminPanel } from '@/components/AdminPanel';
@@ -10,93 +10,36 @@ import { CreateCardDialog } from '@/components/CreateCardDialog';
 import { GlobalAdminPanel } from '@/components/GlobalAdminPanel';
 import { LaneColumn } from '@/components/LaneColumn';
 import { LoginScreen } from '@/components/LoginScreen';
-import { fetchBoardBySlug, fetchBoardData, fetchBoards, fetchCards, fetchMe, fetchUsers, fetchVersion } from '@/lib/api';
-import { isLoggedIn, setUserKey, clearUserKey, setLastBoardSlug } from '@/lib/auth';
-import { QUERY_DEFAULTS } from '@/lib/query-config';
+import { fetchBoards, fetchVersion } from '@/lib/api';
 import { queryKeys } from '@/lib/query-keys';
+import { useAuth } from '@/hooks/use-auth';
+import { useBoardData } from '@/hooks/use-board-data';
 import { useBoardEvents } from '@/hooks/use-board-events';
 import { useBoardDnd } from '@/hooks/use-board-dnd';
+import { useCurrentUser } from '@/hooks/use-current-user';
 import { useLaneCollapse } from '@/hooks/use-lane-collapse';
-import type { CardItem, CardSummary } from '@/types';
+import type { CardItem } from '@/types';
 
 export function App() {
   const { slug, cardNumber } = useParams<{ slug: string; cardNumber: string }>();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const [loggedIn, setLoggedIn] = useState(isLoggedIn());
+  const { loggedIn, handleLogin, handleLogout } = useAuth();
+  const { currentUserId, currentUserRole, isAdmin } = useCurrentUser(loggedIn);
 
-  const handleLogin = useCallback((key: string) => {
-    setUserKey(key);
-    setLoggedIn(true);
-  }, []);
-
-  const handleLogout = useCallback(() => {
-    clearUserKey();
-    queryClient.clear();
-    setLoggedIn(false);
-  }, [queryClient]);
-
-  // Fetch the board metadata by slug
-  const boardMetaQuery = useQuery({
-    queryKey: queryKeys.boards.detail(slug as string),
-    queryFn: () => fetchBoardBySlug(slug as string),
-    enabled: loggedIn && !!slug,
-    ...QUERY_DEFAULTS.boards,
-  });
-  const board = boardMetaQuery.data;
-  const boardId = board?.id;
-
-  // Track last visited board
-  useEffect(() => {
-    if (slug) {
-      setLastBoardSlug(slug);
-    }
-  }, [slug]);
+  const {
+    board,
+    boardId,
+    boardMetaQuery,
+    boardDataQuery,
+    lanes,
+    sizes,
+    sizeMap,
+    serverCards,
+    enrichedCardMap,
+  } = useBoardData(slug, loggedIn);
 
   // SSE for this board
   useBoardEvents(boardId);
-
-  // Fetch board data (lanes + cards)
-  const boardDataQuery = useQuery({
-    queryKey: queryKeys.boards.data(boardId as string),
-    queryFn: () => fetchBoardData(boardId as string),
-    retry: 2,
-    staleTime: 30_000,
-    enabled: loggedIn && !!boardId,
-    refetchOnWindowFocus: false,
-  });
-
-  // Enriched cards with labels, commentCount, attachmentCount
-  const enrichedCardsQuery = useQuery({
-    queryKey: queryKeys.boards.cards(boardId as string),
-    queryFn: () => fetchCards(boardId as string),
-    enabled: loggedIn && !!boardId,
-    staleTime: 30_000,
-  });
-
-  const enrichedCardMap = useMemo(() => {
-    const map = new Map<string, CardSummary>();
-    for (const card of enrichedCardsQuery.data ?? []) {
-      map.set(card.id, card);
-    }
-    return map;
-  }, [enrichedCardsQuery.data]);
-
-  const meQuery = useQuery({
-    queryKey: queryKeys.users.me(),
-    queryFn: fetchMe,
-    enabled: loggedIn,
-    staleTime: Infinity,
-  });
-  const currentUserId = meQuery.data?.id;
-  const currentUserRole = meQuery.data?.role;
-  const adminCheck = useQuery({
-    queryKey: queryKeys.users.adminCheck(),
-    queryFn: async () => { await fetchUsers(); return true; },
-    retry: false,
-    enabled: loggedIn,
-  });
-  const isAdmin = adminCheck.data === true;
 
   // Board list for switcher
   const boardsQuery = useQuery({
@@ -118,11 +61,6 @@ export function App() {
   const [createDialogKey, setCreateDialogKey] = useState(0);
   const [adminOpen, setAdminOpen] = useState(false);
   const [globalAdminOpen, setGlobalAdminOpen] = useState(false);
-
-  const lanes = useMemo(() => boardDataQuery.data?.lanes ?? [], [boardDataQuery.data]);
-  const sizes = useMemo(() => boardDataQuery.data?.sizes ?? [], [boardDataQuery.data]);
-  const sizeMap = useMemo(() => new Map(sizes.map((s) => [s.id, s.name])), [sizes]);
-  const serverCards = useMemo(() => boardDataQuery.data?.cards ?? [], [boardDataQuery.data]);
 
   const laneIds = useMemo(() => new Set(lanes.map((l) => l.id)), [lanes]);
 
@@ -171,9 +109,9 @@ export function App() {
     }
   }, [lanes, byLane, initCollapseDefaults]);
 
-  const handleCardClick = (card: CardItem) => {
+  const handleCardClick = useCallback((card: CardItem) => {
     navigate(`/boards/${slug}/cards/${card.number}`, { replace: true });
-  };
+  }, [slug, navigate]);
 
   const handleNewCard = useCallback(() => {
     setCreateLaneId(undefined);
