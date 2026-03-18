@@ -4,7 +4,7 @@ import { fetchBoardBySlug, fetchBoardData } from '@/lib/api';
 import { setLastBoardSlug } from '@/lib/auth';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { queryKeys } from '@/lib/query-keys';
-import type { CardItem, CardSummary } from '@/types';
+import type { CardSummary } from '@/types';
 
 export function useBoardData(
   slug: string | undefined,
