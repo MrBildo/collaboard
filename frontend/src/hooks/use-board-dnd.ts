@@ -74,6 +74,7 @@ export function useBoardDnd(boardId: string | undefined, serverCards: CardItem[]
     },
     onSettled: () => {
       setDragPhase('idle');
+      setDragCards(null);
     },
   });
 

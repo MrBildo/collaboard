@@ -179,7 +179,13 @@ export function CardDetailForm({
   const deleteMutation = useMutation({
     mutationFn: () => deleteCard(card.id),
     onSuccess: () => {
-      if (boardId) queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
+      if (boardId) {
+        queryClient.setQueryData<BoardData>(
+          queryKeys.boards.data(boardId),
+          (old) => old ? { ...old, cards: old.cards.filter((c) => c.id !== card.id) } : old,
+        );
+        queryClient.invalidateQueries({ queryKey: queryKeys.boards.cards(boardId) });
+      }
       isDirtyRef.current = false;
       onClose();
     },
