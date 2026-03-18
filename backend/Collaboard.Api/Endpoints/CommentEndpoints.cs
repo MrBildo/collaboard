@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Collaboard.Api.Auth;
 using Collaboard.Api.Events;
 using Collaboard.Api.Models;
@@ -67,7 +66,7 @@ internal static class CommentEndpoints
             return Results.NoContent();
         }).RequireAuth();
 
-        group.MapPatch("/comments/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, JsonElement patch, BoardEventBroadcaster broadcaster) =>
+        group.MapPatch("/comments/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, UpdateCommentRequest request, BoardEventBroadcaster broadcaster) =>
         {
             var comment = await db.Comments.FindAsync(id);
             if (comment is null)
@@ -81,15 +80,14 @@ internal static class CommentEndpoints
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
 
-            if (patch.TryGetProperty("contentMarkdown", out var content))
+            if (request.ContentMarkdown is not null)
             {
-                var contentStr = content.ValueKind == JsonValueKind.Null ? null : content.GetString();
-                if (string.IsNullOrWhiteSpace(contentStr))
+                if (string.IsNullOrWhiteSpace(request.ContentMarkdown))
                 {
                     return Results.BadRequest("Content cannot be empty.");
                 }
 
-                comment.ContentMarkdown = contentStr;
+                comment.ContentMarkdown = request.ContentMarkdown;
             }
 
             comment.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
