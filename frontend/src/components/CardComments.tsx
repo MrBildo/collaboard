@@ -9,6 +9,7 @@ import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { useUserDirectory } from '@/hooks/use-user-directory';
 import { ROLES } from '@/lib/roles';
+import { formatDateTime } from '@/lib/utils';
 
 type CardCommentsProps = {
   cardId: string;
@@ -165,7 +166,7 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
                       {getUserName(comment.userId)}
                     </span>
                     {' · '}
-                    {new Date(comment.lastUpdatedAtUtc).toLocaleString()}
+                    {formatDateTime(comment.lastUpdatedAtUtc)}
                   </span>
                   <div className="flex gap-1">
                     {(currentUserRole === ROLES.Administrator || comment.userId === currentUserId) && (

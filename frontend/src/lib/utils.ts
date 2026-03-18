@@ -44,6 +44,18 @@ export function arraysEqual(a: string[], b: string[]): boolean {
   return sorted1.every((v, i) => v === sorted2[i]);
 }
 
+const DATE_FORMAT: Intl.DateTimeFormatOptions = {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+};
+
+export function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString('en-US', DATE_FORMAT);
+}
+
 export function getReadableColor(hex: string | null | undefined): string {
   if (!hex) return '#6b7280';
   const { r, g, b, luminance } = parseLuminance(hex);

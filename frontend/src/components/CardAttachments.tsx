@@ -6,6 +6,7 @@ import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { useUserDirectory } from '@/hooks/use-user-directory';
 import { ROLES } from '@/lib/roles';
+import { formatDateTime } from '@/lib/utils';
 import type { AttachmentMeta } from '@/types';
 
 type CardAttachmentsProps = {
@@ -144,7 +145,7 @@ export function CardAttachments({ cardId, currentUserId, currentUserRole }: Card
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{attachment.fileName}</p>
             <p className="text-xs text-muted-foreground">
-              {getUserName(attachment.addedByUserId)} &middot; {new Date(attachment.addedAtUtc).toLocaleString()}
+              {getUserName(attachment.addedByUserId)} &middot; {formatDateTime(attachment.addedAtUtc)}
             </p>
           </div>
           <div className="ml-2 flex shrink-0 gap-1">

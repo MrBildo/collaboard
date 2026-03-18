@@ -14,6 +14,7 @@ import {
 } from '@/lib/api';
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
+import { formatDateTime } from '@/lib/utils';
 import type { PruneFilters, PrunePreviewResponse } from '@/types';
 
 const PRESETS = [
@@ -155,8 +156,7 @@ export function PruneTab({ boardId }: PruneTabProps) {
     .filter((l) => selectedLabelIds.includes(l.id))
     .map((l) => l.name);
 
-  const formatDate = (iso: string) =>
-    new Date(iso).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const formatDate = formatDateTime;
 
   const customDateValue = olderThan && !selectedPreset
     ? new Date(olderThan).toISOString().split('T')[0]

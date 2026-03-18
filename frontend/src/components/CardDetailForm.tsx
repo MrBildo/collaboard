@@ -28,7 +28,7 @@ import { LabelPicker } from '@/components/LabelPicker';
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { useUserDirectory } from '@/hooks/use-user-directory';
-import { isTextInputFocused, buildPasteFileName, arraysEqual } from '@/lib/utils';
+import { isTextInputFocused, buildPasteFileName, arraysEqual, formatDateTime } from '@/lib/utils';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { ROLES } from '@/lib/roles';
 import type { BoardData, CardItem, CardSize, Lane, UpdateCardPatch } from '@/types';
@@ -389,11 +389,11 @@ export function CardDetailForm({
           <div className="mt-4 text-xs text-muted-foreground">
             <p>
               Created by {getUserName(card.createdByUserId)} ·{' '}
-              {new Date(card.createdAtUtc).toLocaleString()}
+              {formatDateTime(card.createdAtUtc)}
             </p>
             <p>
               Updated by {getUserName(card.lastUpdatedByUserId)} ·{' '}
-              {new Date(card.lastUpdatedAtUtc).toLocaleString()}
+              {formatDateTime(card.lastUpdatedAtUtc)}
             </p>
           </div>
         </div>
