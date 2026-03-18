@@ -37,7 +37,7 @@ type CreateCardDialogProps = {
 export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, defaultLaneId }: CreateCardDialogProps) {
   const queryClient = useQueryClient();
 
-  const defaultSizeId = sizes.length > 0 ? sizes.sort((a, b) => a.ordinal - b.ordinal)[0].id : '';
+  const defaultSizeId = sizes.length > 0 ? [...sizes].sort((a, b) => a.ordinal - b.ordinal)[0].id : '';
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [sizeId, setSizeId] = useState(defaultSizeId);
