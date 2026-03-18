@@ -1,10 +1,14 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { isTextInputFocused } from '@/lib/utils';
 import { CardDetailForm } from '@/components/CardDetailForm';
+import { UnsavedChangesDialog } from '@/components/UnsavedChangesDialog';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { CardItem, CardSize, Lane } from '@/types';
+import type { UnsavedChangesAction } from '@/components/UnsavedChangesDialog';
+
+type PendingAction = { type: 'close' } | { type: 'navigate'; cardNumber: number };
 
 type CardDetailSheetProps = {
   card: CardItem | null;
@@ -32,6 +36,8 @@ export function CardDetailSheet({
   onNavigateCard,
 }: CardDetailSheetProps) {
   const isDirtyRef = useRef(false);
+  const saveRef = useRef<(() => void) | null>(null);
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
 
   const { prevCard, nextCard } = useMemo(() => {
     if (!card || !cardsInLane || cardsInLane.length === 0) return { prevCard: null, nextCard: null };
@@ -43,17 +49,54 @@ export function CardDetailSheet({
     };
   }, [card, cardsInLane]);
 
+  const executePendingAction = useCallback(
+    (action: PendingAction) => {
+      if (action.type === 'close') {
+        onOpenChange(false);
+      } else if (action.type === 'navigate' && onNavigateCard) {
+        onNavigateCard(action.cardNumber);
+      }
+    },
+    [onOpenChange, onNavigateCard],
+  );
+
+  const handleUnsavedAction = useCallback(
+    (action: UnsavedChangesAction) => {
+      const pending = pendingAction;
+      setPendingAction(null);
+
+      if (action === 'cancel') return;
+
+      if (action === 'save') {
+        saveRef.current?.();
+        return;
+      }
+
+      // discard
+      isDirtyRef.current = false;
+      if (pending) executePendingAction(pending);
+    },
+    [pendingAction, executePendingAction],
+  );
+
+  const requestAction = useCallback(
+    (action: PendingAction) => {
+      if (isDirtyRef.current) {
+        setPendingAction(action);
+        return;
+      }
+      executePendingAction(action);
+    },
+    [executePendingAction],
+  );
+
   const handleNavigate = useCallback(
     (direction: 'prev' | 'next') => {
       const target = direction === 'prev' ? prevCard : nextCard;
       if (!target || !onNavigateCard) return;
-      if (isDirtyRef.current) {
-        if (!window.confirm('You have unsaved changes. Discard them?')) return;
-      }
-      isDirtyRef.current = false;
-      onNavigateCard(target.number);
+      requestAction({ type: 'navigate', cardNumber: target.number });
     },
-    [prevCard, nextCard, onNavigateCard],
+    [prevCard, nextCard, onNavigateCard, requestAction],
   );
 
   useEffect(() => {
@@ -75,13 +118,12 @@ export function CardDetailSheet({
   const handleDialogOpenChange = useCallback(
     (nextOpen: boolean) => {
       if (!nextOpen) {
-        if (isDirtyRef.current) {
-          if (!window.confirm('You have unsaved changes. Discard them?')) return;
-        }
+        requestAction({ type: 'close' });
+        return;
       }
       onOpenChange(nextOpen);
     },
-    [onOpenChange],
+    [onOpenChange, requestAction],
   );
 
   if (!card) return null;
@@ -91,48 +133,55 @@ export function CardDetailSheet({
     : null;
 
   return (
-    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-      <DialogContent data-mobile-fullscreen className="flex flex-col p-0 md:max-h-[85vh] md:!w-[80vw] md:!max-w-[80vw]" style={{ overflow: 'visible' }}>
-        {/* Floating nav buttons — desktop only, positioned outside the dialog */}
-        {prevCard && (
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => handleNavigate('prev')}
-            className="absolute top-1/2 -left-14 z-50 hidden -translate-y-1/2 rounded-full shadow-lg md:flex"
-            aria-label="Previous card"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-        )}
-        {nextCard && (
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => handleNavigate('next')}
-            className="absolute top-1/2 -right-14 z-50 hidden -translate-y-1/2 rounded-full shadow-lg md:flex"
-            aria-label="Next card"
-          >
-            <ChevronRight className="h-5 w-5" />
-          </Button>
-        )}
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <CardDetailForm
-            key={card.id}
-            card={card}
-            onClose={() => handleDialogOpenChange(false)}
-            currentUserId={currentUserId}
-            currentUserRole={currentUserRole}
-            lanes={lanes}
-            boardId={boardId}
-            sizes={sizes}
-            isDirtyRef={isDirtyRef}
-            navPosition={navPosition}
-            onNavigatePrev={prevCard ? () => handleNavigate('prev') : undefined}
-            onNavigateNext={nextCard ? () => handleNavigate('next') : undefined}
-          />
-        </div>
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog open={open} onOpenChange={handleDialogOpenChange}>
+        <DialogContent data-mobile-fullscreen className="flex flex-col p-0 md:max-h-[85vh] md:!w-[80vw] md:!max-w-[80vw]" style={{ overflow: 'visible' }}>
+          {/* Floating nav buttons — desktop only, positioned outside the dialog */}
+          {prevCard && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => handleNavigate('prev')}
+              className="absolute top-1/2 -left-14 z-50 hidden -translate-y-1/2 rounded-full shadow-lg md:flex"
+              aria-label="Previous card"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+          )}
+          {nextCard && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => handleNavigate('next')}
+              className="absolute top-1/2 -right-14 z-50 hidden -translate-y-1/2 rounded-full shadow-lg md:flex"
+              aria-label="Next card"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+          )}
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <CardDetailForm
+              key={card.id}
+              card={card}
+              onClose={() => handleDialogOpenChange(false)}
+              currentUserId={currentUserId}
+              currentUserRole={currentUserRole}
+              lanes={lanes}
+              boardId={boardId}
+              sizes={sizes}
+              isDirtyRef={isDirtyRef}
+              saveRef={saveRef}
+              navPosition={navPosition}
+              onNavigatePrev={prevCard ? () => handleNavigate('prev') : undefined}
+              onNavigateNext={nextCard ? () => handleNavigate('next') : undefined}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+      <UnsavedChangesDialog
+        open={pendingAction !== null}
+        onAction={handleUnsavedAction}
+      />
+    </>
   );
 }
