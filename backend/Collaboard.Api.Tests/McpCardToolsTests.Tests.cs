@@ -2,6 +2,7 @@ using Collaboard.Api.Events;
 using Collaboard.Api.Mcp;
 using Collaboard.Api.Models;
 using Collaboard.Api.Tests.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 
@@ -33,11 +34,11 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
 
     private async Task<(Guid LaneId1, Guid LaneId2)> GetTwoLaneIdsAsync(BoardDbContext db)
     {
-        var lanes = db.Lanes
+        var lanes = await db.Lanes
             .Where(l => l.BoardId == _factory.DefaultBoardId)
             .OrderBy(l => l.Position)
             .Select(l => l.Id)
-            .ToList();
+            .ToListAsync();
 
         lanes.Count.ShouldBeGreaterThanOrEqualTo(2);
         return (lanes[0], lanes[1]);
@@ -58,7 +59,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
     {
         // Arrange
         var (db, tools, authKey) = CreateTools();
-        var lanes = db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToList();
+        var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
         var cardId = await CreateCardInLaneAsync(tools, authKey, lanes[0]);
 
         // Act
@@ -73,7 +74,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
     {
         // Arrange
         var (db, tools, authKey) = CreateTools();
-        var lanes = db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToList();
+        var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
         var cardId = await CreateCardInLaneAsync(tools, authKey, lanes[0]);
         var card = await db.Cards.FindAsync(cardId);
         var originalTimestamp = card!.LastUpdatedAtUtc;
@@ -154,9 +155,9 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
         json.RootElement.GetProperty("laneId").GetGuid().ShouldBe(lane2);
 
         // Card should have the highest position in lane2
-        var maxPosOtherCards = db.Cards
+        var maxPosOtherCards = await db.Cards
             .Where(c => c.LaneId == lane2 && c.Id != cardId)
-            .Max(c => (int?)c.Position) ?? -1;
+            .MaxAsync(c => (int?)c.Position) ?? -1;
         json.RootElement.GetProperty("position").GetInt32().ShouldBeGreaterThan(maxPosOtherCards);
     }
 
@@ -165,7 +166,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
     {
         // Arrange
         var (db, tools, authKey) = CreateTools();
-        var lanes = db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToList();
+        var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
         var cardId = await CreateCardInLaneAsync(tools, authKey, lanes[0]);
 
         // Act
@@ -195,10 +196,10 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
         card2!.LaneId.ShouldBe(lane2);
 
         // Assert — remaining source cards maintain gap-free position spacing
-        var sourceCards = db.Cards
+        var sourceCards = await db.Cards
             .Where(c => c.LaneId == lane1 && (c.Id == card1Id || c.Id == card3Id))
             .OrderBy(c => c.Position)
-            .ToList();
+            .ToListAsync();
 
         sourceCards.Count.ShouldBe(2);
         sourceCards.Select(c => c.Id).ShouldContain(card1Id);
@@ -214,7 +215,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
     {
         // Arrange
         var (db, tools, authKey) = CreateTools();
-        var lanes = db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToList();
+        var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
         var cardId = await CreateCardInLaneAsync(tools, authKey, lanes[0]);
 
         // Create labels
@@ -228,7 +229,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
 
         // Assert
         result.ShouldNotContain("Error");
-        var cardLabels = db.CardLabels.Where(cl => cl.CardId == cardId).Select(cl => cl.LabelId).ToList();
+        var cardLabels = await db.CardLabels.Where(cl => cl.CardId == cardId).Select(cl => cl.LabelId).ToListAsync();
         cardLabels.Count.ShouldBe(2);
         cardLabels.ShouldContain(label1.Id);
         cardLabels.ShouldContain(label2.Id);
@@ -239,7 +240,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
     {
         // Arrange
         var (db, tools, authKey) = CreateTools();
-        var lanes = db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToList();
+        var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
         var cardId = await CreateCardInLaneAsync(tools, authKey, lanes[0]);
 
         var label1 = new Label { Id = Guid.NewGuid(), BoardId = _factory.DefaultBoardId, Name = $"Replace1-{Guid.NewGuid()}", Color = "red" };
@@ -256,7 +257,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
 
         // Assert
         result.ShouldNotContain("Error");
-        var cardLabels = db.CardLabels.Where(cl => cl.CardId == cardId).Select(cl => cl.LabelId).ToList();
+        var cardLabels = await db.CardLabels.Where(cl => cl.CardId == cardId).Select(cl => cl.LabelId).ToListAsync();
         cardLabels.Count.ShouldBe(2);
         cardLabels.ShouldContain(label2.Id);
         cardLabels.ShouldContain(label3.Id);
@@ -268,7 +269,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
     {
         // Arrange
         var (db, tools, authKey) = CreateTools();
-        var lanes = db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToList();
+        var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
         var cardId = await CreateCardInLaneAsync(tools, authKey, lanes[0]);
 
         var label = new Label { Id = Guid.NewGuid(), BoardId = _factory.DefaultBoardId, Name = $"ClearMe-{Guid.NewGuid()}", Color = "red" };
@@ -282,7 +283,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
 
         // Assert
         result.ShouldNotContain("Error");
-        var cardLabels = db.CardLabels.Where(cl => cl.CardId == cardId).ToList();
+        var cardLabels = await db.CardLabels.Where(cl => cl.CardId == cardId).ToListAsync();
         cardLabels.ShouldBeEmpty();
     }
 
@@ -291,7 +292,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
     {
         // Arrange
         var (db, tools, authKey) = CreateTools();
-        var lanes = db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToList();
+        var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
         var cardId = await CreateCardInLaneAsync(tools, authKey, lanes[0]);
 
         var bogusLabelId = Guid.NewGuid();
@@ -308,7 +309,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
     {
         // Arrange
         var (db, tools, authKey) = CreateTools();
-        var lanes = db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToList();
+        var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
         var cardId = await CreateCardInLaneAsync(tools, authKey, lanes[0]);
 
         // Act
@@ -324,7 +325,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
     public async Task CreateCard_WithLabelIds_AssignsLabels()
     {
         var (db, tools, authKey) = CreateTools();
-        var lanes = db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToList();
+        var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
         var label1 = new Label { Id = Guid.NewGuid(), BoardId = _factory.DefaultBoardId, Name = $"CL1-{Guid.NewGuid()}", Color = "red" };
         var label2 = new Label { Id = Guid.NewGuid(), BoardId = _factory.DefaultBoardId, Name = $"CL2-{Guid.NewGuid()}", Color = "blue" };
         db.Labels.AddRange(label1, label2);
@@ -335,7 +336,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
         result.ShouldNotContain("Error");
         var json = System.Text.Json.JsonDocument.Parse(result);
         var cardId = json.RootElement.GetProperty("id").GetGuid();
-        var cardLabels = db.CardLabels.Where(cl => cl.CardId == cardId).Select(cl => cl.LabelId).ToList();
+        var cardLabels = await db.CardLabels.Where(cl => cl.CardId == cardId).Select(cl => cl.LabelId).ToListAsync();
         cardLabels.Count.ShouldBe(2);
         cardLabels.ShouldContain(label1.Id);
         cardLabels.ShouldContain(label2.Id);
@@ -345,21 +346,21 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
     public async Task CreateCard_WithNoLabelIds_CreatesCardWithoutLabels()
     {
         var (db, tools, authKey) = CreateTools();
-        var lanes = db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToList();
+        var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
 
         var result = await tools.CreateCardAsync(authKey, "No Labels", lanes[0]);
 
         result.ShouldNotContain("Error");
         var json = System.Text.Json.JsonDocument.Parse(result);
         var cardId = json.RootElement.GetProperty("id").GetGuid();
-        db.CardLabels.Where(cl => cl.CardId == cardId).ToList().ShouldBeEmpty();
+        (await db.CardLabels.Where(cl => cl.CardId == cardId).ToListAsync()).ShouldBeEmpty();
     }
 
     [Fact]
     public async Task CreateCard_WithNonexistentLabel_ReturnsError()
     {
         var (db, tools, authKey) = CreateTools();
-        var lanes = db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToList();
+        var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
 
         var result = await tools.CreateCardAsync(authKey, "Bad Label", lanes[0], labelIds: Guid.NewGuid().ToString());
 
@@ -370,7 +371,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
     public async Task CreateCard_WithInvalidLabelIdFormat_ReturnsError()
     {
         var (db, tools, authKey) = CreateTools();
-        var lanes = db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToList();
+        var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
 
         var result = await tools.CreateCardAsync(authKey, "Bad Format", lanes[0], labelIds: "not-a-guid");
 
@@ -381,7 +382,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
     public async Task CreateCard_WithEmptyLabelIds_CreatesCardWithoutLabels()
     {
         var (db, tools, authKey) = CreateTools();
-        var lanes = db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToList();
+        var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
 
         var result = await tools.CreateCardAsync(authKey, "Empty Labels", lanes[0], labelIds: "");
 
@@ -405,8 +406,8 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
         await tools.MoveCardAsync(authKey, lane1, cardId: card3Id, index: 0);
 
         // Assert — all cards in lane should have contiguous positions: 0, 10, 20
-        var cards = db.Cards.Where(c => c.LaneId == lane1 && (c.Id == card1Id || c.Id == card2Id || c.Id == card3Id))
-            .OrderBy(c => c.Position).ToList();
+        var cards = await db.Cards.Where(c => c.LaneId == lane1 && (c.Id == card1Id || c.Id == card2Id || c.Id == card3Id))
+            .OrderBy(c => c.Position).ToListAsync();
         cards.Count.ShouldBe(3);
         cards[0].Position.ShouldBe(0);
         cards[1].Position.ShouldBe(10);
@@ -430,15 +431,15 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
         await tools.MoveCardAsync(authKey, lane2, cardId: s2, index: 0);
 
         // Assert — source lane: s1, s3 with positions 0, 10
-        var sourceCards = db.Cards.Where(c => c.LaneId == lane1 && (c.Id == s1 || c.Id == s3))
-            .OrderBy(c => c.Position).ToList();
+        var sourceCards = await db.Cards.Where(c => c.LaneId == lane1 && (c.Id == s1 || c.Id == s3))
+            .OrderBy(c => c.Position).ToListAsync();
         sourceCards.Count.ShouldBe(2);
         sourceCards[0].Position.ShouldBe(0);
         sourceCards[1].Position.ShouldBe(10);
 
         // Assert — target lane: s2 at front, t1 after
-        var targetCards = db.Cards.Where(c => c.LaneId == lane2 && (c.Id == s2 || c.Id == t1))
-            .OrderBy(c => c.Position).ToList();
+        var targetCards = await db.Cards.Where(c => c.LaneId == lane2 && (c.Id == s2 || c.Id == t1))
+            .OrderBy(c => c.Position).ToListAsync();
         targetCards.Count.ShouldBe(2);
         targetCards[0].Id.ShouldBe(s2);
         targetCards[0].Position.ShouldBe(0);
@@ -456,7 +457,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
         var card = await CreateCardInLaneAsync(tools, authKey, lane1, "Clamp Test");
 
         // Count cards already in lane2 (excluding the card being moved)
-        var existingCount = db.Cards.Count(c => c.LaneId == lane2);
+        var existingCount = await db.Cards.CountAsync(c => c.LaneId == lane2);
 
         // Act — move with index 999 (way beyond end)
         var result = await tools.MoveCardAsync(authKey, lane2, cardId: card, index: 999);
@@ -486,7 +487,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
     {
         // Arrange
         var (db, tools, authKey) = CreateTools();
-        var lanes = db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToList();
+        var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
         var lane = lanes[0];
 
         var c1 = await CreateCardInLaneAsync(tools, authKey, lane, "Same Lane A");
@@ -497,8 +498,8 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
         await tools.UpdateCardAsync(authKey, c1, laneId: lane, index: 2);
 
         // Assert
-        var cards = db.Cards.Where(c => c.LaneId == lane && (c.Id == c1 || c.Id == c2 || c.Id == c3))
-            .OrderBy(c => c.Position).ToList();
+        var cards = await db.Cards.Where(c => c.LaneId == lane && (c.Id == c1 || c.Id == c2 || c.Id == c3))
+            .OrderBy(c => c.Position).ToListAsync();
         cards.Count.ShouldBe(3);
         cards[0].Position.ShouldBe(0);
         cards[1].Position.ShouldBe(10);
@@ -552,7 +553,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
         json.RootElement.GetProperty("name").GetString().ShouldBe("Renamed");
         json.RootElement.GetProperty("laneId").GetGuid().ShouldBe(lane2);
 
-        var cardLabels = db.CardLabels.Where(cl => cl.CardId == cardId).Select(cl => cl.LabelId).ToList();
+        var cardLabels = await db.CardLabels.Where(cl => cl.CardId == cardId).Select(cl => cl.LabelId).ToListAsync();
         cardLabels.ShouldContain(label.Id);
     }
 }
