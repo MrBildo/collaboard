@@ -31,6 +31,7 @@ export function SearchCommand() {
   // Keyboard shortcuts: "/" or Ctrl+K to focus
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
+      if (document.querySelector('[data-slot="dialog-overlay"]')) return;
       if (event.key === '/' && !isTextInputFocused()) {
         event.preventDefault();
         inputRef.current?.focus();
