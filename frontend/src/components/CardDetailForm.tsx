@@ -42,6 +42,7 @@ type CardDetailFormProps = {
   boardId?: string;
   sizes?: CardSize[];
   isDirtyRef: React.MutableRefObject<boolean>;
+  saveRef?: React.MutableRefObject<(() => void) | null>;
   navPosition?: string | null;
   onNavigatePrev?: () => void;
   onNavigateNext?: () => void;
@@ -56,6 +57,7 @@ export function CardDetailForm({
   boardId,
   sizes,
   isDirtyRef,
+  saveRef,
   navPosition,
   onNavigatePrev,
   onNavigateNext,
@@ -191,7 +193,7 @@ export function CardDetailForm({
     },
   });
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     if (!isDirty) {
       isDirtyRef.current = false;
       onClose();
@@ -207,7 +209,19 @@ export function CardDetailForm({
     if (!arraysEqual(effectiveLabelIds, originalLabelIds)) patch.labelIds = effectiveLabelIds;
 
     updateMutation.mutate(patch);
-  };
+  }, [isDirty, isDirtyRef, onClose, name, card.name, description, card.descriptionMarkdown, sizeId, card.sizeId, currentLaneId, card.laneId, effectiveLabelIds, originalLabelIds, updateMutation]);
+
+  // Expose save function to parent for "Save & Close" in UnsavedChangesDialog
+  useEffect(() => {
+    if (saveRef) {
+      saveRef.current = handleSave;
+    }
+    return () => {
+      if (saveRef) {
+        saveRef.current = null;
+      }
+    };
+  }, [saveRef, handleSave]);
 
   const handleDelete = () => {
     if (!isConfirmingDelete) {
