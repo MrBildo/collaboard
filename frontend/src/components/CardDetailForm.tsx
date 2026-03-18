@@ -173,9 +173,10 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
           queryKeys.boards.data(boardId),
           (old) => old ? {
             ...old,
-            cards: old.cards.map((c) => c.id === card.id ? updatedCard : c),
+            cards: old.cards.map((c) => c.id === card.id ? { ...c, ...updatedCard } : c),
           } : old,
         );
+        queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
       }
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.labels(card.id) });
       isDirtyRef.current = false;

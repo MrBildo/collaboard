@@ -92,7 +92,7 @@ export const cardSummarySchema = z.object({
 
 export const boardDataSchema = z.object({
   lanes: z.array(laneSchema),
-  cards: z.array(cardItemSchema),
+  cards: z.array(cardSummarySchema),
   sizes: z.array(cardSizeSchema),
 });
 

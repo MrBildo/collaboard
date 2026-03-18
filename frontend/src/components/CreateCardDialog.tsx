@@ -78,9 +78,18 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
       queryClient.cancelQueries({ queryKey: queryKeys.boards.data(boardId) });
       queryClient.setQueryData<BoardData>(
         queryKeys.boards.data(boardId),
-        (old) => old ? { ...old, cards: [...old.cards, newCard] } : old,
+        (old) => old ? {
+          ...old,
+          cards: [...old.cards, {
+            ...newCard,
+            sizeName: sizes.find((s) => s.id === newCard.sizeId)?.name ?? '?',
+            labels: [],
+            commentCount: 0,
+            attachmentCount: 0,
+          }],
+        } : old,
       );
-      queryClient.invalidateQueries({ queryKey: queryKeys.boards.cards(boardId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
       onOpenChange(false);
     },
     onError: (error: unknown) => {
