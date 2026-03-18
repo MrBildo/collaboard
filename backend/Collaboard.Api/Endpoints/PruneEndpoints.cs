@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Collaboard.Api.Auth;
 using Collaboard.Api.Events;
 using Collaboard.Api.Models;
@@ -10,19 +9,19 @@ internal static class PruneEndpoints
 {
     public static RouteGroupBuilder MapPruneEndpoints(this RouteGroupBuilder group)
     {
-        group.MapPost("/boards/{boardId:guid}/prune/preview", async (BoardDbContext db, Guid boardId, JsonElement body) =>
+        group.MapPost("/boards/{boardId:guid}/prune/preview", async (BoardDbContext db, Guid boardId, PruneRequest request) =>
         {
             if (!await db.Boards.AnyAsync(x => x.Id == boardId))
             {
                 return Results.NotFound();
             }
 
-            if (!TryParseFilters(body, out var olderThan, out var laneIds, out var labelIds, out var error))
+            if (!ValidateFilters(request, out var error))
             {
                 return Results.BadRequest(error);
             }
 
-            var query = BuildFilteredQuery(db, boardId, olderThan, laneIds, labelIds);
+            var query = BuildFilteredQuery(db, boardId, request);
             var cards = await query.ToListAsync();
 
             // Batch load lane names
@@ -43,19 +42,19 @@ internal static class PruneEndpoints
             return Results.Ok(new { matchCount = cards.Count, cards = cardSummaries });
         }).RequireAdmin();
 
-        group.MapPost("/boards/{boardId:guid}/prune", async (BoardDbContext db, Guid boardId, JsonElement body, BoardEventBroadcaster broadcaster) =>
+        group.MapPost("/boards/{boardId:guid}/prune", async (BoardDbContext db, Guid boardId, PruneRequest request, BoardEventBroadcaster broadcaster) =>
         {
             if (!await db.Boards.AnyAsync(x => x.Id == boardId))
             {
                 return Results.NotFound();
             }
 
-            if (!TryParseFilters(body, out var olderThan, out var laneIds, out var labelIds, out var error))
+            if (!ValidateFilters(request, out var error))
             {
                 return Results.BadRequest(error);
             }
 
-            var query = BuildFilteredQuery(db, boardId, olderThan, laneIds, labelIds);
+            var query = BuildFilteredQuery(db, boardId, request);
             var cards = await query.ToListAsync();
 
             db.Cards.RemoveRange(cards);
@@ -69,49 +68,13 @@ internal static class PruneEndpoints
         return group;
     }
 
-    private static bool TryParseFilters(
-        JsonElement body,
-        out DateTimeOffset? olderThan,
-        out List<Guid>? laneIds,
-        out List<Guid>? labelIds,
-        out string? error)
+    private static bool ValidateFilters(PruneRequest request, out string? error)
     {
-        olderThan = null;
-        laneIds = null;
-        labelIds = null;
         error = null;
 
-        var hasAnyFilter = false;
-
-        if (body.TryGetProperty("olderThan", out var olderThanProp) && olderThanProp.ValueKind != JsonValueKind.Null)
-        {
-            if (!DateTimeOffset.TryParse(olderThanProp.GetString(), out var parsed))
-            {
-                error = "olderThan must be a valid ISO 8601 date.";
-                return false;
-            }
-
-            olderThan = parsed;
-            hasAnyFilter = true;
-        }
-
-        if (body.TryGetProperty("laneIds", out var laneIdsProp) && laneIdsProp.ValueKind == JsonValueKind.Array)
-        {
-            laneIds = [.. laneIdsProp.EnumerateArray().Select(e => e.GetGuid())];
-            if (laneIds.Count > 0)
-            {
-                hasAnyFilter = true;
-            }
-        }
-
-        if (body.TryGetProperty("labelIds", out var labelIdsProp) && labelIdsProp.ValueKind == JsonValueKind.Array)
-        {
-            labelIds = [.. labelIdsProp.EnumerateArray().Select(e => e.GetGuid())];
-            if (labelIds.Count > 0)
-            {
-                hasAnyFilter = true;
-            }
-        }
+        var hasAnyFilter = request.OlderThan is not null
+            || (request.LaneIds is not null && request.LaneIds.Length > 0)
+            || (request.LabelIds is not null && request.LabelIds.Length > 0);
 
         if (!hasAnyFilter)
         {
@@ -125,27 +88,27 @@ internal static class PruneEndpoints
     private static IQueryable<CardItem> BuildFilteredQuery(
         BoardDbContext db,
         Guid boardId,
-        DateTimeOffset? olderThan,
-        List<Guid>? laneIds,
-        List<Guid>? labelIds)
+        PruneRequest request)
     {
         var query = db.Cards.Where(c => c.BoardId == boardId);
 
-        if (olderThan.HasValue)
+        if (request.OlderThan.HasValue)
         {
             var cutoffIds = db.Cards
-                .FromSqlInterpolated($"SELECT * FROM Cards WHERE LastUpdatedAtUtc < {olderThan.Value.ToString("O")}")
+                .FromSqlInterpolated($"SELECT * FROM Cards WHERE LastUpdatedAtUtc < {request.OlderThan.Value.ToString("O")}")
                 .Select(c => c.Id);
             query = query.Where(c => cutoffIds.Contains(c.Id));
         }
 
-        if (laneIds is not null && laneIds.Count > 0)
+        if (request.LaneIds is not null && request.LaneIds.Length > 0)
         {
+            var laneIds = request.LaneIds.ToList();
             query = query.Where(c => laneIds.Contains(c.LaneId));
         }
 
-        if (labelIds is not null && labelIds.Count > 0)
+        if (request.LabelIds is not null && request.LabelIds.Length > 0)
         {
+            var labelIds = request.LabelIds.ToList();
             var cardIdsWithLabels = db.CardLabels
                 .Where(cl => labelIds.Contains(cl.LabelId))
                 .Select(cl => cl.CardId);

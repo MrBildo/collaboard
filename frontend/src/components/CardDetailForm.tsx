@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { usePanelResize } from '@/hooks/use-panel-resize';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -28,10 +29,14 @@ import { LabelPicker } from '@/components/LabelPicker';
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { useUserDirectory } from '@/hooks/use-user-directory';
-import { isTextInputFocused, buildPasteFileName, arraysEqual } from '@/lib/utils';
+import { cn, isTextInputFocused, buildPasteFileName, arraysEqual, formatDateTime } from '@/lib/utils';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { ROLES } from '@/lib/roles';
 import type { BoardData, CardItem, CardSize, Lane, UpdateCardPatch } from '@/types';
+
+export type CardDetailFormHandle = {
+  save: () => void;
+};
 
 type CardDetailFormProps = {
   card: CardItem;
@@ -42,13 +47,12 @@ type CardDetailFormProps = {
   boardId?: string;
   sizes?: CardSize[];
   isDirtyRef: React.MutableRefObject<boolean>;
-  saveRef?: React.MutableRefObject<(() => void) | null>;
   navPosition?: string | null;
   onNavigatePrev?: () => void;
   onNavigateNext?: () => void;
 };
 
-export function CardDetailForm({
+export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormProps>(function CardDetailForm({
   card,
   onClose,
   currentUserId,
@@ -57,13 +61,14 @@ export function CardDetailForm({
   boardId,
   sizes,
   isDirtyRef,
-  saveRef,
   navPosition,
   onNavigatePrev,
   onNavigateNext,
-}: CardDetailFormProps) {
+}, ref) {
   const queryClient = useQueryClient();
   const dialogRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const { width: commentsWidth, isDragging, onMouseDown } = usePanelResize(bodyRef);
 
   const [name, setName] = useState(card.name);
   const [currentLaneId, setCurrentLaneId] = useState(card.laneId);
@@ -168,13 +173,17 @@ export function CardDetailForm({
           queryKeys.boards.data(boardId),
           (old) => old ? {
             ...old,
-            cards: old.cards.map((c) => c.id === card.id ? updatedCard : c),
+            cards: old.cards.map((c) => c.id === card.id ? { ...c, ...updatedCard } : c),
           } : old,
         );
+        queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
       }
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.labels(card.id) });
       isDirtyRef.current = false;
       onClose();
+    },
+    onError: (error: unknown) => {
+      console.error('Failed to update card:', error);
     },
   });
 
@@ -190,6 +199,9 @@ export function CardDetailForm({
       }
       isDirtyRef.current = false;
       onClose();
+    },
+    onError: (error: unknown) => {
+      console.error('Failed to delete card:', error);
     },
   });
 
@@ -211,17 +223,7 @@ export function CardDetailForm({
     updateMutation.mutate(patch);
   }, [isDirty, isDirtyRef, onClose, name, card.name, description, card.descriptionMarkdown, sizeId, card.sizeId, currentLaneId, card.laneId, effectiveLabelIds, originalLabelIds, updateMutation]);
 
-  // Expose save function to parent for "Save & Close" in UnsavedChangesDialog
-  useEffect(() => {
-    if (saveRef) {
-      saveRef.current = handleSave;
-    }
-    return () => {
-      if (saveRef) {
-        saveRef.current = null;
-      }
-    };
-  }, [saveRef, handleSave]);
+  useImperativeHandle(ref, () => ({ save: handleSave }), [handleSave]);
 
   const handleDelete = () => {
     if (!isConfirmingDelete) {
@@ -243,7 +245,7 @@ export function CardDetailForm({
       )}
 
       {/* Header */}
-      <DialogHeader className="px-6 pt-6 pb-4">
+      <DialogHeader className="border-b px-6 pt-6 pb-4">
         <div className="flex items-center gap-2">
           <DialogDescription className="text-xs">#{card.number}</DialogDescription>
           {(onNavigatePrev || onNavigateNext) && (
@@ -331,9 +333,9 @@ export function CardDetailForm({
       </DialogHeader>
 
       {/* Two-column body (stacked on mobile) */}
-      <div className="flex flex-1 gap-0 overflow-hidden max-md:flex-col max-md:overflow-y-auto">
+      <div ref={bodyRef} className="flex flex-1 gap-0 overflow-hidden max-md:flex-col max-md:overflow-y-auto">
         {/* Left column — details */}
-        <div className="flex-1 px-6 py-4 md:overflow-y-auto">
+        <div className="min-w-0 flex-1 px-6 py-4 md:overflow-y-auto">
           {/* Description */}
           <div className="mb-4">
             <div className="mb-2 flex items-center gap-1">
@@ -361,7 +363,7 @@ export function CardDetailForm({
                 placeholder="Write a description..."
               />
             ) : (
-              <div className="prose prose-sm max-w-none rounded-md border bg-muted/30 p-4 text-sm text-foreground">
+              <div className="prose prose-sm max-w-none overflow-x-auto rounded-md border bg-muted/30 p-4 text-sm text-foreground">
                 {description ? (
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{description}</ReactMarkdown>
                 ) : (
@@ -389,17 +391,30 @@ export function CardDetailForm({
           <div className="mt-4 text-xs text-muted-foreground">
             <p>
               Created by {getUserName(card.createdByUserId)} ·{' '}
-              {new Date(card.createdAtUtc).toLocaleString()}
+              {formatDateTime(card.createdAtUtc)}
             </p>
             <p>
               Updated by {getUserName(card.lastUpdatedByUserId)} ·{' '}
-              {new Date(card.lastUpdatedAtUtc).toLocaleString()}
+              {formatDateTime(card.lastUpdatedAtUtc)}
             </p>
           </div>
         </div>
 
+        {/* Drag handle (desktop only) — wide hit area, thin visible line via pseudo-element */}
+        <div
+          onMouseDown={onMouseDown}
+          className={cn(
+            'relative hidden w-3 shrink-0 cursor-col-resize md:block',
+            'after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-border after:transition-colors',
+            isDragging ? 'after:bg-primary/50' : 'hover:after:bg-primary/50',
+          )}
+        />
+
         {/* Right column — comments (below on mobile) */}
-        <div className="flex shrink-0 flex-col border-border px-5 pt-2 pb-4 max-md:w-full max-md:border-t md:w-[340px] md:overflow-y-auto md:border-l">
+        <div
+          className="comments-panel-resizable flex shrink-0 flex-col border-border px-5 pt-2 pb-4 max-md:w-full max-md:border-t md:overflow-y-auto"
+          style={{ '--comments-width': `${Math.round(commentsWidth)}px` } as React.CSSProperties}
+        >
           <h3 className="mb-3 text-sm font-semibold">
             Comments{' '}
             <span className="font-normal text-muted-foreground">(Markdown supported)</span>
@@ -441,4 +456,4 @@ export function CardDetailForm({
       </div>
     </div>
   );
-}
+});

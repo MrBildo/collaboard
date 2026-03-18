@@ -37,7 +37,7 @@ type CreateCardDialogProps = {
 export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, defaultLaneId }: CreateCardDialogProps) {
   const queryClient = useQueryClient();
 
-  const defaultSizeId = sizes.length > 0 ? sizes.sort((a, b) => a.ordinal - b.ordinal)[0].id : '';
+  const defaultSizeId = sizes.length > 0 ? [...sizes].sort((a, b) => a.ordinal - b.ordinal)[0].id : '';
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [sizeId, setSizeId] = useState(defaultSizeId);
@@ -78,10 +78,22 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
       queryClient.cancelQueries({ queryKey: queryKeys.boards.data(boardId) });
       queryClient.setQueryData<BoardData>(
         queryKeys.boards.data(boardId),
-        (old) => old ? { ...old, cards: [...old.cards, newCard] } : old,
+        (old) => old ? {
+          ...old,
+          cards: [...old.cards, {
+            ...newCard,
+            sizeName: sizes.find((s) => s.id === newCard.sizeId)?.name ?? '?',
+            labels: [],
+            commentCount: 0,
+            attachmentCount: 0,
+          }],
+        } : old,
       );
-      queryClient.invalidateQueries({ queryKey: queryKeys.boards.cards(boardId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
       onOpenChange(false);
+    },
+    onError: (error: unknown) => {
+      console.error('Failed to create card:', error);
     },
   });
 

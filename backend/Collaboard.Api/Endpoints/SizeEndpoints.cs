@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Collaboard.Api.Auth;
 using Collaboard.Api.Events;
 using Collaboard.Api.Models;
@@ -68,7 +67,7 @@ internal static class SizeEndpoints
             return Results.NoContent();
         }).RequireAdmin();
 
-        group.MapPatch("/sizes/{id:guid}", async (BoardDbContext db, Guid id, JsonElement patch, BoardEventBroadcaster broadcaster) =>
+        group.MapPatch("/sizes/{id:guid}", async (BoardDbContext db, Guid id, UpdateSizeRequest request, BoardEventBroadcaster broadcaster) =>
         {
             var size = await db.CardSizes.FindAsync(id);
             if (size is null)
@@ -76,20 +75,19 @@ internal static class SizeEndpoints
                 return Results.NotFound();
             }
 
-            if (patch.TryGetProperty("name", out var name))
+            if (request.Name is not null)
             {
-                var nameStr = name.ValueKind == JsonValueKind.Null ? null : name.GetString();
-                if (string.IsNullOrWhiteSpace(nameStr))
+                if (string.IsNullOrWhiteSpace(request.Name))
                 {
                     return Results.BadRequest("Name cannot be empty.");
                 }
 
-                size.Name = nameStr;
+                size.Name = request.Name;
             }
 
-            if (patch.TryGetProperty("ordinal", out var ord))
+            if (request.Ordinal is not null)
             {
-                var newOrd = ord.GetInt32();
+                var newOrd = request.Ordinal.Value;
                 if (await db.CardSizes.AnyAsync(x => x.BoardId == size.BoardId && x.Ordinal == newOrd && x.Id != id))
                 {
                     return Results.Conflict("Ordinal already taken by another size.");

@@ -109,6 +109,9 @@ function BoardsTab() {
       queryClient.invalidateQueries({ queryKey: queryKeys.boards.all() });
       list.setEditingId(null);
     },
+    onError: (error: unknown) => {
+      console.error('Failed to update board:', error);
+    },
   });
 
   const deleteMutation = useMutation({
@@ -240,6 +243,9 @@ function UsersTab() {
       setNewRole('1');
       setCreatedKey(user.authKey);
     },
+    onError: (error: unknown) => {
+      console.error('Failed to create user:', error);
+    },
   });
 
   const deactivateMutation = useMutation({
@@ -247,6 +253,9 @@ function UsersTab() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all() });
       setConfirmDeactivateId(null);
+    },
+    onError: (error: unknown) => {
+      console.error('Failed to deactivate user:', error);
     },
   });
 

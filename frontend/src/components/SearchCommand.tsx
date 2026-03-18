@@ -1,47 +1,38 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { searchAllCards } from '@/lib/api';
 import { queryKeys } from '@/lib/query-keys';
-import { cn } from '@/lib/utils';
+import { cn, isTextInputFocused } from '@/lib/utils';
+import { useDebounce } from '@/hooks/use-debounce';
+import { useClickOutside } from '@/hooks/use-click-outside';
 import type { SearchResult } from '@/types';
 
 export function SearchCommand() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [dismissedQuery, setDismissedQuery] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Debounce the query by 300ms
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedQuery(query.trim());
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [query]);
+  const debouncedQuery = useDebounce(query.trim(), 300);
 
   // Derive open state: show dropdown when query is valid and not dismissed for this specific query
   const open = debouncedQuery.length >= 2 && dismissedQuery !== debouncedQuery;
 
-  // Close on outside click
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setDismissedQuery(debouncedQuery);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  // Close on outside click — callback always sees latest debouncedQuery via latest-ref pattern in hook
+  useClickOutside(containerRef, useCallback(() => {
+    setDismissedQuery(debouncedQuery);
+  }, [debouncedQuery]));
 
-  // Keyboard shortcuts: "/" or Ctrl+K to focus, Escape to close
+  // Keyboard shortcuts: "/" or Ctrl+K to focus
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === '/' && !isInputFocused()) {
+      if (document.querySelector('[data-slot="dialog-overlay"]')) return;
+      if (event.key === '/' && !isTextInputFocused()) {
         event.preventDefault();
         inputRef.current?.focus();
       }
@@ -67,13 +58,11 @@ export function SearchCommand() {
   const handleSelect = (boardSlug: string, cardNumber: number) => {
     setDismissedQuery(debouncedQuery);
     setQuery('');
-    setDebouncedQuery('');
     navigate(`/boards/${boardSlug}/cards/${cardNumber}`);
   };
 
   const handleClear = () => {
     setQuery('');
-    setDebouncedQuery('');
     setDismissedQuery(debouncedQuery);
     inputRef.current?.focus();
   };
@@ -104,13 +93,14 @@ export function SearchCommand() {
           className="pl-8 pr-8"
         />
         {query.length > 0 && (
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon-xs"
             onClick={handleClear}
             className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
           >
             <X className="w-4 h-4" />
-          </button>
+          </Button>
         )}
       </div>
       {open && (
@@ -160,9 +150,4 @@ export function SearchCommand() {
       )}
     </div>
   );
-}
-
-function isInputFocused(): boolean {
-  const tag = document.activeElement?.tagName?.toLowerCase();
-  return tag === 'input' || tag === 'textarea' || tag === 'select';
 }

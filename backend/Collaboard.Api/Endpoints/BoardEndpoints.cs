@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Collaboard.Api.Auth;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
@@ -22,14 +21,14 @@ internal static class BoardEndpoints
             return board is null ? Results.NotFound() : Results.Ok(board);
         }).RequireAuth();
 
-        group.MapPost("/boards", async (BoardDbContext db, JsonElement body) =>
+        group.MapPost("/boards", async (BoardDbContext db, CreateBoardRequest request) =>
         {
-            if (!body.TryGetProperty("name", out var nameProp) || string.IsNullOrWhiteSpace(nameProp.GetString()))
+            if (string.IsNullOrWhiteSpace(request.Name))
             {
                 return Results.BadRequest("Name is required.");
             }
 
-            var name = nameProp.GetString()!;
+            var name = request.Name;
             var slug = Board.GenerateSlug(name);
 
             if (await db.Boards.AnyAsync(x => x.Slug == slug))
@@ -57,7 +56,7 @@ internal static class BoardEndpoints
             return Results.Created($"/api/v1/boards/{board.Id}", board);
         }).RequireAdmin();
 
-        group.MapPatch("/boards/{id:guid}", async (BoardDbContext db, Guid id, JsonElement patch) =>
+        group.MapPatch("/boards/{id:guid}", async (BoardDbContext db, Guid id, UpdateBoardRequest request) =>
         {
             var board = await db.Boards.FindAsync(id);
             if (board is null)
@@ -65,15 +64,14 @@ internal static class BoardEndpoints
                 return Results.NotFound();
             }
 
-            if (patch.TryGetProperty("name", out var name))
+            if (request.Name is not null)
             {
-                var nameStr = name.ValueKind == JsonValueKind.Null ? null : name.GetString();
-                if (string.IsNullOrWhiteSpace(nameStr))
+                if (string.IsNullOrWhiteSpace(request.Name))
                 {
                     return Results.BadRequest("Name cannot be empty.");
                 }
 
-                board.Name = nameStr;
+                board.Name = request.Name;
             }
 
             await db.SaveChangesAsync();
@@ -107,7 +105,8 @@ internal static class BoardEndpoints
             }
 
             var lanes = await db.Lanes.Where(x => x.BoardId == boardId).OrderBy(x => x.Position).ToListAsync();
-            var cards = await db.Cards.Where(x => x.BoardId == boardId).OrderBy(x => x.LaneId).ThenBy(x => x.Position).ToListAsync();
+            var rawCards = await db.Cards.Where(x => x.BoardId == boardId).OrderBy(x => x.LaneId).ThenBy(x => x.Position).ToListAsync();
+            var cards = await CardSummaryBuilder.BuildAsync(db, rawCards);
             var sizes = await db.CardSizes.Where(x => x.BoardId == boardId).OrderBy(x => x.Ordinal).ToListAsync();
             return Results.Ok(new { lanes, cards, sizes });
         }).RequireAuth();

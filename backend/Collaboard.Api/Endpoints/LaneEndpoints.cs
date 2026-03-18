@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Collaboard.Api.Auth;
 using Collaboard.Api.Events;
 using Collaboard.Api.Models;
@@ -62,7 +61,7 @@ internal static class LaneEndpoints
             return Results.NoContent();
         }).RequireAdmin();
 
-        group.MapPatch("/lanes/{id:guid}", async (BoardDbContext db, Guid id, JsonElement patch, BoardEventBroadcaster broadcaster) =>
+        group.MapPatch("/lanes/{id:guid}", async (BoardDbContext db, Guid id, UpdateLaneRequest request, BoardEventBroadcaster broadcaster) =>
         {
             var lane = await db.Lanes.FindAsync(id);
             if (lane is null)
@@ -70,20 +69,19 @@ internal static class LaneEndpoints
                 return Results.NotFound();
             }
 
-            if (patch.TryGetProperty("name", out var name))
+            if (request.Name is not null)
             {
-                var nameStr = name.ValueKind == JsonValueKind.Null ? null : name.GetString();
-                if (string.IsNullOrWhiteSpace(nameStr))
+                if (string.IsNullOrWhiteSpace(request.Name))
                 {
                     return Results.BadRequest("Name cannot be empty.");
                 }
 
-                lane.Name = nameStr;
+                lane.Name = request.Name;
             }
 
-            if (patch.TryGetProperty("position", out var pos))
+            if (request.Position is not null)
             {
-                var newPos = pos.GetInt32();
+                var newPos = request.Position.Value;
                 if (await db.Lanes.AnyAsync(x => x.BoardId == lane.BoardId && x.Position == newPos && x.Id != id))
                 {
                     return Results.Conflict("Position already taken by another lane.");
