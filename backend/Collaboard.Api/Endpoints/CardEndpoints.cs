@@ -179,9 +179,15 @@ internal static class CardEndpoints
                 }
 
                 var newLaneId = lane.GetGuid();
-                if (!await db.Lanes.AnyAsync(l => l.Id == newLaneId))
+                var targetLane = await db.Lanes.FindAsync(newLaneId);
+                if (targetLane is null)
                 {
                     return Results.BadRequest("Lane not found.");
+                }
+
+                if (targetLane.BoardId != card.BoardId)
+                {
+                    return Results.BadRequest("Lane does not belong to this board.");
                 }
 
                 card.LaneId = newLaneId;
@@ -194,24 +200,28 @@ internal static class CardEndpoints
 
             if (patch.TryGetProperty("labelIds", out var labelIds))
             {
+                var newLabelIds = labelIds.EnumerateArray().Select(e => e.GetGuid()).ToList();
+                if (newLabelIds.Count > 0)
+                {
+                    var validCount = await db.Labels.CountAsync(l => newLabelIds.Contains(l.Id) && l.BoardId == card.BoardId);
+                    if (validCount != newLabelIds.Count)
+                    {
+                        return Results.BadRequest("One or more labels do not belong to this board.");
+                    }
+                }
+
                 var existingLabels = await db.CardLabels.Where(x => x.CardId == id).ToListAsync();
                 db.CardLabels.RemoveRange(existingLabels);
-                foreach (var labelIdElement in labelIds.EnumerateArray())
+                foreach (var labelId in newLabelIds)
                 {
-                    db.CardLabels.Add(new CardLabel { CardId = id, LabelId = labelIdElement.GetGuid() });
+                    db.CardLabels.Add(new CardLabel { CardId = id, LabelId = labelId });
                 }
             }
 
             card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
             card.LastUpdatedByUserId = http.CurrentUser().Id;
             await db.SaveChangesAsync();
-
-            // Resolve the board from the card's lane
-            var cardLane = await db.Lanes.FindAsync(card.LaneId);
-            if (cardLane is not null)
-            {
-                broadcaster.PublishBoardUpdated(cardLane.BoardId);
-            }
+            broadcaster.PublishBoardUpdated(card.BoardId);
 
             return Results.Ok(card);
         }).RequireAuth();
