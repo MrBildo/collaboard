@@ -3,6 +3,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { isTextInputFocused } from '@/lib/utils';
 import { CardDetailForm } from '@/components/CardDetailForm';
+import type { CardDetailFormHandle } from '@/components/CardDetailForm';
 import { UnsavedChangesDialog } from '@/components/UnsavedChangesDialog';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { CardItem, CardSize, Lane } from '@/types';
@@ -36,7 +37,7 @@ export function CardDetailSheet({
   onNavigateCard,
 }: CardDetailSheetProps) {
   const isDirtyRef = useRef(false);
-  const saveRef = useRef<(() => void) | null>(null);
+  const formRef = useRef<CardDetailFormHandle>(null);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
 
   const { prevCard, nextCard } = useMemo(() => {
@@ -68,7 +69,7 @@ export function CardDetailSheet({
       if (action === 'cancel') return;
 
       if (action === 'save') {
-        saveRef.current?.();
+        formRef.current?.save();
         return;
       }
 
@@ -163,6 +164,7 @@ export function CardDetailSheet({
           )}
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <CardDetailForm
+              ref={formRef}
               key={card.id}
               card={card}
               onClose={() => handleDialogOpenChange(false)}
@@ -172,7 +174,6 @@ export function CardDetailSheet({
               boardId={boardId}
               sizes={sizes}
               isDirtyRef={isDirtyRef}
-              saveRef={saveRef}
               navPosition={navPosition}
               onNavigatePrev={prevCard ? () => handleNavigate('prev') : undefined}
               onNavigateNext={nextCard ? () => handleNavigate('next') : undefined}
