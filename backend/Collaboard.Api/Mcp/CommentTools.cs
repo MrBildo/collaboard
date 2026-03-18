@@ -52,4 +52,35 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
         await db.PublishForCardAsync(card.Id, broadcaster);
         return JsonSerializer.Serialize(comment, JsonSerializerOptions.Web);
     }
+
+    [McpServerTool(Name = "delete_comment", Destructive = true)]
+    [Description("Delete a comment you wrote. Administrators can delete any comment.")]
+    public async Task<string> DeleteCommentAsync(
+        [Description("Your auth key")] string authKey,
+        [Description("The ID (guid) of the comment to delete")] Guid commentId,
+        CancellationToken ct = default)
+    {
+        var (user, error) = await auth.RequireUserAsync(authKey, ct);
+        if (error is not null)
+        {
+            return error;
+        }
+
+        var comment = await db.Comments.FindAsync([commentId], ct);
+        if (comment is null)
+        {
+            return "Error: Comment not found.";
+        }
+
+        if (comment.UserId != user!.Id && user.Role != UserRole.Administrator)
+        {
+            return "Error: You can only delete your own comments.";
+        }
+
+        var cardId = comment.CardId;
+        db.Comments.Remove(comment);
+        await db.SaveChangesAsync(ct);
+        await db.PublishForCardAsync(cardId, broadcaster);
+        return "Comment deleted.";
+    }
 }
