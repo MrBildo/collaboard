@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 
 export type LabelLike = {
   id: string;
@@ -104,7 +104,7 @@ export function useLabelLayout(
 
   // Keep a ref so the ResizeObserver callback always reads fresh labels
   const labelsRef = useRef(labels);
-  labelsRef.current = labels;
+  useEffect(() => { labelsRef.current = labels; });
 
   // Stable key — only re-run effect when actual label set changes
   const labelsKey = labels.map((l) => l.id).join(',');
