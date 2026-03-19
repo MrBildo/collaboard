@@ -1,8 +1,11 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useQuery } from '@tanstack/react-query';
+import { useRef } from 'react';
 import { MessageSquare, Paperclip } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useLabelLayout } from '@/hooks/use-label-layout';
 import { fetchCardAttachments, fetchCardLabels, fetchComments } from '@/lib/api';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { queryKeys } from '@/lib/query-keys';
@@ -47,9 +50,11 @@ export function SortableCard({
     enabled: !enrichedData,
     ...QUERY_DEFAULTS.attachments,
   });
-  const labels = enrichedData?.labels ?? labelsQuery.data ?? [];
+  const labels = [...(enrichedData?.labels ?? labelsQuery.data ?? [])].sort((a, b) => a.name.length - b.name.length);
   const commentCount = enrichedData?.commentCount ?? commentsQuery.data?.length ?? 0;
   const attachmentCount = enrichedData?.attachmentCount ?? attachmentsQuery.data?.length ?? 0;
+  const labelContainerRef = useRef<HTMLDivElement>(null);
+  const labelLayout = useLabelLayout(labels, labelContainerRef);
 
   return (
     <div
@@ -65,7 +70,25 @@ export function SortableCard({
     >
       <div className="flex items-start justify-between gap-2">
         <h3 className="min-w-0 text-sm font-medium leading-snug break-words">{card.name}</h3>
-        <Badge variant="outline" className="mt-0.5 max-w-[6rem] shrink-0 justify-start text-xs">{sizeMap.get(card.sizeId) ?? '?'}</Badge>
+        {(() => {
+          const sizeName = sizeMap.get(card.sizeId) ?? '?';
+          let sizeDisplay: string;
+          if (sizeName.length <= 3 || card.name.length <= 30) {
+            sizeDisplay = sizeName;
+          } else if (card.name.length <= 60) {
+            sizeDisplay = sizeName.split(/[\s(]/)[0];
+          } else {
+            sizeDisplay = sizeName[0].toUpperCase();
+          }
+          return (
+            <Tooltip>
+              <TooltipTrigger render={<span />}>
+                <Badge variant="outline" className="mt-0.5 shrink-0 text-xs">{sizeDisplay}</Badge>
+              </TooltipTrigger>
+              <TooltipContent>{sizeName}</TooltipContent>
+            </Tooltip>
+          );
+        })()}
       </div>
 
       <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
@@ -88,17 +111,45 @@ export function SortableCard({
       </div>
 
       {labels.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1">
-          {labels.map((label) => (
-            <Badge
-              key={label.id}
-              variant="secondary"
-              className="max-w-full rounded-sm text-xs"
-              style={label.color ? { backgroundColor: label.color, color: getContrastColor(label.color) } : undefined}
-            >
-              {label.name}
-            </Badge>
-          ))}
+        <div ref={labelContainerRef} className="mt-2 flex items-center gap-1">
+          {labelLayout.items.map((item) =>
+            item.mode === 'full' ? (
+              <Tooltip key={item.label.id}>
+                <TooltipTrigger render={<span className="flex items-center" />}>
+                  <Badge
+                    variant="secondary"
+                    className="max-w-full rounded-sm text-xs"
+                    style={item.label.color ? { backgroundColor: item.label.color, color: getContrastColor(item.label.color) } : undefined}
+                  >
+                    {item.label.name}
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>{item.label.name}</TooltipContent>
+              </Tooltip>
+            ) : (
+              <Tooltip key={item.label.id}>
+                <TooltipTrigger render={<span className="flex items-center" />}>
+                  <span
+                    className="inline-block h-5 w-6 shrink-0 rounded-sm"
+                    style={{ backgroundColor: item.label.color ?? '#6b7280' }}
+                  />
+                </TooltipTrigger>
+                <TooltipContent>{item.label.name}</TooltipContent>
+              </Tooltip>
+            ),
+          )}
+          {labelLayout.overflowCount > 0 && (
+            <Tooltip>
+              <TooltipTrigger render={<span />}>
+                <Badge variant="outline" className="rounded-sm text-xs">
+                  +{labelLayout.overflowCount}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                {labels.slice(labels.length - labelLayout.overflowCount).map((l) => l.name).join(', ')}
+              </TooltipContent>
+            </Tooltip>
+          )}
         </div>
       )}
     </div>

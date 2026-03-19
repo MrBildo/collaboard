@@ -130,6 +130,7 @@ export function SizesTab({ boardId }: SizesTabProps) {
                   <Input
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
+                    maxLength={20}
                     className="h-7"
                     placeholder="Size name"
                   />
@@ -178,6 +179,7 @@ export function SizesTab({ boardId }: SizesTabProps) {
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); }}
+              maxLength={20}
               placeholder="e.g. XXL"
             />
           </div>

@@ -121,6 +121,7 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Card name"
+                maxLength={120}
                 required
               />
             </div>

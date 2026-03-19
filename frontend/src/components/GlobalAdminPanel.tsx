@@ -167,6 +167,7 @@ function BoardsTab() {
                   <Input
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
+                    maxLength={80}
                     className="h-7"
                     placeholder="Board name"
                   />
@@ -206,6 +207,7 @@ function BoardsTab() {
               id="board-name"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
+              maxLength={80}
               placeholder="e.g. Sprint Board"
             />
           </div>
