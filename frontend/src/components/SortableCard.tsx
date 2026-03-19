@@ -1,16 +1,16 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useQuery } from '@tanstack/react-query';
+import { useRef } from 'react';
 import { MessageSquare, Paperclip } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useLabelLayout } from '@/hooks/use-label-layout';
 import { fetchCardAttachments, fetchCardLabels, fetchComments } from '@/lib/api';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { queryKeys } from '@/lib/query-keys';
 import { cn, getContrastColor } from '@/lib/utils';
 import type { CardItem, CardSummary } from '@/types';
-
-const MAX_VISIBLE_LABELS = 3;
 
 type SortableCardProps = {
   card: CardItem;
@@ -53,6 +53,8 @@ export function SortableCard({
   const labels = [...(enrichedData?.labels ?? labelsQuery.data ?? [])].sort((a, b) => a.name.length - b.name.length);
   const commentCount = enrichedData?.commentCount ?? commentsQuery.data?.length ?? 0;
   const attachmentCount = enrichedData?.attachmentCount ?? attachmentsQuery.data?.length ?? 0;
+  const labelContainerRef = useRef<HTMLDivElement>(null);
+  const labelLayout = useLabelLayout(labels, labelContainerRef);
 
   return (
     <div
@@ -109,30 +111,42 @@ export function SortableCard({
       </div>
 
       {labels.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1">
-          {labels.slice(0, MAX_VISIBLE_LABELS).map((label) => (
-            <Tooltip key={label.id}>
-              <TooltipTrigger render={<span />}>
-                <Badge
-                  variant="secondary"
-                  className="max-w-full rounded-sm text-xs"
-                  style={label.color ? { backgroundColor: label.color, color: getContrastColor(label.color) } : undefined}
-                >
-                  {label.name}
-                </Badge>
-              </TooltipTrigger>
-              <TooltipContent>{label.name}</TooltipContent>
-            </Tooltip>
-          ))}
-          {labels.length > MAX_VISIBLE_LABELS && (
+        <div ref={labelContainerRef} className="mt-2 flex gap-1">
+          {labelLayout.items.map((item) =>
+            item.mode === 'full' ? (
+              <Tooltip key={item.label.id}>
+                <TooltipTrigger render={<span />}>
+                  <Badge
+                    variant="secondary"
+                    className="max-w-full rounded-sm text-xs"
+                    style={item.label.color ? { backgroundColor: item.label.color, color: getContrastColor(item.label.color) } : undefined}
+                  >
+                    {item.label.name}
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>{item.label.name}</TooltipContent>
+              </Tooltip>
+            ) : (
+              <Tooltip key={item.label.id}>
+                <TooltipTrigger render={<span />}>
+                  <span
+                    className="inline-block h-4 w-4 shrink-0 rounded-full border"
+                    style={{ backgroundColor: item.label.color ?? '#6b7280' }}
+                  />
+                </TooltipTrigger>
+                <TooltipContent>{item.label.name}</TooltipContent>
+              </Tooltip>
+            ),
+          )}
+          {labelLayout.overflowCount > 0 && (
             <Tooltip>
               <TooltipTrigger render={<span />}>
                 <Badge variant="outline" className="rounded-sm text-xs">
-                  +{labels.length - MAX_VISIBLE_LABELS}
+                  +{labelLayout.overflowCount}
                 </Badge>
               </TooltipTrigger>
               <TooltipContent>
-                {labels.slice(MAX_VISIBLE_LABELS).map((l) => l.name).join(', ')}
+                {labels.slice(labels.length - labelLayout.overflowCount).map((l) => l.name).join(', ')}
               </TooltipContent>
             </Tooltip>
           )}
