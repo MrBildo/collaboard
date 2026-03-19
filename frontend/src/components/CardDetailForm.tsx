@@ -25,6 +25,7 @@ import {
   updateCard,
   uploadAttachment,
 } from '@/lib/api';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { LabelPicker } from '@/components/LabelPicker';
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
@@ -281,47 +282,58 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
+              maxLength={120}
               className="border-none bg-transparent px-0 text-xl font-semibold shadow-none focus-visible:ring-0"
             />
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3 pt-2">
           {sizes && sizes.length > 0 && (
-            <Select value={sizeId} onValueChange={(v) => v && setSizeId(v)}>
-              <SelectTrigger className="w-24">
-                <SelectValue>
-                  {sizes.find((s) => s.id === sizeId)?.name ?? '?'}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {sizes.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Tooltip>
+              <TooltipTrigger render={<span />}>
+                <Select value={sizeId} onValueChange={(v) => v && setSizeId(v)}>
+                  <SelectTrigger className="w-24">
+                    <SelectValue>
+                      {sizes.find((s) => s.id === sizeId)?.name ?? '?'}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sizes.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </TooltipTrigger>
+              <TooltipContent>{sizes.find((s) => s.id === sizeId)?.name ?? '?'}</TooltipContent>
+            </Tooltip>
           )}
           {lanes && lanes.length > 0 && (
-            <Select
-              value={currentLaneId}
-              onValueChange={(v) => {
-                if (v && v !== currentLaneId) {
-                  setCurrentLaneId(v);
-                }
-              }}
-            >
-              <SelectTrigger className="w-36">
-                <SelectValue>
-                  {lanes.find((l) => l.id === currentLaneId)?.name ?? '?'}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {lanes.map((lane) => (
-                  <SelectItem key={lane.id} value={lane.id}>
-                    {lane.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Tooltip>
+              <TooltipTrigger render={<span />}>
+                <Select
+                  value={currentLaneId}
+                  onValueChange={(v) => {
+                    if (v && v !== currentLaneId) {
+                      setCurrentLaneId(v);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-36">
+                    <SelectValue>
+                      {lanes.find((l) => l.id === currentLaneId)?.name ?? '?'}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {lanes.map((lane) => (
+                      <SelectItem key={lane.id} value={lane.id}>
+                        {lane.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </TooltipTrigger>
+              <TooltipContent>{lanes.find((l) => l.id === currentLaneId)?.name ?? '?'}</TooltipContent>
+            </Tooltip>
           )}
           <LabelPicker
             allLabels={allLabelsQuery.data ?? []}

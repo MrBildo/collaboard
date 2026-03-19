@@ -3,6 +3,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { ChevronDown, Plus } from 'lucide-react';
 import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { SortableCard } from '@/components/SortableCard';
 import { cn } from '@/lib/utils';
 import type { CardItem, CardSummary, Lane } from '@/types';
@@ -58,7 +59,12 @@ export function LaneColumn({
             )}
           />
           <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-primary" />
-          <h2 className="truncate text-sm font-semibold uppercase tracking-wide">{lane.name}</h2>
+          <Tooltip>
+            <TooltipTrigger render={<h2 className="truncate text-sm font-semibold uppercase tracking-wide" />}>
+              {lane.name}
+            </TooltipTrigger>
+            <TooltipContent>{lane.name}</TooltipContent>
+          </Tooltip>
           <span className="shrink-0 text-xs text-muted-foreground">{cards.length}</span>
         </div>
         <Button

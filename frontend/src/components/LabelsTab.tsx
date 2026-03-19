@@ -117,6 +117,7 @@ export function LabelsTab({ boardId }: LabelsTabProps) {
                   <Input
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
+                    maxLength={30}
                     className="h-7"
                     placeholder="Label name"
                   />
@@ -159,6 +160,7 @@ export function LabelsTab({ boardId }: LabelsTabProps) {
               id="label-name"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
+              maxLength={30}
               placeholder="e.g. Bug"
             />
           </div>

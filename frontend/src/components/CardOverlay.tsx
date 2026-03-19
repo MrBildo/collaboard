@@ -8,10 +8,10 @@ type CardOverlayProps = {
 
 export function CardOverlay({ card, sizeMap }: CardOverlayProps) {
   return (
-    <div className="rounded-lg border border-border bg-card p-3 shadow-xl">
+    <div className="overflow-hidden rounded-lg border border-border bg-card p-3 shadow-xl">
       <div className="flex items-start justify-between gap-2">
-        <h3 className="text-sm font-medium leading-snug">{card.name}</h3>
-        <Badge variant="outline" className="mt-0.5 shrink-0 text-xs">{sizeMap.get(card.sizeId) ?? '?'}</Badge>
+        <h3 className="min-w-0 text-sm font-medium leading-snug break-words">{card.name}</h3>
+        <Badge variant="outline" className="mt-0.5 max-w-[6rem] shrink-0 justify-start text-xs">{sizeMap.get(card.sizeId) ?? '?'}</Badge>
       </div>
       <div className="mt-2 text-xs text-muted-foreground">
         <span>#{card.number}</span>

@@ -130,6 +130,7 @@ export function LanesTab({ boardId }: LanesTabProps) {
                   <Input
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
+                    maxLength={40}
                     className="h-7"
                     placeholder="Lane name"
                   />
@@ -178,6 +179,7 @@ export function LanesTab({ boardId }: LanesTabProps) {
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); }}
+              maxLength={40}
               placeholder="e.g. In Progress"
             />
           </div>
