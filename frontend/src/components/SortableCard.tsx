@@ -50,7 +50,7 @@ export function SortableCard({
     enabled: !enrichedData,
     ...QUERY_DEFAULTS.attachments,
   });
-  const labels = enrichedData?.labels ?? labelsQuery.data ?? [];
+  const labels = [...(enrichedData?.labels ?? labelsQuery.data ?? [])].sort((a, b) => a.name.length - b.name.length);
   const commentCount = enrichedData?.commentCount ?? commentsQuery.data?.length ?? 0;
   const attachmentCount = enrichedData?.attachmentCount ?? attachmentsQuery.data?.length ?? 0;
 
