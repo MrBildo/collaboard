@@ -50,16 +50,16 @@ export function LaneColumn({
           }
         }}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <ChevronDown
             className={cn(
-              'h-4 w-4 text-muted-foreground transition-transform duration-200 md:hidden',
+              'h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 md:hidden',
               isCollapsed && '-rotate-90',
             )}
           />
-          <span className="inline-block h-2 w-2 rounded-full bg-primary" />
-          <h2 className="text-sm font-semibold uppercase tracking-wide">{lane.name}</h2>
-          <span className="text-xs text-muted-foreground">{cards.length}</span>
+          <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-primary" />
+          <h2 className="truncate text-sm font-semibold uppercase tracking-wide">{lane.name}</h2>
+          <span className="shrink-0 text-xs text-muted-foreground">{cards.length}</span>
         </div>
         <Button
           variant="ghost"

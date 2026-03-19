@@ -21,7 +21,7 @@ export function BoardSwitcher({ boards, currentSlug }: BoardSwitcherProps) {
       value={currentSlug ?? ''}
       onValueChange={(v) => navigate(`/boards/${v}`)}
     >
-      <SelectTrigger size="sm">
+      <SelectTrigger size="sm" className="max-w-[12rem] sm:max-w-[16rem]">
         <SelectValue>
           {boards.find((b) => b.slug === currentSlug)?.name ?? 'Select board'}
         </SelectValue>

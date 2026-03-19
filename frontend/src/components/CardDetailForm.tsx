@@ -288,7 +288,7 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
         <div className="flex flex-wrap items-center gap-3 pt-2">
           {sizes && sizes.length > 0 && (
             <Select value={sizeId} onValueChange={(v) => v && setSizeId(v)}>
-              <SelectTrigger className="w-20">
+              <SelectTrigger className="w-24">
                 <SelectValue>
                   {sizes.find((s) => s.id === sizeId)?.name ?? '?'}
                 </SelectValue>

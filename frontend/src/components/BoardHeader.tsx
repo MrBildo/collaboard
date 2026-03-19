@@ -48,7 +48,7 @@ export function BoardHeader({
           <BoardSwitcher boards={boards} currentSlug={currentSlug} />
         )}
         {boards.length === 1 && boardName && (
-          <span className="hidden text-sm font-medium text-muted-foreground md:inline">{boardName}</span>
+          <span className="hidden max-w-[16rem] truncate text-sm font-medium text-muted-foreground md:inline">{boardName}</span>
         )}
       </div>
       <div className="hidden flex-1 justify-center px-4 md:flex">
