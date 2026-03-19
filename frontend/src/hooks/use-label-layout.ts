@@ -22,7 +22,7 @@ export type LabelLayout = {
 const GAP = 4;            // gap-1 = 0.25rem = 4px
 const BADGE_H_PAD = 16;   // px-2 = 0.5rem × 2 = 16px
 const BADGE_BUFFER = 6;   // border + rounding + sub-pixel safety
-const DOT_SIZE = 16;      // w-4 = 1rem = 16px (border-box includes 1px border)
+const DOT_SIZE = 24;      // w-6 = 1.5rem = 24px (collapsed label pill)
 const FONT = '500 12px "Space Grotesk", ui-sans-serif, system-ui, sans-serif';
 
 let canvas: HTMLCanvasElement | null = null;
@@ -106,13 +106,17 @@ export function useLabelLayout(
   const labelsRef = useRef(labels);
   labelsRef.current = labels;
 
+  // Stable key — only re-run effect when actual label set changes
+  const labelsKey = labels.map((l) => l.id).join(',');
+
   // Throttle ResizeObserver with rAF to avoid layout thrashing
   const rafRef = useRef(0);
 
   useLayoutEffect(() => {
     const el = containerRef.current;
-    if (!el || labels.length === 0) {
-      setLayout({ items: labels.map((l) => ({ label: l, mode: 'full' })), overflowCount: 0 });
+    const currentLabels = labelsRef.current;
+    if (!el || currentLabels.length === 0) {
+      setLayout({ items: currentLabels.map((l) => ({ label: l, mode: 'full' })), overflowCount: 0 });
       return;
     }
 
@@ -129,7 +133,7 @@ export function useLabelLayout(
     // Initial computation (synchronous for useLayoutEffect — avoid flash)
     const width = el.clientWidth;
     if (width > 0) {
-      setLayout(computeLayout(labels, width));
+      setLayout(computeLayout(currentLabels, width));
     }
 
     const observer = new ResizeObserver(recompute);
@@ -138,7 +142,7 @@ export function useLabelLayout(
       observer.disconnect();
       cancelAnimationFrame(rafRef.current);
     };
-  }, [labels, containerRef]);
+  }, [labelsKey, containerRef]);
 
   return layout;
 }

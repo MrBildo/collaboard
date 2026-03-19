@@ -111,11 +111,11 @@ export function SortableCard({
       </div>
 
       {labels.length > 0 && (
-        <div ref={labelContainerRef} className="mt-2 flex gap-1">
+        <div ref={labelContainerRef} className="mt-2 flex items-center gap-1">
           {labelLayout.items.map((item) =>
             item.mode === 'full' ? (
               <Tooltip key={item.label.id}>
-                <TooltipTrigger render={<span />}>
+                <TooltipTrigger render={<span className="flex items-center" />}>
                   <Badge
                     variant="secondary"
                     className="max-w-full rounded-sm text-xs"
@@ -128,9 +128,9 @@ export function SortableCard({
               </Tooltip>
             ) : (
               <Tooltip key={item.label.id}>
-                <TooltipTrigger render={<span />}>
+                <TooltipTrigger render={<span className="flex items-center" />}>
                   <span
-                    className="inline-block h-4 w-4 shrink-0 rounded-full border"
+                    className="inline-block h-5 w-6 shrink-0 rounded-sm"
                     style={{ backgroundColor: item.label.color ?? '#6b7280' }}
                   />
                 </TooltipTrigger>
