@@ -38,7 +38,7 @@ export function LaneColumn({
     <article
       ref={setNodeRef}
       className={cn(
-        'flex min-w-0 flex-col overflow-hidden rounded-lg border border-lane-border bg-lane-bg border-t-2 border-t-primary transition-all duration-150',
+        'flex min-w-0 flex-col overflow-x-hidden rounded-lg border border-lane-border bg-lane-bg border-t-2 border-t-primary md:overflow-hidden transition-all duration-150',
         isOver && 'ring-2 ring-primary/60 bg-primary/5',
       )}
     >
