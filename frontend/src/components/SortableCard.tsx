@@ -59,13 +59,13 @@ export function SortableCard({
       {...attributes}
       onClick={() => onCardClick(card)}
       className={cn(
-        'cursor-pointer rounded-lg border border-border bg-card p-3 shadow-sm transition-shadow hover:shadow-md hover:border-primary/30',
+        'cursor-pointer overflow-hidden rounded-lg border border-border bg-card p-3 shadow-sm transition-shadow hover:shadow-md hover:border-primary/30',
         isDragging && 'opacity-0',
       )}
     >
       <div className="flex items-start justify-between gap-2">
-        <h3 className="text-sm font-medium leading-snug">{card.name}</h3>
-        <Badge variant="outline" className="mt-0.5 shrink-0 text-xs">{sizeMap.get(card.sizeId) ?? '?'}</Badge>
+        <h3 className="min-w-0 text-sm font-medium leading-snug break-words">{card.name}</h3>
+        <Badge variant="outline" className="mt-0.5 max-w-[6rem] shrink-0 justify-start text-xs">{sizeMap.get(card.sizeId) ?? '?'}</Badge>
       </div>
 
       <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
@@ -93,7 +93,7 @@ export function SortableCard({
             <Badge
               key={label.id}
               variant="secondary"
-              className="rounded-sm text-xs"
+              className="max-w-full rounded-sm text-xs"
               style={label.color ? { backgroundColor: label.color, color: getContrastColor(label.color) } : undefined}
             >
               {label.name}
