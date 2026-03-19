@@ -37,12 +37,12 @@ export function LaneColumn({
     <article
       ref={setNodeRef}
       className={cn(
-        'flex flex-col rounded-lg border border-lane-border bg-lane-bg border-t-2 border-t-primary md:overflow-hidden transition-all duration-150',
+        'flex min-w-0 flex-col overflow-hidden rounded-lg border border-lane-border bg-lane-bg border-t-2 border-t-primary transition-all duration-150',
         isOver && 'ring-2 ring-primary/60 bg-primary/5',
       )}
     >
       <div
-        className="flex shrink-0 items-center justify-between px-4 py-3 max-md:cursor-pointer max-md:select-none"
+        className="flex min-w-0 shrink-0 items-center justify-between overflow-hidden px-4 py-3 max-md:cursor-pointer max-md:select-none"
         onClick={(e) => {
           if (window.innerWidth < 768) {
             e.preventDefault();
@@ -50,16 +50,16 @@ export function LaneColumn({
           }
         }}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <ChevronDown
             className={cn(
-              'h-4 w-4 text-muted-foreground transition-transform duration-200 md:hidden',
+              'h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 md:hidden',
               isCollapsed && '-rotate-90',
             )}
           />
-          <span className="inline-block h-2 w-2 rounded-full bg-primary" />
-          <h2 className="text-sm font-semibold uppercase tracking-wide">{lane.name}</h2>
-          <span className="text-xs text-muted-foreground">{cards.length}</span>
+          <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-primary" />
+          <h2 className="truncate text-sm font-semibold uppercase tracking-wide">{lane.name}</h2>
+          <span className="shrink-0 text-xs text-muted-foreground">{cards.length}</span>
         </div>
         <Button
           variant="ghost"

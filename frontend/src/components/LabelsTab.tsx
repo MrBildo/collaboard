@@ -131,7 +131,7 @@ export function LabelsTab({ boardId }: LabelsTabProps) {
               <>
                 <div className="flex items-center gap-3">
                   <span
-                    className="inline-block h-4 w-4 rounded-full"
+                    className="inline-block h-4 w-4 shrink-0 rounded-full"
                     style={{ backgroundColor: label.color ?? '#6b7280' }}
                   />
                   <span className="font-medium">{label.name}</span>

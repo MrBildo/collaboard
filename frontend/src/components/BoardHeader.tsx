@@ -37,7 +37,7 @@ export function BoardHeader({
 }: BoardHeaderProps) {
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 shrink items-center gap-3 overflow-hidden">
         <img
           src="/collaboard-logo.png"
           alt="Collaboard"
@@ -48,7 +48,7 @@ export function BoardHeader({
           <BoardSwitcher boards={boards} currentSlug={currentSlug} />
         )}
         {boards.length === 1 && boardName && (
-          <span className="hidden text-sm font-medium text-muted-foreground md:inline">{boardName}</span>
+          <span className="hidden max-w-[16rem] truncate text-sm font-medium text-muted-foreground md:inline">{boardName}</span>
         )}
       </div>
       <div className="hidden flex-1 justify-center px-4 md:flex">
