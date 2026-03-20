@@ -13,8 +13,8 @@ public enum UserRole
 public class Board
 {
     public Guid Id { get; set; }
-    [MaxLength(200)] public string Name { get; set; } = string.Empty;
-    [MaxLength(200)] public string Slug { get; set; } = string.Empty;
+    [MaxLength(80)] public string Name { get; set; } = string.Empty;
+    [MaxLength(80)] public string Slug { get; set; } = string.Empty;
     public DateTimeOffset CreatedAtUtc { get; set; }
 
     public static string GenerateSlug(string name) =>
@@ -34,7 +34,7 @@ public class Lane
 {
     public Guid Id { get; set; }
     public Guid BoardId { get; set; }
-    [MaxLength(80)] public string Name { get; set; } = string.Empty;
+    [MaxLength(40)] public string Name { get; set; } = string.Empty;
     public int Position { get; set; }
 }
 
@@ -51,7 +51,7 @@ public class CardItem
     public Guid Id { get; set; }
     public long Number { get; set; }
     public Guid BoardId { get; set; }
-    [MaxLength(200)] public string Name { get; set; } = string.Empty;
+    [MaxLength(120)] public string Name { get; set; } = string.Empty;
     public string DescriptionMarkdown { get; set; } = string.Empty;
     public Guid SizeId { get; set; }
     public Guid LaneId { get; set; }
@@ -75,7 +75,7 @@ public class Label
 {
     public Guid Id { get; set; }
     public Guid BoardId { get; set; }
-    [MaxLength(80)] public string Name { get; set; } = string.Empty;
+    [MaxLength(30)] public string Name { get; set; } = string.Empty;
     [MaxLength(20)] public string? Color { get; set; }
 }
 
