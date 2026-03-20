@@ -394,19 +394,21 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
     [Fact]
     public async Task MoveCard_SameLaneReorder_PositionsAreContiguous()
     {
-        // Arrange
+        // Arrange — use a dedicated lane to avoid interference from other tests
         var (db, tools, authKey) = CreateTools();
-        var (lane1, _) = await GetTwoLaneIdsAsync(db);
+        var lane = new Lane { Id = Guid.NewGuid(), BoardId = _factory.DefaultBoardId, Name = "Reorder Lane", Position = 900 };
+        db.Lanes.Add(lane);
+        await db.SaveChangesAsync();
 
-        var card1Id = await CreateCardInLaneAsync(tools, authKey, lane1, "Reorder A");
-        var card2Id = await CreateCardInLaneAsync(tools, authKey, lane1, "Reorder B");
-        var card3Id = await CreateCardInLaneAsync(tools, authKey, lane1, "Reorder C");
+        var card1Id = await CreateCardInLaneAsync(tools, authKey, lane.Id, "Reorder A");
+        var card2Id = await CreateCardInLaneAsync(tools, authKey, lane.Id, "Reorder B");
+        var card3Id = await CreateCardInLaneAsync(tools, authKey, lane.Id, "Reorder C");
 
         // Act — move card3 to index 0 (front) within same lane
-        await tools.MoveCardAsync(authKey, lane1, cardId: card3Id, index: 0);
+        await tools.MoveCardAsync(authKey, lane.Id, cardId: card3Id, index: 0);
 
-        // Assert — all cards in lane should have contiguous positions: 0, 10, 20
-        var cards = await db.Cards.Where(c => c.LaneId == lane1 && (c.Id == card1Id || c.Id == card2Id || c.Id == card3Id))
+        // Assert — card3 should be first, positions contiguous: 0, 10, 20
+        var cards = await db.Cards.Where(c => c.LaneId == lane.Id)
             .OrderBy(c => c.Position).ToListAsync();
         cards.Count.ShouldBe(3);
         cards[0].Position.ShouldBe(0);
@@ -418,27 +420,30 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
     [Fact]
     public async Task MoveCard_CrossLane_SourceAndTargetBothReordered()
     {
-        // Arrange
+        // Arrange — use dedicated lanes to avoid interference from other tests
         var (db, tools, authKey) = CreateTools();
-        var (lane1, lane2) = await GetTwoLaneIdsAsync(db);
+        var srcLane = new Lane { Id = Guid.NewGuid(), BoardId = _factory.DefaultBoardId, Name = "CrossSrc", Position = 901 };
+        var tgtLane = new Lane { Id = Guid.NewGuid(), BoardId = _factory.DefaultBoardId, Name = "CrossTgt", Position = 902 };
+        db.Lanes.AddRange(srcLane, tgtLane);
+        await db.SaveChangesAsync();
 
-        var s1 = await CreateCardInLaneAsync(tools, authKey, lane1, "Source 1");
-        var s2 = await CreateCardInLaneAsync(tools, authKey, lane1, "Source 2");
-        var s3 = await CreateCardInLaneAsync(tools, authKey, lane1, "Source 3");
-        var t1 = await CreateCardInLaneAsync(tools, authKey, lane2, "Target 1");
+        var s1 = await CreateCardInLaneAsync(tools, authKey, srcLane.Id, "Source 1");
+        var s2 = await CreateCardInLaneAsync(tools, authKey, srcLane.Id, "Source 2");
+        var s3 = await CreateCardInLaneAsync(tools, authKey, srcLane.Id, "Source 3");
+        var t1 = await CreateCardInLaneAsync(tools, authKey, tgtLane.Id, "Target 1");
 
-        // Act — move s2 to lane2 at index 0
-        await tools.MoveCardAsync(authKey, lane2, cardId: s2, index: 0);
+        // Act — move s2 to target lane at index 0
+        await tools.MoveCardAsync(authKey, tgtLane.Id, cardId: s2, index: 0);
 
         // Assert — source lane: s1, s3 with positions 0, 10
-        var sourceCards = await db.Cards.Where(c => c.LaneId == lane1 && (c.Id == s1 || c.Id == s3))
+        var sourceCards = await db.Cards.Where(c => c.LaneId == srcLane.Id)
             .OrderBy(c => c.Position).ToListAsync();
         sourceCards.Count.ShouldBe(2);
         sourceCards[0].Position.ShouldBe(0);
         sourceCards[1].Position.ShouldBe(10);
 
         // Assert — target lane: s2 at front, t1 after
-        var targetCards = await db.Cards.Where(c => c.LaneId == lane2 && (c.Id == s2 || c.Id == t1))
+        var targetCards = await db.Cards.Where(c => c.LaneId == tgtLane.Id)
             .OrderBy(c => c.Position).ToListAsync();
         targetCards.Count.ShouldBe(2);
         targetCards[0].Id.ShouldBe(s2);
@@ -485,20 +490,21 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
     [Fact]
     public async Task UpdateCard_MoveWithinSameLane_PositionsContiguous()
     {
-        // Arrange
+        // Arrange — use a dedicated lane to avoid interference from other tests
         var (db, tools, authKey) = CreateTools();
-        var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
-        var lane = lanes[0];
+        var lane = new Lane { Id = Guid.NewGuid(), BoardId = _factory.DefaultBoardId, Name = "UpdateReorder Lane", Position = 903 };
+        db.Lanes.Add(lane);
+        await db.SaveChangesAsync();
 
-        var c1 = await CreateCardInLaneAsync(tools, authKey, lane, "Same Lane A");
-        var c2 = await CreateCardInLaneAsync(tools, authKey, lane, "Same Lane B");
-        var c3 = await CreateCardInLaneAsync(tools, authKey, lane, "Same Lane C");
+        var c1 = await CreateCardInLaneAsync(tools, authKey, lane.Id, "Same Lane A");
+        var c2 = await CreateCardInLaneAsync(tools, authKey, lane.Id, "Same Lane B");
+        var c3 = await CreateCardInLaneAsync(tools, authKey, lane.Id, "Same Lane C");
 
         // Act — move c1 to index 2 (end) via update_card
-        await tools.UpdateCardAsync(authKey, c1, laneId: lane, index: 2);
+        await tools.UpdateCardAsync(authKey, c1, laneId: lane.Id, index: 2);
 
-        // Assert
-        var cards = await db.Cards.Where(c => c.LaneId == lane && (c.Id == c1 || c.Id == c2 || c.Id == c3))
+        // Assert — c1 should be last, positions contiguous: 0, 10, 20
+        var cards = await db.Cards.Where(c => c.LaneId == lane.Id)
             .OrderBy(c => c.Position).ToListAsync();
         cards.Count.ShouldBe(3);
         cards[0].Position.ShouldBe(0);

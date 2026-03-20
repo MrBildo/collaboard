@@ -289,4 +289,19 @@ public class SizeEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         var size = await response.Content.ReadFromJsonAsync<JsonElement>();
         size.GetProperty("ordinal").GetInt32().ShouldBe(maxOrdinal + 1);
     }
+
+    [Fact]
+    public async Task PostSize_WithExplicitOrdinal_RespectsProvidedValue()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        // Act — explicitly pass ordinal: 5 (should NOT be auto-assigned)
+        var response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/sizes", new { name = $"Explicit-{Guid.NewGuid()}", ordinal = 5 });
+
+        // Assert — should keep ordinal 5, not auto-assign to max+1
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var size = await response.Content.ReadFromJsonAsync<JsonElement>();
+        size.GetProperty("ordinal").GetInt32().ShouldBe(5);
+    }
 }
