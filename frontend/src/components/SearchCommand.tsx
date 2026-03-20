@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Search, X } from 'lucide-react';
+import { LayoutDashboard, Loader2, Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { searchAllCards } from '@/lib/api';
@@ -66,11 +66,26 @@ export function SearchCommand() {
   // Reset focused index when results change
   useEffect(() => { setFocusedIndex(-1); }, [flatResults.length]);
 
-  // Scroll focused item into view
+  // Scroll focused item into view, accounting for sticky group headers
   useEffect(() => {
-    if (focusedIndex < 0) return;
-    const el = dropdownRef.current?.querySelector(`[data-search-index="${focusedIndex}"]`);
-    el?.scrollIntoView({ block: 'nearest' });
+    const dropdown = dropdownRef.current;
+    if (!dropdown) return;
+    if (focusedIndex <= 0) {
+      dropdown.scrollTop = 0;
+      return;
+    }
+    const el = dropdown.querySelector<HTMLElement>(`[data-search-index="${focusedIndex}"]`);
+    if (!el) return;
+
+    const dropdownRect = dropdown.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    const headerOffset = 28; // sticky group header height (~py-1.5 + text-xs + px-3)
+
+    if (elRect.top < dropdownRect.top + headerOffset) {
+      dropdown.scrollTop -= (dropdownRect.top + headerOffset) - elRect.top;
+    } else if (elRect.bottom > dropdownRect.bottom) {
+      dropdown.scrollTop += elRect.bottom - dropdownRect.bottom;
+    }
   }, [focusedIndex]);
 
   const handleSelect = (boardSlug: string, cardNumber: number) => {
@@ -88,6 +103,7 @@ export function SearchCommand() {
   };
 
   const handleInputKeyDown = (event: React.KeyboardEvent) => {
+    console.log('[SearchCommand] keydown:', event.key, { open, flatResultsLen: flatResults.length, focusedIndex });
     if (event.key === 'Escape') {
       setDismissedQuery(debouncedQuery);
       setFocusedIndex(-1);
@@ -97,10 +113,10 @@ export function SearchCommand() {
     if (!open || flatResults.length === 0) return;
     if (event.key === 'ArrowDown') {
       event.preventDefault();
-      setFocusedIndex((prev) => Math.min(prev + 1, flatResults.length - 1));
+      setFocusedIndex((prev) => { console.log('[SearchCommand] ArrowDown:', prev, '->', Math.min(prev + 1, flatResults.length - 1)); return Math.min(prev + 1, flatResults.length - 1); });
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
-      setFocusedIndex((prev) => Math.max(prev - 1, -1));
+      setFocusedIndex((prev) => { console.log('[SearchCommand] ArrowUp:', prev, '->', Math.max(prev - 1, 0)); return Math.max(prev - 1, 0); });
     } else if (event.key === 'Enter' && focusedIndex >= 0) {
       event.preventDefault();
       const item = flatResults[focusedIndex];
@@ -150,7 +166,8 @@ export function SearchCommand() {
             return results.map((group) => (
               <div key={group.boardId}>
                 {results.length > 1 && (
-                  <div className="sticky top-0 bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground">
+                  <div className="sticky top-0 flex items-center gap-1.5 border-b border-border bg-muted px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <LayoutDashboard className="h-3 w-3" />
                     {group.boardName}
                   </div>
                 )}
@@ -166,7 +183,7 @@ export function SearchCommand() {
                       className={cn(
                         'flex w-full items-start gap-2 px-3 py-2 text-left text-sm',
                         'hover:bg-accent/10 focus-visible:bg-accent/10 focus-visible:outline-none',
-                        idx === focusedIndex && 'bg-accent/10',
+                        idx === focusedIndex && 'bg-accent text-accent-foreground',
                       )}
                     >
                       <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs font-mono text-muted-foreground">
