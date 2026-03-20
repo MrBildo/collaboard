@@ -39,7 +39,7 @@ export function LaneColumn({
       ref={setNodeRef}
       data-lane=""
       className={cn(
-        'flex min-w-0 flex-col rounded-lg max-md:border-0 md:border md:border-lane-border bg-lane-bg md:border-t-2 md:border-t-primary md:overflow-hidden transition-all duration-150',
+        'flex min-w-0 flex-col rounded-lg max-md:border-0 md:border md:border-lane-border bg-lane-bg md:border-t-2 md:border-t-primary md:overflow-hidden transition-[box-shadow,background-color] duration-150',
         isOver && 'ring-2 ring-primary/60 bg-primary/5',
       )}
     >
