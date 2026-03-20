@@ -74,13 +74,18 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
         labelIds: selectedLabelIds.length > 0 ? selectedLabelIds : undefined,
       });
     },
-    onSuccess: (newCard) => {
-      // Build label summaries from selected IDs for the optimistic update
+    onMutate: () => {
+      // Snapshot label IDs at mutation start so onSuccess has stable values
       const allLabels = allLabelsQuery.data ?? [];
-      const labelSummaries = selectedLabelIds
-        .map((id) => allLabels.find((l) => l.id === id))
-        .filter(Boolean)
-        .map((l) => ({ id: l!.id, name: l!.name, color: l!.color }));
+      return {
+        labelSummaries: selectedLabelIds
+          .map((id) => allLabels.find((l) => l.id === id))
+          .filter(Boolean)
+          .map((l) => ({ id: l!.id, name: l!.name, color: l!.color })),
+      };
+    },
+    onSuccess: (newCard, _vars, context) => {
+      const labelSummaries = context?.labelSummaries ?? [];
 
       queryClient.cancelQueries({ queryKey: queryKeys.boards.data(boardId) });
       queryClient.setQueryData<BoardData>(
