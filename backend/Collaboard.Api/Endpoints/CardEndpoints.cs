@@ -39,12 +39,18 @@ internal static class CardEndpoints
 
             var orderedQuery = query.OrderBy(x => x.LaneId).ThenBy(x => x.Position);
 
+            // Two queries: COUNT then Skip/Take. The count re-executes filter predicates
+            // (including since subqueries). Acceptable at current scale; revisit if perf degrades.
             var totalCount = await query.CountAsync();
 
             var effectiveSkip = Math.Max(skip ?? 0, 0);
-            var effectiveTake = Math.Clamp(take ?? 50, 1, 200);
+            var pagedQuery = orderedQuery.Skip(effectiveSkip);
+            if (take.HasValue)
+            {
+                pagedQuery = pagedQuery.Take(Math.Clamp(take.Value, 1, 200));
+            }
 
-            var cards = await orderedQuery.Skip(effectiveSkip).Take(effectiveTake).ToListAsync();
+            var cards = await pagedQuery.ToListAsync();
             var summaries = await CardSummaryBuilder.BuildAsync(db, cards);
             return Results.Ok(new PagedResult<CardSummary>(summaries, totalCount));
         }).RequireAuth();

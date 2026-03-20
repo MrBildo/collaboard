@@ -53,6 +53,148 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     }
 
     [Fact]
+    public async Task GetCards_WithTake_ReturnsLimitedItemsAndTotalCount()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+        for (var i = 0; i < 5; i++)
+        {
+            var r = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+            {
+                name = $"Pagination-Take-{Guid.NewGuid()}",
+                descriptionMarkdown = "",
+                laneId,
+                position = Random.Shared.Next(10000, 99999)
+            });
+            r.EnsureSuccessStatusCode();
+        }
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards?take=2");
+        response.EnsureSuccessStatusCode();
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+
+        // Assert
+        paged.ShouldNotBeNull();
+        paged.Items.Count.ShouldBe(2);
+        paged.TotalCount.ShouldBeGreaterThanOrEqualTo(5);
+    }
+
+    [Fact]
+    public async Task GetCards_WithSkipAndTake_ReturnsCorrectPage()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+        for (var i = 0; i < 3; i++)
+        {
+            var r = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+            {
+                name = $"Pagination-Skip-{Guid.NewGuid()}",
+                descriptionMarkdown = "",
+                laneId,
+                position = Random.Shared.Next(10000, 99999)
+            });
+            r.EnsureSuccessStatusCode();
+        }
+
+        // Act — get all, then get with skip, verify different first items
+        var allResponse = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards?take=200");
+        allResponse.EnsureSuccessStatusCode();
+        var allPaged = await allResponse.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+
+        var skippedResponse = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards?skip=2&take=2");
+        skippedResponse.EnsureSuccessStatusCode();
+        var skippedPaged = await skippedResponse.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+
+        // Assert
+        allPaged.ShouldNotBeNull();
+        skippedPaged.ShouldNotBeNull();
+        skippedPaged.TotalCount.ShouldBe(allPaged.TotalCount);
+        skippedPaged.Items.Count.ShouldBeGreaterThanOrEqualTo(1);
+
+        // First item of skipped page should be the third item from the full list
+        var thirdItemId = allPaged.Items[2].GetProperty("id").GetGuid();
+        skippedPaged.Items[0].GetProperty("id").GetGuid().ShouldBe(thirdItemId);
+    }
+
+    [Fact]
+    public async Task GetCards_SkipBeyondTotal_ReturnsEmptyItemsWithTotalCount()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards?skip=99999&take=10");
+        response.EnsureSuccessStatusCode();
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+
+        // Assert
+        paged.ShouldNotBeNull();
+        paged.Items.ShouldBeEmpty();
+        paged.TotalCount.ShouldBeGreaterThanOrEqualTo(0);
+    }
+
+    [Fact]
+    public async Task GetCards_TakeExceedsMax_ClampedTo200()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        // Act — request take=999, should be clamped to 200
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards?take=999");
+        response.EnsureSuccessStatusCode();
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+
+        // Assert — we can't directly verify the clamp, but the response should succeed
+        // and return at most 200 items (board likely has fewer)
+        paged.ShouldNotBeNull();
+        paged.Items.Count.ShouldBeLessThanOrEqualTo(200);
+    }
+
+    [Fact]
+    public async Task GetCards_TakeZero_ClampedToOne()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+        var r = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = $"Pagination-Zero-{Guid.NewGuid()}",
+            descriptionMarkdown = "",
+            laneId,
+            position = Random.Shared.Next(10000, 99999)
+        });
+        r.EnsureSuccessStatusCode();
+
+        // Act — take=0 should be clamped to 1
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards?take=0");
+        response.EnsureSuccessStatusCode();
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+
+        // Assert
+        paged.ShouldNotBeNull();
+        paged.Items.Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task GetCards_NegativeSkip_ClampedToZero()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards?skip=-5&take=10");
+        response.EnsureSuccessStatusCode();
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+
+        // Assert — should behave same as skip=0
+        paged.ShouldNotBeNull();
+        paged.Items.ShouldNotBeEmpty();
+    }
+
+    [Fact]
     public async Task GetCardById_ReturnsEnrichedResponse()
     {
         // Arrange

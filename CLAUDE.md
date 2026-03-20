@@ -95,7 +95,7 @@ All endpoints under `/api/v1/`:
 | POST | /boards/{boardId}/lanes | Admin | Create lane in a board |
 | GET | /boards/{boardId}/sizes | All | List card sizes for a board (ordered by ordinal) |
 | POST | /boards/{boardId}/sizes | Admin | Create size in a board (auto-ordinal if omitted) |
-| GET | /boards/{boardId}/cards | All | List cards (enriched: labels, sizeId, sizeName, commentCount, attachmentCount). Returns `{ items, totalCount }` paged envelope. Optional query params: `since` (DateTimeOffset), `labelId` (Guid), `laneId` (Guid), `skip` (int, default 0), `take` (int, default 50, max 200) |
+| GET | /boards/{boardId}/cards | All | List cards (enriched: labels, sizeId, sizeName, commentCount, attachmentCount). Returns `{ items, totalCount }` paged envelope. Optional query params: `since` (DateTimeOffset), `labelId` (Guid), `laneId` (Guid), `skip` (int, default 0), `take` (int, optional, max 200 — omit for all results) |
 | POST | /boards/{boardId}/cards | All | Create card in a board (accepts `sizeId`, defaults to lowest-ordinal size). Card numbers are board-scoped (each board starts at 1 independently) |
 | GET | /boards/{boardId}/labels | All | List labels for a board |
 | POST | /boards/{boardId}/labels | Admin | Create label in a board |
