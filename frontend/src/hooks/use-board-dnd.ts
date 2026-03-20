@@ -64,9 +64,12 @@ export function useBoardDnd(boardId: string | undefined, serverCards: CardItem[]
       if (!boardId) return;
       await queryClient.cancelQueries({ queryKey: queryKeys.boards.data(boardId) });
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       if (!boardId) return;
-      queryClient.setQueryData(queryKeys.boards.data(boardId), data);
+      // Invalidate instead of replacing cache — the reorder API returns
+      // plain CardItem objects without labels/enrichment. A refetch
+      // pulls full CardSummary data including labels.
+      queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
     },
     onError: () => {
       if (!boardId) return;

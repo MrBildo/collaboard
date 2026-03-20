@@ -75,6 +75,13 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
       });
     },
     onSuccess: (newCard) => {
+      // Build label summaries from selected IDs for the optimistic update
+      const allLabels = allLabelsQuery.data ?? [];
+      const labelSummaries = selectedLabelIds
+        .map((id) => allLabels.find((l) => l.id === id))
+        .filter(Boolean)
+        .map((l) => ({ id: l!.id, name: l!.name, color: l!.color }));
+
       queryClient.cancelQueries({ queryKey: queryKeys.boards.data(boardId) });
       queryClient.setQueryData<BoardData>(
         queryKeys.boards.data(boardId),
@@ -83,7 +90,7 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
           cards: [...old.cards, {
             ...newCard,
             sizeName: sizes.find((s) => s.id === newCard.sizeId)?.name ?? '?',
-            labels: [],
+            labels: labelSummaries,
             commentCount: 0,
             attachmentCount: 0,
           }],
