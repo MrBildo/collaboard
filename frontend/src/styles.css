@@ -166,10 +166,11 @@
 
 /* Mobile responsive overrides */
 @media (max-width: 767px) {
-  /* Board grid: single-column vertical layout */
+  /* Board layout: vertical stack — flex ignores the inline gridTemplateColumns
+     from the resize hook so lanes expand naturally to their content height */
   [aria-label="Kanban board"] {
-    grid-template-columns: 1fr !important;
-    align-content: start;
+    display: flex !important;
+    flex-direction: column !important;
     overflow-x: hidden !important;
     overflow-y: auto !important;
   }
