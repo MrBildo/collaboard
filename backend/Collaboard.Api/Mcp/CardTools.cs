@@ -83,13 +83,13 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
     }
 
     [McpServerTool(Name = "move_card", Destructive = false)]
-    [Description("Move a card to a different lane and/or position (index) within that lane. If index is omitted, the card is appended to the end of the target lane.")]
+    [Description("Move a card to a different lane and/or position (index) within that lane. If index is omitted, the card is placed at the top of the target lane (index 0).")]
     public async Task<string> MoveCardAsync(
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the target lane")] Guid laneId,
         [Description("The ID (guid) of the card to move (provide this or cardNumber)")] Guid? cardId = null,
         [Description("The card number (provide this or cardId). Requires boardId or boardSlug.")] long? cardNumber = null,
-        [Description("Optional 0-based index position in the target lane. Defaults to end of lane.")] int? index = null,
+        [Description("Optional 0-based index position in the target lane. Defaults to top of lane (index 0).")] int? index = null,
         [Description("Board ID (required when using cardNumber)")] Guid? boardId = null,
         [Description("Board slug (alternative to boardId when using cardNumber)")] string? boardSlug = null,
         CancellationToken ct = default)
@@ -137,7 +137,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         [Description("New size ID (guid, optional)")] Guid? sizeId = null,
         [Description("New size name (e.g. 'M', 'XL', optional). Used if sizeId is not provided.")] string? sizeName = null,
         [Description("Target lane ID to move the card to (optional)")] Guid? laneId = null,
-        [Description("0-based index position in the target lane (optional, requires laneId — defaults to end of lane)")] int? index = null,
+        [Description("0-based index position in the target lane (optional, requires laneId — defaults to top of lane)")] int? index = null,
         [Description("Comma-separated label GUIDs to replace current labels (optional, empty string clears all)")] string? labelIds = null,
         [Description("Board ID (required when using cardNumber)")] Guid? boardId = null,
         [Description("Board slug (alternative to boardId when using cardNumber)")] string? boardSlug = null,

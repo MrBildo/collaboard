@@ -17,7 +17,7 @@ internal static class CardReorderHelper
             .OrderBy(c => c.Position)
             .ToListAsync(ct);
 
-        var resolvedIndex = Math.Clamp(index ?? targetCards.Count, 0, targetCards.Count);
+        var resolvedIndex = Math.Clamp(index ?? 0, 0, targetCards.Count);
         targetCards.Insert(resolvedIndex, card);
 
         for (var i = 0; i < targetCards.Count; i++)

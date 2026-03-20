@@ -134,7 +134,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
     }
 
     [Fact]
-    public async Task UpdateCard_WithLaneIdNoIndex_AppendsToEndOfLane()
+    public async Task UpdateCard_WithLaneIdNoIndex_PlacesAtTopOfLane()
     {
         // Arrange
         var (db, tools, authKey) = CreateTools();
@@ -144,9 +144,9 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
         await CreateCardInLaneAsync(tools, authKey, lane2, "Already Here");
 
         // Create the card to move
-        var cardId = await CreateCardInLaneAsync(tools, authKey, lane1, "Append Me");
+        var cardId = await CreateCardInLaneAsync(tools, authKey, lane1, "Prepend Me");
 
-        // Act — move to lane2 without index (should append)
+        // Act — move to lane2 without index (should place at top)
         var result = await tools.UpdateCardAsync(authKey, cardId, laneId: lane2);
 
         // Assert
@@ -154,11 +154,11 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
         var json = System.Text.Json.JsonDocument.Parse(result);
         json.RootElement.GetProperty("laneId").GetGuid().ShouldBe(lane2);
 
-        // Card should have the highest position in lane2
-        var maxPosOtherCards = await db.Cards
+        // Card should have the lowest position in lane2
+        var minPosOtherCards = await db.Cards
             .Where(c => c.LaneId == lane2 && c.Id != cardId)
-            .MaxAsync(c => (int?)c.Position) ?? -1;
-        json.RootElement.GetProperty("position").GetInt32().ShouldBeGreaterThan(maxPosOtherCards);
+            .MinAsync(c => (int?)c.Position) ?? int.MaxValue;
+        json.RootElement.GetProperty("position").GetInt32().ShouldBeLessThan(minPosOtherCards);
     }
 
     [Fact]
