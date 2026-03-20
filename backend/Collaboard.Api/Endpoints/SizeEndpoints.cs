@@ -29,7 +29,7 @@ internal static class SizeEndpoints
             }
 
             var ordinal = request.Ordinal ?? 0;
-            if (ordinal == 0 && await db.CardSizes.AnyAsync(x => x.BoardId == boardId))
+            if (!request.Ordinal.HasValue && await db.CardSizes.AnyAsync(x => x.BoardId == boardId))
             {
                 ordinal = await db.CardSizes.Where(x => x.BoardId == boardId).MaxAsync(x => x.Ordinal) + 1;
             }

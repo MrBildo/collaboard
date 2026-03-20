@@ -1661,4 +1661,54 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
+
+    [Fact]
+    public async Task PostCard_WithoutPosition_DefaultsToTopOfLane()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        // Create an existing card with a known position
+        var existingResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "Existing Card",
+            laneId,
+            position = 100
+        });
+        existingResponse.EnsureSuccessStatusCode();
+
+        // Act — create card without specifying position
+        var response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "Top Card",
+            laneId
+        });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var card = await response.Content.ReadFromJsonAsync<JsonElement>();
+        card.GetProperty("position").GetInt32().ShouldBeLessThan(100);
+    }
+
+    [Fact]
+    public async Task PostCard_WithExplicitPosition_UsesProvidedValue()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        // Act
+        var response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "Explicit Position Card",
+            laneId,
+            position = 42
+        });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var card = await response.Content.ReadFromJsonAsync<JsonElement>();
+        card.GetProperty("position").GetInt32().ShouldBe(42);
+    }
 }
