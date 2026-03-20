@@ -15,7 +15,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { reorderCard } from '@/lib/api';
 import { queryKeys } from '@/lib/query-keys';
-import type { CardItem } from '@/types';
+import type { BoardData, CardItem } from '@/types';
 
 const kanbanCollision: CollisionDetection = (args) => {
   const pointerCollisions = pointerWithin(args);
@@ -66,7 +66,26 @@ export function useBoardDnd(boardId: string | undefined, serverCards: CardItem[]
     },
     onSuccess: (data) => {
       if (!boardId) return;
-      queryClient.setQueryData(queryKeys.boards.data(boardId), data);
+      // Merge reorder response into existing cache — the API returns
+      // plain CardItem objects (no labels). We update position/lane
+      // fields while preserving enriched data (labels, counts, etc).
+      queryClient.setQueryData<BoardData>(
+        queryKeys.boards.data(boardId),
+        (old) => {
+          if (!old) return old;
+          const updatedMap = new Map(data.cards.map((c) => [c.id, c]));
+          return {
+            ...old,
+            lanes: data.lanes,
+            cards: old.cards.map((existing) => {
+              const updated = updatedMap.get(existing.id);
+              return updated
+                ? { ...existing, laneId: updated.laneId, position: updated.position }
+                : existing;
+            }),
+          };
+        },
+      );
     },
     onError: () => {
       if (!boardId) return;
