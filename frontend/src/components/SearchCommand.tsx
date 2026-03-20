@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Search, X } from 'lucide-react';
@@ -55,22 +55,56 @@ export function SearchCommand() {
   const results: SearchResult[] = searchQuery.data ?? [];
   const totalCards = results.reduce((sum, r) => sum + r.cards.length, 0);
 
+  const flatResults = useMemo(
+    () => results.flatMap((group) => group.cards.map((card) => ({ boardSlug: group.boardSlug, card }))),
+    [results],
+  );
+
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Reset focused index when results change
+  useEffect(() => { setFocusedIndex(-1); }, [flatResults.length]);
+
+  // Scroll focused item into view
+  useEffect(() => {
+    if (focusedIndex < 0) return;
+    const el = dropdownRef.current?.querySelector(`[data-search-index="${focusedIndex}"]`);
+    el?.scrollIntoView({ block: 'nearest' });
+  }, [focusedIndex]);
+
   const handleSelect = (boardSlug: string, cardNumber: number) => {
     setDismissedQuery(debouncedQuery);
     setQuery('');
+    setFocusedIndex(-1);
     navigate(`/boards/${boardSlug}/cards/${cardNumber}`);
   };
 
   const handleClear = () => {
     setQuery('');
     setDismissedQuery(debouncedQuery);
+    setFocusedIndex(-1);
     inputRef.current?.focus();
   };
 
   const handleInputKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Escape') {
       setDismissedQuery(debouncedQuery);
+      setFocusedIndex(-1);
       inputRef.current?.blur();
+      return;
+    }
+    if (!open || flatResults.length === 0) return;
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setFocusedIndex((prev) => Math.min(prev + 1, flatResults.length - 1));
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setFocusedIndex((prev) => Math.max(prev - 1, -1));
+    } else if (event.key === 'Enter' && focusedIndex >= 0) {
+      event.preventDefault();
+      const item = flatResults[focusedIndex];
+      handleSelect(item.boardSlug, item.card.number);
     }
   };
 
@@ -104,45 +138,54 @@ export function SearchCommand() {
         )}
       </div>
       {open && (
-        <div className="absolute top-full mt-1 w-full max-h-80 overflow-y-auto rounded-lg border border-border bg-popover shadow-md z-50">
+        <div ref={dropdownRef} className="absolute top-full mt-1 w-full max-h-80 overflow-y-auto rounded-lg border border-border bg-popover shadow-md z-50">
           {searchQuery.isLoading && (
             <p className="px-3 py-4 text-sm text-muted-foreground">Searching...</p>
           )}
           {searchQuery.isSuccess && totalCards === 0 && (
             <p className="px-3 py-4 text-sm text-muted-foreground">No cards match your search</p>
           )}
-          {searchQuery.isSuccess && totalCards > 0 && results.map((group) => (
-            <div key={group.boardId}>
-              {results.length > 1 && (
-                <div className="sticky top-0 bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground">
-                  {group.boardName}
-                </div>
-              )}
-              {group.cards.map((card) => (
-                <button
-                  key={card.id}
-                  type="button"
-                  onClick={() => handleSelect(group.boardSlug, card.number)}
-                  className={cn(
-                    'flex w-full items-start gap-2 px-3 py-2 text-left text-sm',
-                    'hover:bg-accent/10 focus-visible:bg-accent/10 focus-visible:outline-none',
-                  )}
-                >
-                  <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs font-mono text-muted-foreground">
-                    #{card.number}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-foreground">{card.name}</p>
-                    {card.descriptionMarkdown && (
-                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                        {card.descriptionMarkdown.slice(0, 100)}
-                      </p>
-                    )}
+          {searchQuery.isSuccess && totalCards > 0 && (() => {
+            let flatIndex = 0;
+            return results.map((group) => (
+              <div key={group.boardId}>
+                {results.length > 1 && (
+                  <div className="sticky top-0 bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground">
+                    {group.boardName}
                   </div>
-                </button>
-              ))}
-            </div>
-          ))}
+                )}
+                {group.cards.map((card) => {
+                  const idx = flatIndex++;
+                  return (
+                    <button
+                      key={card.id}
+                      type="button"
+                      data-search-index={idx}
+                      onClick={() => handleSelect(group.boardSlug, card.number)}
+                      onMouseEnter={() => setFocusedIndex(idx)}
+                      className={cn(
+                        'flex w-full items-start gap-2 px-3 py-2 text-left text-sm',
+                        'hover:bg-accent/10 focus-visible:bg-accent/10 focus-visible:outline-none',
+                        idx === focusedIndex && 'bg-accent/10',
+                      )}
+                    >
+                      <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs font-mono text-muted-foreground">
+                        #{card.number}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium text-foreground">{card.name}</p>
+                        {card.descriptionMarkdown && (
+                          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                            {card.descriptionMarkdown.slice(0, 100)}
+                          </p>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ));
+          })()}
           {searchQuery.isError && (
             <p className="px-3 py-4 text-sm text-destructive">Search failed. Please try again.</p>
           )}
