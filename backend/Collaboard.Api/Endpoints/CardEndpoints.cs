@@ -44,15 +44,17 @@ internal static class CardEndpoints
             var totalCount = await query.CountAsync();
 
             var effectiveSkip = Math.Max(skip ?? 0, 0);
+            int? effectiveTake = take.HasValue ? Math.Clamp(take.Value, 1, 200) : null;
+
             var pagedQuery = orderedQuery.Skip(effectiveSkip);
-            if (take.HasValue)
+            if (effectiveTake.HasValue)
             {
-                pagedQuery = pagedQuery.Take(Math.Clamp(take.Value, 1, 200));
+                pagedQuery = pagedQuery.Take(effectiveTake.Value);
             }
 
             var cards = await pagedQuery.ToListAsync();
             var summaries = await CardSummaryBuilder.BuildAsync(db, cards);
-            return Results.Ok(new PagedResult<CardSummary>(summaries, totalCount));
+            return Results.Ok(new PagedResult<CardSummary>(summaries, totalCount, effectiveSkip, effectiveTake));
         }).RequireAuth();
 
         group.MapPost("/boards/{boardId:guid}/cards", async (BoardDbContext db, HttpContext http, Guid boardId, CreateCardRequest request, BoardEventBroadcaster broadcaster) =>
