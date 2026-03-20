@@ -55,7 +55,6 @@ internal static class CardEndpoints
             }
 
             var requestDescription = request.DescriptionMarkdown ?? "";
-            var requestPosition = request.Position ?? 0;
 
             // Verify the lane belongs to this board
             if (!await db.Lanes.AnyAsync(x => x.Id == request.LaneId && x.BoardId == boardId))
@@ -84,6 +83,17 @@ internal static class CardEndpoints
                 }
 
                 sizeId = defaultSize.Id;
+            }
+
+            int requestPosition;
+            if (request.Position.HasValue)
+            {
+                requestPosition = request.Position.Value;
+            }
+            else
+            {
+                var minPosition = await db.Cards.Where(c => c.LaneId == request.LaneId).MinAsync(c => (int?)c.Position) ?? 10;
+                requestPosition = minPosition - 10;
             }
 
             var now = DateTimeOffset.UtcNow;
