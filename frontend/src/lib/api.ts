@@ -106,7 +106,7 @@ export async function fetchBoardData(boardId: string): Promise<BoardData> {
 // Cards (board-scoped creation/listing, flat by-ID)
 export async function fetchCards(
   boardId: string,
-  params?: { skip?: number; take?: number },
+  params?: { offset?: number; limit?: number },
 ): Promise<PagedCardSummary> {
   const { data } = await api.get(`/boards/${boardId}/cards`, { params });
   return pagedCardSummarySchema.parse(data);
