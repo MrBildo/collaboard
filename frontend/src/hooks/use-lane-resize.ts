@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 
 const STORAGE_PREFIX = 'collaboard-lane-widths-';
 const MIN_LANE_WIDTH = 280;
+const HANDLE_HIT_WIDTH = 16; // px — invisible hit area width for drag handles
 
 type LaneWidths = Record<string, number>;
 
@@ -35,17 +36,40 @@ export function useLaneResize(boardId: string, laneIds: string[]) {
   const startRightRef = useRef(0);
   const sectionRef = useRef<HTMLElement | null>(null);
 
-  // Track section width via ResizeObserver — drives re-render without reading ref during render
-  const [, setSectionWidth] = useState(0);
+  // Handle positions (px from section left edge) — computed from DOM after render
+  const [handlePositions, setHandlePositions] = useState<number[]>([]);
 
+  const computeHandlePositions = useCallback(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+    const children = el.querySelectorAll<HTMLElement>(':scope > [data-lane]');
+    const positions: number[] = [];
+    children.forEach((child, i) => {
+      if (i < children.length - 1) {
+        // offsetLeft + offsetWidth gives position relative to the section's padding box
+        // Add half the gap (8px) to center the handle in the gap
+        positions.push(child.offsetLeft + child.offsetWidth + 8);
+      }
+    });
+    setHandlePositions(positions);
+  }, []);
+
+  // Recompute handle positions on resize and after width changes
   useLayoutEffect(() => {
     const el = sectionRef.current;
     if (!el) return;
-    setSectionWidth(el.clientWidth);
-    const observer = new ResizeObserver(() => setSectionWidth(el.clientWidth));
+    computeHandlePositions();
+    const observer = new ResizeObserver(computeHandlePositions);
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [computeHandlePositions]);
+
+  // Also recompute when widths or lanes change
+  useEffect(() => {
+    // Defer to next frame so the grid has re-laid out
+    const id = requestAnimationFrame(computeHandlePositions);
+    return () => cancelAnimationFrame(id);
+  }, [widths, laneIds, computeHandlePositions]);
 
   // Reload widths when board changes
   useEffect(() => {
@@ -57,16 +81,10 @@ export function useLaneResize(boardId: string, laneIds: string[]) {
     saveWidths(boardId, widths);
   }, [boardId, widths]);
 
-  const getEffectiveWidth = useCallback(
-    (laneId: string, containerWidth: number) => {
-      const stored = widths[laneId];
-      if (stored && stored >= MIN_LANE_WIDTH) return stored;
-      return Math.max(MIN_LANE_WIDTH, containerWidth / Math.max(laneIds.length, 1));
-    },
-    [widths, laneIds.length],
-  );
-
-  // Pre-computed grid string — no ref access needed by the consumer
+  // Pre-computed grid string
+  // During drag: all lanes are px (prevents rebalancing).
+  // At rest: rightmost lane is 1fr (anchored to right edge).
+  const isDragging = draggingIndex !== null;
   const gridTemplateColumns = useMemo(() => {
     if (laneIds.length === 0) return undefined;
 
@@ -76,12 +94,15 @@ export function useLaneResize(boardId: string, laneIds: string[]) {
     }
 
     return laneIds
-      .map((id) => {
+      .map((id, i) => {
         const w = widths[id];
+        // During drag: all lanes are px to prevent rebalancing
+        // At rest: rightmost lane fills remaining space
+        if (i === laneIds.length - 1 && !isDragging) return 'minmax(280px, 1fr)';
         return w && w >= MIN_LANE_WIDTH ? `${Math.round(w)}px` : `minmax(${MIN_LANE_WIDTH}px, 1fr)`;
       })
       .join(' ');
-  }, [laneIds, widths]);
+  }, [laneIds, widths, isDragging]);
 
   const onHandleMouseDown = useCallback(
     (handleIndex: number, e: React.MouseEvent) => {
@@ -93,14 +114,23 @@ export function useLaneResize(boardId: string, laneIds: string[]) {
       const rightId = laneIds[handleIndex + 1];
       if (!leftId || !rightId) return;
 
-      const containerWidth = section.getBoundingClientRect().width;
+      // Snapshot ALL lanes to their current rendered px widths so the grid
+      // doesn't rebalance 1fr lanes during the drag
+      const children = section.querySelectorAll<HTMLElement>(':scope > [data-lane]');
+      const snapshot: LaneWidths = {};
+      children.forEach((child, i) => {
+        if (i < laneIds.length) {
+          snapshot[laneIds[i]] = child.getBoundingClientRect().width;
+        }
+      });
+      setWidths(snapshot);
 
       startXRef.current = e.clientX;
-      startLeftRef.current = getEffectiveWidth(leftId, containerWidth);
-      startRightRef.current = getEffectiveWidth(rightId, containerWidth);
+      startLeftRef.current = snapshot[leftId] ?? MIN_LANE_WIDTH;
+      startRightRef.current = snapshot[rightId] ?? MIN_LANE_WIDTH;
       setDraggingIndex(handleIndex);
     },
-    [laneIds, getEffectiveWidth],
+    [laneIds],
   );
 
   useEffect(() => {
@@ -113,17 +143,19 @@ export function useLaneResize(boardId: string, laneIds: string[]) {
     const rightId = laneIds[draggingIndex + 1];
 
     function onMouseMove(e: MouseEvent) {
-      const delta = e.clientX - startXRef.current;
-      const newLeft = Math.max(MIN_LANE_WIDTH, startLeftRef.current + delta);
-      const newRight = Math.max(MIN_LANE_WIDTH, startRightRef.current - delta);
+      const rawDelta = e.clientX - startXRef.current;
+      const maxDelta = startRightRef.current - MIN_LANE_WIDTH;
+      const minDelta = -(startLeftRef.current - MIN_LANE_WIDTH);
+      const delta = Math.max(minDelta, Math.min(maxDelta, rawDelta));
 
-      if (newLeft >= MIN_LANE_WIDTH && newRight >= MIN_LANE_WIDTH) {
-        setWidths((prev) => ({
-          ...prev,
-          [leftId]: Math.round(newLeft),
-          [rightId]: Math.round(newRight),
-        }));
-      }
+      // Only store px width for the left lane; rightmost lane stays 1fr
+      const isRightLast = rightId === laneIds[laneIds.length - 1];
+      setWidths((prev) => {
+        const next = { ...prev, [leftId]: Math.round(startLeftRef.current + delta) };
+        if (!isRightLast) next[rightId] = Math.round(startRightRef.current - delta);
+        else delete next[rightId]; // rightmost is always 1fr
+        return next;
+      });
     }
 
     function onMouseUp() {
@@ -149,6 +181,8 @@ export function useLaneResize(boardId: string, laneIds: string[]) {
   return {
     sectionRef,
     gridTemplateColumns,
+    handlePositions,
+    handleHitWidth: HANDLE_HIT_WIDTH,
     onHandleMouseDown,
     draggingIndex,
     resetWidths,

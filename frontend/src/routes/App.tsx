@@ -108,6 +108,8 @@ export function App() {
   const {
     sectionRef,
     gridTemplateColumns,
+    handlePositions,
+    handleHitWidth,
     onHandleMouseDown,
     draggingIndex: resizingHandleIndex,
   } = useLaneResize(boardId ?? '', laneIdList);
@@ -165,13 +167,13 @@ export function App() {
       >
         <section
           ref={sectionRef}
-          className="grid min-h-0 flex-1 gap-4 overflow-x-auto p-4 pb-2"
+          className="relative grid min-h-0 flex-1 gap-4 overflow-x-auto p-4 pb-2"
           style={{
             gridTemplateColumns,
           }}
           aria-label="Kanban board"
         >
-          {lanes.map((lane, i) => (
+          {lanes.map((lane) => (
             <LaneColumn
               key={lane.id}
               lane={lane}
@@ -185,6 +187,24 @@ export function App() {
               onToggleCollapse={() => toggleLaneCollapse(lane.id)}
             />
           ))}
+          {/* Overlay resize handles — positioned over column gaps, no layout impact */}
+          <div className="pointer-events-none absolute inset-0 hidden md:block">
+            {handlePositions.map((left, i) => (
+              <div
+                key={i}
+                onMouseDown={(e) => onHandleMouseDown(i, e)}
+                className="pointer-events-auto absolute top-0 bottom-0 cursor-col-resize"
+                style={{ left: left - handleHitWidth / 2, width: handleHitWidth }}
+              >
+                <div
+                  className={cn(
+                    'absolute inset-y-4 left-1/2 w-px -translate-x-1/2 rounded-full transition-colors',
+                    resizingHandleIndex === i ? 'bg-primary/60' : 'bg-transparent hover:bg-primary/40',
+                  )}
+                />
+              </div>
+            ))}
+          </div>
         </section>
         <DragOverlay>
           {(() => {
