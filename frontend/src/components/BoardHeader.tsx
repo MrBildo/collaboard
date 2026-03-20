@@ -51,7 +51,7 @@ export function BoardHeader({
           <span className="hidden max-w-[16rem] truncate text-sm font-medium text-muted-foreground md:inline">{boardName}</span>
         )}
       </div>
-      <div className="hidden flex-1 px-4 md:flex">
+      <div className="hidden flex-1 justify-center px-4 md:flex">
         <SearchCommand />
       </div>
       {/* Desktop actions */}
