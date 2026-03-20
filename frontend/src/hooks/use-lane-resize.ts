@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 const STORAGE_PREFIX = 'collaboard-lane-widths-';
 const MIN_LANE_WIDTH = 280;
-const DEFAULT_LANE_WIDTH = 0; // 0 = use 1fr (equal distribution)
 
 type LaneWidths = Record<string, number>;
 
@@ -36,6 +35,18 @@ export function useLaneResize(boardId: string, laneIds: string[]) {
   const startRightRef = useRef(0);
   const sectionRef = useRef<HTMLElement | null>(null);
 
+  // Track section width via ResizeObserver — drives re-render without reading ref during render
+  const [, setSectionWidth] = useState(0);
+
+  useLayoutEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+    setSectionWidth(el.clientWidth);
+    const observer = new ResizeObserver(() => setSectionWidth(el.clientWidth));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   // Reload widths when board changes
   useEffect(() => {
     setWidths(loadWidths(boardId));
@@ -50,32 +61,27 @@ export function useLaneResize(boardId: string, laneIds: string[]) {
     (laneId: string, containerWidth: number) => {
       const stored = widths[laneId];
       if (stored && stored >= MIN_LANE_WIDTH) return stored;
-      // Default: equal share
       return Math.max(MIN_LANE_WIDTH, containerWidth / Math.max(laneIds.length, 1));
     },
     [widths, laneIds.length],
   );
 
-  const gridTemplateColumns = useCallback(
-    (containerWidth: number) => {
-      if (laneIds.length === 0) return undefined;
+  // Pre-computed grid string — no ref access needed by the consumer
+  const gridTemplateColumns = useMemo(() => {
+    if (laneIds.length === 0) return undefined;
 
-      const hasCustom = laneIds.some((id) => widths[id] && widths[id] >= MIN_LANE_WIDTH);
-      if (!hasCustom) {
-        // No custom widths — use equal columns with minmax
-        return `repeat(${laneIds.length}, minmax(${MIN_LANE_WIDTH}px, 1fr))`;
-      }
+    const hasCustom = laneIds.some((id) => widths[id] && widths[id] >= MIN_LANE_WIDTH);
+    if (!hasCustom) {
+      return `repeat(${laneIds.length}, minmax(${MIN_LANE_WIDTH}px, 1fr))`;
+    }
 
-      // Mix of custom and default widths
-      return laneIds
-        .map((id) => {
-          const w = widths[id];
-          return w && w >= MIN_LANE_WIDTH ? `${Math.round(w)}px` : `minmax(${MIN_LANE_WIDTH}px, 1fr)`;
-        })
-        .join(' ');
-    },
-    [laneIds, widths],
-  );
+    return laneIds
+      .map((id) => {
+        const w = widths[id];
+        return w && w >= MIN_LANE_WIDTH ? `${Math.round(w)}px` : `minmax(${MIN_LANE_WIDTH}px, 1fr)`;
+      })
+      .join(' ');
+  }, [laneIds, widths]);
 
   const onHandleMouseDown = useCallback(
     (handleIndex: number, e: React.MouseEvent) => {
@@ -111,7 +117,6 @@ export function useLaneResize(boardId: string, laneIds: string[]) {
       const newLeft = Math.max(MIN_LANE_WIDTH, startLeftRef.current + delta);
       const newRight = Math.max(MIN_LANE_WIDTH, startRightRef.current - delta);
 
-      // Only update if both lanes stay above minimum
       if (newLeft >= MIN_LANE_WIDTH && newRight >= MIN_LANE_WIDTH) {
         setWidths((prev) => ({
           ...prev,
@@ -145,7 +150,6 @@ export function useLaneResize(boardId: string, laneIds: string[]) {
     sectionRef,
     gridTemplateColumns,
     onHandleMouseDown,
-    isDragging: draggingIndex !== null,
     draggingIndex,
     resetWidths,
   };
