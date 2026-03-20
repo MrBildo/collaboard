@@ -95,7 +95,7 @@ All endpoints under `/api/v1/`:
 | POST | /boards/{boardId}/lanes | Admin | Create lane in a board |
 | GET | /boards/{boardId}/sizes | All | List card sizes for a board (ordered by ordinal) |
 | POST | /boards/{boardId}/sizes | Admin | Create size in a board (auto-ordinal if omitted) |
-| GET | /boards/{boardId}/cards | All | List cards (enriched: labels, sizeId, sizeName, commentCount, attachmentCount). Optional query params: `since` (DateTimeOffset), `labelId` (Guid), `laneId` (Guid) |
+| GET | /boards/{boardId}/cards | All | List cards (enriched: labels, sizeId, sizeName, commentCount, attachmentCount). Returns `{ items, totalCount }` paged envelope. Optional query params: `since` (DateTimeOffset), `labelId` (Guid), `laneId` (Guid), `skip` (int, default 0), `take` (int, default 50, max 200) |
 | POST | /boards/{boardId}/cards | All | Create card in a board (accepts `sizeId`, defaults to lowest-ordinal size). Card numbers are board-scoped (each board starts at 1 independently) |
 | GET | /boards/{boardId}/labels | All | List labels for a board |
 | POST | /boards/{boardId}/labels | Admin | Create label in a board |
@@ -134,7 +134,7 @@ All endpoints under `/api/v1/`:
 **Tools (16):**
 - **SystemTools:** `get_api_info` (returns base URL and API prefix for direct REST calls)
 - **BoardTools:** `get_boards`, `get_lanes` (boardId required, includes cardCount per lane), `get_sizes` (boardId required, ordered by ordinal)
-- **CardTools:** `create_card` (supports labelIds, sizeId/sizeName — defaults to lowest-ordinal size; positions at top of lane), `move_card` (index optional), `update_card` (supports laneId/index move, sizeId/sizeName, labelIds replace, no-op guard), `get_cards` (enriched: labels, sizeId, sizeName, commentCount, attachmentCount), `get_card` (enriched: sizeName, attachments, user names; supports cardNumber lookup)
+- **CardTools:** `create_card` (supports labelIds, sizeId/sizeName — defaults to lowest-ordinal size; positions at top of lane), `move_card` (index optional), `update_card` (supports laneId/index move, sizeId/sizeName, labelIds replace, no-op guard), `get_cards` (enriched: labels, sizeId, sizeName, commentCount, attachmentCount; `limit` param default 200, max 500), `get_card` (enriched: sizeName, attachments, user names; supports cardNumber lookup)
 - **CommentTools:** `add_comment`
 - **AttachmentTools:** `upload_attachment` (5MB limit, base64), `download_attachment` (returns base64 content), `delete_attachment`
 - **LabelTools:** `get_labels`, `add_label_to_card` (supports labelName), `remove_label_from_card` (supports labelName)

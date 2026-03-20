@@ -44,9 +44,10 @@ public class SearchEndpointTests(CollaboardApiFactory factory) : IClassFixture<C
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
-        cards.ShouldNotBeNull();
-        cards.Length.ShouldBeGreaterThanOrEqualTo(1);
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+        paged.ShouldNotBeNull();
+        var cards = paged.Items;
+        cards.Count.ShouldBeGreaterThanOrEqualTo(1);
         cards.ShouldAllBe(c => c.GetProperty("name").GetString()!.Contains("UniqueAlphaSearch"));
     }
 
@@ -62,9 +63,10 @@ public class SearchEndpointTests(CollaboardApiFactory factory) : IClassFixture<C
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
-        cards.ShouldNotBeNull();
-        cards.Length.ShouldBeGreaterThanOrEqualTo(1);
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+        paged.ShouldNotBeNull();
+        var cards = paged.Items;
+        cards.Count.ShouldBeGreaterThanOrEqualTo(1);
         cards.ShouldContain(c => c.GetProperty("name").GetString() == "Desc Search Card");
     }
 
@@ -81,9 +83,10 @@ public class SearchEndpointTests(CollaboardApiFactory factory) : IClassFixture<C
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
-        cards.ShouldNotBeNull();
-        cards.Length.ShouldBe(1);
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+        paged.ShouldNotBeNull();
+        var cards = paged.Items;
+        cards.Count.ShouldBe(1);
         cards[0].GetProperty("number").GetInt64().ShouldBe(cardNumber);
     }
 
@@ -99,9 +102,9 @@ public class SearchEndpointTests(CollaboardApiFactory factory) : IClassFixture<C
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
-        cards.ShouldNotBeNull();
-        cards.Length.ShouldBeGreaterThanOrEqualTo(1);
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+        paged.ShouldNotBeNull();
+        paged.Items.Count.ShouldBeGreaterThanOrEqualTo(1);
     }
 
     [Fact]
@@ -115,9 +118,9 @@ public class SearchEndpointTests(CollaboardApiFactory factory) : IClassFixture<C
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
-        cards.ShouldNotBeNull();
-        cards.ShouldBeEmpty();
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+        paged.ShouldNotBeNull();
+        paged.Items.ShouldBeEmpty();
     }
 
     // ── Global search (GET /search/cards?q=) ──

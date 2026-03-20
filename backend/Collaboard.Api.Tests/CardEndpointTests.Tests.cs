@@ -46,7 +46,8 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+        var cards = paged!.Items;
         cards.ShouldNotBeNull();
         cards.ShouldNotBeEmpty();
     }
@@ -895,7 +896,8 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+        var cards = paged!.Items;
         cards.ShouldNotBeNull();
 
         var enrichedCard = cards.First(c => c.GetProperty("id").GetGuid() == cardId);
@@ -931,7 +933,8 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+        var cards = paged!.Items;
         cards.ShouldNotBeNull();
 
         var bareCard = cards.First(c => c.GetProperty("id").GetGuid() == cardId);
@@ -1217,7 +1220,8 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         // Act
         var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards");
         response.EnsureSuccessStatusCode();
-        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+        var cards = paged!.Items;
 
         // Assert
         var card = cards!.First(c => c.GetProperty("id").GetGuid() == cardId);
@@ -1263,7 +1267,8 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         // Act
         var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards");
         response.EnsureSuccessStatusCode();
-        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+        var cards = paged!.Items;
 
         // Assert
         var card = cards!.First(c => c.GetProperty("id").GetGuid() == cardId);
@@ -1307,7 +1312,8 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         // Act
         var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards");
         response.EnsureSuccessStatusCode();
-        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+        var cards = paged!.Items;
 
         // Assert
         var card = cards!.First(c => c.GetProperty("id").GetGuid() == cardId);
@@ -1339,7 +1345,8 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         // Act
         var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards");
         response.EnsureSuccessStatusCode();
-        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+        var cards = paged!.Items;
 
         // Assert
         var card = cards!.First(c => c.GetProperty("id").GetGuid() == cardId);
@@ -1483,7 +1490,8 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         // Act
         var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards");
         response.EnsureSuccessStatusCode();
-        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+        var cards = paged!.Items;
 
         // Assert
         var cardA = cards!.First(c => c.GetProperty("id").GetGuid() == cardAId);
