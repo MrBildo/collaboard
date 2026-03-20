@@ -167,12 +167,17 @@
 /* Mobile responsive overrides */
 @media (max-width: 767px) {
   /* Board layout: vertical stack — flex ignores the inline gridTemplateColumns
-     from the resize hook so lanes expand naturally to their content height */
+     from the resize hook so lanes expand naturally to their content height.
+     Top padding is zeroed so sticky lane headers (top: 0) sit flush with the
+     scroll viewport. The visual gap between header and board content is
+     provided by margin-top, which sits outside the scroll area. */
   [aria-label="Kanban board"] {
     display: flex !important;
     flex-direction: column !important;
     overflow-x: hidden !important;
     overflow-y: auto !important;
+    padding-top: 0 !important;
+    margin-top: 1rem !important;
   }
 
   /* Card detail dialog: full-screen on mobile */

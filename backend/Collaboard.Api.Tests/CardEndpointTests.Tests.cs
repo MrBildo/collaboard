@@ -1663,7 +1663,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     }
 
     [Fact]
-    public async Task PostCard_WithoutPosition_DefaultsToTopOfLane()
+    public async Task PostCard_WithoutPosition_DefaultsToBottomOfLane()
     {
         // Arrange
         TestAuthHelper.SetAdminAuth(_client, _factory);
@@ -1681,14 +1681,14 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         // Act — create card without specifying position
         var response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
         {
-            name = "Top Card",
+            name = "Bottom Card",
             laneId
         });
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
         var card = await response.Content.ReadFromJsonAsync<JsonElement>();
-        card.GetProperty("position").GetInt32().ShouldBeLessThan(100);
+        card.GetProperty("position").GetInt32().ShouldBeGreaterThan(100);
     }
 
     [Fact]
@@ -1710,5 +1710,46 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
         var card = await response.Content.ReadFromJsonAsync<JsonElement>();
         card.GetProperty("position").GetInt32().ShouldBe(42);
+    }
+
+    [Fact]
+    public async Task PatchCard_LaneChangeWithoutPosition_DefaultsToBottomOfLane()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var sourceLaneId = await GetLaneIdByIndexAsync(0);
+        var targetLaneId = await GetLaneIdByIndexAsync(1);
+
+        // Create an existing card in the target lane
+        var existingResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "Target Lane Card",
+            laneId = targetLaneId,
+            position = 50
+        });
+        existingResponse.EnsureSuccessStatusCode();
+
+        // Create the card to move
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "Card To Move",
+            laneId = sourceLaneId,
+            position = 10
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        // Act — change lane without specifying position
+        var response = await _client.PatchAsJsonAsync($"/api/v1/cards/{cardId}", new
+        {
+            laneId = targetLaneId
+        });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var card = await response.Content.ReadFromJsonAsync<JsonElement>();
+        card.GetProperty("laneId").GetGuid().ShouldBe(targetLaneId);
+        card.GetProperty("position").GetInt32().ShouldBeGreaterThan(50);
     }
 }

@@ -92,8 +92,8 @@ internal static class CardEndpoints
             }
             else
             {
-                var minPosition = await db.Cards.Where(c => c.LaneId == request.LaneId).MinAsync(c => (int?)c.Position) ?? 10;
-                requestPosition = minPosition - 10;
+                var maxPosition = await db.Cards.Where(c => c.LaneId == request.LaneId).MaxAsync(c => (int?)c.Position) ?? -10;
+                requestPosition = maxPosition + 10;
             }
 
             var now = DateTimeOffset.UtcNow;
@@ -180,6 +180,12 @@ internal static class CardEndpoints
                 }
 
                 card.LaneId = newLaneId;
+
+                if (request.Position is null)
+                {
+                    var maxPosition = await db.Cards.Where(c => c.LaneId == newLaneId && c.Id != id).MaxAsync(c => (int?)c.Position) ?? -10;
+                    card.Position = maxPosition + 10;
+                }
             }
 
             if (request.Position is not null)

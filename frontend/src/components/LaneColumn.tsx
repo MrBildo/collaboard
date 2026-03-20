@@ -39,12 +39,12 @@ export function LaneColumn({
       ref={setNodeRef}
       data-lane=""
       className={cn(
-        'flex min-w-0 flex-col overflow-x-hidden rounded-lg border border-lane-border bg-lane-bg border-t-2 border-t-primary md:overflow-hidden transition-all duration-150',
+        'flex min-w-0 flex-col rounded-lg max-md:border-0 md:border md:border-lane-border bg-lane-bg md:border-t-2 md:border-t-primary md:overflow-hidden transition-[box-shadow,background-color] duration-150',
         isOver && 'ring-2 ring-primary/60 bg-primary/5',
       )}
     >
       <div
-        className="flex min-w-0 shrink-0 items-center justify-between overflow-hidden px-4 py-3 max-md:cursor-pointer max-md:select-none"
+        className="flex min-w-0 shrink-0 items-center justify-between overflow-hidden px-4 py-3 max-md:sticky max-md:top-0 max-md:z-10 max-md:bg-lane-bg max-md:border-t-2 max-md:border-t-primary max-md:rounded-t-lg max-md:cursor-pointer max-md:select-none"
         onClick={(e) => {
           if (window.innerWidth < 768) {
             e.preventDefault();
