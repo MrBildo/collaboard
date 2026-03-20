@@ -165,39 +165,25 @@ export function App() {
       >
         <section
           ref={sectionRef}
-          className="grid min-h-0 flex-1 overflow-x-auto p-4 pb-2"
+          className="grid min-h-0 flex-1 gap-4 overflow-x-auto p-4 pb-2"
           style={{
             gridTemplateColumns,
-            gap: 0,
           }}
           aria-label="Kanban board"
         >
           {lanes.map((lane, i) => (
-            <div key={lane.id} className="flex min-h-0 min-w-0">
-              <div className="min-w-0 flex-1 p-2">
-                <LaneColumn
-                  lane={lane}
-                  cards={byLane.get(lane.id) ?? []}
-                  onCardClick={handleCardClick}
-                  onAddCard={() => { setCreateLaneId(lane.id); setCreateDialogKey((k) => k + 1); setCreateOpen(true); }}
-                  activeCardId={activeCardId}
-                  sizeMap={sizeMap}
-                  enrichedCardMap={enrichedCardMap}
-                  isCollapsed={isCollapsed(lane.id)}
-                  onToggleCollapse={() => toggleLaneCollapse(lane.id)}
-                />
-              </div>
-              {i < lanes.length - 1 && (
-                <div
-                  onMouseDown={(e) => onHandleMouseDown(i, e)}
-                  className={cn(
-                    'relative hidden w-2 shrink-0 cursor-col-resize md:block',
-                    'after:absolute after:inset-y-4 after:left-1/2 after:w-px after:-translate-x-1/2 after:rounded-full after:bg-border after:transition-colors',
-                    resizingHandleIndex === i ? 'after:bg-primary/60' : 'hover:after:bg-primary/40',
-                  )}
-                />
-              )}
-            </div>
+            <LaneColumn
+              key={lane.id}
+              lane={lane}
+              cards={byLane.get(lane.id) ?? []}
+              onCardClick={handleCardClick}
+              onAddCard={() => { setCreateLaneId(lane.id); setCreateDialogKey((k) => k + 1); setCreateOpen(true); }}
+              activeCardId={activeCardId}
+              sizeMap={sizeMap}
+              enrichedCardMap={enrichedCardMap}
+              isCollapsed={isCollapsed(lane.id)}
+              onToggleCollapse={() => toggleLaneCollapse(lane.id)}
+            />
           ))}
         </section>
         <DragOverlay>
