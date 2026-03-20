@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { LayoutDashboard, Loader2, Search, X } from 'lucide-react';
@@ -20,8 +20,11 @@ export function SearchCommand() {
 
   const debouncedQuery = useDebounce(query.trim(), 300);
 
+  const isSearchable = debouncedQuery.length >= 2 || /^\d/.test(debouncedQuery);
+
   // Derive open state: show dropdown when query is valid and not dismissed for this specific query
-  const open = debouncedQuery.length >= 2 && dismissedQuery !== debouncedQuery;
+  const [inputFocused, setInputFocused] = useState(false);
+  const open = isSearchable && dismissedQuery !== debouncedQuery;
 
   // Close on outside click — callback always sees latest debouncedQuery via latest-ref pattern in hook
   useClickOutside(containerRef, useCallback(() => {
@@ -45,14 +48,17 @@ export function SearchCommand() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Auto-prefix pure numeric queries with # for exact card number lookup
+  const effectiveQuery = /^\d+$/.test(debouncedQuery) ? `#${debouncedQuery}` : debouncedQuery;
+
   const searchQuery = useQuery({
-    queryKey: queryKeys.search.cards(debouncedQuery),
-    queryFn: () => searchAllCards(debouncedQuery),
-    enabled: debouncedQuery.length >= 2,
+    queryKey: queryKeys.search.cards(effectiveQuery),
+    queryFn: () => searchAllCards(effectiveQuery),
+    enabled: isSearchable,
     staleTime: 30_000,
   });
 
-  const results: SearchResult[] = searchQuery.data ?? [];
+  const results: SearchResult[] = useMemo(() => searchQuery.data ?? [], [searchQuery.data]);
   const totalCards = results.reduce((sum, r) => sum + r.cards.length, 0);
 
   const flatResults = useMemo(
@@ -92,6 +98,7 @@ export function SearchCommand() {
     setDismissedQuery(debouncedQuery);
     setQuery('');
     setFocusedIndex(-1);
+    inputRef.current?.blur();
     navigate(`/boards/${boardSlug}/cards/${cardNumber}`);
   };
 
@@ -103,8 +110,8 @@ export function SearchCommand() {
   };
 
   const handleInputKeyDown = (event: React.KeyboardEvent) => {
-    console.log('[SearchCommand] keydown:', event.key, { open, flatResultsLen: flatResults.length, focusedIndex });
     if (event.key === 'Escape') {
+      setQuery('');
       setDismissedQuery(debouncedQuery);
       setFocusedIndex(-1);
       inputRef.current?.blur();
@@ -113,10 +120,10 @@ export function SearchCommand() {
     if (!open || flatResults.length === 0) return;
     if (event.key === 'ArrowDown') {
       event.preventDefault();
-      setFocusedIndex((prev) => { console.log('[SearchCommand] ArrowDown:', prev, '->', Math.min(prev + 1, flatResults.length - 1)); return Math.min(prev + 1, flatResults.length - 1); });
+      setFocusedIndex((prev) => Math.min(prev + 1, flatResults.length - 1));
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
-      setFocusedIndex((prev) => { console.log('[SearchCommand] ArrowUp:', prev, '->', Math.max(prev - 1, 0)); return Math.max(prev - 1, 0); });
+      setFocusedIndex((prev) => Math.max(prev - 1, 0));
     } else if (event.key === 'Enter' && focusedIndex >= 0) {
       event.preventDefault();
       const item = flatResults[focusedIndex];
@@ -124,9 +131,30 @@ export function SearchCommand() {
     }
   };
 
+  // Progressive placeholder based on available width
+  const [placeholder, setPlaceholder] = useState('Search cards... (/ or Ctrl+K)');
+  const inputWrapperRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const el = inputWrapperRef.current;
+    if (!el) return;
+
+    const update = () => {
+      const w = el.clientWidth;
+      if (w >= 280) setPlaceholder('Search cards... (/ or Ctrl+K)');
+      else if (w >= 140) setPlaceholder('Search... (/)');
+      else setPlaceholder('/');
+    };
+
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div ref={containerRef} className="relative w-full max-w-md">
-      <div className="relative">
+      <div ref={inputWrapperRef} className="relative">
         {searchQuery.isFetching ? (
           <Loader2 className="pointer-events-none absolute left-2.5 top-1/2 w-4 h-4 -translate-y-1/2 animate-spin text-muted-foreground" />
         ) : (
@@ -135,10 +163,11 @@ export function SearchCommand() {
         <Input
           ref={inputRef}
           type="text"
-          placeholder="Search cards... (/ or Ctrl+K)"
+          placeholder={inputFocused ? '' : placeholder}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onFocus={() => { if (debouncedQuery.length >= 2) setDismissedQuery(null); }}
+          onFocus={() => { setInputFocused(true); setDismissedQuery(null); }}
+          onBlur={() => setInputFocused(false)}
           onKeyDown={handleInputKeyDown}
           className="pl-8 pr-8"
         />
