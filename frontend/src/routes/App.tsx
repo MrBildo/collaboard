@@ -109,7 +109,6 @@ export function App() {
     sectionRef,
     gridTemplateColumns,
     onHandleMouseDown,
-    isDragging: isLaneResizing,
     draggingIndex: resizingHandleIndex,
   } = useLaneResize(boardId ?? '', laneIdList);
 
@@ -168,9 +167,7 @@ export function App() {
           ref={sectionRef}
           className="grid min-h-0 flex-1 overflow-x-auto p-4 pb-2"
           style={{
-            gridTemplateColumns: lanes.length > 0
-              ? gridTemplateColumns(sectionRef.current?.getBoundingClientRect().width ?? 0)
-              : undefined,
+            gridTemplateColumns,
             gap: 0,
           }}
           aria-label="Kanban board"
