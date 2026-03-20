@@ -22,7 +22,7 @@ public class McpCardToolTests(CollaboardApiFactory factory) : IClassFixture<Coll
     }
 
     [Fact]
-    public async Task MoveCard_WithoutIndex_AppendsToEndOfLane()
+    public async Task MoveCard_WithoutIndex_PlacesAtTopOfLane()
     {
         // Arrange
         TestAuthHelper.SetAdminAuth(_client, _factory);
@@ -53,7 +53,7 @@ public class McpCardToolTests(CollaboardApiFactory factory) : IClassFixture<Coll
         // Create the card to move in the source lane
         var moveCardResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
         {
-            name = "Card To Append",
+            name = "Card To Prepend",
             descriptionMarkdown = "",
             size = "M",
             laneId = sourceLaneId,
@@ -75,10 +75,10 @@ public class McpCardToolTests(CollaboardApiFactory factory) : IClassFixture<Coll
             targetLaneId,
             cardId: moveCardId);
 
-        // Assert — card should be at the end (index 2, after the two existing cards)
-        result.ShouldContain("moved to lane at index 2");
+        // Assert — card should be at the top (index 0, before the two existing cards)
+        result.ShouldContain("moved to lane at index 0");
 
-        // Verify position is greater than both existing cards
+        // Verify position is less than both existing cards
         var cardsResponse = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards?laneId={targetLaneId}");
         cardsResponse.EnsureSuccessStatusCode();
         var cards = await cardsResponse.Content.ReadFromJsonAsync<JsonElement[]>();
@@ -90,7 +90,7 @@ public class McpCardToolTests(CollaboardApiFactory factory) : IClassFixture<Coll
         foreach (var other in otherCards)
         {
             movedCard.GetProperty("position").GetInt32()
-                .ShouldBeGreaterThan(other.GetProperty("position").GetInt32());
+                .ShouldBeLessThan(other.GetProperty("position").GetInt32());
         }
     }
 
