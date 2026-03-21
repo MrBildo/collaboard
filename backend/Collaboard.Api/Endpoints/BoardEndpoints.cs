@@ -45,6 +45,15 @@ internal static class BoardEndpoints
             };
             db.Boards.Add(board);
 
+            db.Lanes.Add(new Lane
+            {
+                Id = Guid.NewGuid(),
+                BoardId = board.Id,
+                Name = "Archive",
+                Position = int.MaxValue,
+                IsArchiveLane = true,
+            });
+
             db.CardSizes.AddRange(
                 new CardSize { Id = Guid.NewGuid(), BoardId = board.Id, Name = "S", Ordinal = 0 },
                 new CardSize { Id = Guid.NewGuid(), BoardId = board.Id, Name = "M", Ordinal = 1 },
@@ -86,14 +95,17 @@ internal static class BoardEndpoints
                 return Results.NotFound();
             }
 
-            if (await db.Lanes.AnyAsync(x => x.BoardId == id))
+            if (await db.Lanes.AnyAsync(x => x.BoardId == id && !x.IsArchiveLane))
             {
                 return Results.BadRequest("Board must have no lanes before it can be deleted.");
             }
 
+            var archivedCardsDeleted = await db.Cards.CountAsync(x => x.BoardId == id);
+
             db.Boards.Remove(board);
             await db.SaveChangesAsync();
-            return Results.NoContent();
+
+            return archivedCardsDeleted > 0 ? Results.Ok(new { deleted = true, archivedCardsDeleted }) : Results.NoContent();
         }).RequireAdmin();
 
         // Composite board view — lanes + cards for a specific board
@@ -104,8 +116,13 @@ internal static class BoardEndpoints
                 return Results.NotFound();
             }
 
-            var lanes = await db.Lanes.Where(x => x.BoardId == boardId).OrderBy(x => x.Position).ToListAsync();
-            var rawCards = await db.Cards.Where(x => x.BoardId == boardId).OrderBy(x => x.LaneId).ThenBy(x => x.Position).ToListAsync();
+            var archiveLaneIds = await db.Lanes
+                .Where(x => x.BoardId == boardId && x.IsArchiveLane)
+                .Select(x => x.Id)
+                .ToListAsync();
+
+            var lanes = await db.Lanes.Where(x => x.BoardId == boardId && !x.IsArchiveLane).OrderBy(x => x.Position).ToListAsync();
+            var rawCards = await db.Cards.Where(x => x.BoardId == boardId && !archiveLaneIds.Contains(x.LaneId)).OrderBy(x => x.LaneId).ThenBy(x => x.Position).ToListAsync();
             var cards = await CardSummaryBuilder.BuildAsync(db, rawCards);
             var sizes = await db.CardSizes.Where(x => x.BoardId == boardId).OrderBy(x => x.Ordinal).ToListAsync();
             return Results.Ok(new { lanes, cards, sizes });
