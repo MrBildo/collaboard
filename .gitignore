@@ -1,41 +1,52 @@
+# Agent workspace (instance-local)
+.agents/
+
+# Claude Code (instance-local)
+.claude/*
+
+# Auth keys
+.agents.env
+
+# MCP config (user-level)
+.mcp.json
+
+# Node
 node_modules/
 frontend/node_modules/
 frontend/dist/
+
+# .NET
 backend/**/bin/
 backend/**/obj/
+
+# Aspire local state
+.aspire/
+
+# Collaboard app
 backend/Collaboard.Api/wwwroot/
 *.db
 *.db-shm
 *.db-wal
 *.db.bak-*
 data/
+
+# IDE / editor
 .vscode/
 backend/.vs/
+
+# Secrets / env
 backend/**/Properties/launchSettings.json
 !backend/Collaboard.AppHost/Properties/launchSettings.json
-frontend/tsconfig.tsbuildinfo
-frontend/src/**/*.js
+backend/**/appsettings.Development.json
 frontend/.env
 frontend/.env.*
-backend/**/appsettings.Development.json
 
-# Aspire local state
-.aspire/
-
-# Claude Code local settings
-.claude/
+# Build info
+frontend/tsconfig.tsbuildinfo
+frontend/src/**/*.js
 
 # Playwright MCP
 .playwright-mcp/
-
-# MCP config (local)
-.mcp.json
-
-# Agent workspace (local only)
-.agents/
-
-# Agent environment (auth keys)
-.agent.env
 
 # OS files
 Thumbs.db
