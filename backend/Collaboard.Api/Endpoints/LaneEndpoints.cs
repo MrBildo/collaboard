@@ -13,7 +13,7 @@ internal static class LaneEndpoints
         group.MapGet("/boards/{boardId:guid}/lanes", async (BoardDbContext db, Guid boardId) =>
             !await db.Boards.AnyAsync(x => x.Id == boardId)
                 ? Results.NotFound()
-                : Results.Ok(await db.Lanes.Where(x => x.BoardId == boardId && !x.IsArchiveLane).OrderBy(x => x.Position).ToListAsync()))
+                : Results.Ok(await db.Lanes.Where(x => x.BoardId == boardId).OrderBy(x => x.Position).ToListAsync()))
             .RequireAuth();
 
         group.MapPost("/boards/{boardId:guid}/lanes", async (BoardDbContext db, Guid boardId, CreateLaneRequest request, BoardEventBroadcaster broadcaster) =>
@@ -26,11 +26,6 @@ internal static class LaneEndpoints
             if (string.IsNullOrWhiteSpace(request.Name))
             {
                 return Results.BadRequest("Name is required.");
-            }
-
-            if (request.Position == int.MaxValue)
-            {
-                return Results.BadRequest("Position value is reserved.");
             }
 
             var lane = new Lane { Id = Guid.NewGuid(), BoardId = boardId, Name = request.Name, Position = request.Position };
@@ -55,11 +50,6 @@ internal static class LaneEndpoints
                 return Results.NotFound();
             }
 
-            if (lane.IsArchiveLane)
-            {
-                return Results.BadRequest("Archive lanes cannot be deleted.");
-            }
-
             if (await db.Cards.AnyAsync(x => x.LaneId == id))
             {
                 return Results.Conflict("Lane must be empty.");
@@ -79,11 +69,6 @@ internal static class LaneEndpoints
                 return Results.NotFound();
             }
 
-            if (lane.IsArchiveLane)
-            {
-                return Results.BadRequest("Archive lanes cannot be modified.");
-            }
-
             if (request.Name is not null)
             {
                 if (string.IsNullOrWhiteSpace(request.Name))
@@ -97,12 +82,6 @@ internal static class LaneEndpoints
             if (request.Position is not null)
             {
                 var newPos = request.Position.Value;
-
-                if (newPos == int.MaxValue)
-                {
-                    return Results.BadRequest("Position value is reserved.");
-                }
-
                 if (await db.Lanes.AnyAsync(x => x.BoardId == lane.BoardId && x.Position == newPos && x.Id != id))
                 {
                     return Results.Conflict("Position already taken by another lane.");

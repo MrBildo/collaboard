@@ -36,7 +36,6 @@ public class Lane
     public Guid BoardId { get; set; }
     [MaxLength(40)] public string Name { get; set; } = string.Empty;
     public int Position { get; set; }
-    public bool IsArchiveLane { get; set; }
 }
 
 public class CardSize

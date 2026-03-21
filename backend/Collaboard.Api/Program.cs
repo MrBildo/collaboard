@@ -105,8 +105,7 @@ using (var scope = app.Services.CreateScope())
         db.Lanes.AddRange(
             new Lane { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "Backlog", Position = 0 },
             new Lane { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "In Progress", Position = 1 },
-            new Lane { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "Done", Position = 2 },
-            new Lane { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "Archive", Position = int.MaxValue, IsArchiveLane = true }
+            new Lane { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "Done", Position = 2 }
         );
 
         db.Set<CardSize>().AddRange(
