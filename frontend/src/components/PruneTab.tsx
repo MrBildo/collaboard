@@ -375,10 +375,14 @@ export function PruneTab({ boardId }: PruneTabProps) {
 
           {preview.matchCount > 0 && (
             <Button
-              variant="destructive"
+              variant="outline"
               onClick={handleExecute}
               disabled={pruneMutation.isPending}
-              className={cn(!isDelete && 'bg-primary hover:bg-primary/90')}
+              className={cn(
+                isDelete
+                  ? 'border-destructive text-destructive hover:bg-destructive/10'
+                  : 'border-blue-300 text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:border-blue-700 dark:text-blue-400 dark:hover:bg-blue-950 dark:hover:text-blue-300',
+              )}
             >
               {isDelete ? (
                 <Trash2 className="mr-2 w-4 h-4" />
