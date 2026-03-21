@@ -45,7 +45,7 @@ public sealed class BoardTools(BoardDbContext db, McpAuthService auth)
             .ToDictionaryAsync(x => x.LaneId, x => x.Count, ct);
 
         var lanes = await db.Lanes
-            .Where(l => l.BoardId == boardId)
+            .Where(l => l.BoardId == boardId && !l.IsArchiveLane)
             .OrderBy(l => l.Position)
             .ToListAsync(ct);
 
