@@ -34,10 +34,18 @@ type CreateCardDialogProps = {
   defaultLaneId?: string;
 };
 
-export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, defaultLaneId }: CreateCardDialogProps) {
+export function CreateCardDialog({
+  boardId,
+  lanes,
+  sizes,
+  open,
+  onOpenChange,
+  defaultLaneId,
+}: CreateCardDialogProps) {
   const queryClient = useQueryClient();
 
-  const defaultSizeId = sizes.length > 0 ? [...sizes].sort((a, b) => a.ordinal - b.ordinal)[0].id : '';
+  const defaultSizeId =
+    sizes.length > 0 ? [...sizes].sort((a, b) => a.ordinal - b.ordinal)[0].id : '';
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [sizeId, setSizeId] = useState(defaultSizeId);
@@ -60,10 +68,7 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
     mutationFn: () => {
       const cards = boardDataQuery.data?.cards ?? [];
       const laneCards = cards.filter((c) => c.laneId === laneId);
-      const maxPosition =
-        laneCards.length > 0
-          ? Math.max(...laneCards.map((c) => c.position))
-          : 0;
+      const maxPosition = laneCards.length > 0 ? Math.max(...laneCards.map((c) => c.position)) : 0;
 
       return createCard(boardId, {
         name: name.trim(),
@@ -88,18 +93,22 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
       const labelSummaries = context?.labelSummaries ?? [];
 
       queryClient.cancelQueries({ queryKey: queryKeys.boards.data(boardId) });
-      queryClient.setQueryData<BoardData>(
-        queryKeys.boards.data(boardId),
-        (old) => old ? {
-          ...old,
-          cards: [...old.cards, {
-            ...newCard,
-            sizeName: sizes.find((s) => s.id === newCard.sizeId)?.name ?? '?',
-            labels: labelSummaries,
-            commentCount: 0,
-            attachmentCount: 0,
-          }],
-        } : old,
+      queryClient.setQueryData<BoardData>(queryKeys.boards.data(boardId), (old) =>
+        old
+          ? {
+              ...old,
+              cards: [
+                ...old.cards,
+                {
+                  ...newCard,
+                  sizeName: sizes.find((s) => s.id === newCard.sizeId)?.name ?? '?',
+                  labels: labelSummaries,
+                  commentCount: 0,
+                  attachmentCount: 0,
+                },
+              ],
+            }
+          : old,
       );
       queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
       onOpenChange(false);
@@ -155,30 +164,21 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
               <div className="flex flex-col gap-1.5">
                 <Label>Size</Label>
                 <Select value={sizeId} onValueChange={(v) => v && setSizeId(v)}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-36">
                     <SelectValue>
                       {sizes.find((s) => s.id === sizeId)?.name ?? 'Select size'}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {[...sizes].sort((a, b) => a.ordinal - b.ordinal).map((s) => (
-                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                    ))}
+                    {[...sizes]
+                      .sort((a, b) => a.ordinal - b.ordinal)
+                      .map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
-              </div>
-            )}
-
-            {/* Labels */}
-            {(allLabelsQuery.data ?? []).length > 0 && (
-              <div className="flex flex-col gap-1.5">
-                <Label>Labels</Label>
-                <LabelPicker
-                  allLabels={allLabelsQuery.data ?? []}
-                  assignedLabels={(allLabelsQuery.data ?? []).filter((l) => selectedLabelIds.includes(l.id))}
-                  onAdd={(id) => setSelectedLabelIds((prev) => [...prev, id])}
-                  onRemove={(id) => setSelectedLabelIds((prev) => prev.filter((x) => x !== id))}
-                />
               </div>
             )}
 
@@ -186,7 +186,7 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
             <div className="flex flex-col gap-1.5">
               <Label>Lane</Label>
               <Select value={laneId} onValueChange={(v) => v && setLaneId(v)}>
-                <SelectTrigger>
+                <SelectTrigger className="w-36">
                   <SelectValue placeholder="Select lane">
                     {lanes.find((l) => l.id === laneId)?.name ?? 'Select lane'}
                   </SelectValue>
@@ -200,14 +200,25 @@ export function CreateCardDialog({ boardId, lanes, sizes, open, onOpenChange, de
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Labels */}
+            {(allLabelsQuery.data ?? []).length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <Label>Labels</Label>
+                <LabelPicker
+                  allLabels={allLabelsQuery.data ?? []}
+                  assignedLabels={(allLabelsQuery.data ?? []).filter((l) =>
+                    selectedLabelIds.includes(l.id),
+                  )}
+                  onAdd={(id) => setSelectedLabelIds((prev) => [...prev, id])}
+                  onRemove={(id) => setSelectedLabelIds((prev) => prev.filter((x) => x !== id))}
+                />
+              </div>
+            )}
           </div>
 
           <DialogFooter className="mt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={createMutation.isPending || !name.trim() || !sizeId}>
