@@ -233,7 +233,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
     }
 
     [McpServerTool(Name = "get_cards", ReadOnly = true, Destructive = false)]
-    [Description("List cards for a board with optional filters. Use the 'since' filter to check for recent activity (includes cards with new/edited comments and new attachments).")]
+    [Description("List cards for a board with optional filters. Use the 'since' filter to check for recent activity (includes cards with new/edited comments and new attachments). Returns a paged envelope: { items, totalCount, offset, limit }.")]
     public async Task<string> GetCardsAsync(
         [Description("Your auth key")] string authKey,
         [Description("The board ID to list cards from")] Guid boardId,
@@ -241,6 +241,8 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         [Description("Only return cards with this label assigned")] Guid? labelId = null,
         [Description("Only return cards in this lane")] Guid? laneId = null,
         [Description("Search term. Prefix with # for card number lookup (e.g. '#42'). Plain numbers match card number or name/description. Text matches name or description.")] string? search = null,
+        [Description("Number of cards to skip (default 0). Use with limit for pagination.")] int? offset = null,
+        [Description("Maximum number of cards to return (default 200, max 500). Use to avoid exceeding token limits on large boards.")] int? limit = null,
         CancellationToken ct = default)
     {
         var (_, error) = await auth.RequireUserAsync(authKey, ct);
@@ -274,9 +276,13 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
 
         query = SearchHelper.ApplySearchFilter(query, search);
 
-        var cards = await query.OrderBy(c => c.LaneId).ThenBy(c => c.Position).ToListAsync(ct);
+        var totalCount = await query.CountAsync(ct);
+        var effectiveOffset = Math.Max(offset ?? 0, 0);
+        var effectiveLimit = Math.Clamp(limit ?? 200, 1, 500);
+        var cards = await query.OrderBy(c => c.LaneId).ThenBy(c => c.Position).Skip(effectiveOffset).Take(effectiveLimit).ToListAsync(ct);
         var summaries = await CardSummaryBuilder.BuildAsync(db, cards, ct);
-        return JsonSerializer.Serialize(summaries, JsonSerializerOptions.Web);
+        var paged = new PagedResult<CardSummary>(summaries, totalCount, effectiveOffset, effectiveLimit);
+        return JsonSerializer.Serialize(paged, JsonSerializerOptions.Web);
     }
 
     [McpServerTool(Name = "get_card", ReadOnly = true, Destructive = false)]

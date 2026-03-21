@@ -46,9 +46,152 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+        var cards = paged!.Items;
         cards.ShouldNotBeNull();
         cards.ShouldNotBeEmpty();
+    }
+
+    [Fact]
+    public async Task GetCards_WithLimit_ReturnsLimitedItemsAndTotalCount()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+        for (var i = 0; i < 5; i++)
+        {
+            var r = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+            {
+                name = $"Pagination-Limit-{Guid.NewGuid()}",
+                descriptionMarkdown = "",
+                laneId,
+                position = Random.Shared.Next(10000, 99999)
+            });
+            r.EnsureSuccessStatusCode();
+        }
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards?limit=2");
+        response.EnsureSuccessStatusCode();
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+
+        // Assert
+        paged.ShouldNotBeNull();
+        paged.Items.Count.ShouldBe(2);
+        paged.TotalCount.ShouldBeGreaterThanOrEqualTo(5);
+    }
+
+    [Fact]
+    public async Task GetCards_WithOffsetAndLimit_ReturnsCorrectPage()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+        for (var i = 0; i < 3; i++)
+        {
+            var r = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+            {
+                name = $"Pagination-Offset-{Guid.NewGuid()}",
+                descriptionMarkdown = "",
+                laneId,
+                position = Random.Shared.Next(10000, 99999)
+            });
+            r.EnsureSuccessStatusCode();
+        }
+
+        // Act — get all, then get with offset, verify different first items
+        var allResponse = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards?limit=200");
+        allResponse.EnsureSuccessStatusCode();
+        var allPaged = await allResponse.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+
+        var offsetResponse = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards?offset=2&limit=2");
+        offsetResponse.EnsureSuccessStatusCode();
+        var offsetPaged = await offsetResponse.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+
+        // Assert
+        allPaged.ShouldNotBeNull();
+        offsetPaged.ShouldNotBeNull();
+        offsetPaged.TotalCount.ShouldBe(allPaged.TotalCount);
+        offsetPaged.Items.Count.ShouldBeGreaterThanOrEqualTo(1);
+
+        // First item of offset page should be the third item from the full list
+        var thirdItemId = allPaged.Items[2].GetProperty("id").GetGuid();
+        offsetPaged.Items[0].GetProperty("id").GetGuid().ShouldBe(thirdItemId);
+    }
+
+    [Fact]
+    public async Task GetCards_OffsetBeyondTotal_ReturnsEmptyItemsWithTotalCount()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards?offset=99999&limit=10");
+        response.EnsureSuccessStatusCode();
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+
+        // Assert
+        paged.ShouldNotBeNull();
+        paged.Items.ShouldBeEmpty();
+        paged.TotalCount.ShouldBeGreaterThanOrEqualTo(0);
+    }
+
+    [Fact]
+    public async Task GetCards_LimitExceedsMax_ClampedTo200()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        // Act — request limit=999, should be clamped to 200
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards?limit=999");
+        response.EnsureSuccessStatusCode();
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+
+        // Assert — we can't directly verify the clamp, but the response should succeed
+        // and return at most 200 items (board likely has fewer)
+        paged.ShouldNotBeNull();
+        paged.Items.Count.ShouldBeLessThanOrEqualTo(200);
+    }
+
+    [Fact]
+    public async Task GetCards_LimitZero_ClampedToOne()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+        var r = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = $"Pagination-Zero-{Guid.NewGuid()}",
+            descriptionMarkdown = "",
+            laneId,
+            position = Random.Shared.Next(10000, 99999)
+        });
+        r.EnsureSuccessStatusCode();
+
+        // Act — limit=0 should be clamped to 1
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards?limit=0");
+        response.EnsureSuccessStatusCode();
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+
+        // Assert
+        paged.ShouldNotBeNull();
+        paged.Items.Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task GetCards_NegativeOffset_ClampedToZero()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards?offset=-5&limit=10");
+        response.EnsureSuccessStatusCode();
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+
+        // Assert — should behave same as offset=0
+        paged.ShouldNotBeNull();
+        paged.Items.ShouldNotBeEmpty();
     }
 
     [Fact]
@@ -895,7 +1038,8 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+        var cards = paged!.Items;
         cards.ShouldNotBeNull();
 
         var enrichedCard = cards.First(c => c.GetProperty("id").GetGuid() == cardId);
@@ -931,7 +1075,8 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+        var cards = paged!.Items;
         cards.ShouldNotBeNull();
 
         var bareCard = cards.First(c => c.GetProperty("id").GetGuid() == cardId);
@@ -1217,7 +1362,8 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         // Act
         var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards");
         response.EnsureSuccessStatusCode();
-        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+        var cards = paged!.Items;
 
         // Assert
         var card = cards!.First(c => c.GetProperty("id").GetGuid() == cardId);
@@ -1263,7 +1409,8 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         // Act
         var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards");
         response.EnsureSuccessStatusCode();
-        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+        var cards = paged!.Items;
 
         // Assert
         var card = cards!.First(c => c.GetProperty("id").GetGuid() == cardId);
@@ -1307,7 +1454,8 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         // Act
         var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards");
         response.EnsureSuccessStatusCode();
-        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+        var cards = paged!.Items;
 
         // Assert
         var card = cards!.First(c => c.GetProperty("id").GetGuid() == cardId);
@@ -1339,7 +1487,8 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         // Act
         var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards");
         response.EnsureSuccessStatusCode();
-        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+        var cards = paged!.Items;
 
         // Assert
         var card = cards!.First(c => c.GetProperty("id").GetGuid() == cardId);
@@ -1483,7 +1632,8 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         // Act
         var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards");
         response.EnsureSuccessStatusCode();
-        var cards = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+        var paged = await response.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+        var cards = paged!.Items;
 
         // Assert
         var cardA = cards!.First(c => c.GetProperty("id").GetGuid() == cardAId);

@@ -96,6 +96,13 @@ export const boardDataSchema = z.object({
   sizes: z.array(cardSizeSchema),
 });
 
+export const pagedCardSummarySchema = z.object({
+  items: z.array(cardSummarySchema),
+  totalCount: z.number(),
+  offset: z.number(),
+  limit: z.number().nullable(),
+});
+
 export const userDirectoryEntrySchema = z.object({
   id: z.string(),
   name: z.string(),
