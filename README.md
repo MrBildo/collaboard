@@ -201,7 +201,7 @@ Collaboard is designed for agents to be first-class participants. Set up an agen
      -d '{"name": "Claude Agent", "role": 2}'
    ```
 
-2. **Store the auth key** in a `.agent.env` file (gitignored):
+2. **Store the auth key** in a `.agents.env` file (gitignored):
    ```
    COLLABOARD_AUTH_KEY=<agent-auth-key>
    ```

@@ -143,7 +143,7 @@ All endpoints under `/api/v1/`:
 
 ## .agents/ Directory Structure
 
-Instance-local workspace (gitignored). Run `/bootstrap` to create on fresh clone:
+Instance-local workspace (gitignored). See [[.agents/WORKFLOW]] for process. Run `/bootstrap` to create on fresh clone:
 
 ```
 .agents/
@@ -167,7 +167,7 @@ Instance-local workspace (gitignored). Run `/bootstrap` to create on fresh clone
 3. Roadmap (`INDEX.md`) is source of truth for future work
 4. `temp/` is scratch — cleaned between milestones
 5. Wikilink-style linking: `[[path/to/file]]` (no `.md` extension)
-6. Run `/agents-tidy` between milestones to enforce structure
+6. Run cleanup between milestones to enforce structure
 
 ## Conventions
 
@@ -218,66 +218,43 @@ Instance-local workspace (gitignored). Run `/bootstrap` to create on fresh clone
 - Test classes per resource: `*EndpointTests.Tests.cs`
 - Shared infrastructure: `Infrastructure/CollaboardApiFactory.cs`, `TestAuthHelper.cs`
 
-## Development Process
+## Collaboard (Kanban)
 
-Collaboard development is tracked on the **Collaboard** board in the production instance (board slug: `collaboard`).
-
-### Lanes
-
-| Lane | Purpose |
-|------|---------|
-| Backlog | Prioritized, ready to pick up |
-| Triage | New items land here, need sizing/discussion |
-| Ready | Sized, scoped, and approved — agents can pick these up |
-| In Progress | Actively being worked on |
-| Review | PR open, awaiting user review |
-| Done | Merged to main |
-| Archived | Cleared periodically |
-
-### Labels
-
-Labels are board-scoped (each board has its own label set) and align with conventional commit prefixes:
-
-| Label | Color | Maps to |
-|-------|-------|---------|
-| `bug` | red | `fix:` commits |
-| `feature` | green | `feat:` commits |
-| `improvement` | blue | `refactor:` / minor enhancements |
-| `chore` | gray | CI, deps, tooling |
-| `docs` | teal | documentation |
-| `blocked` | red | work is blocked |
-
-### Workflow
-
-1. New items → **Triage** with a type label (`bug`, `feature`, etc.)
-2. Size (S/M/L/XL), prioritize → **Backlog**
-3. User approves for work → **Ready** (agents should only pick up cards from Ready)
-4. Pick up → **In Progress**, create a feature branch
-5. PR open → **Review**, awaiting user review
-6. PR merged → **Done**
-7. Periodically sweep Done → **Archived**
-8. Cards needing a spec get a comment linking to `.agents/specs/`
-
-### Agent Board Awareness
-
-Agents working on Collaboard should use the MCP tools to stay in sync with the board:
-- **Start of session:** Call `get_cards` with the Collaboard board ID to see current ready, in-progress items, and recent activity
-- **Check for changes:** Use `get_cards` with the `since` parameter to see cards with recent activity (new/edited comments, new attachments, card updates). This catches changes made by humans or other agents between sessions
-- **During work:** Move cards between lanes, add comments with PR links, and label cards as you work
-- **Board ID:** Use `get_boards` to discover board IDs — the Collaboard development board has slug `collaboard`
-
-### Releases
+See [[COLLABOARD]] for board conventions, lanes, labels, sizes, and workflow.
 
 Use `/release` to cut a new version — it waits for CI, creates a GitHub Release, monitors the publish workflow, and reports when artifacts are ready.
 
+## Definition of Done
+
+Before moving any card to Review or declaring work complete:
+
+```powershell
+# 1. Build — backend
+cd backend
+dotnet build
+
+# 2. Build — frontend (typecheck + Vite build)
+cd frontend
+npm run build
+
+# 3. Test — backend
+cd backend
+dotnet test
+
+# 4. Test — frontend
+cd frontend
+npm run test
+
+# 5. Lint — frontend
+cd frontend
+npm run lint
+npm run format:check
+```
+
+**Runtime observation:** Feature must be observable in the running application. Launch full stack via `dotnet run --project backend/Collaboard.AppHost`. Backend changes must respond correctly via API. Frontend changes must render in the browser. MCP changes must be callable and return expected results. Aspire Dashboard provides structured logs, traces, and metrics.
+
+Format with `dotnet format` (backend) and `npm run format` (frontend) before committing.
+
 ## Skills
 
-| Skill | Purpose |
-|-------|---------|
-| `/agents-tidy` | Scan `.agents/` structure, enforce conventions |
-| `/roadmap` | View and manage `.agents/roadmap/INDEX.md` |
-| `/bootstrap` | Create `.agents/` directory structure on fresh clone |
-| `/spec-discuss` | Collaborative spec development |
-| `/post-mortem` | Structured retrospective |
-| `/handoff` | Generate session handoff prompt |
-| `/schema-sync` | Sync database schema snapshot to `.agents/docs/@schema-sync/` |
+Skills live in `.claude/skills/`. Each skill is self-documenting via its own `SKILL.md`.
