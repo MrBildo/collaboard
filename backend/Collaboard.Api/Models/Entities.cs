@@ -114,7 +114,8 @@ public record CardSummary(
     DateTimeOffset LastUpdatedAtUtc,
     List<CardLabelSummary> Labels,
     int CommentCount,
-    int AttachmentCount);
+    int AttachmentCount,
+    bool IsArchived);
 
 public record SearchResult(Guid BoardId, string BoardName, string BoardSlug, List<CardSummary> Cards);
 

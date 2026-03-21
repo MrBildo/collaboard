@@ -42,6 +42,9 @@ internal static class CardDetailBuilder
             .Select(s => s.Name)
             .FirstOrDefaultAsync(ct) ?? "?";
 
+        var isArchived = await db.Lanes
+            .AnyAsync(l => l.Id == card.LaneId && l.IsArchiveLane, ct);
+
         return new CardDetail(
             card,
             sizeName,
@@ -49,7 +52,8 @@ internal static class CardDetailBuilder
             userNames.GetValueOrDefault(card.LastUpdatedByUserId),
             commentsWithUserNames,
             labels,
-            attachments
+            attachments,
+            isArchived
         );
     }
 }
@@ -76,4 +80,5 @@ internal record CardDetail(
     string? LastUpdatedByUserName,
     List<CardDetailComment> Comments,
     List<Label> Labels,
-    List<CardDetailAttachment> Attachments);
+    List<CardDetailAttachment> Attachments,
+    bool IsArchived);
