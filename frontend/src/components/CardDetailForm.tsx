@@ -292,7 +292,7 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
             <Tooltip>
               <TooltipTrigger render={<span />}>
                 <Select value={sizeId} onValueChange={(v) => v && setSizeId(v)}>
-                  <SelectTrigger className="w-24">
+                  <SelectTrigger className="w-36">
                     <SelectValue>
                       {sizes.find((s) => s.id === sizeId)?.name ?? '?'}
                     </SelectValue>
