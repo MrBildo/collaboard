@@ -562,4 +562,108 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
         var cardLabels = await db.CardLabels.Where(cl => cl.CardId == cardId).Select(cl => cl.LabelId).ToListAsync();
         cardLabels.ShouldContain(label.Id);
     }
+
+    // ── get_cards pagination ─────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetCards_ReturnsPagedEnvelope()
+    {
+        // Arrange
+        var (db, tools, authKey) = CreateTools();
+        var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
+        await CreateCardInLaneAsync(tools, authKey, lanes[0], $"PagedEnvelope-{Guid.NewGuid()}");
+
+        // Act
+        var result = await tools.GetCardsAsync(authKey, _factory.DefaultBoardId);
+
+        // Assert — response is a paged envelope, not a flat array
+        result.ShouldNotContain("Error");
+        var json = System.Text.Json.JsonDocument.Parse(result);
+        var root = json.RootElement;
+        root.TryGetProperty("items", out _).ShouldBeTrue();
+        root.TryGetProperty("totalCount", out _).ShouldBeTrue();
+        root.TryGetProperty("offset", out _).ShouldBeTrue();
+        root.TryGetProperty("limit", out _).ShouldBeTrue();
+        root.GetProperty("items").GetArrayLength().ShouldBeGreaterThanOrEqualTo(1);
+        root.GetProperty("totalCount").GetInt32().ShouldBeGreaterThanOrEqualTo(1);
+        root.GetProperty("offset").GetInt32().ShouldBe(0);
+        root.GetProperty("limit").GetInt32().ShouldBe(200);
+    }
+
+    [Fact]
+    public async Task GetCards_WithLimit_ReturnsLimitedItems()
+    {
+        // Arrange
+        var (db, tools, authKey) = CreateTools();
+        var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
+        for (var i = 0; i < 3; i++)
+        {
+            await CreateCardInLaneAsync(tools, authKey, lanes[0], $"LimitTest-{Guid.NewGuid()}");
+        }
+
+        // Act
+        var result = await tools.GetCardsAsync(authKey, _factory.DefaultBoardId, limit: 2);
+
+        // Assert
+        result.ShouldNotContain("Error");
+        var json = System.Text.Json.JsonDocument.Parse(result);
+        var root = json.RootElement;
+        root.GetProperty("items").GetArrayLength().ShouldBe(2);
+        root.GetProperty("totalCount").GetInt32().ShouldBeGreaterThanOrEqualTo(3);
+        root.GetProperty("limit").GetInt32().ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task GetCards_WithOffset_SkipsCards()
+    {
+        // Arrange
+        var (db, tools, authKey) = CreateTools();
+        var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
+        for (var i = 0; i < 3; i++)
+        {
+            await CreateCardInLaneAsync(tools, authKey, lanes[0], $"OffsetTest-{Guid.NewGuid()}");
+        }
+
+        // Act — get all, then get with offset
+        var allResult = await tools.GetCardsAsync(authKey, _factory.DefaultBoardId, limit: 500);
+        var offsetResult = await tools.GetCardsAsync(authKey, _factory.DefaultBoardId, offset: 2, limit: 500);
+
+        // Assert
+        var allJson = System.Text.Json.JsonDocument.Parse(allResult);
+        var offsetJson = System.Text.Json.JsonDocument.Parse(offsetResult);
+        var allCount = allJson.RootElement.GetProperty("items").GetArrayLength();
+        var offsetCount = offsetJson.RootElement.GetProperty("items").GetArrayLength();
+        offsetCount.ShouldBe(allCount - 2);
+        offsetJson.RootElement.GetProperty("totalCount").GetInt32().ShouldBe(allJson.RootElement.GetProperty("totalCount").GetInt32());
+    }
+
+    [Fact]
+    public async Task GetCards_LimitExceedsMax_ClampedTo500()
+    {
+        // Arrange
+        var (_, tools, authKey) = CreateTools();
+
+        // Act
+        var result = await tools.GetCardsAsync(authKey, _factory.DefaultBoardId, limit: 9999);
+
+        // Assert
+        result.ShouldNotContain("Error");
+        var json = System.Text.Json.JsonDocument.Parse(result);
+        json.RootElement.GetProperty("limit").GetInt32().ShouldBe(500);
+    }
+
+    [Fact]
+    public async Task GetCards_NegativeOffset_ClampedToZero()
+    {
+        // Arrange
+        var (_, tools, authKey) = CreateTools();
+
+        // Act
+        var result = await tools.GetCardsAsync(authKey, _factory.DefaultBoardId, offset: -10);
+
+        // Assert
+        result.ShouldNotContain("Error");
+        var json = System.Text.Json.JsonDocument.Parse(result);
+        json.RootElement.GetProperty("offset").GetInt32().ShouldBe(0);
+    }
 }

@@ -117,4 +117,4 @@ public record CardSummary(
 
 public record SearchResult(Guid BoardId, string BoardName, string BoardSlug, List<CardSummary> Cards);
 
-public record PagedResult<T>(List<T> Items, int TotalCount, int Skip, int? Take);
+public record PagedResult<T>(List<T> Items, int TotalCount, int Offset, int? Limit);

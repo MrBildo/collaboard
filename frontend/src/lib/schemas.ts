@@ -99,8 +99,8 @@ export const boardDataSchema = z.object({
 export const pagedCardSummarySchema = z.object({
   items: z.array(cardSummarySchema),
   totalCount: z.number(),
-  skip: z.number(),
-  take: z.number().nullable(),
+  offset: z.number(),
+  limit: z.number().nullable(),
 });
 
 export const userDirectoryEntrySchema = z.object({
