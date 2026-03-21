@@ -568,6 +568,13 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
           </div>
         </div>
 
+        {/* Error display */}
+        {(archiveMutation.isError || restoreMutation.isError) && (
+          <div className="mx-6 mb-1 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+            {archiveMutation.isError ? 'Failed to archive card.' : 'Failed to restore card.'}
+          </div>
+        )}
+
         {/* Footer */}
         <div className="flex items-center justify-between border-t px-6 py-3">
           {isArchived ? (
@@ -649,14 +656,12 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
                 Cancel
               </Button>
             </div>
-          ) : canDelete ? (
-            /* Active card — default state with archive button */
+          ) : (
+            /* Active card — default state with archive button (all roles can archive) */
             <Button variant="outline" size="sm" onClick={handleArchiveClick}>
               <Archive className="mr-1 h-4 w-4" />
               Archive
             </Button>
-          ) : (
-            <div />
           )}
           {!isArchived && !showArchiveActions && (
             <div className="flex gap-2">

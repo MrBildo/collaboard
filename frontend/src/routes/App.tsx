@@ -87,7 +87,7 @@ export function App() {
 
   // Fallback: fetch archived card when not found in board data
   const archivedCardQuery = useQuery({
-    queryKey: ['boards', boardId as string, 'cards', 'archived', cardNum] as const,
+    queryKey: queryKeys.boards.archivedCard(boardId as string, cardNum!),
     queryFn: async () => {
       const result = await fetchCards(boardId as string, {
         search: `#${cardNum}`,

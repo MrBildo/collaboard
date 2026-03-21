@@ -381,7 +381,7 @@ export function PruneTab({ boardId }: PruneTabProps) {
               className={cn(
                 isDelete
                   ? 'border-destructive text-destructive hover:bg-destructive/10'
-                  : 'border-blue-300 text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:border-blue-700 dark:text-blue-400 dark:hover:bg-blue-950 dark:hover:text-blue-300',
+                  : 'border-primary text-primary hover:bg-primary/10',
               )}
             >
               {isDelete ? (

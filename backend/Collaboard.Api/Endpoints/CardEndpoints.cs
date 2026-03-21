@@ -79,10 +79,16 @@ internal static class CardEndpoints
 
             var requestDescription = request.DescriptionMarkdown ?? "";
 
-            // Verify the lane belongs to this board
-            if (!await db.Lanes.AnyAsync(x => x.Id == request.LaneId && x.BoardId == boardId))
+            // Verify the lane belongs to this board and is not the archive lane
+            var targetLane = await db.Lanes.FirstOrDefaultAsync(x => x.Id == request.LaneId && x.BoardId == boardId);
+            if (targetLane is null)
             {
                 return Results.BadRequest("Lane does not belong to this board.");
+            }
+
+            if (targetLane.IsArchiveLane)
+            {
+                return Results.BadRequest("Cards cannot be created in the archive lane.");
             }
 
             Guid sizeId;
@@ -205,6 +211,11 @@ internal static class CardEndpoints
                 if (targetLane.BoardId != card.BoardId)
                 {
                     return Results.BadRequest("Lane does not belong to this board.");
+                }
+
+                if (targetLane.IsArchiveLane)
+                {
+                    return Results.BadRequest("Use the archive endpoint to archive cards.");
                 }
 
                 card.LaneId = newLaneId;

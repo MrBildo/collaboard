@@ -305,6 +305,48 @@ public class ArchiveGuardTests(CollaboardApiFactory factory) : IClassFixture<Col
         return json.GetProperty("id").GetGuid();
     }
 
+    // --- Archive lane bypass guards ---
+
+    [Fact]
+    public async Task CreateCard_InArchiveLane_Returns400()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var archiveLaneId = await GetArchiveLaneIdAsync();
+
+        // Act
+        var response = await _client.PostAsJsonAsync(
+            $"/api/v1/boards/{_factory.DefaultBoardId}/cards",
+            new { name = "Sneaky Card", laneId = archiveLaneId });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task PatchCard_MoveToArchiveLane_Returns400()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await TestDataHelper.GetFirstLaneIdAsync(_client, _factory.DefaultBoardId);
+        var archiveLaneId = await GetArchiveLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/boards/{_factory.DefaultBoardId}/cards",
+            new { name = "Move To Archive Test", laneId });
+        createResponse.EnsureSuccessStatusCode();
+        var card = await createResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        var cardId = card.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.PatchAsJsonAsync(
+            $"/api/v1/cards/{cardId}",
+            new { laneId = archiveLaneId });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
     private async Task<Guid> GetArchiveLaneIdAsync()
     {
         using var scope = _factory.Services.CreateScope();
