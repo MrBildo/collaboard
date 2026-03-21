@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
+using Collaboard.Api.Endpoints;
 using Collaboard.Api.Events;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
@@ -56,7 +57,12 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
             return cardResolveError;
         }
 
-        var card = await db.Cards.FindAsync([resolvedCardId!.Value], ct);
+        if (await ArchiveGuard.IsCardArchivedAsync(db, resolvedCardId!.Value))
+        {
+            return "Archived cards cannot be modified.";
+        }
+
+        var card = await db.Cards.FindAsync([resolvedCardId.Value], ct);
         if (card is null)
         {
             return "Error: Card not found.";
@@ -116,7 +122,12 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
             return cardResolveError;
         }
 
-        var card = await db.Cards.FindAsync([resolvedCardId!.Value], ct);
+        if (await ArchiveGuard.IsCardArchivedAsync(db, resolvedCardId!.Value))
+        {
+            return "Archived cards cannot be modified.";
+        }
+
+        var card = await db.Cards.FindAsync([resolvedCardId.Value], ct);
         if (card is null)
         {
             return "Error: Card not found.";

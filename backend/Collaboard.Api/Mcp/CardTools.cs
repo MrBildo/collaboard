@@ -35,6 +35,11 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             return "Error: Lane not found.";
         }
 
+        if (lane.IsArchiveLane)
+        {
+            return "Cards cannot be created in the archive lane.";
+        }
+
         // Resolve size
         var (resolvedSizeId, sizeError) = await ResolveSizeAsync(lane.BoardId, sizeId, sizeName, ct);
         if (sizeError is not null)
@@ -112,9 +117,23 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             return "Error: Card not found.";
         }
 
-        if (!await db.Lanes.AnyAsync(l => l.Id == laneId, ct))
+        // Block moving FROM an archive lane
+        var sourceLane = await db.Lanes.FindAsync([card.LaneId], ct);
+        if (sourceLane is not null && sourceLane.IsArchiveLane)
+        {
+            return "Use restore_card to restore archived cards.";
+        }
+
+        var targetLane = await db.Lanes.FirstOrDefaultAsync(l => l.Id == laneId, ct);
+        if (targetLane is null)
         {
             return "Error: Lane not found.";
+        }
+
+        // Block moving TO an archive lane
+        if (targetLane.IsArchiveLane)
+        {
+            return "Use archive_card to archive cards.";
         }
 
         var resolvedIndex = await CardReorderHelper.MoveCardToLaneAsync(db, card, laneId, index, ct);
@@ -155,13 +174,18 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             return resolveError;
         }
 
+        if (await ArchiveGuard.IsCardArchivedAsync(db, resolvedCardId!.Value))
+        {
+            return "Archived cards cannot be edited. Restore the card first.";
+        }
+
         // No-op guard: if no optional params are provided, skip DB writes
         if (name is null && descriptionMarkdown is null && sizeId is null && sizeName is null && laneId is null && index is null && labelIds is null)
         {
             return "No changes specified.";
         }
 
-        var card = await db.Cards.FindAsync([resolvedCardId!.Value], ct);
+        var card = await db.Cards.FindAsync([resolvedCardId.Value], ct);
         if (card is null)
         {
             return "Error: Card not found.";
@@ -241,6 +265,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         [Description("Only return cards with this label assigned")] Guid? labelId = null,
         [Description("Only return cards in this lane")] Guid? laneId = null,
         [Description("Search term. Prefix with # for card number lookup (e.g. '#42'). Plain numbers match card number or name/description. Text matches name or description.")] string? search = null,
+        [Description("Include archived cards in results (default false)")] bool? includeArchived = null,
         [Description("Number of cards to skip (default 0). Use with limit for pagination.")] int? offset = null,
         [Description("Maximum number of cards to return (default 200, max 500). Use to avoid exceeding token limits on large boards.")] int? limit = null,
         CancellationToken ct = default)
@@ -257,6 +282,14 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         }
 
         var query = db.Cards.Where(c => c.BoardId == boardId);
+
+        if (includeArchived is not true)
+        {
+            var archiveLaneIds = db.Lanes
+                .Where(l => l.BoardId == boardId && l.IsArchiveLane)
+                .Select(l => l.Id);
+            query = query.Where(c => !archiveLaneIds.Contains(c.LaneId));
+        }
 
         if (laneId.HasValue)
         {
