@@ -241,6 +241,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         [Description("Only return cards with this label assigned")] Guid? labelId = null,
         [Description("Only return cards in this lane")] Guid? laneId = null,
         [Description("Search term. Prefix with # for card number lookup (e.g. '#42'). Plain numbers match card number or name/description. Text matches name or description.")] string? search = null,
+        [Description("Maximum number of cards to return (default 200, max 500). Use to avoid exceeding token limits on large boards.")] int? limit = null,
         CancellationToken ct = default)
     {
         var (_, error) = await auth.RequireUserAsync(authKey, ct);
@@ -274,7 +275,8 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
 
         query = SearchHelper.ApplySearchFilter(query, search);
 
-        var cards = await query.OrderBy(c => c.LaneId).ThenBy(c => c.Position).ToListAsync(ct);
+        var effectiveLimit = Math.Clamp(limit ?? 200, 1, 500);
+        var cards = await query.OrderBy(c => c.LaneId).ThenBy(c => c.Position).Take(effectiveLimit).ToListAsync(ct);
         var summaries = await CardSummaryBuilder.BuildAsync(db, cards, ct);
         return JsonSerializer.Serialize(summaries, JsonSerializerOptions.Web);
     }

@@ -11,6 +11,7 @@ import type {
   cardSummarySchema,
   cardLabelSummarySchema,
   boardDataSchema,
+  pagedCardSummarySchema,
   userDirectoryEntrySchema,
   authMeSchema,
   prunePreviewCardSchema,
@@ -30,6 +31,7 @@ export type AttachmentMeta = z.infer<typeof attachmentMetaSchema>;
 export type CardSummary = z.infer<typeof cardSummarySchema>;
 export type CardLabelSummary = z.infer<typeof cardLabelSummarySchema>;
 export type BoardData = z.infer<typeof boardDataSchema>;
+export type PagedCardSummary = z.infer<typeof pagedCardSummarySchema>;
 export type UserDirectoryEntry = z.infer<typeof userDirectoryEntrySchema>;
 export type AuthMe = z.infer<typeof authMeSchema>;
 

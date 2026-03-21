@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Collaboard.Api.Events;
 using Collaboard.Api.Mcp;
+using Collaboard.Api.Models;
 using Collaboard.Api.Tests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
@@ -81,11 +82,12 @@ public class McpCardToolTests(CollaboardApiFactory factory) : IClassFixture<Coll
         // Verify position is less than both existing cards
         var cardsResponse = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards?laneId={targetLaneId}");
         cardsResponse.EnsureSuccessStatusCode();
-        var cards = await cardsResponse.Content.ReadFromJsonAsync<JsonElement[]>();
-        cards.ShouldNotBeNull();
+        var paged = await cardsResponse.Content.ReadFromJsonAsync<PagedResult<JsonElement>>();
+        paged.ShouldNotBeNull();
+        var cards = paged.Items;
 
-        var movedCard = cards!.First(c => c.GetProperty("id").GetGuid() == moveCardId);
-        var otherCards = cards!.Where(c => c.GetProperty("id").GetGuid() != moveCardId).ToArray();
+        var movedCard = cards.First(c => c.GetProperty("id").GetGuid() == moveCardId);
+        var otherCards = cards.Where(c => c.GetProperty("id").GetGuid() != moveCardId).ToArray();
 
         foreach (var other in otherCards)
         {

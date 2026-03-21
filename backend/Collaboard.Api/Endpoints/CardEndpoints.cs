@@ -10,7 +10,7 @@ internal static class CardEndpoints
     public static RouteGroupBuilder MapCardEndpoints(this RouteGroupBuilder group)
     {
         // Board-scoped listing and creation
-        group.MapGet("/boards/{boardId:guid}/cards", async (BoardDbContext db, Guid boardId, DateTimeOffset? since, Guid? labelId, Guid? laneId, string? search) =>
+        group.MapGet("/boards/{boardId:guid}/cards", async (BoardDbContext db, Guid boardId, DateTimeOffset? since, Guid? labelId, Guid? laneId, string? search, int? skip, int? take) =>
         {
             if (!await db.Boards.AnyAsync(x => x.Id == boardId))
             {
@@ -37,9 +37,24 @@ internal static class CardEndpoints
 
             query = SearchHelper.ApplySearchFilter(query, search);
 
-            var cards = await query.OrderBy(x => x.LaneId).ThenBy(x => x.Position).ToListAsync();
+            var orderedQuery = query.OrderBy(x => x.LaneId).ThenBy(x => x.Position);
+
+            // Two queries: COUNT then Skip/Take. The count re-executes filter predicates
+            // (including since subqueries). Acceptable at current scale; revisit if perf degrades.
+            var totalCount = await query.CountAsync();
+
+            var effectiveSkip = Math.Max(skip ?? 0, 0);
+            int? effectiveTake = take.HasValue ? Math.Clamp(take.Value, 1, 200) : null;
+
+            var pagedQuery = orderedQuery.Skip(effectiveSkip);
+            if (effectiveTake.HasValue)
+            {
+                pagedQuery = pagedQuery.Take(effectiveTake.Value);
+            }
+
+            var cards = await pagedQuery.ToListAsync();
             var summaries = await CardSummaryBuilder.BuildAsync(db, cards);
-            return Results.Ok(summaries);
+            return Results.Ok(new PagedResult<CardSummary>(summaries, totalCount, effectiveSkip, effectiveTake));
         }).RequireAuth();
 
         group.MapPost("/boards/{boardId:guid}/cards", async (BoardDbContext db, HttpContext http, Guid boardId, CreateCardRequest request, BoardEventBroadcaster broadcaster) =>
