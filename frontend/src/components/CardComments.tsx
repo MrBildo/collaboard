@@ -23,8 +23,10 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
   const { getUserName } = useUserDirectory();
   const [newComment, setNewComment] = useState('');
   const [newCommentFocused, setNewCommentFocused] = useState(false);
+  const [isPreviewingNew, setIsPreviewingNew] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
+  const [isPreviewingEdit, setIsPreviewingEdit] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const newCommentRef = useRef<HTMLTextAreaElement>(null);
 
@@ -78,6 +80,7 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
   const handleCancelNew = useCallback(() => {
     setNewComment('');
     setNewCommentFocused(false);
+    setIsPreviewingNew(false);
     newCommentRef.current?.blur();
   }, []);
 
@@ -96,6 +99,7 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
   const handleCancelEdit = () => {
     setEditingId(null);
     setEditText('');
+    setIsPreviewingEdit(false);
   };
 
   const handleDelete = (id: string) => {
@@ -119,15 +123,43 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
     <div className="flex flex-1 flex-col gap-3 overflow-hidden">
       {/* New comment input — sticky at top */}
       <div className="flex shrink-0 flex-col gap-2">
-        <Textarea
-          ref={newCommentRef}
-          value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
-          onFocus={() => setNewCommentFocused(true)}
-          placeholder="Add a comment..."
-          rows={isExpanded ? 3 : 1}
-          className="bg-muted transition-all"
-        />
+        {isExpanded && (
+          <div className="flex items-center gap-1">
+            <Button
+              variant={!isPreviewingNew ? 'secondary' : 'ghost'}
+              size="xs"
+              onClick={() => setIsPreviewingNew(false)}
+            >
+              Edit
+            </Button>
+            <Button
+              variant={isPreviewingNew ? 'secondary' : 'ghost'}
+              size="xs"
+              onClick={() => setIsPreviewingNew(true)}
+            >
+              Preview
+            </Button>
+          </div>
+        )}
+        {isPreviewingNew && isExpanded ? (
+          <div className="prose prose-sm max-w-none overflow-x-auto rounded-md border bg-muted/30 p-4 text-sm text-foreground">
+            {newComment.trim() ? (
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{newComment}</ReactMarkdown>
+            ) : (
+              <p className="italic text-muted-foreground">Nothing to preview.</p>
+            )}
+          </div>
+        ) : (
+          <Textarea
+            ref={newCommentRef}
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            onFocus={() => setNewCommentFocused(true)}
+            placeholder="Add a comment..."
+            rows={isExpanded ? 3 : 1}
+            className="bg-muted transition-all"
+          />
+        )}
         {isExpanded && (
           <div className="flex justify-end gap-2">
             <Button size="sm" variant="outline" onClick={handleCancelNew}>
@@ -154,7 +186,33 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
           <div key={comment.id} className="rounded-lg border bg-muted/30 p-3">
             {editingId === comment.id ? (
               <div className="flex flex-col gap-2">
-                <Textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={3} className="bg-muted" />
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant={!isPreviewingEdit ? 'secondary' : 'ghost'}
+                    size="xs"
+                    onClick={() => setIsPreviewingEdit(false)}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    variant={isPreviewingEdit ? 'secondary' : 'ghost'}
+                    size="xs"
+                    onClick={() => setIsPreviewingEdit(true)}
+                  >
+                    Preview
+                  </Button>
+                </div>
+                {isPreviewingEdit ? (
+                  <div className="prose prose-sm max-w-none overflow-x-auto rounded-md border bg-muted/30 p-4 text-sm text-foreground">
+                    {editText.trim() ? (
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{editText}</ReactMarkdown>
+                    ) : (
+                      <p className="italic text-muted-foreground">Nothing to preview.</p>
+                    )}
+                  </div>
+                ) : (
+                  <Textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={3} className="bg-muted" />
+                )}
                 <div className="flex justify-end gap-2">
                   <Button size="sm" variant="outline" onClick={handleCancelEdit}>
                     Cancel
