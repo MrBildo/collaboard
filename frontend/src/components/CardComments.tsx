@@ -49,7 +49,8 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, content }: { id: string; content: string }) => updateComment(id, { contentMarkdown: content }),
+    mutationFn: ({ id, content }: { id: string; content: string }) =>
+      updateComment(id, { contentMarkdown: content }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.comments(cardId) });
       setEditingId(null);
@@ -111,9 +112,10 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
   };
 
   const comments = useMemo(
-    () => [...(commentsQuery.data ?? [])].sort(
-      (a, b) => new Date(b.lastUpdatedAtUtc).getTime() - new Date(a.lastUpdatedAtUtc).getTime(),
-    ),
+    () =>
+      [...(commentsQuery.data ?? [])].sort(
+        (a, b) => new Date(b.lastUpdatedAtUtc).getTime() - new Date(a.lastUpdatedAtUtc).getTime(),
+      ),
     [commentsQuery.data],
   );
 
@@ -157,7 +159,7 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
             onFocus={() => setNewCommentFocused(true)}
             placeholder="Add a comment..."
             rows={isExpanded ? 3 : 1}
-            className="bg-muted transition-all"
+            className="bg-muted font-mono text-sm transition-all"
           />
         )}
         {isExpanded && (
@@ -165,7 +167,11 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
             <Button size="sm" variant="outline" onClick={handleCancelNew}>
               Cancel
             </Button>
-            <Button size="sm" onClick={handleAdd} disabled={createMutation.isPending || !newComment.trim()}>
+            <Button
+              size="sm"
+              onClick={handleAdd}
+              disabled={createMutation.isPending || !newComment.trim()}
+            >
               {createMutation.isPending ? 'Saving...' : 'Save'}
             </Button>
           </div>
@@ -211,7 +217,12 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
                     )}
                   </div>
                 ) : (
-                  <Textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={3} className="bg-muted" />
+                  <Textarea
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    rows={3}
+                    className="bg-muted font-mono text-sm"
+                  />
                 )}
                 <div className="flex justify-end gap-2">
                   <Button size="sm" variant="outline" onClick={handleCancelEdit}>
@@ -225,7 +236,9 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
             ) : (
               <>
                 <div className="prose prose-sm max-w-none break-words">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{comment.contentMarkdown}</ReactMarkdown>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {comment.contentMarkdown}
+                  </ReactMarkdown>
                 </div>
                 <div className="mt-2 flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">
@@ -236,7 +249,8 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
                     {formatDateTime(comment.lastUpdatedAtUtc)}
                   </span>
                   <div className="flex gap-1">
-                    {(currentUserRole === ROLES.Administrator || comment.userId === currentUserId) && (
+                    {(currentUserRole === ROLES.Administrator ||
+                      comment.userId === currentUserId) && (
                       <>
                         <Button
                           size="xs"
