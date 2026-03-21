@@ -52,7 +52,7 @@ export function GearMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
         {/* + New Card: mobile only (hidden at md+) */}
-        <DropdownMenuItem onClick={onNewCard} className="md:hidden">
+        <DropdownMenuItem onClick={onNewCard} className="xs:hidden">
           + New Card
         </DropdownMenuItem>
         {/* Board Settings: mobile + md, hidden at lg (admin only) */}
@@ -68,7 +68,7 @@ export function GearMenu({
           </DropdownMenuItem>
         )}
         {/* Separator — visible when any action item above is shown */}
-        <DropdownMenuSeparator className={isAdmin ? '' : 'md:hidden'} />
+        <DropdownMenuSeparator className={isAdmin ? '' : 'xs:hidden'} />
         {/* Theme toggle: all tiers */}
         <DropdownMenuItem onClick={toggleTheme}>
           <span className="flex items-center gap-2">

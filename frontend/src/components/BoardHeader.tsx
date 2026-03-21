@@ -28,33 +28,35 @@ export function BoardHeader({
   onLogout,
 }: BoardHeaderProps) {
   return (
-    <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-4 py-2 md:h-14 md:flex-nowrap md:py-0">
+    <header className="flex h-14 shrink-0 items-center gap-x-3 border-b border-border px-4">
       {/* Logo — shrink-0 so it never clips */}
       <img
         src="/collaboard-logo.png"
         alt="Collaboard"
-        className="w-32 shrink-0 md:w-48"
+        className="w-32 shrink-0 xs:w-48"
         style={{ imageRendering: 'pixelated' }}
       />
-      {/* Board switcher — wraps below logo on mobile, inline on md+ */}
+      {/* Board switcher — always inline */}
       {boards.length > 1 && (
-        <div className="order-last w-full md:order-none md:w-auto">
+        <div className="shrink min-w-0">
           <BoardSwitcher boards={boards} currentSlug={currentSlug} />
         </div>
       )}
       {boards.length === 1 && boardName && (
-        <span className="hidden max-w-[10rem] truncate text-sm font-medium text-muted-foreground md:inline">
+        <span className="hidden max-w-[10rem] truncate text-sm font-medium text-muted-foreground xs:inline">
           {boardName}
         </span>
       )}
-      {/* Search — visible all tiers, fills center */}
-      <div className="flex flex-1 justify-center md:px-4">
-        <SearchCommand />
+      {/* Search — hidden on mobile, visible at xs+. Also acts as flex spacer. */}
+      <div className="flex flex-1 justify-center xs:px-4">
+        <div className="hidden xs:block xs:w-full">
+          <SearchCommand />
+        </div>
       </div>
       {/* Right actions */}
       <div className="flex shrink-0 items-center gap-2">
-        {/* + New Card: md+ only */}
-        <Button onClick={onNewCard} className="hidden md:inline-flex">
+        {/* + New Card: xs+ only */}
+        <Button onClick={onNewCard} className="hidden xs:inline-flex">
           + New Card
         </Button>
         {/* Board Settings: lg+ only (admin) */}
