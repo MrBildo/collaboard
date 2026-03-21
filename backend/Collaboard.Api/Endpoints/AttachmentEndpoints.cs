@@ -31,6 +31,11 @@ internal static class AttachmentEndpoints
                 return Results.NotFound();
             }
 
+            if (await ArchiveGuard.IsCardArchivedAsync(db, id))
+            {
+                return Results.BadRequest("Archived cards cannot be modified. Restore the card first.");
+            }
+
             if (file.Length > settings.Value.MaxFileSizeBytes)
             {
                 return Results.BadRequest("File too large.");
@@ -66,6 +71,11 @@ internal static class AttachmentEndpoints
             if (attachment is null)
             {
                 return Results.NotFound();
+            }
+
+            if (await ArchiveGuard.IsCardArchivedAsync(db, attachment.CardId))
+            {
+                return Results.BadRequest("Archived cards cannot be modified. Restore the card first.");
             }
 
             var user = http.CurrentUser();
