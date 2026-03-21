@@ -68,6 +68,12 @@ internal static class SearchEndpoints
             // Build a cardId -> boardId lookup
             var cardBoardMap = cards.ToDictionary(c => c.Id, c => c.BoardId);
 
+            // Batch load archive lane IDs
+            var archiveLaneIds = await db.Lanes
+                .Where(l => boardIds.Contains(l.BoardId) && l.IsArchiveLane)
+                .Select(l => l.Id)
+                .ToHashSetAsync();
+
             // Project to summaries
             var summaries = cards.Select(c => new CardSummary(
                 c.Id, c.Number, c.Name, c.DescriptionMarkdown,
@@ -77,7 +83,8 @@ internal static class SearchEndpoints
                 c.LastUpdatedByUserId, c.LastUpdatedAtUtc,
                 labelsByCard.GetValueOrDefault(c.Id, []),
                 commentCounts.GetValueOrDefault(c.Id, 0),
-                attachmentCounts.GetValueOrDefault(c.Id, 0)
+                attachmentCounts.GetValueOrDefault(c.Id, 0),
+                archiveLaneIds.Contains(c.LaneId)
             )).ToList();
 
             // Group by board

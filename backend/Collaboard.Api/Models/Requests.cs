@@ -39,5 +39,8 @@ public record UpdateLaneRequest(string? Name, int? Position);
 // Size requests
 public record UpdateSizeRequest(string? Name, int? Ordinal);
 
+// Archive requests
+public record RestoreCardRequest(Guid LaneId);
+
 // Prune requests
 public record PruneRequest(DateTimeOffset? OlderThan, Guid[]? LaneIds, Guid[]? LabelIds);
