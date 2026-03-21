@@ -5,11 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useClickOutside } from '@/hooks/use-click-outside';
-import { Search, Trash2, Check } from 'lucide-react';
+import { Archive, Search, Trash2, Check, AlertTriangle } from 'lucide-react';
 import { fetchLabels, fetchLanes, pruneCards, prunePreview } from '@/lib/api';
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
-import { formatDateTime } from '@/lib/utils';
+import { cn, formatDateTime } from '@/lib/utils';
 import type { PruneFilters, PrunePreviewResponse } from '@/types';
 
 const PRESETS = [
@@ -20,6 +20,8 @@ const PRESETS = [
   { label: '1yr', days: 365 },
 ] as const;
 
+type PruneAction = 'archive' | 'delete';
+
 type PruneTabProps = {
   boardId: string;
 };
@@ -27,6 +29,8 @@ type PruneTabProps = {
 export function PruneTab({ boardId }: PruneTabProps) {
   const queryClient = useQueryClient();
 
+  const [action, setAction] = useState<PruneAction>('archive');
+  const [includeArchived, setIncludeArchived] = useState(false);
   const [olderThan, setOlderThan] = useState<string | null>(null);
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const [selectedLaneIds, setSelectedLaneIds] = useState<string[]>([]);
@@ -34,8 +38,10 @@ export function PruneTab({ boardId }: PruneTabProps) {
   const [isLaneDropdownOpen, setIsLaneDropdownOpen] = useState(false);
   const [isLabelDropdownOpen, setIsLabelDropdownOpen] = useState(false);
   const [preview, setPreview] = useState<PrunePreviewResponse | null>(null);
-  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
-  const [deletedCount, setDeletedCount] = useState<number | null>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [resultCount, setResultCount] = useState<{ count: number; action: PruneAction } | null>(
+    null,
+  );
 
   const laneDropdownRef = useRef<HTMLDivElement>(null);
   const labelDropdownRef = useRef<HTMLDivElement>(null);
@@ -56,8 +62,8 @@ export function PruneTab({ boardId }: PruneTabProps) {
     mutationFn: (filters: PruneFilters) => prunePreview(boardId, filters),
     onSuccess: (data) => {
       setPreview(data);
-      setIsConfirmingDelete(false);
-      setDeletedCount(null);
+      setIsConfirming(false);
+      setResultCount(null);
     },
     onError: (error: unknown) => {
       console.error('Failed to preview prune:', error);
@@ -67,9 +73,10 @@ export function PruneTab({ boardId }: PruneTabProps) {
   const pruneMutation = useMutation({
     mutationFn: (filters: PruneFilters) => pruneCards(boardId, filters),
     onSuccess: (data) => {
-      setDeletedCount(data.deletedCount);
+      const count = data.archivedCount ?? data.deletedCount ?? 0;
+      setResultCount({ count, action });
       setPreview(null);
-      setIsConfirmingDelete(false);
+      setIsConfirming(false);
       setOlderThan(null);
       setSelectedPreset(null);
       setSelectedLaneIds([]);
@@ -84,8 +91,8 @@ export function PruneTab({ boardId }: PruneTabProps) {
 
   const clearResults = () => {
     setPreview(null);
-    setIsConfirmingDelete(false);
-    setDeletedCount(null);
+    setIsConfirming(false);
+    setResultCount(null);
   };
 
   const handlePresetClick = (preset: string, days: number) => {
@@ -133,15 +140,17 @@ export function PruneTab({ boardId }: PruneTabProps) {
     ...(olderThan ? { olderThan } : {}),
     ...(selectedLaneIds.length > 0 ? { laneIds: selectedLaneIds } : {}),
     ...(selectedLabelIds.length > 0 ? { labelIds: selectedLabelIds } : {}),
+    action,
+    ...(includeArchived ? { includeArchived: true } : {}),
   });
 
   const handlePreview = () => {
     previewMutation.mutate(buildFilters());
   };
 
-  const handleDelete = () => {
-    if (!isConfirmingDelete) {
-      setIsConfirmingDelete(true);
+  const handleExecute = () => {
+    if (!isConfirming) {
+      setIsConfirming(true);
     } else {
       pruneMutation.mutate(buildFilters());
     }
@@ -161,8 +170,62 @@ export function PruneTab({ boardId }: PruneTabProps) {
   const customDateValue =
     olderThan && !selectedPreset ? new Date(olderThan).toISOString().split('T')[0] : '';
 
+  const isDelete = action === 'delete';
+
   return (
     <div className="flex flex-col gap-4">
+      {/* Action toggle */}
+      <div className="flex flex-col gap-2">
+        <span className="text-sm font-medium">Action</span>
+        <div className="flex gap-1">
+          <Button
+            variant={!isDelete ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => {
+              setAction('archive');
+              clearResults();
+            }}
+          >
+            <Archive className="mr-1.5 h-3.5 w-3.5" />
+            Archive
+          </Button>
+          <Button
+            variant={isDelete ? 'destructive' : 'outline'}
+            size="sm"
+            onClick={() => {
+              setAction('delete');
+              clearResults();
+            }}
+          >
+            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+            Delete
+          </Button>
+        </div>
+        {isDelete && (
+          <p className="flex items-center gap-1.5 text-xs text-destructive">
+            <AlertTriangle className="h-3 w-3" />
+            Cards will be permanently deleted.
+          </p>
+        )}
+      </div>
+
+      {/* Card status filter */}
+      <div className="flex flex-col gap-2">
+        <span className="text-sm font-medium">Card status</span>
+        <label className="flex cursor-pointer items-center gap-2">
+          <input
+            type="checkbox"
+            checked={includeArchived}
+            onChange={(e) => {
+              setIncludeArchived(e.target.checked);
+              clearResults();
+            }}
+            className="rounded"
+          />
+          <span className="text-sm">Include archived cards</span>
+        </label>
+      </div>
+
       {/* No activity since */}
       <div className="flex flex-col gap-2">
         <span className="text-sm font-medium">No activity since</span>
@@ -262,7 +325,15 @@ export function PruneTab({ boardId }: PruneTabProps) {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Permanently delete cards matching <strong>all</strong> selected filters.
+        {isDelete ? (
+          <>
+            Permanently delete cards matching <strong>all</strong> selected filters.
+          </>
+        ) : (
+          <>
+            Archive cards matching <strong>all</strong> selected filters.
+          </>
+        )}
       </p>
 
       <Separator />
@@ -276,7 +347,9 @@ export function PruneTab({ boardId }: PruneTabProps) {
       {preview && (
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">{preview.matchCount} cards match</span>
+            <span className="text-sm font-medium">
+              {preview.matchCount} cards will be {isDelete ? 'permanently deleted' : 'archived'}
+            </span>
             <Badge variant="secondary">preview</Badge>
           </div>
 
@@ -301,23 +374,40 @@ export function PruneTab({ boardId }: PruneTabProps) {
           )}
 
           {preview.matchCount > 0 && (
-            <Button variant="destructive" onClick={handleDelete} disabled={pruneMutation.isPending}>
-              <Trash2 className="mr-2 w-4 h-4" />
+            <Button
+              variant="destructive"
+              onClick={handleExecute}
+              disabled={pruneMutation.isPending}
+              className={cn(!isDelete && 'bg-primary hover:bg-primary/90')}
+            >
+              {isDelete ? (
+                <Trash2 className="mr-2 w-4 h-4" />
+              ) : (
+                <Archive className="mr-2 w-4 h-4" />
+              )}
               {pruneMutation.isPending
-                ? 'Deleting...'
-                : isConfirmingDelete
-                  ? `Confirm delete ${preview.matchCount} cards permanently?`
-                  : `Delete ${preview.matchCount} cards`}
+                ? isDelete
+                  ? 'Deleting...'
+                  : 'Archiving...'
+                : isConfirming
+                  ? isDelete
+                    ? `Permanently delete ${preview.matchCount} cards? This cannot be undone.`
+                    : `Archive ${preview.matchCount} cards?`
+                  : isDelete
+                    ? `Delete ${preview.matchCount} cards`
+                    : `Archive ${preview.matchCount} cards`}
             </Button>
           )}
         </div>
       )}
 
       {/* Success state */}
-      {deletedCount !== null && (
+      {resultCount !== null && (
         <div className="flex items-center gap-2 text-sm font-medium text-chart-3">
           <Check className="w-4 h-4" />
-          Deleted {deletedCount} cards
+          {resultCount.action === 'delete'
+            ? `Deleted ${resultCount.count} cards`
+            : `Archived ${resultCount.count} cards`}
         </div>
       )}
     </div>
