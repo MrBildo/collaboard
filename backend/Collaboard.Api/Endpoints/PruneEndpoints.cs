@@ -7,6 +7,8 @@ namespace Collaboard.Api.Endpoints;
 
 internal static class PruneEndpoints
 {
+    private static readonly string[] _validActions = ["archive", "delete"];
+
     public static RouteGroupBuilder MapPruneEndpoints(this RouteGroupBuilder group)
     {
         group.MapPost("/boards/{boardId:guid}/prune/preview", async (BoardDbContext db, Guid boardId, PruneRequest request) =>
@@ -21,7 +23,7 @@ internal static class PruneEndpoints
                 return Results.BadRequest(error);
             }
 
-            var query = BuildFilteredQuery(db, boardId, request);
+            var query = await BuildFilteredQueryAsync(db, boardId, request);
             var cards = await query.ToListAsync();
 
             // Batch load lane names
@@ -54,15 +56,43 @@ internal static class PruneEndpoints
                 return Results.BadRequest(error);
             }
 
-            var query = BuildFilteredQuery(db, boardId, request);
+            if (!ValidateAction(request.Action, out var actionError))
+            {
+                return Results.BadRequest(actionError);
+            }
+
+            var action = string.IsNullOrEmpty(request.Action) ? "archive" : request.Action;
+
+            var query = await BuildFilteredQueryAsync(db, boardId, request);
             var cards = await query.ToListAsync();
 
-            db.Cards.RemoveRange(cards);
-            await db.SaveChangesAsync();
+            if (action == "archive")
+            {
+                var archiveLane = await db.Lanes.FirstOrDefaultAsync(l => l.BoardId == boardId && l.IsArchiveLane);
+                if (archiveLane is null)
+                {
+                    return Results.BadRequest("Board has no archive lane.");
+                }
 
-            broadcaster.PublishBoardUpdated(boardId);
+                foreach (var card in cards)
+                {
+                    await CardReorderHelper.MoveCardToLaneAsync(db, card, archiveLane.Id, 0);
+                }
 
-            return Results.Ok(new { deletedCount = cards.Count });
+                await db.SaveChangesAsync();
+                broadcaster.PublishBoardUpdated(boardId);
+
+                return Results.Ok(new { archivedCount = cards.Count });
+            }
+            else
+            {
+                db.Cards.RemoveRange(cards);
+                await db.SaveChangesAsync();
+
+                broadcaster.PublishBoardUpdated(boardId);
+
+                return Results.Ok(new { deletedCount = cards.Count });
+            }
         }).RequireAdmin();
 
         return group;
@@ -85,12 +115,44 @@ internal static class PruneEndpoints
         return true;
     }
 
-    private static IQueryable<CardItem> BuildFilteredQuery(
+    private static bool ValidateAction(string? action, out string? error)
+    {
+        error = null;
+
+        if (string.IsNullOrEmpty(action))
+        {
+            return true;
+        }
+
+        if (!_validActions.Contains(action))
+        {
+            error = $"Invalid action '{action}'. Valid actions are: archive, delete.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private static async Task<IQueryable<CardItem>> BuildFilteredQueryAsync(
         BoardDbContext db,
         Guid boardId,
         PruneRequest request)
     {
         var query = db.Cards.Where(c => c.BoardId == boardId);
+
+        // Exclude archived cards by default
+        if (request.IncludeArchived is not true)
+        {
+            var archiveLaneIds = await db.Lanes
+                .Where(l => l.BoardId == boardId && l.IsArchiveLane)
+                .Select(l => l.Id)
+                .ToListAsync();
+
+            if (archiveLaneIds.Count > 0)
+            {
+                query = query.Where(c => !archiveLaneIds.Contains(c.LaneId));
+            }
+        }
 
         if (request.OlderThan.HasValue)
         {

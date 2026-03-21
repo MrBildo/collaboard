@@ -229,7 +229,7 @@ public class PruneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         // Act
         var response = await _client.PostAsJsonAsync(
             $"/api/v1/boards/{_factory.DefaultBoardId}/prune",
-            new { olderThan });
+            new { olderThan, action = "delete" });
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -266,7 +266,7 @@ public class PruneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         // Act
         var response = await _client.PostAsJsonAsync(
             $"/api/v1/boards/{_factory.DefaultBoardId}/prune",
-            new { olderThan });
+            new { olderThan, action = "delete" });
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -293,7 +293,7 @@ public class PruneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         // Act
         var response = await _client.PostAsJsonAsync(
             $"/api/v1/boards/{_factory.DefaultBoardId}/prune",
-            new { laneIds = new[] { fakeLaneId } });
+            new { laneIds = new[] { fakeLaneId }, action = "delete" });
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
