@@ -29,7 +29,7 @@ export const cardItemSchema = z.object({
   laneId: z.string(),
   position: z.number(),
   sizeId: z.string(),
-  isArchived: z.boolean(),
+  isArchived: z.boolean().optional().default(false),
   createdByUserId: z.string(),
   createdAtUtc: z.string(),
   lastUpdatedByUserId: z.string(),

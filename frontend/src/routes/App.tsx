@@ -10,7 +10,7 @@ import { CreateCardDialog } from '@/components/CreateCardDialog';
 import { GlobalAdminPanel } from '@/components/GlobalAdminPanel';
 import { LaneColumn } from '@/components/LaneColumn';
 import { LoginScreen } from '@/components/LoginScreen';
-import { fetchBoards, fetchVersion } from '@/lib/api';
+import { fetchBoards, fetchCards, fetchVersion } from '@/lib/api';
 import { queryKeys } from '@/lib/query-keys';
 import { useAuth } from '@/hooks/use-auth';
 import { useBoardData } from '@/hooks/use-board-data';
@@ -77,13 +77,31 @@ export function App() {
     onDragEnd,
   } = useBoardDnd(boardId, serverCards, laneIds);
 
-  // Derive selected card and detail-open state from URL (cardNumber param is the source of truth)
-  const selectedCard = useMemo(() => {
-    if (!cardNumber || sortedServerCards.length === 0) return null;
-    const num = parseInt(cardNumber, 10);
-    return sortedServerCards.find((c) => c.number === num) ?? null;
-  }, [cardNumber, sortedServerCards]);
-  const isDetailOpen = selectedCard !== null;
+  // Derive selected card from URL — check board data first, fall back to archived card fetch
+  const cardNum = cardNumber ? parseInt(cardNumber, 10) : null;
+
+  const boardCard = useMemo(() => {
+    if (!cardNum || sortedServerCards.length === 0) return null;
+    return sortedServerCards.find((c) => c.number === cardNum) ?? null;
+  }, [cardNum, sortedServerCards]);
+
+  // Fallback: fetch archived card when not found in board data
+  const archivedCardQuery = useQuery({
+    queryKey: ['boards', boardId as string, 'cards', 'archived', cardNum] as const,
+    queryFn: async () => {
+      const result = await fetchCards(boardId as string, {
+        search: `#${cardNum}`,
+        includeArchived: true,
+        limit: 1,
+      });
+      return result.items.find((c) => c.number === cardNum) ?? null;
+    },
+    enabled: !!boardId && !!cardNum && !boardCard && sortedServerCards.length > 0,
+    staleTime: 30_000,
+  });
+
+  const selectedCard = boardCard ?? archivedCardQuery.data ?? null;
+  const isDetailOpen = selectedCard !== null || (!!cardNum && archivedCardQuery.isLoading);
 
   const handleDetailOpenChange = useCallback(
     (open: boolean) => {
