@@ -427,10 +427,7 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
           className="comments-panel-resizable flex shrink-0 flex-col border-border px-5 pt-2 pb-4 max-md:w-full max-md:border-t md:overflow-y-auto"
           style={{ '--comments-width': `${Math.round(commentsWidth)}px` } as React.CSSProperties}
         >
-          <h3 className="mb-3 text-sm font-semibold">
-            Comments{' '}
-            <span className="font-normal text-muted-foreground">(Markdown supported)</span>
-          </h3>
+          <h3 className="mb-3 text-sm font-semibold">Comments</h3>
           <CardComments
             cardId={card.id}
             currentUserId={currentUserId}
