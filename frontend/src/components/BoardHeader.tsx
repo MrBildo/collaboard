@@ -1,15 +1,7 @@
 import { BoardSwitcher } from '@/components/BoardSwitcher';
+import { GearMenu } from '@/components/GearMenu';
 import { SearchCommand } from '@/components/SearchCommand';
-import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Menu } from 'lucide-react';
 import type { Board } from '@/types';
 
 type BoardHeaderProps = {
@@ -36,78 +28,50 @@ export function BoardHeader({
   onLogout,
 }: BoardHeaderProps) {
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
-      <div className="flex min-w-0 shrink items-center gap-3 overflow-hidden">
-        <img
-          src="/collaboard-logo.png"
-          alt="Collaboard"
-          className="w-32 md:w-48"
-          style={{ imageRendering: 'pixelated' }}
-        />
-        {boards.length > 1 && (
+    <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-4 py-2 md:h-14 md:flex-nowrap md:py-0">
+      {/* Logo — shrink-0 so it never clips */}
+      <img
+        src="/collaboard-logo.png"
+        alt="Collaboard"
+        className="w-32 shrink-0 md:w-48"
+        style={{ imageRendering: 'pixelated' }}
+      />
+      {/* Board switcher — wraps below logo on mobile, inline on md+ */}
+      {boards.length > 1 && (
+        <div className="order-last w-full md:order-none md:w-auto">
           <BoardSwitcher boards={boards} currentSlug={currentSlug} />
-        )}
-        {boards.length === 1 && boardName && (
-          <span className="hidden max-w-[16rem] truncate text-sm font-medium text-muted-foreground md:inline">{boardName}</span>
-        )}
-      </div>
-      <div className="hidden flex-1 justify-center px-4 md:flex">
+        </div>
+      )}
+      {boards.length === 1 && boardName && (
+        <span className="hidden max-w-[10rem] truncate text-sm font-medium text-muted-foreground md:inline">
+          {boardName}
+        </span>
+      )}
+      {/* Search — visible all tiers, fills center */}
+      <div className="flex flex-1 justify-center md:px-4">
         <SearchCommand />
       </div>
-      {/* Desktop actions */}
-      <div className="hidden items-center gap-2 md:flex">
-        <Button onClick={onNewCard}>+ New Card</Button>
-        {isAdmin && (
-          <>
-            <Button variant="outline" onClick={onBoardSettings}>
-              Board Settings
-            </Button>
-            <Button variant="outline" onClick={onGlobalAdmin}>
-              Admin
-            </Button>
-          </>
-        )}
-        <ThemeToggle />
-        <Button variant="ghost" onClick={onLogout} className="text-muted-foreground">
-          Logout
+      {/* Right actions */}
+      <div className="flex shrink-0 items-center gap-2">
+        {/* + New Card: md+ only */}
+        <Button onClick={onNewCard} className="hidden md:inline-flex">
+          + New Card
         </Button>
-        {version && (
-          <span className="text-xs text-muted-foreground/50">v{version}</span>
+        {/* Board Settings: lg+ only (admin) */}
+        {isAdmin && (
+          <Button variant="outline" onClick={onBoardSettings} className="hidden lg:inline-flex">
+            Board Settings
+          </Button>
         )}
-      </div>
-      {/* Mobile menu */}
-      <div className="flex items-center gap-1 md:hidden">
-        <ThemeToggle />
-        <DropdownMenu>
-          <DropdownMenuTrigger className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground">
-            <Menu className="h-5 w-5" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem onClick={onNewCard}>
-              + New Card
-            </DropdownMenuItem>
-            {isAdmin && (
-              <>
-                <DropdownMenuItem onClick={onBoardSettings}>
-                  Board Settings
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={onGlobalAdmin}>
-                  Admin
-                </DropdownMenuItem>
-              </>
-            )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onLogout}>
-              Logout
-            </DropdownMenuItem>
-            {version && (
-              <>
-                <DropdownMenuSeparator />
-                <div className="px-1.5 py-1 text-xs text-muted-foreground">v{version}</div>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {/* Gear menu — always visible, main menu across all tiers */}
+        <GearMenu
+          isAdmin={isAdmin}
+          version={version}
+          onNewCard={onNewCard}
+          onBoardSettings={onBoardSettings}
+          onGlobalAdmin={onGlobalAdmin}
+          onLogout={onLogout}
+        />
       </div>
     </header>
   );
