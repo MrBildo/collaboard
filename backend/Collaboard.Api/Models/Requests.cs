@@ -43,4 +43,4 @@ public record UpdateSizeRequest(string? Name, int? Ordinal);
 public record RestoreCardRequest(Guid LaneId);
 
 // Prune requests
-public record PruneRequest(DateTimeOffset? OlderThan, Guid[]? LaneIds, Guid[]? LabelIds);
+public record PruneRequest(DateTimeOffset? OlderThan, Guid[]? LaneIds, Guid[]? LabelIds, string? Action, bool? IncludeArchived);

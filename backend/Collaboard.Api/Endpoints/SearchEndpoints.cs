@@ -8,7 +8,7 @@ internal static class SearchEndpoints
 {
     public static RouteGroupBuilder MapSearchEndpoints(this RouteGroupBuilder group)
     {
-        group.MapGet("/search/cards", async (BoardDbContext db, string? q, int? limit) =>
+        group.MapGet("/search/cards", async (BoardDbContext db, string? q, int? limit, Guid? archiveBoardId) =>
         {
             if (string.IsNullOrWhiteSpace(q))
             {
@@ -17,8 +17,26 @@ internal static class SearchEndpoints
 
             var effectiveLimit = Math.Clamp(limit ?? 20, 1, 50);
 
+            // Load all archive lane IDs upfront (spans all boards)
+            var allArchiveLanes = await db.Lanes
+                .Where(l => l.IsArchiveLane)
+                .Select(l => new { l.Id, l.BoardId })
+                .ToListAsync();
+
+            // Separate: exclude archive lanes from all boards except the archiveBoardId
+            var excludeArchiveLaneIds = allArchiveLanes
+                .Where(l => l.BoardId != archiveBoardId)
+                .Select(l => l.Id)
+                .ToList();
+
             var query = db.Cards.AsQueryable();
             query = SearchHelper.ApplySearchFilter(query, q);
+
+            // Exclude archived cards (except those from archiveBoardId)
+            if (excludeArchiveLaneIds.Count > 0)
+            {
+                query = query.Where(c => !excludeArchiveLaneIds.Contains(c.LaneId));
+            }
 
             var cards = await query
                 .OrderBy(c => c.BoardId)
@@ -68,11 +86,8 @@ internal static class SearchEndpoints
             // Build a cardId -> boardId lookup
             var cardBoardMap = cards.ToDictionary(c => c.Id, c => c.BoardId);
 
-            // Batch load archive lane IDs
-            var archiveLaneIds = await db.Lanes
-                .Where(l => boardIds.Contains(l.BoardId) && l.IsArchiveLane)
-                .Select(l => l.Id)
-                .ToHashSetAsync();
+            // All archive lane IDs for isArchived computation
+            var archiveLaneIds = allArchiveLanes.Select(l => l.Id).ToHashSet();
 
             // Project to summaries
             var summaries = cards.Select(c => new CardSummary(
