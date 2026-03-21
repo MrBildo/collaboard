@@ -50,7 +50,9 @@ export function SortableCard({
     enabled: !enrichedData,
     ...QUERY_DEFAULTS.attachments,
   });
-  const labels = [...(enrichedData?.labels ?? labelsQuery.data ?? [])].sort((a, b) => a.name.length - b.name.length);
+  const labels = [...(enrichedData?.labels ?? labelsQuery.data ?? [])].sort(
+    (a, b) => a.name.length - b.name.length,
+  );
   const commentCount = enrichedData?.commentCount ?? commentsQuery.data?.length ?? 0;
   const attachmentCount = enrichedData?.attachmentCount ?? attachmentsQuery.data?.length ?? 0;
   const labelContainerRef = useRef<HTMLDivElement>(null);
@@ -83,7 +85,9 @@ export function SortableCard({
           return (
             <Tooltip>
               <TooltipTrigger render={<span />}>
-                <Badge variant="outline" className="mt-0.5 shrink-0 text-xs">{sizeDisplay}</Badge>
+                <Badge variant="outline" className="mt-0.5 shrink-0 text-xs">
+                  {sizeDisplay}
+                </Badge>
               </TooltipTrigger>
               <TooltipContent>{sizeName}</TooltipContent>
             </Tooltip>
@@ -107,7 +111,6 @@ export function SortableCard({
             {attachmentCount}
           </span>
         )}
-
       </div>
 
       {labels.length > 0 && (
@@ -119,7 +122,14 @@ export function SortableCard({
                   <Badge
                     variant="secondary"
                     className="max-w-full rounded-sm text-xs"
-                    style={item.label.color ? { backgroundColor: item.label.color, color: getContrastColor(item.label.color) } : undefined}
+                    style={
+                      item.label.color
+                        ? {
+                            backgroundColor: item.label.color,
+                            color: getContrastColor(item.label.color),
+                          }
+                        : undefined
+                    }
                   >
                     {item.label.name}
                   </Badge>
@@ -146,7 +156,10 @@ export function SortableCard({
                 </Badge>
               </TooltipTrigger>
               <TooltipContent>
-                {labels.slice(labels.length - labelLayout.overflowCount).map((l) => l.name).join(', ')}
+                {labels
+                  .slice(labels.length - labelLayout.overflowCount)
+                  .map((l) => l.name)
+                  .join(', ')}
               </TooltipContent>
             </Tooltip>
           )}

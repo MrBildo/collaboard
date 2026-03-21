@@ -113,7 +113,11 @@ export function LabelsTab({ boardId }: LabelsTabProps) {
             {list.editingId === label.id ? (
               <>
                 <div className="flex flex-1 items-center gap-2">
-                  <LabelColorPicker value={editColor} onValueChange={setEditColor} className="h-7 w-7" />
+                  <LabelColorPicker
+                    value={editColor}
+                    onValueChange={setEditColor}
+                    className="h-7 w-7"
+                  />
                   <Input
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}

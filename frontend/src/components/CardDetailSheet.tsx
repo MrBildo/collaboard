@@ -41,7 +41,8 @@ export function CardDetailSheet({
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
 
   const { prevCard, nextCard } = useMemo(() => {
-    if (!card || !cardsInLane || cardsInLane.length === 0) return { prevCard: null, nextCard: null };
+    if (!card || !cardsInLane || cardsInLane.length === 0)
+      return { prevCard: null, nextCard: null };
     const idx = cardsInLane.findIndex((c) => c.id === card.id);
     if (idx === -1) return { prevCard: null, nextCard: null };
     return {
@@ -129,14 +130,19 @@ export function CardDetailSheet({
 
   if (!card) return null;
 
-  const navPosition = cardsInLane && cardsInLane.length > 1
-    ? `${(cardsInLane.findIndex((c) => c.id === card.id) ?? 0) + 1} / ${cardsInLane.length}`
-    : null;
+  const navPosition =
+    cardsInLane && cardsInLane.length > 1
+      ? `${(cardsInLane.findIndex((c) => c.id === card.id) ?? 0) + 1} / ${cardsInLane.length}`
+      : null;
 
   return (
     <>
       <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-        <DialogContent data-mobile-fullscreen className="flex flex-col p-0 md:max-h-[85vh] md:!w-[80vw] md:!max-w-[80vw]" style={{ overflow: 'visible' }}>
+        <DialogContent
+          data-mobile-fullscreen
+          className="flex flex-col p-0 md:max-h-[85vh] md:!w-[80vw] md:!max-w-[80vw]"
+          style={{ overflow: 'visible' }}
+        >
           {/* Floating nav buttons — desktop only, positioned outside the dialog */}
           {prevCard && (
             <Button
@@ -181,10 +187,7 @@ export function CardDetailSheet({
           </div>
         </DialogContent>
       </Dialog>
-      <UnsavedChangesDialog
-        open={pendingAction !== null}
-        onAction={handleUnsavedAction}
-      />
+      <UnsavedChangesDialog open={pendingAction !== null} onAction={handleUnsavedAction} />
     </>
   );
 }

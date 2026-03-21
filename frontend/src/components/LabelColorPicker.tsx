@@ -40,15 +40,12 @@ function LabelColorPicker({ value, onValueChange, className }: LabelColorPickerP
     [onValueChange],
   );
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        setIsOpen(false);
-      }
-    },
-    [],
-  );
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      setIsOpen(false);
+    }
+  }, []);
 
   return (
     <ColorPicker
@@ -60,7 +57,7 @@ function LabelColorPicker({ value, onValueChange, className }: LabelColorPickerP
       className="inline-flex"
     >
       <ColorPickerTrigger className="shrink-0 self-center">
-        <ColorPickerSwatch className={cn("cursor-pointer rounded-md", className)} />
+        <ColorPickerSwatch className={cn('cursor-pointer rounded-md', className)} />
       </ColorPickerTrigger>
       <ColorPickerContent onPaste={handlePaste} onKeyDown={handleKeyDown}>
         <ColorPickerArea />
@@ -70,9 +67,7 @@ function LabelColorPicker({ value, onValueChange, className }: LabelColorPickerP
           <ColorPickerSwatch className="size-8 shrink-0 rounded-md" />
           <ColorPickerInput withoutAlpha />
         </div>
-        <p className="text-center text-xs text-muted-foreground">
-          Paste hex color anywhere
-        </p>
+        <p className="text-center text-xs text-muted-foreground">Paste hex color anywhere</p>
       </ColorPickerContent>
     </ColorPicker>
   );

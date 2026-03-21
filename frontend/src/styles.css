@@ -59,7 +59,7 @@
     --sidebar-ring: hsl(195, 100%, 42%);
   }
 
-  [data-theme="dark"] {
+  [data-theme='dark'] {
     /* Surfaces — bg(8%) → lane(11%) → card(15%) → border(25%) */
     --background: hsl(222, 22%, 8%);
     --foreground: hsl(210, 15%, 90%);
@@ -99,12 +99,11 @@
     --sidebar-accent-foreground: hsl(210, 15%, 80%);
     --sidebar-border: hsl(222, 12%, 25%);
     --sidebar-ring: hsl(195, 90%, 55%);
-
   }
 
   /* Prose overrides scoped to .prose inside dark mode — must be a separate rule
      so it has higher specificity than the base .prose class which sets its own vars */
-  [data-theme="dark"] .prose {
+  [data-theme='dark'] .prose {
     --tw-prose-body: hsl(210, 15%, 85%);
     --tw-prose-headings: hsl(210, 15%, 95%);
     --tw-prose-links: hsl(195, 90%, 55%);
@@ -171,7 +170,7 @@
      Top padding is zeroed so sticky lane headers (top: 0) sit flush with the
      scroll viewport. The visual gap between header and board content is
      provided by margin-top, which sits outside the scroll area. */
-  [aria-label="Kanban board"] {
+  [aria-label='Kanban board'] {
     display: flex !important;
     flex-direction: column !important;
     overflow-x: hidden !important;
@@ -181,7 +180,7 @@
   }
 
   /* Card detail dialog: full-screen on mobile */
-  [data-slot="dialog-content"][data-mobile-fullscreen] {
+  [data-slot='dialog-content'][data-mobile-fullscreen] {
     inset: 0 !important;
     width: 100% !important;
     max-width: 100% !important;

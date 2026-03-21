@@ -23,7 +23,9 @@ export function AdminPanel({ boardId, open, onOpenChange }: AdminPanelProps) {
       <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto p-6">
         <DialogHeader>
           <DialogTitle>Board Configuration</DialogTitle>
-          <DialogDescription>Manage lanes, sizes, labels, and prune cards for this board.</DialogDescription>
+          <DialogDescription>
+            Manage lanes, sizes, labels, and prune cards for this board.
+          </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="lanes" className="mt-2 flex flex-col gap-4">

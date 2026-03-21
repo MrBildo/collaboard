@@ -6,12 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useClickOutside } from '@/hooks/use-click-outside';
 import { Search, Trash2, Check } from 'lucide-react';
-import {
-  fetchLabels,
-  fetchLanes,
-  pruneCards,
-  prunePreview,
-} from '@/lib/api';
+import { fetchLabels, fetchLanes, pruneCards, prunePreview } from '@/lib/api';
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { formatDateTime } from '@/lib/utils';
@@ -131,7 +126,8 @@ export function PruneTab({ boardId }: PruneTabProps) {
   useClickOutside(laneDropdownRef, closeLaneDropdown);
   useClickOutside(labelDropdownRef, closeLabelDropdown);
 
-  const hasActiveFilter = olderThan !== null || selectedLaneIds.length > 0 || selectedLabelIds.length > 0;
+  const hasActiveFilter =
+    olderThan !== null || selectedLaneIds.length > 0 || selectedLabelIds.length > 0;
 
   const buildFilters = (): PruneFilters => ({
     ...(olderThan ? { olderThan } : {}),
@@ -154,9 +150,7 @@ export function PruneTab({ boardId }: PruneTabProps) {
   const lanes = lanesQuery.data ?? [];
   const labels = labelsQuery.data ?? [];
 
-  const selectedLaneNames = lanes
-    .filter((l) => selectedLaneIds.includes(l.id))
-    .map((l) => l.name);
+  const selectedLaneNames = lanes.filter((l) => selectedLaneIds.includes(l.id)).map((l) => l.name);
 
   const selectedLabelNames = labels
     .filter((l) => selectedLabelIds.includes(l.id))
@@ -164,9 +158,8 @@ export function PruneTab({ boardId }: PruneTabProps) {
 
   const formatDate = formatDateTime;
 
-  const customDateValue = olderThan && !selectedPreset
-    ? new Date(olderThan).toISOString().split('T')[0]
-    : '';
+  const customDateValue =
+    olderThan && !selectedPreset ? new Date(olderThan).toISOString().split('T')[0] : '';
 
   return (
     <div className="flex flex-col gap-4">
@@ -274,10 +267,7 @@ export function PruneTab({ boardId }: PruneTabProps) {
 
       <Separator />
 
-      <Button
-        onClick={handlePreview}
-        disabled={!hasActiveFilter || previewMutation.isPending}
-      >
+      <Button onClick={handlePreview} disabled={!hasActiveFilter || previewMutation.isPending}>
         <Search className="mr-2 w-4 h-4" />
         {previewMutation.isPending ? 'Searching...' : 'Preview'}
       </Button>
@@ -300,7 +290,9 @@ export function PruneTab({ boardId }: PruneTabProps) {
                   <span className="text-sm font-medium text-muted-foreground">#{card.number}</span>
                   <span className="flex-1 truncate text-sm">{card.name}</span>
                   <span className="text-xs text-muted-foreground">{card.laneName}</span>
-                  <span className="text-xs text-muted-foreground">{formatDate(card.lastUpdatedAtUtc)}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {formatDate(card.lastUpdatedAtUtc)}
+                  </span>
                 </div>
               ))}
             </div>
@@ -309,11 +301,7 @@ export function PruneTab({ boardId }: PruneTabProps) {
           )}
 
           {preview.matchCount > 0 && (
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={pruneMutation.isPending}
-            >
+            <Button variant="destructive" onClick={handleDelete} disabled={pruneMutation.isPending}>
               <Trash2 className="mr-2 w-4 h-4" />
               {pruneMutation.isPending
                 ? 'Deleting...'
