@@ -21,9 +21,9 @@ public partial class AddLaneIsArchiveLane : Migration
         migrationBuilder.Sql("""
             INSERT INTO Lanes (Id, BoardId, Name, Position, IsArchiveLane)
             SELECT
-                LOWER(HEX(RANDOMBLOB(4)) || '-' || HEX(RANDOMBLOB(2)) || '-4' ||
+                UPPER(HEX(RANDOMBLOB(4)) || '-' || HEX(RANDOMBLOB(2)) || '-4' ||
                     SUBSTR(HEX(RANDOMBLOB(2)), 2) || '-' ||
-                    SUBSTR('89ab', 1 + (ABS(RANDOM()) % 4), 1) ||
+                    SUBSTR('89AB', 1 + (ABS(RANDOM()) % 4), 1) ||
                     SUBSTR(HEX(RANDOMBLOB(2)), 2) || '-' ||
                     HEX(RANDOMBLOB(6))),
                 b.Id,
