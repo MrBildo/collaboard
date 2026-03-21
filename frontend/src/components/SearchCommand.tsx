@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { LayoutDashboard, Loader2, Search, X } from 'lucide-react';
+import { Archive, LayoutDashboard, Loader2, Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { searchAllCards } from '@/lib/api';
+import { fetchBoardBySlug, searchAllCards } from '@/lib/api';
 import { queryKeys } from '@/lib/query-keys';
 import { cn, isTextInputFocused } from '@/lib/utils';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -13,6 +13,7 @@ import type { SearchResult } from '@/types';
 
 export function SearchCommand() {
   const navigate = useNavigate();
+  const { slug } = useParams<{ slug: string }>();
   const [query, setQuery] = useState('');
   const [dismissedQuery, setDismissedQuery] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -21,6 +22,15 @@ export function SearchCommand() {
   const debouncedQuery = useDebounce(query.trim(), 300);
 
   const isSearchable = debouncedQuery.length >= 2 || /^\d/.test(debouncedQuery);
+
+  // Resolve current board ID from route slug (reads from TanStack Query cache)
+  const boardMetaQuery = useQuery({
+    queryKey: queryKeys.boards.detail(slug as string),
+    queryFn: () => fetchBoardBySlug(slug as string),
+    enabled: !!slug,
+    staleTime: 60_000,
+  });
+  const currentBoardId = boardMetaQuery.data?.id;
 
   // Derive open state: show dropdown when query is valid and not dismissed for this specific query
   const [inputFocused, setInputFocused] = useState(false);
@@ -55,19 +65,57 @@ export function SearchCommand() {
   const effectiveQuery = /^\d+$/.test(debouncedQuery) ? `#${debouncedQuery}` : debouncedQuery;
 
   const searchQuery = useQuery({
-    queryKey: queryKeys.search.cards(effectiveQuery),
-    queryFn: () => searchAllCards(effectiveQuery),
+    queryKey: queryKeys.search.cards(effectiveQuery, currentBoardId),
+    queryFn: () => searchAllCards(effectiveQuery, 20, currentBoardId),
     enabled: isSearchable,
     staleTime: 30_000,
   });
 
-  const results: SearchResult[] = useMemo(() => searchQuery.data ?? [], [searchQuery.data]);
-  const totalCards = results.reduce((sum, r) => sum + r.cards.length, 0);
+  // Separate active and archived results
+  const { activeResults, archivedResults } = useMemo(() => {
+    const raw: SearchResult[] = searchQuery.data ?? [];
+    const active: SearchResult[] = [];
+    const archived: SearchResult[] = [];
+
+    for (const group of raw) {
+      const activeCards = group.cards.filter((c) => !c.isArchived);
+      const archivedCards = group.cards.filter((c) => c.isArchived);
+      if (activeCards.length > 0) {
+        active.push({ ...group, cards: activeCards });
+      }
+      if (archivedCards.length > 0) {
+        archived.push({ ...group, cards: archivedCards });
+      }
+    }
+
+    return { activeResults: active, archivedResults: archived };
+  }, [searchQuery.data]);
+
+  const totalCards = useMemo(
+    () =>
+      activeResults.reduce((sum, r) => sum + r.cards.length, 0) +
+      archivedResults.reduce((sum, r) => sum + r.cards.length, 0),
+    [activeResults, archivedResults],
+  );
 
   const flatResults = useMemo(
-    () =>
-      results.flatMap((group) => group.cards.map((card) => ({ boardSlug: group.boardSlug, card }))),
-    [results],
+    () => [
+      ...activeResults.flatMap((group) =>
+        group.cards.map((card) => ({
+          boardSlug: group.boardSlug,
+          card,
+          isArchived: false as const,
+        })),
+      ),
+      ...archivedResults.flatMap((group) =>
+        group.cards.map((card) => ({
+          boardSlug: group.boardSlug,
+          card,
+          isArchived: true as const,
+        })),
+      ),
+    ],
+    [activeResults, archivedResults],
   );
 
   const [focusedIndex, setFocusedIndex] = useState(-1);
@@ -206,45 +254,73 @@ export function SearchCommand() {
             totalCards > 0 &&
             (() => {
               let flatIndex = 0;
-              return results.map((group) => (
-                <div key={group.boardId}>
-                  {results.length > 1 && (
-                    <div className="sticky top-0 flex items-center gap-1.5 border-b border-border bg-muted px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      <LayoutDashboard className="h-3 w-3" />
-                      {group.boardName}
+              const hasMultipleGroups =
+                activeResults.length + archivedResults.length > 1 || archivedResults.length > 0;
+
+              const renderCard = (
+                group: SearchResult,
+                card: SearchResult['cards'][number],
+                archived: boolean,
+              ) => {
+                const idx = flatIndex++;
+                return (
+                  <button
+                    key={card.id}
+                    type="button"
+                    data-search-index={idx}
+                    onClick={() => handleSelect(group.boardSlug, card.number)}
+                    onMouseEnter={() => setFocusedIndex(idx)}
+                    className={cn(
+                      'flex w-full items-start gap-2 px-3 py-2 text-left text-sm',
+                      'hover:bg-accent/10 focus-visible:bg-accent/10 focus-visible:outline-none',
+                      idx === focusedIndex && 'bg-accent text-accent-foreground',
+                      archived && 'opacity-60',
+                    )}
+                  >
+                    <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs font-mono text-muted-foreground">
+                      #{card.number}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium text-foreground">{card.name}</p>
+                      {card.descriptionMarkdown && (
+                        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                          {card.descriptionMarkdown.slice(0, 100)}
+                        </p>
+                      )}
+                    </div>
+                    {archived && (
+                      <Archive className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    )}
+                  </button>
+                );
+              };
+
+              return (
+                <>
+                  {activeResults.map((group) => (
+                    <div key={group.boardId}>
+                      {hasMultipleGroups && (
+                        <div className="sticky top-0 flex items-center gap-1.5 border-b border-border bg-muted px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          <LayoutDashboard className="h-3 w-3" />
+                          {group.boardName}
+                        </div>
+                      )}
+                      {group.cards.map((card) => renderCard(group, card, false))}
+                    </div>
+                  ))}
+                  {archivedResults.length > 0 && (
+                    <div key="__archived__">
+                      <div className="sticky top-0 flex items-center gap-1.5 border-b border-border bg-muted px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        <Archive className="h-3 w-3" />
+                        Archived
+                      </div>
+                      {archivedResults.flatMap((group) =>
+                        group.cards.map((card) => renderCard(group, card, true)),
+                      )}
                     </div>
                   )}
-                  {group.cards.map((card) => {
-                    const idx = flatIndex++;
-                    return (
-                      <button
-                        key={card.id}
-                        type="button"
-                        data-search-index={idx}
-                        onClick={() => handleSelect(group.boardSlug, card.number)}
-                        onMouseEnter={() => setFocusedIndex(idx)}
-                        className={cn(
-                          'flex w-full items-start gap-2 px-3 py-2 text-left text-sm',
-                          'hover:bg-accent/10 focus-visible:bg-accent/10 focus-visible:outline-none',
-                          idx === focusedIndex && 'bg-accent text-accent-foreground',
-                        )}
-                      >
-                        <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs font-mono text-muted-foreground">
-                          #{card.number}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate font-medium text-foreground">{card.name}</p>
-                          {card.descriptionMarkdown && (
-                            <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                              {card.descriptionMarkdown.slice(0, 100)}
-                            </p>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              ));
+                </>
+              );
             })()}
           {searchQuery.isError && (
             <p className="px-3 py-4 text-sm text-destructive">Search failed. Please try again.</p>

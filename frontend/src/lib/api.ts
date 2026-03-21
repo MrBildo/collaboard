@@ -327,7 +327,13 @@ export async function pruneCards(boardId: string, filters: PruneFilters): Promis
 }
 
 // Search
-export async function searchAllCards(q: string, limit = 20): Promise<SearchResult[]> {
-  const { data } = await api.get('/search/cards', { params: { q, limit } });
+export async function searchAllCards(
+  q: string,
+  limit = 20,
+  archiveBoardId?: string,
+): Promise<SearchResult[]> {
+  const { data } = await api.get('/search/cards', {
+    params: { q, limit, ...(archiveBoardId ? { archiveBoardId } : {}) },
+  });
   return z.array(searchResultSchema).parse(data);
 }

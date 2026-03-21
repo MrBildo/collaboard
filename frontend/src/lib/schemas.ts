@@ -144,7 +144,8 @@ export const prunePreviewResponseSchema = z.object({
 });
 
 export const pruneResponseSchema = z.object({
-  deletedCount: z.number(),
+  deletedCount: z.number().optional(),
+  archivedCount: z.number().optional(),
 });
 
 export const searchResultSchema = z.object({
