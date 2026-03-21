@@ -161,6 +161,11 @@ internal static class CardEndpoints
                 return Results.NotFound();
             }
 
+            if (await ArchiveGuard.IsCardArchivedAsync(db, id))
+            {
+                return Results.BadRequest("Archived cards cannot be modified. Restore the card first.");
+            }
+
             if (request.Name is not null)
             {
                 if (string.IsNullOrWhiteSpace(request.Name))
@@ -251,6 +256,11 @@ internal static class CardEndpoints
                 return Results.NotFound();
             }
 
+            if (await ArchiveGuard.IsCardArchivedAsync(db, id))
+            {
+                return Results.BadRequest("Archived cards cannot be modified. Restore the card first.");
+            }
+
             if (request.LaneId is null)
             {
                 return Results.BadRequest("laneId is required.");
@@ -269,6 +279,11 @@ internal static class CardEndpoints
             if (targetLane is null)
             {
                 return Results.BadRequest("Lane not found.");
+            }
+
+            if (targetLane.IsArchiveLane)
+            {
+                return Results.BadRequest("Use archive_card to archive cards.");
             }
 
             var sourceLane = await db.Lanes.FindAsync(card.LaneId);
