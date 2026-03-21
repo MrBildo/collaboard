@@ -19,25 +19,20 @@ export function BoardSwitcher({ boards, currentSlug }: BoardSwitcherProps) {
   const currentBoard = boards.find((b) => b.slug === currentSlug);
 
   return (
-    <Select
-      value={currentSlug ?? ''}
-      onValueChange={(v) => navigate(`/boards/${v}`)}
-    >
+    <Select value={currentSlug ?? ''} onValueChange={(v) => navigate(`/boards/${v}`)}>
       <Tooltip>
         <TooltipTrigger
-          render={
-            <SelectTrigger size="sm" className="min-w-[7rem] max-w-[10rem] flex-1" />
-          }
+          render={<SelectTrigger size="sm" className="min-w-[7rem] max-w-[10rem] flex-1" />}
         >
-          <SelectValue>
-            {currentBoard?.name ?? 'Select board'}
-          </SelectValue>
+          <SelectValue>{currentBoard?.name ?? 'Select board'}</SelectValue>
         </TooltipTrigger>
         <TooltipContent>{currentBoard?.name ?? 'Select board'}</TooltipContent>
       </Tooltip>
       <SelectContent>
         {boards.map((b) => (
-          <SelectItem key={b.id} value={b.slug}>{b.name}</SelectItem>
+          <SelectItem key={b.id} value={b.slug}>
+            {b.name}
+          </SelectItem>
         ))}
       </SelectContent>
     </Select>

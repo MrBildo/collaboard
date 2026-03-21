@@ -103,8 +103,7 @@ function BoardsTab() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: UpdateBoardPatch }) =>
-      updateBoard(id, patch),
+    mutationFn: ({ id, patch }: { id: string; patch: UpdateBoardPatch }) => updateBoard(id, patch),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.boards.all() });
       list.setEditingId(null);
@@ -287,7 +286,18 @@ function UsersTab() {
           <EditableListRow key={user.id}>
             <div className="flex items-center gap-3">
               <span className="font-medium">{user.name}</span>
-              <Badge variant="secondary" className={user.role === ROLES.Administrator ? 'bg-primary/15 text-primary' : user.role === ROLES.Agent ? 'bg-accent/15 text-accent' : ''}>{ROLE_MAP[user.role] ?? `Role ${user.role}`}</Badge>
+              <Badge
+                variant="secondary"
+                className={
+                  user.role === ROLES.Administrator
+                    ? 'bg-primary/15 text-primary'
+                    : user.role === ROLES.Agent
+                      ? 'bg-accent/15 text-accent'
+                      : ''
+                }
+              >
+                {ROLE_MAP[user.role] ?? `Role ${user.role}`}
+              </Badge>
               <Badge variant={user.isActive ? 'outline' : 'destructive'}>
                 {user.isActive ? 'Active' : 'Inactive'}
               </Badge>

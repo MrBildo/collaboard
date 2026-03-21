@@ -62,27 +62,25 @@ export function GearMenu({
           </DropdownMenuItem>
         )}
         {/* Admin: all tiers (admin only) */}
-        {isAdmin && (
-          <DropdownMenuItem onClick={onGlobalAdmin}>
-            Admin
-          </DropdownMenuItem>
-        )}
+        {isAdmin && <DropdownMenuItem onClick={onGlobalAdmin}>Admin</DropdownMenuItem>}
         {/* Separator — visible when any action item above is shown */}
         <DropdownMenuSeparator className={isAdmin ? '' : 'xs:hidden'} />
         {/* Theme toggle: all tiers */}
         <DropdownMenuItem onClick={toggleTheme}>
           <span className="flex items-center gap-2">
             {theme === 'light' ? (
-              <><Moon className="h-3.5 w-3.5" /> Dark mode</>
+              <>
+                <Moon className="h-3.5 w-3.5" /> Dark mode
+              </>
             ) : (
-              <><Sun className="h-3.5 w-3.5" /> Light mode</>
+              <>
+                <Sun className="h-3.5 w-3.5" /> Light mode
+              </>
             )}
           </span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={onLogout}>
-          Logout
-        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onLogout}>Logout</DropdownMenuItem>
         {version && (
           <>
             <DropdownMenuSeparator />

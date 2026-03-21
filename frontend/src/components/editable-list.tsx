@@ -9,7 +9,12 @@ type ItemActionsProps = {
   onDelete: () => void;
 };
 
-export function ItemActions({ isConfirmingDelete, isDeleting, onEdit, onDelete }: ItemActionsProps) {
+export function ItemActions({
+  isConfirmingDelete,
+  isDeleting,
+  onEdit,
+  onDelete,
+}: ItemActionsProps) {
   return (
     <div className="flex gap-1">
       <Button size="xs" variant="ghost" onClick={onEdit} title="Edit">
@@ -56,9 +61,7 @@ type EditableListContainerProps = {
 export function EditableListContainer({ children, error }: EditableListContainerProps) {
   return (
     <>
-      <div className="flex flex-col divide-y divide-border rounded-lg border">
-        {children}
-      </div>
+      <div className="flex flex-col divide-y divide-border rounded-lg border">{children}</div>
       {error && <p className="text-sm text-destructive">{error}</p>}
     </>
   );

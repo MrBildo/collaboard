@@ -23,11 +23,17 @@ const kanbanCollision: CollisionDetection = (args) => {
   return closestCenter(args);
 };
 
-export function useBoardDnd(boardId: string | undefined, serverCards: CardItem[], laneIds: Set<string>) {
+export function useBoardDnd(
+  boardId: string | undefined,
+  serverCards: CardItem[],
+  laneIds: Set<string>,
+) {
   const queryClient = useQueryClient();
 
   const mouseSensor = useSensor(MouseSensor, { activationConstraint: { distance: 8 } });
-  const touchSensor = useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } });
+  const touchSensor = useSensor(TouchSensor, {
+    activationConstraint: { delay: 200, tolerance: 5 },
+  });
   const sensors = useSensors(mouseSensor, touchSensor);
 
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
@@ -69,23 +75,20 @@ export function useBoardDnd(boardId: string | undefined, serverCards: CardItem[]
       // Merge reorder response into existing cache — the API returns
       // plain CardItem objects (no labels). We update position/lane
       // fields while preserving enriched data (labels, counts, etc).
-      queryClient.setQueryData<BoardData>(
-        queryKeys.boards.data(boardId),
-        (old) => {
-          if (!old) return old;
-          const updatedMap = new Map(data.cards.map((c) => [c.id, c]));
-          return {
-            ...old,
-            lanes: data.lanes,
-            cards: old.cards.map((existing) => {
-              const updated = updatedMap.get(existing.id);
-              return updated
-                ? { ...existing, laneId: updated.laneId, position: updated.position }
-                : existing;
-            }),
-          };
-        },
-      );
+      queryClient.setQueryData<BoardData>(queryKeys.boards.data(boardId), (old) => {
+        if (!old) return old;
+        const updatedMap = new Map(data.cards.map((c) => [c.id, c]));
+        return {
+          ...old,
+          lanes: data.lanes,
+          cards: old.cards.map((existing) => {
+            const updated = updatedMap.get(existing.id);
+            return updated
+              ? { ...existing, laneId: updated.laneId, position: updated.position }
+              : existing;
+          }),
+        };
+      });
     },
     onError: () => {
       if (!boardId) return;
@@ -118,7 +121,7 @@ export function useBoardDnd(boardId: string | undefined, serverCards: CardItem[]
       const activeLaneId = activeCard.laneId;
       const overLaneId = laneIds.has(overId)
         ? overId
-        : prev.find((c) => c.id === overId)?.laneId ?? null;
+        : (prev.find((c) => c.id === overId)?.laneId ?? null);
 
       if (!overLaneId) return prev;
 

@@ -15,9 +15,15 @@ type CardCommentsProps = {
   cardId: string;
   currentUserId?: string;
   currentUserRole?: number;
+  readOnly?: boolean;
 };
 
-export function CardComments({ cardId, currentUserId, currentUserRole }: CardCommentsProps) {
+export function CardComments({
+  cardId,
+  currentUserId,
+  currentUserRole,
+  readOnly,
+}: CardCommentsProps) {
   const queryClient = useQueryClient();
 
   const { getUserName } = useUserDirectory();
@@ -124,59 +130,61 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
   return (
     <div className="flex flex-1 flex-col gap-3 overflow-hidden">
       {/* New comment input — sticky at top */}
-      <div className="flex shrink-0 flex-col gap-2">
-        {isExpanded && (
-          <div className="flex items-center gap-1">
-            <Button
-              variant={!isPreviewingNew ? 'secondary' : 'ghost'}
-              size="xs"
-              onClick={() => setIsPreviewingNew(false)}
-            >
-              Edit
-            </Button>
-            <Button
-              variant={isPreviewingNew ? 'secondary' : 'ghost'}
-              size="xs"
-              onClick={() => setIsPreviewingNew(true)}
-            >
-              Preview
-            </Button>
-          </div>
-        )}
-        {isPreviewingNew && isExpanded ? (
-          <div className="prose prose-sm max-w-none overflow-x-auto rounded-md border bg-muted/30 p-4 text-sm text-foreground">
-            {newComment.trim() ? (
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{newComment}</ReactMarkdown>
-            ) : (
-              <p className="italic text-muted-foreground">Nothing to preview.</p>
-            )}
-          </div>
-        ) : (
-          <Textarea
-            ref={newCommentRef}
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            onFocus={() => setNewCommentFocused(true)}
-            placeholder="Add a comment..."
-            rows={isExpanded ? 3 : 1}
-            className="bg-muted font-mono text-sm transition-all"
-          />
-        )}
-        {isExpanded && (
-          <div className="flex justify-end gap-2">
-            <Button size="sm" variant="outline" onClick={handleCancelNew}>
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleAdd}
-              disabled={createMutation.isPending || !newComment.trim()}
-            >
-              {createMutation.isPending ? 'Saving...' : 'Save'}
-            </Button>
-          </div>
-        )}
-      </div>
+      {!readOnly && (
+        <div className="flex shrink-0 flex-col gap-2">
+          {isExpanded && (
+            <div className="flex items-center gap-1">
+              <Button
+                variant={!isPreviewingNew ? 'secondary' : 'ghost'}
+                size="xs"
+                onClick={() => setIsPreviewingNew(false)}
+              >
+                Edit
+              </Button>
+              <Button
+                variant={isPreviewingNew ? 'secondary' : 'ghost'}
+                size="xs"
+                onClick={() => setIsPreviewingNew(true)}
+              >
+                Preview
+              </Button>
+            </div>
+          )}
+          {isPreviewingNew && isExpanded ? (
+            <div className="prose prose-sm max-w-none overflow-x-auto rounded-md border bg-muted/30 p-4 text-sm text-foreground">
+              {newComment.trim() ? (
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{newComment}</ReactMarkdown>
+              ) : (
+                <p className="italic text-muted-foreground">Nothing to preview.</p>
+              )}
+            </div>
+          ) : (
+            <Textarea
+              ref={newCommentRef}
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              onFocus={() => setNewCommentFocused(true)}
+              placeholder="Add a comment..."
+              rows={isExpanded ? 3 : 1}
+              className="bg-muted font-mono text-sm transition-all"
+            />
+          )}
+          {isExpanded && (
+            <div className="flex justify-end gap-2">
+              <Button size="sm" variant="outline" onClick={handleCancelNew}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleAdd}
+                disabled={createMutation.isPending || !newComment.trim()}
+              >
+                {createMutation.isPending ? 'Saving...' : 'Save'}
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Comment list — scrollable */}
       <div className="flex flex-col gap-3 overflow-y-auto">
@@ -248,28 +256,30 @@ export function CardComments({ cardId, currentUserId, currentUserRole }: CardCom
                     {' · '}
                     {formatDateTime(comment.lastUpdatedAtUtc)}
                   </span>
-                  <div className="flex gap-1">
-                    {(currentUserRole === ROLES.Administrator ||
-                      comment.userId === currentUserId) && (
-                      <>
-                        <Button
-                          size="xs"
-                          variant="ghost"
-                          onClick={() => handleEdit(comment.id, comment.contentMarkdown)}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          size="xs"
-                          variant="destructive"
-                          onClick={() => handleDelete(comment.id)}
-                          disabled={deleteMutation.isPending}
-                        >
-                          {confirmDeleteId === comment.id ? 'Confirm' : 'Delete'}
-                        </Button>
-                      </>
-                    )}
-                  </div>
+                  {!readOnly && (
+                    <div className="flex gap-1">
+                      {(currentUserRole === ROLES.Administrator ||
+                        comment.userId === currentUserId) && (
+                        <>
+                          <Button
+                            size="xs"
+                            variant="ghost"
+                            onClick={() => handleEdit(comment.id, comment.contentMarkdown)}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            size="xs"
+                            variant="destructive"
+                            onClick={() => handleDelete(comment.id)}
+                            disabled={deleteMutation.isPending}
+                          >
+                            {confirmDeleteId === comment.id ? 'Confirm' : 'Delete'}
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               </>
             )}

@@ -19,7 +19,7 @@ function writeCollapseMap(boardId: string, map: CollapseMap) {
 
 export function useLaneCollapse(boardId: string | undefined) {
   const [collapseMap, setCollapseMap] = useState<CollapseMap>(() =>
-    boardId ? readCollapseMap(boardId) ?? {} : {},
+    boardId ? (readCollapseMap(boardId) ?? {}) : {},
   );
   const [defaultsApplied, setDefaultsApplied] = useState(false);
 
@@ -27,7 +27,7 @@ export function useLaneCollapse(boardId: string | undefined) {
   const [prevBoardId, setPrevBoardId] = useState(boardId);
   if (boardId !== prevBoardId) {
     setPrevBoardId(boardId);
-    setCollapseMap(boardId ? readCollapseMap(boardId) ?? {} : {});
+    setCollapseMap(boardId ? (readCollapseMap(boardId) ?? {}) : {});
     setDefaultsApplied(false);
   }
 
@@ -60,10 +60,7 @@ export function useLaneCollapse(boardId: string | undefined) {
     [boardId],
   );
 
-  const isCollapsed = useCallback(
-    (laneId: string) => !!collapseMap[laneId],
-    [collapseMap],
-  );
+  const isCollapsed = useCallback((laneId: string) => !!collapseMap[laneId], [collapseMap]);
 
   return { isCollapsed, toggle, initDefaults };
 }

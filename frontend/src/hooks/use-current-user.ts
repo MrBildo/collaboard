@@ -14,7 +14,10 @@ export function useCurrentUser(loggedIn: boolean) {
 
   const adminCheck = useQuery({
     queryKey: queryKeys.users.adminCheck(),
-    queryFn: async () => { await fetchUsers(); return true; },
+    queryFn: async () => {
+      await fetchUsers();
+      return true;
+    },
     retry: false,
     enabled: loggedIn,
   });
