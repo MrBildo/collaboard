@@ -28,7 +28,7 @@ export function BoardHeader({
   onLogout,
 }: BoardHeaderProps) {
   return (
-    <header className="relative flex h-14 shrink-0 items-center gap-x-3 border-b border-border px-4">
+    <header className="flex h-14 shrink-0 items-center gap-x-3 border-b border-border px-4">
       {/* Logo — shrink-0 so it never clips */}
       <img
         src="/collaboard-logo.png"
@@ -47,11 +47,9 @@ export function BoardHeader({
           {boardName}
         </span>
       )}
-      {/* Flex spacer — pushes right actions to the end */}
-      <div className="flex-1" />
-      {/* Search — absolutely centered on the page, hidden on mobile */}
-      <div className="pointer-events-none absolute inset-x-0 hidden items-center justify-center px-4 xs:flex">
-        <div className="pointer-events-auto w-full max-w-md">
+      {/* Search — hidden on mobile, visible at xs+. Also acts as flex spacer. */}
+      <div className="flex flex-1 justify-center xs:px-4">
+        <div className="hidden xs:block xs:w-full">
           <SearchCommand />
         </div>
       </div>
