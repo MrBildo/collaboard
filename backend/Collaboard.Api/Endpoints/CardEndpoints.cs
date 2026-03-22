@@ -10,7 +10,7 @@ internal static class CardEndpoints
     public static RouteGroupBuilder MapCardEndpoints(this RouteGroupBuilder group)
     {
         // Board-scoped listing and creation
-        group.MapGet("/boards/{boardId:guid}/cards", async (BoardDbContext db, Guid boardId, DateTimeOffset? since, Guid? labelId, Guid? laneId, string? search, int? offset, int? limit, CancellationToken ct) =>
+        group.MapGet("/boards/{boardId:guid}/cards", async (BoardDbContext db, Guid boardId, DateTimeOffset? since, Guid? labelId, Guid? laneId, string? search, bool? includeArchived, int? offset, int? limit, CancellationToken ct) =>
         {
             if (!await db.Boards.AnyAsync(x => x.Id == boardId, ct))
             {
@@ -18,6 +18,14 @@ internal static class CardEndpoints
             }
 
             var query = db.Cards.Where(x => x.BoardId == boardId);
+
+            if (includeArchived is not true)
+            {
+                var archiveLaneIds = db.Lanes
+                    .Where(l => l.BoardId == boardId && l.IsArchiveLane)
+                    .Select(l => l.Id);
+                query = query.Where(x => !archiveLaneIds.Contains(x.LaneId));
+            }
 
             if (laneId.HasValue)
             {
@@ -71,10 +79,16 @@ internal static class CardEndpoints
 
             var requestDescription = request.DescriptionMarkdown ?? "";
 
-            // Verify the lane belongs to this board
-            if (!await db.Lanes.AnyAsync(x => x.Id == request.LaneId && x.BoardId == boardId))
+            // Verify the lane belongs to this board and is not the archive lane
+            var targetLane = await db.Lanes.FirstOrDefaultAsync(x => x.Id == request.LaneId && x.BoardId == boardId);
+            if (targetLane is null)
             {
                 return Results.BadRequest("Lane does not belong to this board.");
+            }
+
+            if (targetLane.IsArchiveLane)
+            {
+                return Results.BadRequest("Cards cannot be created in the archive lane.");
             }
 
             Guid sizeId;
@@ -153,6 +167,11 @@ internal static class CardEndpoints
                 return Results.NotFound();
             }
 
+            if (await ArchiveGuard.IsCardArchivedAsync(db, id))
+            {
+                return Results.BadRequest("Archived cards cannot be modified. Restore the card first.");
+            }
+
             if (request.Name is not null)
             {
                 if (string.IsNullOrWhiteSpace(request.Name))
@@ -192,6 +211,11 @@ internal static class CardEndpoints
                 if (targetLane.BoardId != card.BoardId)
                 {
                     return Results.BadRequest("Lane does not belong to this board.");
+                }
+
+                if (targetLane.IsArchiveLane)
+                {
+                    return Results.BadRequest("Use the archive endpoint to archive cards.");
                 }
 
                 card.LaneId = newLaneId;
@@ -243,6 +267,11 @@ internal static class CardEndpoints
                 return Results.NotFound();
             }
 
+            if (await ArchiveGuard.IsCardArchivedAsync(db, id))
+            {
+                return Results.BadRequest("Archived cards cannot be modified. Restore the card first.");
+            }
+
             if (request.LaneId is null)
             {
                 return Results.BadRequest("laneId is required.");
@@ -261,6 +290,11 @@ internal static class CardEndpoints
             if (targetLane is null)
             {
                 return Results.BadRequest("Lane not found.");
+            }
+
+            if (targetLane.IsArchiveLane)
+            {
+                return Results.BadRequest("Use archive_card to archive cards.");
             }
 
             var sourceLane = await db.Lanes.FindAsync(card.LaneId);
@@ -309,6 +343,78 @@ internal static class CardEndpoints
 
             return Results.NoContent();
         }).RequireRole(UserRole.Administrator, UserRole.HumanUser);
+
+        group.MapPost("/cards/{id:guid}/archive", async (BoardDbContext db, HttpContext http, Guid id, BoardEventBroadcaster broadcaster) =>
+        {
+            var card = await db.Cards.FindAsync(id);
+            if (card is null)
+            {
+                return Results.NotFound();
+            }
+
+            var currentLane = await db.Lanes.FindAsync(card.LaneId);
+            if (currentLane is not null && currentLane.IsArchiveLane)
+            {
+                return Results.BadRequest("Card is already archived.");
+            }
+
+            var archiveLane = await db.Lanes.FirstOrDefaultAsync(l => l.BoardId == card.BoardId && l.IsArchiveLane);
+            if (archiveLane is null)
+            {
+                return Results.BadRequest("Board has no archive lane.");
+            }
+
+            await CardReorderHelper.MoveCardToLaneAsync(db, card, archiveLane.Id, 0);
+
+            card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
+            card.LastUpdatedByUserId = http.CurrentUser().Id;
+
+            await db.SaveChangesAsync();
+            broadcaster.PublishBoardUpdated(card.BoardId);
+
+            return Results.NoContent();
+        }).RequireAuth();
+
+        group.MapPost("/cards/{id:guid}/restore", async (BoardDbContext db, HttpContext http, Guid id, RestoreCardRequest request, BoardEventBroadcaster broadcaster) =>
+        {
+            var card = await db.Cards.FindAsync(id);
+            if (card is null)
+            {
+                return Results.NotFound();
+            }
+
+            var currentLane = await db.Lanes.FindAsync(card.LaneId);
+            if (currentLane is null || !currentLane.IsArchiveLane)
+            {
+                return Results.BadRequest("Card is not archived.");
+            }
+
+            var targetLane = await db.Lanes.FindAsync(request.LaneId);
+            if (targetLane is null)
+            {
+                return Results.NotFound();
+            }
+
+            if (targetLane.IsArchiveLane)
+            {
+                return Results.BadRequest("Cannot restore to an archive lane.");
+            }
+
+            if (targetLane.BoardId != card.BoardId)
+            {
+                return Results.BadRequest("Lane does not belong to this board.");
+            }
+
+            await CardReorderHelper.MoveCardToLaneAsync(db, card, targetLane.Id, 0);
+
+            card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
+            card.LastUpdatedByUserId = http.CurrentUser().Id;
+
+            await db.SaveChangesAsync();
+            broadcaster.PublishBoardUpdated(card.BoardId);
+
+            return Results.NoContent();
+        }).RequireAuth();
 
         return group;
     }

@@ -12,8 +12,7 @@ export function useUserDirectory() {
   });
 
   const getUserName = useCallback(
-    (id: string): string =>
-      query.data?.find((u) => u.id === id)?.name ?? 'Unknown',
+    (id: string): string => query.data?.find((u) => u.id === id)?.name ?? 'Unknown',
     [query.data],
   );
 

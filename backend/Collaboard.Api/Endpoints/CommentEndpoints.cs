@@ -31,6 +31,11 @@ internal static class CommentEndpoints
                 return Results.NotFound();
             }
 
+            if (await ArchiveGuard.IsCardArchivedAsync(db, id))
+            {
+                return Results.BadRequest("Archived cards cannot be modified. Restore the card first.");
+            }
+
             var comment = new CardComment
             {
                 Id = Guid.NewGuid(),
@@ -53,6 +58,11 @@ internal static class CommentEndpoints
                 return Results.NotFound();
             }
 
+            if (await ArchiveGuard.IsCardArchivedAsync(db, comment.CardId))
+            {
+                return Results.BadRequest("Archived cards cannot be modified. Restore the card first.");
+            }
+
             var user = http.CurrentUser();
             if (comment.UserId != user.Id && user.Role != UserRole.Administrator)
             {
@@ -72,6 +82,11 @@ internal static class CommentEndpoints
             if (comment is null)
             {
                 return Results.NotFound();
+            }
+
+            if (await ArchiveGuard.IsCardArchivedAsync(db, comment.CardId))
+            {
+                return Results.BadRequest("Archived cards cannot be modified. Restore the card first.");
             }
 
             var user = http.CurrentUser();

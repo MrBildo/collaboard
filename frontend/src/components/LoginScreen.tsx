@@ -47,16 +47,16 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
             />
           </div>
 
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
+          {error && <p className="text-sm text-destructive">{error}</p>}
 
           <Button type="submit" className="h-11 w-full">
             Log In
           </Button>
         </form>
 
-        <p className="mt-6 text-center text-xs text-muted-foreground">AI-powered kanban for humans and bots</p>
+        <p className="mt-6 text-center text-xs text-muted-foreground">
+          AI-powered kanban for humans and bots
+        </p>
       </div>
     </main>
   );

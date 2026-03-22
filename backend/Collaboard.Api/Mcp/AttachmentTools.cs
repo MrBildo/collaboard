@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
+using Collaboard.Api.Endpoints;
 using Collaboard.Api.Events;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
@@ -55,6 +56,11 @@ public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, Boar
             return "Error: Attachment not found.";
         }
 
+        if (await ArchiveGuard.IsCardArchivedAsync(db, attachment.CardId))
+        {
+            return "Archived cards cannot be modified.";
+        }
+
         if (attachment.AddedByUserId != user!.Id && user.Role != UserRole.Administrator)
         {
             return "Error: You can only delete your own attachments.";
@@ -92,7 +98,12 @@ public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, Boar
             return resolveError;
         }
 
-        var card = await db.Cards.FindAsync([resolvedCardId!.Value], ct);
+        if (await ArchiveGuard.IsCardArchivedAsync(db, resolvedCardId!.Value))
+        {
+            return "Archived cards cannot be modified.";
+        }
+
+        var card = await db.Cards.FindAsync([resolvedCardId.Value], ct);
         if (card is null)
         {
             return "Error: Card not found.";

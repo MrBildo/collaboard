@@ -119,6 +119,11 @@ internal static class LabelEndpoints
                 return Results.NotFound();
             }
 
+            if (await ArchiveGuard.IsCardArchivedAsync(db, id))
+            {
+                return Results.BadRequest("Archived cards cannot be modified. Restore the card first.");
+            }
+
             var labelId = request.LabelId;
             var label = await db.Labels.FindAsync(labelId);
             if (label is null)
@@ -151,6 +156,11 @@ internal static class LabelEndpoints
             if (cardLabel is null)
             {
                 return Results.NotFound();
+            }
+
+            if (await ArchiveGuard.IsCardArchivedAsync(db, id))
+            {
+                return Results.BadRequest("Archived cards cannot be modified. Restore the card first.");
             }
 
             db.CardLabels.Remove(cardLabel);

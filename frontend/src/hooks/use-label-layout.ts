@@ -19,10 +19,10 @@ export type LabelLayout = {
 };
 
 // Badge geometry constants (derived from Tailwind classes)
-const GAP = 4;            // gap-1 = 0.25rem = 4px
-const BADGE_H_PAD = 16;   // px-2 = 0.5rem × 2 = 16px
-const BADGE_BUFFER = 6;   // border + rounding + sub-pixel safety
-const DOT_SIZE = 24;      // w-6 = 1.5rem = 24px (collapsed label pill)
+const GAP = 4; // gap-1 = 0.25rem = 4px
+const BADGE_H_PAD = 16; // px-2 = 0.5rem × 2 = 16px
+const BADGE_BUFFER = 6; // border + rounding + sub-pixel safety
+const DOT_SIZE = 24; // w-6 = 1.5rem = 24px (collapsed label pill)
 const FONT = '500 12px "Space Grotesk", ui-sans-serif, system-ui, sans-serif';
 
 let canvas: HTMLCanvasElement | null = null;
@@ -84,7 +84,10 @@ function computeLayout(labels: LabelLike[], containerWidth: number): LabelLayout
   const plusNW = badgeWidth('+99'); // worst-case +N badge width
   const slotSize = DOT_SIZE + GAP;
   const available = containerWidth - plusNW - GAP;
-  const fittingDots = Math.max(0, Math.min(Math.floor((available + GAP) / slotSize), labels.length));
+  const fittingDots = Math.max(
+    0,
+    Math.min(Math.floor((available + GAP) / slotSize), labels.length),
+  );
   const overflowCount = labels.length - fittingDots;
 
   return {
@@ -105,7 +108,9 @@ export function useLabelLayout(
   // Keep a ref so the ResizeObserver callback always reads fresh labels.
   // Must be a layout effect so it runs BEFORE the useLayoutEffect below.
   const labelsRef = useRef(labels);
-  useLayoutEffect(() => { labelsRef.current = labels; });
+  useLayoutEffect(() => {
+    labelsRef.current = labels;
+  });
 
   // Stable key — only re-run effect when actual label set changes
   const labelsKey = labels.map((l) => l.id).join(',');
@@ -117,7 +122,10 @@ export function useLabelLayout(
     const el = containerRef.current;
     const currentLabels = labelsRef.current;
     if (!el || currentLabels.length === 0) {
-      setLayout({ items: currentLabels.map((l) => ({ label: l, mode: 'full' })), overflowCount: 0 });
+      setLayout({
+        items: currentLabels.map((l) => ({ label: l, mode: 'full' })),
+        overflowCount: 0,
+      });
       return;
     }
 

@@ -4,6 +4,8 @@ export const queryKeys = {
     detail: (slug: string) => ['boards', slug] as const,
     data: (boardId: string) => ['boards', boardId, 'data'] as const,
     cards: (boardId: string) => ['boards', boardId, 'cards'] as const,
+    archivedCard: (boardId: string, cardNum: number) =>
+      ['boards', boardId, 'cards', 'archived', cardNum] as const,
   },
   cards: {
     labels: (cardId: string) => ['cards', cardId, 'labels'] as const,
@@ -26,7 +28,7 @@ export const queryKeys = {
     all: () => ['users'] as const,
   },
   search: {
-    cards: (q: string) => ['search', 'cards', q] as const,
+    cards: (q: string, archiveBoardId?: string) => ['search', 'cards', q, archiveBoardId] as const,
   },
   version: () => ['version'] as const,
 } as const;

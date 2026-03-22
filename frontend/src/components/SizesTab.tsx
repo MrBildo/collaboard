@@ -46,7 +46,9 @@ export function SizesTab({ boardId }: SizesTabProps) {
       const sizes = sizesQuery.data ?? [];
       const ord = newOrdinal
         ? parseInt(newOrdinal, 10)
-        : (sizes.length > 0 ? Math.max(...sizes.map((s) => s.ordinal)) + 1 : 0);
+        : sizes.length > 0
+          ? Math.max(...sizes.map((s) => s.ordinal)) + 1
+          : 0;
       return createSize(boardId, newName.trim(), ord);
     },
     onSuccess: () => {
@@ -61,8 +63,7 @@ export function SizesTab({ boardId }: SizesTabProps) {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: UpdateSizePatch }) =>
-      updateSize(id, patch),
+    mutationFn: ({ id, patch }: { id: string; patch: UpdateSizePatch }) => updateSize(id, patch),
     onSuccess: () => {
       invalidate();
       list.setEditingId(null);
@@ -178,7 +179,9 @@ export function SizesTab({ boardId }: SizesTabProps) {
               id="size-name"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleCreate();
+              }}
               maxLength={20}
               placeholder="e.g. XXL"
             />
@@ -190,7 +193,9 @@ export function SizesTab({ boardId }: SizesTabProps) {
               type="number"
               value={newOrdinal}
               onChange={(e) => setNewOrdinal(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleCreate();
+              }}
               placeholder="Auto"
               className="w-20"
             />

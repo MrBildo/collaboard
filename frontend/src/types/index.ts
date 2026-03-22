@@ -57,6 +57,8 @@ export type PruneFilters = {
   olderThan?: string;
   laneIds?: string[];
   labelIds?: string[];
+  action?: string;
+  includeArchived?: boolean;
 };
 
 export type SearchResult = z.infer<typeof searchResultSchema>;
