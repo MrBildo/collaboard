@@ -480,18 +480,18 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
               {!isArchived && (
                 <div className="mb-2 flex items-center gap-1">
                   <Button
-                    variant={!isEditingDescription ? 'secondary' : 'ghost'}
-                    size="xs"
-                    onClick={() => setIsEditingDescription(false)}
-                  >
-                    Preview
-                  </Button>
-                  <Button
                     variant={isEditingDescription ? 'secondary' : 'ghost'}
                     size="xs"
                     onClick={() => setIsEditingDescription(true)}
                   >
                     Edit
+                  </Button>
+                  <Button
+                    variant={!isEditingDescription ? 'secondary' : 'ghost'}
+                    size="xs"
+                    onClick={() => setIsEditingDescription(false)}
+                  >
+                    Preview
                   </Button>
                 </div>
               )}

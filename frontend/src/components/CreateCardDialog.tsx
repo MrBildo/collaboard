@@ -185,7 +185,7 @@ export function CreateCardDialog({
                   className="font-mono text-sm"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Optional description (Markdown supported)"
+                  placeholder="Write a description..."
                   rows={8}
                 />
               )}
