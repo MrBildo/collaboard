@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
   Dialog,
   DialogContent,
@@ -51,6 +53,7 @@ export function CreateCardDialog({
   const [sizeId, setSizeId] = useState(defaultSizeId);
   const [laneId, setLaneId] = useState(defaultLaneId ?? lanes[0]?.id ?? '');
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
+  const [isPreviewingDescription, setIsPreviewingDescription] = useState(false);
 
   const allLabelsQuery = useQuery({
     queryKey: queryKeys.labels.all(boardId),
@@ -126,7 +129,7 @@ export function CreateCardDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-[60vw]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Create Card</DialogTitle>
@@ -150,13 +153,42 @@ export function CreateCardDialog({
             {/* Description */}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="new-card-description">Description</Label>
-              <Textarea
-                id="new-card-description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Optional description (Markdown supported)"
-                rows={4}
-              />
+              <div className="flex items-center gap-1 mb-1.5">
+                <Button
+                  variant={!isPreviewingDescription ? 'secondary' : 'ghost'}
+                  size="xs"
+                  type="button"
+                  onClick={() => setIsPreviewingDescription(false)}
+                >
+                  Edit
+                </Button>
+                <Button
+                  variant={isPreviewingDescription ? 'secondary' : 'ghost'}
+                  size="xs"
+                  type="button"
+                  onClick={() => setIsPreviewingDescription(true)}
+                >
+                  Preview
+                </Button>
+              </div>
+              {isPreviewingDescription ? (
+                <div className="prose prose-sm max-w-none overflow-x-auto rounded-md border bg-muted/30 p-4 text-sm text-foreground">
+                  {description.trim() ? (
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{description}</ReactMarkdown>
+                  ) : (
+                    <p className="italic text-muted-foreground">Nothing to preview.</p>
+                  )}
+                </div>
+              ) : (
+                <Textarea
+                  id="new-card-description"
+                  className="font-mono text-sm"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Write a description..."
+                  rows={8}
+                />
+              )}
             </div>
 
             {/* Size */}

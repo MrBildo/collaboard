@@ -1,14 +1,10 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useQuery } from '@tanstack/react-query';
 import { useRef } from 'react';
 import { MessageSquare, Paperclip } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useLabelLayout } from '@/hooks/use-label-layout';
-import { fetchCardAttachments, fetchCardLabels, fetchComments } from '@/lib/api';
-import { QUERY_DEFAULTS } from '@/lib/query-config';
-import { queryKeys } from '@/lib/query-keys';
 import { cn, getContrastColor } from '@/lib/utils';
 import type { CardItem, CardSummary } from '@/types';
 
@@ -32,29 +28,9 @@ export function SortableCard({
     transform: CSS.Transform.toString(transform),
     transition,
   };
-  const labelsQuery = useQuery({
-    queryKey: queryKeys.cards.labels(card.id),
-    queryFn: () => fetchCardLabels(card.id),
-    enabled: !enrichedData,
-    ...QUERY_DEFAULTS.labels,
-  });
-  const commentsQuery = useQuery({
-    queryKey: queryKeys.cards.comments(card.id),
-    queryFn: () => fetchComments(card.id),
-    enabled: !enrichedData,
-    ...QUERY_DEFAULTS.comments,
-  });
-  const attachmentsQuery = useQuery({
-    queryKey: queryKeys.cards.attachments(card.id),
-    queryFn: () => fetchCardAttachments(card.id),
-    enabled: !enrichedData,
-    ...QUERY_DEFAULTS.attachments,
-  });
-  const labels = [...(enrichedData?.labels ?? labelsQuery.data ?? [])].sort(
-    (a, b) => a.name.length - b.name.length,
-  );
-  const commentCount = enrichedData?.commentCount ?? commentsQuery.data?.length ?? 0;
-  const attachmentCount = enrichedData?.attachmentCount ?? attachmentsQuery.data?.length ?? 0;
+  const labels = [...(enrichedData?.labels ?? [])].sort((a, b) => a.name.length - b.name.length);
+  const commentCount = enrichedData?.commentCount ?? 0;
+  const attachmentCount = enrichedData?.attachmentCount ?? 0;
   const labelContainerRef = useRef<HTMLDivElement>(null);
   const labelLayout = useLabelLayout(labels, labelContainerRef);
 

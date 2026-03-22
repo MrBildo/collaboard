@@ -5,7 +5,7 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import eslintConfigPrettier from 'eslint-config-prettier';
 
 export default tseslint.config(
-  { ignores: ['dist/', 'node_modules/', 'src/components/ui/', '**/*.js', 'tailwind.config.ts'] },
+  { ignores: ['dist/', 'node_modules/', 'src/components/ui/', '**/*.js', 'tailwind.config.ts', '.claude/'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
