@@ -36,6 +36,7 @@ public class Lane
     public Guid BoardId { get; set; }
     [MaxLength(40)] public string Name { get; set; } = string.Empty;
     public int Position { get; set; }
+    public bool IsArchiveLane { get; set; }
 }
 
 public class CardSize
@@ -113,7 +114,8 @@ public record CardSummary(
     DateTimeOffset LastUpdatedAtUtc,
     List<CardLabelSummary> Labels,
     int CommentCount,
-    int AttachmentCount);
+    int AttachmentCount,
+    bool IsArchived);
 
 public record SearchResult(Guid BoardId, string BoardName, string BoardSlug, List<CardSummary> Cards);
 

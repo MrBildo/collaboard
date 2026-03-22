@@ -10,7 +10,7 @@ import { CreateCardDialog } from '@/components/CreateCardDialog';
 import { GlobalAdminPanel } from '@/components/GlobalAdminPanel';
 import { LaneColumn } from '@/components/LaneColumn';
 import { LoginScreen } from '@/components/LoginScreen';
-import { fetchBoards, fetchVersion } from '@/lib/api';
+import { fetchBoards, fetchCards, fetchVersion } from '@/lib/api';
 import { queryKeys } from '@/lib/query-keys';
 import { useAuth } from '@/hooks/use-auth';
 import { useBoardData } from '@/hooks/use-board-data';
@@ -77,23 +77,47 @@ export function App() {
     onDragEnd,
   } = useBoardDnd(boardId, serverCards, laneIds);
 
-  // Derive selected card and detail-open state from URL (cardNumber param is the source of truth)
-  const selectedCard = useMemo(() => {
-    if (!cardNumber || sortedServerCards.length === 0) return null;
-    const num = parseInt(cardNumber, 10);
-    return sortedServerCards.find((c) => c.number === num) ?? null;
-  }, [cardNumber, sortedServerCards]);
-  const isDetailOpen = selectedCard !== null;
+  // Derive selected card from URL — check board data first, fall back to archived card fetch
+  const cardNum = cardNumber ? parseInt(cardNumber, 10) : null;
 
-  const handleDetailOpenChange = useCallback((open: boolean) => {
-    if (!open) {
-      navigate(`/boards/${slug}`, { replace: true });
-    }
-  }, [slug, navigate]);
+  const boardCard = useMemo(() => {
+    if (!cardNum || sortedServerCards.length === 0) return null;
+    return sortedServerCards.find((c) => c.number === cardNum) ?? null;
+  }, [cardNum, sortedServerCards]);
 
-  const handleNavigateCard = useCallback((cardNumber: number) => {
-    navigate(`/boards/${slug}/cards/${cardNumber}`, { replace: true });
-  }, [slug, navigate]);
+  // Fallback: fetch archived card when not found in board data
+  const archivedCardQuery = useQuery({
+    queryKey: queryKeys.boards.archivedCard(boardId as string, cardNum!),
+    queryFn: async () => {
+      const result = await fetchCards(boardId as string, {
+        search: `#${cardNum}`,
+        includeArchived: true,
+        limit: 1,
+      });
+      return result.items.find((c) => c.number === cardNum) ?? null;
+    },
+    enabled: !!boardId && !!cardNum && !boardCard && sortedServerCards.length > 0,
+    staleTime: 30_000,
+  });
+
+  const selectedCard = boardCard ?? archivedCardQuery.data ?? null;
+  const isDetailOpen = selectedCard !== null || (!!cardNum && archivedCardQuery.isLoading);
+
+  const handleDetailOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        navigate(`/boards/${slug}`, { replace: true });
+      }
+    },
+    [slug, navigate],
+  );
+
+  const handleNavigateCard = useCallback(
+    (cardNumber: number) => {
+      navigate(`/boards/${slug}/cards/${cardNumber}`, { replace: true });
+    },
+    [slug, navigate],
+  );
 
   const byLane = useMemo(() => {
     const map = new Map<string, CardItem[]>();
@@ -102,7 +126,11 @@ export function App() {
     return map;
   }, [lanes, localCards]);
 
-  const { isCollapsed, toggle: toggleLaneCollapse, initDefaults: initCollapseDefaults } = useLaneCollapse(boardId);
+  const {
+    isCollapsed,
+    toggle: toggleLaneCollapse,
+    initDefaults: initCollapseDefaults,
+  } = useLaneCollapse(boardId);
 
   const laneIdList = useMemo(() => lanes.map((l) => l.id), [lanes]);
   const {
@@ -117,13 +145,18 @@ export function App() {
   // Auto-collapse empty lanes on first data load (when no saved state exists)
   useEffect(() => {
     if (lanes.length > 0 && byLane.size > 0) {
-      initCollapseDefaults(lanes.map((l) => ({ id: l.id, cardCount: byLane.get(l.id)?.length ?? 0 })));
+      initCollapseDefaults(
+        lanes.map((l) => ({ id: l.id, cardCount: byLane.get(l.id)?.length ?? 0 })),
+      );
     }
   }, [lanes, byLane, initCollapseDefaults]);
 
-  const handleCardClick = useCallback((card: CardItem) => {
-    navigate(`/boards/${slug}/cards/${card.number}`, { replace: true });
-  }, [slug, navigate]);
+  const handleCardClick = useCallback(
+    (card: CardItem) => {
+      navigate(`/boards/${slug}/cards/${card.number}`, { replace: true });
+    },
+    [slug, navigate],
+  );
 
   const handleNewCard = useCallback(() => {
     setCreateLaneId(undefined);
@@ -179,7 +212,11 @@ export function App() {
               lane={lane}
               cards={byLane.get(lane.id) ?? []}
               onCardClick={handleCardClick}
-              onAddCard={() => { setCreateLaneId(lane.id); setCreateDialogKey((k) => k + 1); setCreateOpen(true); }}
+              onAddCard={() => {
+                setCreateLaneId(lane.id);
+                setCreateDialogKey((k) => k + 1);
+                setCreateOpen(true);
+              }}
               activeCardId={activeCardId}
               sizeMap={sizeMap}
               enrichedCardMap={enrichedCardMap}
@@ -199,7 +236,9 @@ export function App() {
                 <div
                   className={cn(
                     'absolute inset-y-4 left-1/2 w-px -translate-x-1/2 rounded-full transition-colors',
-                    resizingHandleIndex === i ? 'bg-primary/60' : 'bg-transparent hover:bg-primary/40',
+                    resizingHandleIndex === i
+                      ? 'bg-primary/60'
+                      : 'bg-transparent hover:bg-primary/40',
                   )}
                 />
               </div>
@@ -208,7 +247,9 @@ export function App() {
         </section>
         <DragOverlay>
           {(() => {
-            const activeCard = activeCardId ? localCards.find((c) => c.id === activeCardId) : undefined;
+            const activeCard = activeCardId
+              ? localCards.find((c) => c.id === activeCardId)
+              : undefined;
             return activeCard ? <CardOverlay card={activeCard} sizeMap={sizeMap} /> : null;
           })()}
         </DragOverlay>
@@ -228,12 +269,18 @@ export function App() {
       />
 
       {boardId && (
-        <CreateCardDialog key={createDialogKey} boardId={boardId} lanes={lanes} sizes={sizes} open={createOpen} onOpenChange={setCreateOpen} defaultLaneId={createLaneId} />
+        <CreateCardDialog
+          key={createDialogKey}
+          boardId={boardId}
+          lanes={lanes}
+          sizes={sizes}
+          open={createOpen}
+          onOpenChange={setCreateOpen}
+          defaultLaneId={createLaneId}
+        />
       )}
 
-      {boardId && (
-        <AdminPanel boardId={boardId} open={adminOpen} onOpenChange={setAdminOpen} />
-      )}
+      {boardId && <AdminPanel boardId={boardId} open={adminOpen} onOpenChange={setAdminOpen} />}
 
       <GlobalAdminPanel open={globalAdminOpen} onOpenChange={setGlobalAdminOpen} />
     </main>

@@ -276,6 +276,9 @@ namespace Collaboard.Api.Migrations
                     b.Property<Guid>("BoardId")
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("IsArchiveLane")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(40)

@@ -17,10 +17,7 @@ export function UnsavedChangesDialog({ open, onAction }: UnsavedChangesDialogPro
         if (!nextOpen) onAction('cancel');
       }}
     >
-      <DialogContent
-        className="flex flex-col gap-0 p-0 sm:max-w-[420px]"
-        showCloseButton={false}
-      >
+      <DialogContent className="flex flex-col gap-0 p-0 sm:max-w-[420px]" showCloseButton={false}>
         <div className="px-6 py-5">
           <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-accent/15">
             <TriangleAlert className="h-5 w-5 text-accent" />
@@ -45,9 +42,7 @@ export function UnsavedChangesDialog({ open, onAction }: UnsavedChangesDialogPro
           >
             Discard
           </Button>
-          <Button onClick={() => onAction('save')}>
-            Save & Close
-          </Button>
+          <Button onClick={() => onAction('save')}>Save & Close</Button>
         </div>
       </DialogContent>
     </Dialog>

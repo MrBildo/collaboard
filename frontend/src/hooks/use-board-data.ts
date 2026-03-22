@@ -6,10 +6,7 @@ import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { queryKeys } from '@/lib/query-keys';
 import type { CardSummary } from '@/types';
 
-export function useBoardData(
-  slug: string | undefined,
-  loggedIn: boolean,
-) {
+export function useBoardData(slug: string | undefined, loggedIn: boolean) {
   // Fetch the board metadata by slug
   const boardMetaQuery = useQuery({
     queryKey: queryKeys.boards.detail(slug as string),

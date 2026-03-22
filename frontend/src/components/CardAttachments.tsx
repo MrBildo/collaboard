@@ -13,9 +13,15 @@ type CardAttachmentsProps = {
   cardId: string;
   currentUserId?: string;
   currentUserRole?: number;
+  readOnly?: boolean;
 };
 
-export function CardAttachments({ cardId, currentUserId, currentUserRole }: CardAttachmentsProps) {
+export function CardAttachments({
+  cardId,
+  currentUserId,
+  currentUserRole,
+  readOnly,
+}: CardAttachmentsProps) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -115,19 +121,20 @@ export function CardAttachments({ cardId, currentUserId, currentUserRole }: Card
   };
 
   const attachments = useMemo(
-    () => [...(attachmentsQuery.data ?? [])].sort(
-      (a, b) => new Date(b.addedAtUtc).getTime() - new Date(a.addedAtUtc).getTime(),
-    ),
+    () =>
+      [...(attachmentsQuery.data ?? [])].sort(
+        (a, b) => new Date(b.addedAtUtc).getTime() - new Date(a.addedAtUtc).getTime(),
+      ),
     [attachmentsQuery.data],
   );
 
   return (
     <div
       className="flex flex-col gap-4"
-      onDragEnter={handleDragEnter}
-      onDragLeave={handleDragLeave}
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
+      onDragEnter={readOnly ? undefined : handleDragEnter}
+      onDragLeave={readOnly ? undefined : handleDragLeave}
+      onDragOver={readOnly ? undefined : handleDragOver}
+      onDrop={readOnly ? undefined : handleDrop}
     >
       {isDragging && (
         <div className="flex items-center justify-center rounded-lg border-2 border-dashed border-primary bg-primary/10 py-6 text-sm text-primary">
@@ -151,33 +158,38 @@ export function CardAttachments({ cardId, currentUserId, currentUserRole }: Card
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{attachment.fileName}</p>
             <p className="text-xs text-muted-foreground">
-              {getUserName(attachment.addedByUserId)} &middot; {formatDateTime(attachment.addedAtUtc)}
+              {getUserName(attachment.addedByUserId)} &middot;{' '}
+              {formatDateTime(attachment.addedAtUtc)}
             </p>
           </div>
           <div className="ml-2 flex shrink-0 gap-1">
             <Button size="xs" variant="outline" onClick={() => handleDownload(attachment)}>
               Download
             </Button>
-            {(currentUserRole === ROLES.Administrator || attachment.addedByUserId === currentUserId) && (
-              <Button
-                size="xs"
-                variant="destructive"
-                onClick={() => handleDelete(attachment.id)}
-                disabled={deleteMutation.isPending}
-              >
-                {confirmDeleteId === attachment.id ? 'Confirm' : 'Delete'}
-              </Button>
-            )}
+            {!readOnly &&
+              (currentUserRole === ROLES.Administrator ||
+                attachment.addedByUserId === currentUserId) && (
+                <Button
+                  size="xs"
+                  variant="destructive"
+                  onClick={() => handleDelete(attachment.id)}
+                  disabled={deleteMutation.isPending}
+                >
+                  {confirmDeleteId === attachment.id ? 'Confirm' : 'Delete'}
+                </Button>
+              )}
           </div>
         </div>
       ))}
 
-      <div className="border-t pt-4">
-        <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
-        <Button variant="outline" onClick={handleUpload} disabled={uploadMutation.isPending}>
-          {uploadMutation.isPending ? 'Uploading...' : 'Upload Attachment'}
-        </Button>
-      </div>
+      {!readOnly && (
+        <div className="border-t pt-4">
+          <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
+          <Button variant="outline" onClick={handleUpload} disabled={uploadMutation.isPending}>
+            {uploadMutation.isPending ? 'Uploading...' : 'Upload Attachment'}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

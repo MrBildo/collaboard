@@ -106,7 +106,7 @@ export async function fetchBoardData(boardId: string): Promise<BoardData> {
 // Cards (board-scoped creation/listing, flat by-ID)
 export async function fetchCards(
   boardId: string,
-  params?: { offset?: number; limit?: number },
+  params?: { offset?: number; limit?: number; includeArchived?: boolean; search?: string },
 ): Promise<PagedCardSummary> {
   const { data } = await api.get(`/boards/${boardId}/cards`, { params });
   return pagedCardSummarySchema.parse(data);
@@ -117,14 +117,17 @@ export async function fetchCard(id: string): Promise<CardItem> {
   return cardItemSchema.parse(data);
 }
 
-export async function createCard(boardId: string, card: {
-  name: string;
-  descriptionMarkdown?: string;
-  sizeId?: string;
-  laneId: string;
-  position: number;
-  labelIds?: string[];
-}): Promise<CardItem> {
+export async function createCard(
+  boardId: string,
+  card: {
+    name: string;
+    descriptionMarkdown?: string;
+    sizeId?: string;
+    laneId: string;
+    position: number;
+    labelIds?: string[];
+  },
+): Promise<CardItem> {
   const { labelIds, ...cardData } = card;
   const { data } = await api.post(`/boards/${boardId}/cards`, cardData);
   const parsed = cardItemSchema.parse(data);
@@ -143,6 +146,14 @@ export async function updateCard(id: string, patch: UpdateCardPatch): Promise<Ca
 
 export async function deleteCard(id: string): Promise<void> {
   await api.delete(`/cards/${id}`);
+}
+
+export async function archiveCard(id: string): Promise<void> {
+  await api.post(`/cards/${id}/archive`);
+}
+
+export async function restoreCard(id: string, laneId: string): Promise<void> {
+  await api.post(`/cards/${id}/restore`, { laneId });
 }
 
 export async function reorderCard(
@@ -264,7 +275,11 @@ export async function fetchSizes(boardId: string): Promise<CardSize[]> {
   return z.array(cardSizeSchema).parse(data);
 }
 
-export async function createSize(boardId: string, name: string, ordinal?: number): Promise<CardSize> {
+export async function createSize(
+  boardId: string,
+  name: string,
+  ordinal?: number,
+): Promise<CardSize> {
   const { data } = await api.post(`/boards/${boardId}/sizes`, { name, ordinal: ordinal ?? 0 });
   return cardSizeSchema.parse(data);
 }
@@ -284,7 +299,11 @@ export async function createLabel(boardId: string, name: string, color?: string)
   return labelSchema.parse(data);
 }
 
-export async function updateLabel(boardId: string, id: string, patch: UpdateLabelPatch): Promise<Label> {
+export async function updateLabel(
+  boardId: string,
+  id: string,
+  patch: UpdateLabelPatch,
+): Promise<Label> {
   const { data } = await api.patch(`/boards/${boardId}/labels/${id}`, patch);
   return labelSchema.parse(data);
 }
@@ -294,7 +313,10 @@ export async function deleteLabel(boardId: string, id: string): Promise<void> {
 }
 
 // Prune (board-scoped admin)
-export async function prunePreview(boardId: string, filters: PruneFilters): Promise<PrunePreviewResponse> {
+export async function prunePreview(
+  boardId: string,
+  filters: PruneFilters,
+): Promise<PrunePreviewResponse> {
   const { data } = await api.post(`/boards/${boardId}/prune/preview`, filters);
   return prunePreviewResponseSchema.parse(data);
 }
@@ -305,7 +327,13 @@ export async function pruneCards(boardId: string, filters: PruneFilters): Promis
 }
 
 // Search
-export async function searchAllCards(q: string, limit = 20): Promise<SearchResult[]> {
-  const { data } = await api.get('/search/cards', { params: { q, limit } });
+export async function searchAllCards(
+  q: string,
+  limit = 20,
+  archiveBoardId?: string,
+): Promise<SearchResult[]> {
+  const { data } = await api.get('/search/cards', {
+    params: { q, limit, ...(archiveBoardId ? { archiveBoardId } : {}) },
+  });
   return z.array(searchResultSchema).parse(data);
 }

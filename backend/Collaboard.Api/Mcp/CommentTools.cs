@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
+using Collaboard.Api.Endpoints;
 using Collaboard.Api.Events;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
@@ -33,7 +34,12 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
             return resolveError;
         }
 
-        var card = await db.Cards.FindAsync([resolvedCardId!.Value], ct);
+        if (await ArchiveGuard.IsCardArchivedAsync(db, resolvedCardId!.Value))
+        {
+            return "Archived cards cannot be modified.";
+        }
+
+        var card = await db.Cards.FindAsync([resolvedCardId.Value], ct);
         if (card is null)
         {
             return "Error: Card not found.";
@@ -70,6 +76,11 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
         if (comment is null)
         {
             return "Error: Comment not found.";
+        }
+
+        if (await ArchiveGuard.IsCardArchivedAsync(db, comment.CardId))
+        {
+            return "Archived cards cannot be modified.";
         }
 
         if (comment.UserId != user!.Id && user.Role != UserRole.Administrator)

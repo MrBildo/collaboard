@@ -46,7 +46,9 @@ export function LanesTab({ boardId }: LanesTabProps) {
       const lanes = lanesQuery.data ?? [];
       const pos = newPosition
         ? parseInt(newPosition, 10)
-        : (lanes.length > 0 ? Math.max(...lanes.map((l) => l.position)) + 1 : 0);
+        : lanes.length > 0
+          ? Math.max(...lanes.map((l) => l.position)) + 1
+          : 0;
       return createLane(boardId, newName.trim(), pos);
     },
     onSuccess: () => {
@@ -61,8 +63,7 @@ export function LanesTab({ boardId }: LanesTabProps) {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: UpdateLanePatch }) =>
-      updateLane(id, patch),
+    mutationFn: ({ id, patch }: { id: string; patch: UpdateLanePatch }) => updateLane(id, patch),
     onSuccess: () => {
       invalidate();
       list.setEditingId(null);
@@ -178,7 +179,9 @@ export function LanesTab({ boardId }: LanesTabProps) {
               id="lane-name"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleCreate();
+              }}
               maxLength={40}
               placeholder="e.g. In Progress"
             />
@@ -190,7 +193,9 @@ export function LanesTab({ boardId }: LanesTabProps) {
               type="number"
               value={newPosition}
               onChange={(e) => setNewPosition(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleCreate();
+              }}
               placeholder="Auto"
               className="w-20"
             />

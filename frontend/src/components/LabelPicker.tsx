@@ -174,9 +174,7 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
                     }}
                   />
                   {label.name}
-                  {selected && (
-                    <Check className="absolute right-2 h-4 w-4" />
-                  )}
+                  {selected && <Check className="absolute right-2 h-4 w-4" />}
                 </Button>
               );
             })}

@@ -61,7 +61,9 @@ export function LaneColumn({
           />
           <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-primary" />
           <Tooltip>
-            <TooltipTrigger render={<h2 className="truncate text-sm font-semibold uppercase tracking-wide" />}>
+            <TooltipTrigger
+              render={<h2 className="truncate text-sm font-semibold uppercase tracking-wide" />}
+            >
               {lane.name}
             </TooltipTrigger>
             <TooltipContent>{lane.name}</TooltipContent>
@@ -91,7 +93,13 @@ export function LaneColumn({
           <div className="max-md:overflow-hidden">
             {cards.map((card) => (
               <div key={card.id} className="mb-2 last:mb-0">
-                <SortableCard card={card} onCardClick={onCardClick} isDragging={card.id === activeCardId} sizeMap={sizeMap} enrichedData={enrichedCardMap.get(card.id)} />
+                <SortableCard
+                  card={card}
+                  onCardClick={onCardClick}
+                  isDragging={card.id === activeCardId}
+                  sizeMap={sizeMap}
+                  enrichedData={enrichedCardMap.get(card.id)}
+                />
               </div>
             ))}
           </div>

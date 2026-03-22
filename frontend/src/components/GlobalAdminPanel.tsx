@@ -55,22 +55,22 @@ const ROLE_MAP: Record<number, string> = {
 export function GlobalAdminPanel({ open, onOpenChange }: GlobalAdminPanelProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto p-6">
+      <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col overflow-hidden p-6">
         <DialogHeader>
           <DialogTitle>Admin Panel</DialogTitle>
           <DialogDescription>Manage boards and users.</DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="boards" className="mt-2 flex flex-col gap-4">
+        <Tabs defaultValue="boards" className="mt-2 flex min-h-0 flex-col gap-4">
           <TabsList variant="line" className="w-full justify-start gap-2 border-b pb-2">
             <TabsTrigger value="boards">Boards</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="boards">
+          <TabsContent value="boards" className="overflow-y-auto p-1">
             <BoardsTab />
           </TabsContent>
-          <TabsContent value="users">
+          <TabsContent value="users" className="overflow-y-auto p-1">
             <UsersTab />
           </TabsContent>
         </Tabs>
@@ -103,8 +103,7 @@ function BoardsTab() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: UpdateBoardPatch }) =>
-      updateBoard(id, patch),
+    mutationFn: ({ id, patch }: { id: string; patch: UpdateBoardPatch }) => updateBoard(id, patch),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.boards.all() });
       list.setEditingId(null);
@@ -287,7 +286,18 @@ function UsersTab() {
           <EditableListRow key={user.id}>
             <div className="flex items-center gap-3">
               <span className="font-medium">{user.name}</span>
-              <Badge variant="secondary" className={user.role === ROLES.Administrator ? 'bg-primary/15 text-primary' : user.role === ROLES.Agent ? 'bg-accent/15 text-accent' : ''}>{ROLE_MAP[user.role] ?? `Role ${user.role}`}</Badge>
+              <Badge
+                variant="secondary"
+                className={
+                  user.role === ROLES.Administrator
+                    ? 'bg-primary/15 text-primary'
+                    : user.role === ROLES.Agent
+                      ? 'bg-accent/15 text-accent'
+                      : ''
+                }
+              >
+                {ROLE_MAP[user.role] ?? `Role ${user.role}`}
+              </Badge>
               <Badge variant={user.isActive ? 'outline' : 'destructive'}>
                 {user.isActive ? 'Active' : 'Inactive'}
               </Badge>
