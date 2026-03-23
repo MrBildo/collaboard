@@ -338,17 +338,17 @@ Each worktree needs its own dependency install. The `.git` store is shared.
 
 - **Relative paths in docs and specs.** Never hardcode absolute paths in committed files.
 - **Absolute paths in scripts only** when referencing the script's own location.
-- Reference other projects as `C:\Projects\<name>` only in CLAUDE.md and runtime configs.
+- Reference other projects as `../<name>` (relative to repo root) in CLAUDE.md and runtime configs.
 
 ## Relationship to Other Projects
 
 | Project | Path | Relationship |
 |---------|------|-------------|
-| **Collabot** | `C:\Projects\git\mrbildo\collabot` | Primary consumer — connects via MCP SSE for kanban operations |
-| **Collabot TUI** | `C:\Projects\git\mrbildo\collabot-tui` | Indirect consumer via Collabot harness |
-| **Ecosystem** | `C:\Projects\ecosystem` | Tracks work on the ecosystem board |
-| **Research Lab** | `C:\Projects\lab` | Tracks investigations on the research-lab board |
-| **Knowledge Base** | `C:\Projects\kb` | Tracks tasks on the knowledge-base board |
+| **Collabot** | `../collabot` | Primary consumer — connects via MCP SSE for kanban operations |
+| **Collabot TUI** | `../collabot-tui` | Indirect consumer via Collabot harness |
+| **Ecosystem** | `../ecosystem` | Tracks work on the ecosystem board |
+| **Research Lab** | `../lab` | Tracks investigations on the research-lab board |
+| **Knowledge Base** | `../kb` | Tracks tasks on the knowledge-base board |
 
 ## Skills
 
