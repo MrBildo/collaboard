@@ -394,6 +394,7 @@ Each worktree needs its own dependency install. The `.git` store is shared.
 | **Ecosystem** | `../ecosystem` | Tracks work on the ecosystem board |
 | **Research Lab** | `../lab` | Tracks investigations on the research-lab board |
 | **Knowledge Base** | `../kb` | Tracks tasks on the knowledge-base board |
+| **Collabhost** | `../collabhost` | Tracks work on the collabhost board |
 
 **Reference projects for conventions:** `../collabot` (primary — process and orchestration conventions), `../collabot-tui` (.NET conventions), `kindkatchapi` (production .NET reference).
 
