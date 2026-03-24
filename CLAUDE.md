@@ -40,6 +40,21 @@ collaboard/
 4. **Roadmap is source of truth** for future work (`INDEX.md`).
 5. **Archive is append-only** — never delete archived content.
 
+## Op-Docs & Knowledge Storage
+
+Section headings with `[[op-docs/...]]` wikilinks point to detailed documentation. Read the relevant op-doc when working in that area — don't load all op-docs upfront.
+
+**When you learn something new about this project** (workflows, conventions, technical decisions, gotchas, integration patterns):
+1. Add it to the appropriate existing op-doc
+2. If no appropriate op-doc exists, create one in `op-docs/` (kebab-case, topic-based name) and add a wikilink from the relevant CLAUDE.md section
+3. Respect the 200-line budget per file — if an op-doc would exceed it, extract a sub-doc
+
+**What goes where:**
+- **Op-docs:** Operational knowledge, technical decisions, workflow rules, project conventions, architecture notes, gotchas
+- **Auto-memory:** User communication preferences, soft behavioral preferences, user profile info — nothing else
+
+**Do not** store operational knowledge in auto-memory. Do not create loose .md files at the project root — use `op-docs/`.
+
 ## Tech Stack
 
 | Layer | Stack |
