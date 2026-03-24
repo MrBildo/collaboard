@@ -1,4 +1,4 @@
-# Collaboard — Collaboard
+# Board Conventions
 
 Collaboard development is tracked on its own production instance.
 
