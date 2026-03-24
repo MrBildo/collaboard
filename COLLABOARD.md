@@ -41,14 +41,14 @@ Labels are board-scoped and align with conventional commit prefixes.
 
 ## Sizes
 
-| Size | Ordinal |
-|------|---------|
-| S | 0 |
-| M | 1 |
-| L | 2 |
-| XL | 3 |
+| Size | Ordinal | Effort + Risk |
+|------|---------|---------------|
+| S | 0 | Trivial — single surface, no ambiguity |
+| M | 1 | Moderate — one or two surfaces, straightforward |
+| L | 2 | Significant — multiple surfaces or non-trivial logic |
+| XL | 3 | Complex — cross-cutting, high risk, or unknown scope |
 
-Sizes represent effort, not urgency.
+Sizes represent effort and risk, not urgency. The **scope of work** — which surfaces are touched (backend, frontend, MCP, tests) — is the primary triage signal for sizing. During triage, evaluate the scope and set the size accordingly; don't ask the user to reconsider.
 
 ## Workflow
 
@@ -96,3 +96,7 @@ During a session:
 - Only `restore_card` (requires target laneId) and delete are allowed
 - `get_cards` excludes archived by default; pass `includeArchived: true` to include
 - Card responses include `isArchived` (bool)
+
+## MCP Tips
+
+- **Pass `labelIds` at creation** — use the `labelIds` param on `create_card` instead of a separate `add_label_to_card` call. One call instead of two.

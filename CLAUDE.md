@@ -53,6 +53,14 @@ cd backend
 dotnet test
 ```
 
+### Aspire Lifecycle
+
+Use the Aspire skill and MCP tools to manage the Aspire lifecycle (start, stop, check resources, read logs/traces). Use `list_resources` and `doctor` to verify state before taking action.
+
+**Hot reload:** Don't restart Aspire for frontend-only changes — the frontend dev server picks up changes automatically via hot reload. Only restart when backend code changes need to be picked up. Unnecessary restarts waste time and change the port.
+
+**File lock gotcha:** If Aspire is running and you need to build or test, kill the Aspire process first. The running API locks DLLs (e.g., `Collaboard.ServiceDefaults.dll`) and causes MSB3027 file copy errors. Before `dotnet test` or `dotnet build`, check for and kill any running Aspire/Collaboard.Api processes if the build fails with file lock errors.
+
 ### Frontend Only (no Aspire)
 ```powershell
 cd frontend
@@ -227,12 +235,49 @@ Instance-local workspace (gitignored). See [[.agents/WORKFLOW]] for process. Run
 - Conventional commits: `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`
 - Squash merge to main
 - All changes via feature branch + PR
+- **Delete branches after merge** — delete feature/bugfix branches on GitHub and locally after PRs are merged. Don't let stale branches accumulate. Use `gh pr merge --delete-branch` or delete manually.
+
+#### Multi-Card Branch Strategy
+
+For multi-card features (e.g., an archive system spanning cards #163-#170), use a parent feature branch:
+
+1. Create a parent feature branch (e.g., `feature/card-archive`) from the release branch
+2. Sub-card branches PR into the parent feature branch — not directly into the release branch
+3. Create a PR for each feature branch into the release branch (not direct merges) so each feature can be reviewed independently
+4. The final release branch -> main PR is separate and covers the full feature
+5. Add a comment to the card with the PR link when creating PRs
+
+#### Parallel Work Safety
+
+Branches that touch overlapping files **must** be sequential, not parallel. Create each branch from the release branch after the previous one merges.
+
+When planning parallel work, check file overlap first. Backend cards with different files can run in parallel. Frontend cards touching the same components must be sequenced. The dependency analysis step must drive execution order — not just be documented and ignored. If in doubt, sequence; the time saved by parallelism is lost to conflict resolution.
 
 ### Testing
 - xUnit with Shouldly assertions (WebApplicationFactory, real in-memory SQLite, no mocking)
 - Arrange-Act-Assert pattern
 - Test classes per resource: `*EndpointTests.Tests.cs`
 - Shared infrastructure: `Infrastructure/CollaboardApiFactory.cs`, `TestAuthHelper.cs`
+- **No Playwright testing** — don't use Playwright MCP for visual testing unless the user specifically asks. Auth, dynamic Aspire ports, etc. make it unreliable. Rely on TypeScript checks, Vite builds, and backend tests for validation. Let the user do visual/browser testing.
+
+## Agent Behavior Rules
+
+**Safety over speed.** Optimize for safety, always. Move slow. Verify each step before moving to the next. Wait for user confirmation at natural checkpoints. Don't batch risky operations. The cost of a mistake far exceeds the time saved by going fast.
+
+- **Do not auto-fix lint errors.** When any lint errors are encountered — GitHub CI, local eslint, dotnet format, or any other linter — do NOT automatically fix them. Stop, evaluate, summarize the issues to the user, and wait for instructions before making changes.
+- **Ask, don't guess.** If stuck or unsure, report back rather than guessing. Max 3 follow-up rounds per task before escalating to user.
+
+## UI Design Process
+
+When designing UI features, create self-contained HTML mockup files for user review before writing production code.
+
+- Self-contained HTML with all CSS inline (no external dependencies)
+- Match the project's exact CSS custom properties (copy from `styles.css` — dark/light theme vars, brand colors, border radius, etc.)
+- Use phone frames (375x720px) for mobile mockups, desktop frames for desktop
+- Show before/after or multiple states side-by-side (e.g., collapsed vs expanded)
+- Include a "Design Notes" section at the bottom with implementation details
+- Upload as card attachments when working on the board
+- Save to `.agents/temp/` as working files
 
 ## Collaboard (Kanban)
 
@@ -349,6 +394,8 @@ Each worktree needs its own dependency install. The `.git` store is shared.
 | **Ecosystem** | `../ecosystem` | Tracks work on the ecosystem board |
 | **Research Lab** | `../lab` | Tracks investigations on the research-lab board |
 | **Knowledge Base** | `../kb` | Tracks tasks on the knowledge-base board |
+
+**Reference projects for conventions:** `../collabot` (primary — process and orchestration conventions), `../collabot-tui` (.NET conventions), `kindkatchapi` (production .NET reference).
 
 ## Skills
 
