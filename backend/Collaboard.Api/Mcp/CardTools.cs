@@ -71,20 +71,18 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             CreatedByUserId = user!.Id,
             LastUpdatedByUserId = user.Id,
         };
-        await CardNumberHelper.InsertCardWithAutoNumberAsync(db, card, lane.BoardId, ct);
 
-        if (parsedLabelIds.Count > 0)
+        // Attach labels before saving so they're included in the same transaction
+        foreach (var labelId in parsedLabelIds)
         {
-            foreach (var labelId in parsedLabelIds)
-            {
-                db.CardLabels.Add(new CardLabel { CardId = card.Id, LabelId = labelId });
-            }
-
-            await db.SaveChangesAsync(ct);
+            db.CardLabels.Add(new CardLabel { CardId = card.Id, LabelId = labelId });
         }
 
+        await CardNumberHelper.InsertCardWithAutoNumberAsync(db, card, lane.BoardId, ct);
+
         await db.PublishForCardAsync(card.Id, broadcaster);
-        return JsonSerializer.Serialize(card, JsonSerializerOptions.Web);
+        var summaries = await CardSummaryBuilder.BuildAsync(db, [card], ct);
+        return JsonSerializer.Serialize(summaries[0], JsonSerializerOptions.Web);
     }
 
     [McpServerTool(Name = "move_card", Destructive = false)]

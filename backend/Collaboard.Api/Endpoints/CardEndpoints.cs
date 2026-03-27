@@ -141,9 +141,26 @@ internal static class CardEndpoints
                 CreatedByUserId = currentUser.Id,
                 LastUpdatedByUserId = currentUser.Id,
             };
+            // Validate and attach labels before saving
+            if (request.LabelIds is not null && request.LabelIds.Length > 0)
+            {
+                var validCount = await db.Labels.CountAsync(l => request.LabelIds.Contains(l.Id) && l.BoardId == boardId);
+                if (validCount != request.LabelIds.Length)
+                {
+                    return Results.BadRequest("One or more labels do not belong to this board.");
+                }
+
+                foreach (var labelId in request.LabelIds)
+                {
+                    db.CardLabels.Add(new CardLabel { CardId = card.Id, LabelId = labelId });
+                }
+            }
+
             await CardNumberHelper.InsertCardWithAutoNumberAsync(db, card, boardId);
             broadcaster.PublishBoardUpdated(boardId);
-            return Results.Created($"/api/v1/cards/{card.Id}", card);
+
+            var summaries = await CardSummaryBuilder.BuildAsync(db, [card]);
+            return Results.Created($"/api/v1/cards/{card.Id}", summaries[0]);
         }).RequireAuth();
 
         // By-ID operations (flat)

@@ -9,6 +9,7 @@ import type {
   CardComment,
   CardItem,
   CardSize,
+  CardSummary,
   Label,
   Lane,
   PagedCardSummary,
@@ -35,6 +36,7 @@ import {
   cardCommentSchema,
   cardItemSchema,
   cardSizeSchema,
+  cardSummarySchema,
   labelSchema,
   laneSchema,
   pagedCardSummarySchema,
@@ -127,16 +129,9 @@ export async function createCard(
     position: number;
     labelIds?: string[];
   },
-): Promise<CardItem> {
-  const { labelIds, ...cardData } = card;
-  const { data } = await api.post(`/boards/${boardId}/cards`, cardData);
-  const parsed = cardItemSchema.parse(data);
-
-  if (labelIds && labelIds.length > 0) {
-    await Promise.all(labelIds.map((labelId) => addCardLabel(parsed.id, labelId)));
-  }
-
-  return parsed;
+): Promise<CardSummary> {
+  const { data } = await api.post(`/boards/${boardId}/cards`, card);
+  return cardSummarySchema.parse(data);
 }
 
 export async function updateCard(id: string, patch: UpdateCardPatch): Promise<CardItem> {
