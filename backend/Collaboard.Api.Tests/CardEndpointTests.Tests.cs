@@ -1902,4 +1902,189 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         card.GetProperty("laneId").GetGuid().ShouldBe(targetLaneId);
         card.GetProperty("position").GetInt32().ShouldBeGreaterThan(50);
     }
+
+    // ── Create card with labels (atomic label attachment) ────────────────
+
+    [Fact]
+    public async Task PostCard_WithLabelIds_ReturnsCardWithLabels()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var label1Response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/labels",
+            new { name = $"CreateLabel1-{Guid.NewGuid()}", color = "red" });
+        label1Response.EnsureSuccessStatusCode();
+        var label1 = await label1Response.Content.ReadFromJsonAsync<JsonElement>();
+        var label1Id = label1.GetProperty("id").GetGuid();
+
+        var label2Response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/labels",
+            new { name = $"CreateLabel2-{Guid.NewGuid()}", color = "blue" });
+        label2Response.EnsureSuccessStatusCode();
+        var label2 = await label2Response.Content.ReadFromJsonAsync<JsonElement>();
+        var label2Id = label2.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "Card With Labels At Create",
+            descriptionMarkdown = "Created with labels",
+            laneId,
+            position = Random.Shared.Next(10000, 99999),
+            labelIds = new[] { label1Id, label2Id }
+        });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var card = await response.Content.ReadFromJsonAsync<JsonElement>();
+        card.GetProperty("labels").GetArrayLength().ShouldBe(2);
+
+        var returnedLabelIds = new HashSet<Guid>();
+        foreach (var label in card.GetProperty("labels").EnumerateArray())
+        {
+            returnedLabelIds.Add(label.GetProperty("id").GetGuid());
+        }
+
+        returnedLabelIds.ShouldContain(label1Id);
+        returnedLabelIds.ShouldContain(label2Id);
+    }
+
+    [Fact]
+    public async Task PostCard_WithLabelIds_LabelsPersistedInDatabase()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var labelResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/labels",
+            new { name = $"PersistLabel-{Guid.NewGuid()}", color = "green" });
+        labelResponse.EnsureSuccessStatusCode();
+        var label = await labelResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var labelId = label.GetProperty("id").GetGuid();
+
+        // Act
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "Card Labels Persist",
+            descriptionMarkdown = "",
+            laneId,
+            position = Random.Shared.Next(10000, 99999),
+            labelIds = new[] { labelId }
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var card = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = card.GetProperty("id").GetGuid();
+
+        // Assert — verify via GET card labels endpoint
+        var labelsResponse = await _client.GetAsync($"/api/v1/cards/{cardId}/labels");
+        labelsResponse.EnsureSuccessStatusCode();
+        var labels = await labelsResponse.Content.ReadFromJsonAsync<JsonElement>();
+        labels.GetArrayLength().ShouldBe(1);
+        labels[0].GetProperty("id").GetGuid().ShouldBe(labelId);
+    }
+
+    [Fact]
+    public async Task PostCard_WithInvalidLabelId_Returns400()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        // Act
+        var response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "Card With Bad Label",
+            descriptionMarkdown = "",
+            laneId,
+            position = Random.Shared.Next(10000, 99999),
+            labelIds = new[] { Guid.NewGuid() }
+        });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task PostCard_WithCrossBoardLabelId_Returns400()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        // Create a second board with a label
+        var boardResponse = await _client.PostAsJsonAsync("/api/v1/boards", new { name = $"CrossBoardLabel-{Guid.NewGuid()}" });
+        boardResponse.EnsureSuccessStatusCode();
+        var otherBoard = await boardResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var otherBoardId = otherBoard.GetProperty("id").GetGuid();
+
+        var labelResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{otherBoardId}/labels",
+            new { name = $"OtherBoardLabel-{Guid.NewGuid()}", color = "red" });
+        labelResponse.EnsureSuccessStatusCode();
+        var label = await labelResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var labelId = label.GetProperty("id").GetGuid();
+
+        // Act — try to create a card on the default board with a label from the other board
+        var response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "Card With Cross-Board Label",
+            descriptionMarkdown = "",
+            laneId,
+            position = Random.Shared.Next(10000, 99999),
+            labelIds = new[] { labelId }
+        });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task PostCard_WithNoLabelIds_ReturnsEmptyLabels()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        // Act
+        var response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "Card No Labels",
+            descriptionMarkdown = "",
+            laneId,
+            position = Random.Shared.Next(10000, 99999)
+        });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var card = await response.Content.ReadFromJsonAsync<JsonElement>();
+        card.GetProperty("labels").GetArrayLength().ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task PostCard_ReturnsEnrichedSummary()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+        var sizeId = await GetSizeIdByNameAsync("L");
+
+        // Act
+        var response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "Enriched Create Card",
+            descriptionMarkdown = "Has enriched fields",
+            sizeId,
+            laneId,
+            position = Random.Shared.Next(10000, 99999)
+        });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var card = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        card.GetProperty("sizeName").GetString().ShouldBe("L");
+        card.GetProperty("labels").GetArrayLength().ShouldBe(0);
+        card.GetProperty("commentCount").GetInt32().ShouldBe(0);
+        card.GetProperty("attachmentCount").GetInt32().ShouldBe(0);
+        card.GetProperty("isArchived").GetBoolean().ShouldBeFalse();
+    }
 }
