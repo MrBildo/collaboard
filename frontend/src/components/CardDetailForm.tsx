@@ -42,7 +42,14 @@ import {
   arraysEqual,
   formatDateTime,
 } from '@/lib/utils';
-import { Archive, ArchiveRestore, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
+import {
+  Archive,
+  ArchiveRestore,
+  ChevronLeft,
+  ChevronRight,
+  RefreshCw,
+  RotateCcw,
+} from 'lucide-react';
 import { ROLES } from '@/lib/roles';
 import type { BoardData, CardItem, CardSize, Lane, UpdateCardPatch } from '@/types';
 
@@ -362,6 +369,18 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
       },
       [externalUpdates],
     );
+
+    const externalUpdateCount = useMemo(
+      () => Object.keys(externalUpdates).length,
+      [externalUpdates],
+    );
+
+    const acceptAllRemote = useCallback(() => {
+      const fields = Object.keys(externalUpdates) as FieldName[];
+      for (const field of fields) {
+        acceptRemote(field);
+      }
+    }, [externalUpdates, acceptRemote]);
 
     // Dirty calculation: compare local state against baseline (not the live card prop)
     const isDirty =
@@ -926,7 +945,24 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
             </Button>
           )}
           {!isArchived && !showArchiveActions && (
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
+              {externalUpdateCount > 0 && (
+                <div className="mr-auto flex items-center gap-2 text-sm text-accent-foreground">
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  <span>
+                    {externalUpdateCount} {externalUpdateCount === 1 ? 'field' : 'fields'} updated
+                    externally
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    onClick={acceptAllRemote}
+                    className="text-accent-foreground"
+                  >
+                    Accept all
+                  </Button>
+                </div>
+              )}
               <Button variant="outline" size="sm" onClick={handleClose}>
                 Close
               </Button>
