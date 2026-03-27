@@ -172,7 +172,7 @@ export function CreateCardDialog({
                 </Button>
               </div>
               {isPreviewingDescription ? (
-                <div className="prose prose-sm max-w-none overflow-x-auto rounded-md border bg-muted/30 p-4 text-sm text-foreground">
+                <div className="prose prose-sm max-w-none max-h-64 overflow-y-auto overflow-x-auto rounded-md border bg-muted/30 p-4 text-sm text-foreground">
                   {description.trim() ? (
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{description}</ReactMarkdown>
                   ) : (
