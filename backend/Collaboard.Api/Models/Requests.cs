@@ -16,7 +16,7 @@ public record CreateBoardRequest(string? Name);
 public record UpdateBoardRequest(string? Name);
 
 // Card requests
-public record CreateCardRequest(Guid LaneId, string? Name, string? DescriptionMarkdown, int? Position, Guid? SizeId);
+public record CreateCardRequest(Guid LaneId, string? Name, string? DescriptionMarkdown, int? Position, Guid? SizeId, Guid[]? LabelIds);
 
 public record UpdateCardRequest(string? Name, string? DescriptionMarkdown, Guid? SizeId, Guid? LaneId, int? Position, Guid[]? LabelIds);
 

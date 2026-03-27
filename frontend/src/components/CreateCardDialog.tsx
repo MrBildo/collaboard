@@ -82,34 +82,13 @@ export function CreateCardDialog({
         labelIds: selectedLabelIds.length > 0 ? selectedLabelIds : undefined,
       });
     },
-    onMutate: () => {
-      // Snapshot label IDs at mutation start so onSuccess has stable values
-      const allLabels = allLabelsQuery.data ?? [];
-      return {
-        labelSummaries: selectedLabelIds
-          .map((id) => allLabels.find((l) => l.id === id))
-          .filter(Boolean)
-          .map((l) => ({ id: l!.id, name: l!.name, color: l!.color })),
-      };
-    },
-    onSuccess: (newCard, _vars, context) => {
-      const labelSummaries = context?.labelSummaries ?? [];
-
+    onSuccess: (newCard) => {
       queryClient.cancelQueries({ queryKey: queryKeys.boards.data(boardId) });
       queryClient.setQueryData<BoardData>(queryKeys.boards.data(boardId), (old) =>
         old
           ? {
               ...old,
-              cards: [
-                ...old.cards,
-                {
-                  ...newCard,
-                  sizeName: sizes.find((s) => s.id === newCard.sizeId)?.name ?? '?',
-                  labels: labelSummaries,
-                  commentCount: 0,
-                  attachmentCount: 0,
-                },
-              ],
+              cards: [...old.cards, newCard],
             }
           : old,
       );
@@ -172,7 +151,7 @@ export function CreateCardDialog({
                 </Button>
               </div>
               {isPreviewingDescription ? (
-                <div className="prose prose-sm max-w-none overflow-x-auto rounded-md border bg-muted/30 p-4 text-sm text-foreground">
+                <div className="prose prose-sm max-w-none max-h-64 overflow-y-auto overflow-x-auto rounded-md border bg-muted/30 p-4 text-sm text-foreground">
                   {description.trim() ? (
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{description}</ReactMarkdown>
                   ) : (

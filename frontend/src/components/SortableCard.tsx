@@ -51,10 +51,8 @@ export function SortableCard({
         {(() => {
           const sizeName = sizeMap.get(card.sizeId) ?? '?';
           let sizeDisplay: string;
-          if (sizeName.length <= 3 || card.name.length <= 30) {
+          if (sizeName.length <= 3) {
             sizeDisplay = sizeName;
-          } else if (card.name.length <= 60) {
-            sizeDisplay = sizeName.split(/[\s(]/)[0];
           } else {
             sizeDisplay = sizeName[0].toUpperCase();
           }
