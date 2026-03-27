@@ -42,9 +42,75 @@ import {
   arraysEqual,
   formatDateTime,
 } from '@/lib/utils';
-import { Archive, ArchiveRestore, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  Archive,
+  ArchiveRestore,
+  ChevronLeft,
+  ChevronRight,
+  RefreshCw,
+  RotateCcw,
+} from 'lucide-react';
 import { ROLES } from '@/lib/roles';
 import type { BoardData, CardItem, CardSize, Lane, UpdateCardPatch } from '@/types';
+
+type FieldName = 'name' | 'description' | 'sizeId' | 'laneId' | 'labelIds';
+
+type ExternalUpdate = { remoteValue: string };
+type ExternalLabelUpdate = { remoteLabelIds: string[] };
+
+type ExternalUpdates = {
+  name?: ExternalUpdate;
+  description?: ExternalUpdate;
+  sizeId?: ExternalUpdate;
+  laneId?: ExternalUpdate;
+  labelIds?: ExternalLabelUpdate;
+};
+
+type CardBaseline = {
+  name: string;
+  description: string;
+  sizeId: string;
+  laneId: string;
+  labelIds: string[];
+};
+
+function ExternalUpdateDot({
+  field,
+  remoteDisplay,
+  onAccept,
+}: {
+  field: string;
+  remoteDisplay: string;
+  onAccept: () => void;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger render={<span />}>
+        <span className="inline-flex items-center gap-1">
+          <span className="inline-block h-2 w-2 rounded-full bg-accent" />
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs">
+        <div className="flex flex-col gap-1">
+          <span className="text-xs">
+            {field} changed remotely to: <strong>{remoteDisplay}</strong>
+          </span>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAccept();
+            }}
+            className="inline-flex items-center gap-1 self-start rounded px-1.5 py-0.5 text-xs font-medium text-accent hover:bg-accent/15"
+          >
+            <RotateCcw className="h-3 w-3" />
+            Accept remote
+          </button>
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 export type CardDetailFormHandle = {
   save: () => void;
@@ -99,6 +165,21 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
     const [restoreLaneId, setRestoreLaneId] = useState<string | null>(null);
     const [showRestorePicker, setShowRestorePicker] = useState(false);
     const [pasteStatus, setPasteStatus] = useState<string | null>(null);
+
+    // Touch tracking: fields the user has edited since mount/last save
+    const touchedFields = useRef(new Set<FieldName>());
+
+    // Baseline: the card prop values we compare dirty state against (frozen for touched fields)
+    const [baselineState, setBaselineState] = useState<CardBaseline>({
+      name: card.name,
+      description: card.descriptionMarkdown ?? '',
+      sizeId: card.sizeId,
+      laneId: card.laneId,
+      labelIds: [],
+    });
+
+    // External updates: remote changes to fields the user has touched
+    const [externalUpdates, setExternalUpdates] = useState<ExternalUpdates>({});
 
     const pasteMutation = useMutation({
       mutationFn: (file: File) => uploadAttachment(card.id, file),
@@ -177,13 +258,138 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
       [allLabelsQuery.data, effectiveLabelIds],
     );
 
+    // Field sync: when card prop changes (SSE refetch), sync untouched fields,
+    // track external updates for touched fields.
+    // Uses functional setBaselineState to read the current baseline without a stale closure.
+    useEffect(() => {
+      const touched = touchedFields.current;
+      const remoteName = card.name;
+      const remoteDesc = card.descriptionMarkdown ?? '';
+      const remoteSizeId = card.sizeId;
+      const remoteLaneId = card.laneId;
+      const remoteLabelIds = originalLabelIds;
+
+      setBaselineState((base) => {
+        const newExternal: ExternalUpdates = {};
+        const patches: Partial<CardBaseline> = {};
+
+        // Name
+        if (!touched.has('name')) {
+          if (remoteName !== base.name) {
+            setName(remoteName);
+            patches.name = remoteName;
+          }
+        } else if (remoteName !== base.name) {
+          newExternal.name = { remoteValue: remoteName };
+        }
+
+        // Description
+        if (!touched.has('description')) {
+          if (remoteDesc !== base.description) {
+            setDescription(remoteDesc);
+            patches.description = remoteDesc;
+          }
+        } else if (remoteDesc !== base.description) {
+          newExternal.description = { remoteValue: remoteDesc };
+        }
+
+        // SizeId
+        if (!touched.has('sizeId')) {
+          if (remoteSizeId !== base.sizeId) {
+            setSizeId(remoteSizeId);
+            patches.sizeId = remoteSizeId;
+          }
+        } else if (remoteSizeId !== base.sizeId) {
+          newExternal.sizeId = { remoteValue: remoteSizeId };
+        }
+
+        // LaneId
+        if (!touched.has('laneId')) {
+          if (remoteLaneId !== base.laneId) {
+            setCurrentLaneId(remoteLaneId);
+            patches.laneId = remoteLaneId;
+          }
+        } else if (remoteLaneId !== base.laneId) {
+          newExternal.laneId = { remoteValue: remoteLaneId };
+        }
+
+        // LabelIds
+        if (!touched.has('labelIds')) {
+          if (!arraysEqual(remoteLabelIds, base.labelIds)) {
+            setSelectedLabelIds(null);
+            patches.labelIds = remoteLabelIds;
+          }
+        } else if (!arraysEqual(remoteLabelIds, base.labelIds)) {
+          newExternal.labelIds = { remoteLabelIds };
+        }
+
+        // Update external updates state
+        setExternalUpdates((prev) => {
+          if (JSON.stringify(prev) === JSON.stringify(newExternal)) return prev;
+          return newExternal;
+        });
+
+        // Return updated baseline (or same ref if no changes)
+        if (Object.keys(patches).length === 0) return base;
+        return { ...base, ...patches };
+      });
+    }, [card.name, card.descriptionMarkdown, card.sizeId, card.laneId, originalLabelIds]);
+
+    // Accept a remote value for a field: replace local state, update baseline, clear touch
+    const acceptRemote = useCallback(
+      (field: FieldName) => {
+        if (field === 'name' && externalUpdates.name) {
+          const val = externalUpdates.name.remoteValue;
+          setName(val);
+          setBaselineState((prev) => ({ ...prev, name: val }));
+        } else if (field === 'description' && externalUpdates.description) {
+          const val = externalUpdates.description.remoteValue;
+          setDescription(val);
+          setBaselineState((prev) => ({ ...prev, description: val }));
+        } else if (field === 'sizeId' && externalUpdates.sizeId) {
+          const val = externalUpdates.sizeId.remoteValue;
+          setSizeId(val);
+          setBaselineState((prev) => ({ ...prev, sizeId: val }));
+        } else if (field === 'laneId' && externalUpdates.laneId) {
+          const val = externalUpdates.laneId.remoteValue;
+          setCurrentLaneId(val);
+          setBaselineState((prev) => ({ ...prev, laneId: val }));
+        } else if (field === 'labelIds' && externalUpdates.labelIds) {
+          const val = externalUpdates.labelIds.remoteLabelIds;
+          setSelectedLabelIds(null);
+          setBaselineState((prev) => ({ ...prev, labelIds: val }));
+        }
+
+        touchedFields.current.delete(field);
+        setExternalUpdates((prev) => {
+          const next = { ...prev };
+          delete next[field];
+          return next;
+        });
+      },
+      [externalUpdates],
+    );
+
+    const externalUpdateCount = useMemo(
+      () => Object.keys(externalUpdates).length,
+      [externalUpdates],
+    );
+
+    const acceptAllRemote = useCallback(() => {
+      const fields = Object.keys(externalUpdates) as FieldName[];
+      for (const field of fields) {
+        acceptRemote(field);
+      }
+    }, [externalUpdates, acceptRemote]);
+
+    // Dirty calculation: compare local state against baseline (not the live card prop)
     const isDirty =
       !isArchived &&
-      (name !== card.name ||
-        description !== (card.descriptionMarkdown ?? '') ||
-        sizeId !== card.sizeId ||
-        currentLaneId !== card.laneId ||
-        !arraysEqual(effectiveLabelIds, originalLabelIds));
+      (name !== baselineState.name ||
+        description !== baselineState.description ||
+        sizeId !== baselineState.sizeId ||
+        currentLaneId !== baselineState.laneId ||
+        !arraysEqual(effectiveLabelIds, baselineState.labelIds));
 
     useEffect(() => {
       isDirtyRef.current = isDirty;
@@ -204,6 +410,17 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
           queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
         }
         queryClient.invalidateQueries({ queryKey: queryKeys.cards.labels(card.id) });
+
+        // Reset touch tracking and baseline after successful save
+        touchedFields.current.clear();
+        setBaselineState({
+          name,
+          description,
+          sizeId,
+          laneId: currentLaneId,
+          labelIds: effectiveLabelIds,
+        });
+        setExternalUpdates({});
         isDirtyRef.current = false;
         onClose();
       },
@@ -256,11 +473,12 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
 
       const patch: UpdateCardPatch = {};
 
-      if (name !== card.name) patch.name = name;
-      if (description !== (card.descriptionMarkdown ?? '')) patch.descriptionMarkdown = description;
-      if (sizeId !== card.sizeId) patch.sizeId = sizeId;
-      if (currentLaneId !== card.laneId) patch.laneId = currentLaneId;
-      if (!arraysEqual(effectiveLabelIds, originalLabelIds)) patch.labelIds = effectiveLabelIds;
+      if (name !== baselineState.name) patch.name = name;
+      if (description !== baselineState.description) patch.descriptionMarkdown = description;
+      if (sizeId !== baselineState.sizeId) patch.sizeId = sizeId;
+      if (currentLaneId !== baselineState.laneId) patch.laneId = currentLaneId;
+      if (!arraysEqual(effectiveLabelIds, baselineState.labelIds))
+        patch.labelIds = effectiveLabelIds;
 
       updateMutation.mutate(patch);
     }, [
@@ -268,15 +486,11 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
       isDirtyRef,
       onClose,
       name,
-      card.name,
       description,
-      card.descriptionMarkdown,
       sizeId,
-      card.sizeId,
       currentLaneId,
-      card.laneId,
       effectiveLabelIds,
-      originalLabelIds,
+      baselineState,
       updateMutation,
     ]);
 
@@ -373,10 +587,13 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
             )}
           </div>
           <div className="flex items-start gap-3">
-            <div className="flex-1">
+            <div className="flex min-w-0 flex-1 items-center gap-1.5">
               <Input
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  touchedFields.current.add('name');
+                  setName(e.target.value);
+                }}
                 maxLength={120}
                 disabled={isArchived}
                 className={cn(
@@ -384,71 +601,121 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
                   isArchived && 'cursor-default opacity-70',
                 )}
               />
+              {externalUpdates.name && (
+                <ExternalUpdateDot
+                  field="Name"
+                  remoteDisplay={externalUpdates.name.remoteValue}
+                  onAccept={() => acceptRemote('name')}
+                />
+              )}
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3 pt-2">
             {sizes && sizes.length > 0 && (
-              <Tooltip>
-                <TooltipTrigger render={<span />}>
-                  <Select
-                    value={sizeId}
-                    onValueChange={(v) => v && setSizeId(v)}
-                    disabled={isArchived}
-                  >
-                    <SelectTrigger className={cn('w-36', isArchived && 'opacity-70')}>
-                      <SelectValue>{sizes.find((s) => s.id === sizeId)?.name ?? '?'}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sizes.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>
-                          {s.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </TooltipTrigger>
-                <TooltipContent>{sizes.find((s) => s.id === sizeId)?.name ?? '?'}</TooltipContent>
-              </Tooltip>
+              <div className="flex items-center gap-1">
+                <Tooltip>
+                  <TooltipTrigger render={<span />}>
+                    <Select
+                      value={sizeId}
+                      onValueChange={(v) => {
+                        if (v) {
+                          touchedFields.current.add('sizeId');
+                          setSizeId(v);
+                        }
+                      }}
+                      disabled={isArchived}
+                    >
+                      <SelectTrigger className={cn('w-36', isArchived && 'opacity-70')}>
+                        <SelectValue>{sizes.find((s) => s.id === sizeId)?.name ?? '?'}</SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {sizes.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TooltipTrigger>
+                  <TooltipContent>{sizes.find((s) => s.id === sizeId)?.name ?? '?'}</TooltipContent>
+                </Tooltip>
+                {externalUpdates.sizeId && (
+                  <ExternalUpdateDot
+                    field="Size"
+                    remoteDisplay={
+                      sizes.find((s) => s.id === externalUpdates.sizeId?.remoteValue)?.name ?? '?'
+                    }
+                    onAccept={() => acceptRemote('sizeId')}
+                  />
+                )}
+              </div>
             )}
             {lanes && lanes.length > 0 && !isArchived && (
-              <Tooltip>
-                <TooltipTrigger render={<span />}>
-                  <Select
-                    value={currentLaneId}
-                    onValueChange={(v) => {
-                      if (v && v !== currentLaneId) {
-                        setCurrentLaneId(v);
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="w-36">
-                      <SelectValue>
-                        {lanes.find((l) => l.id === currentLaneId)?.name ?? '?'}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {lanes.map((lane) => (
-                        <SelectItem key={lane.id} value={lane.id}>
-                          {lane.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {lanes.find((l) => l.id === currentLaneId)?.name ?? '?'}
-                </TooltipContent>
-              </Tooltip>
+              <div className="flex items-center gap-1">
+                <Tooltip>
+                  <TooltipTrigger render={<span />}>
+                    <Select
+                      value={currentLaneId}
+                      onValueChange={(v) => {
+                        if (v && v !== currentLaneId) {
+                          touchedFields.current.add('laneId');
+                          setCurrentLaneId(v);
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-36">
+                        <SelectValue>
+                          {lanes.find((l) => l.id === currentLaneId)?.name ?? '?'}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {lanes.map((lane) => (
+                          <SelectItem key={lane.id} value={lane.id}>
+                            {lane.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {lanes.find((l) => l.id === currentLaneId)?.name ?? '?'}
+                  </TooltipContent>
+                </Tooltip>
+                {externalUpdates.laneId && (
+                  <ExternalUpdateDot
+                    field="Lane"
+                    remoteDisplay={
+                      lanes.find((l) => l.id === externalUpdates.laneId?.remoteValue)?.name ?? '?'
+                    }
+                    onAccept={() => acceptRemote('laneId')}
+                  />
+                )}
+              </div>
             )}
             {!isArchived && (
-              <LabelPicker
-                allLabels={allLabelsQuery.data ?? []}
-                assignedLabels={assignedLabels}
-                onAdd={(id) => setSelectedLabelIds((prev) => [...(prev ?? originalLabelIds), id])}
-                onRemove={(id) =>
-                  setSelectedLabelIds((prev) => (prev ?? originalLabelIds).filter((x) => x !== id))
-                }
-              />
+              <div className="flex items-center gap-1">
+                <LabelPicker
+                  allLabels={allLabelsQuery.data ?? []}
+                  assignedLabels={assignedLabels}
+                  onAdd={(id) => {
+                    touchedFields.current.add('labelIds');
+                    setSelectedLabelIds((prev) => [...(prev ?? originalLabelIds), id]);
+                  }}
+                  onRemove={(id) => {
+                    touchedFields.current.add('labelIds');
+                    setSelectedLabelIds((prev) =>
+                      (prev ?? originalLabelIds).filter((x) => x !== id),
+                    );
+                  }}
+                />
+                {externalUpdates.labelIds && (
+                  <ExternalUpdateDot
+                    field="Labels"
+                    remoteDisplay={`${externalUpdates.labelIds.remoteLabelIds.length} label(s)`}
+                    onAccept={() => acceptRemote('labelIds')}
+                  />
+                )}
+              </div>
             )}
             {isArchived && assignedLabels.length > 0 && (
               <div className="flex flex-wrap gap-1">
@@ -493,12 +760,26 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
                   >
                     Preview
                   </Button>
+                  {externalUpdates.description && (
+                    <ExternalUpdateDot
+                      field="Description"
+                      remoteDisplay={
+                        externalUpdates.description.remoteValue.length > 60
+                          ? externalUpdates.description.remoteValue.slice(0, 60) + '...'
+                          : externalUpdates.description.remoteValue || '(empty)'
+                      }
+                      onAccept={() => acceptRemote('description')}
+                    />
+                  )}
                 </div>
               )}
               {isEditingDescription && !isArchived ? (
                 <Textarea
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  onChange={(e) => {
+                    touchedFields.current.add('description');
+                    setDescription(e.target.value);
+                  }}
                   rows={16}
                   className="font-mono text-sm"
                   placeholder="Write a description..."
@@ -664,7 +945,24 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
             </Button>
           )}
           {!isArchived && !showArchiveActions && (
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
+              {externalUpdateCount > 0 && (
+                <div className="mr-auto flex items-center gap-2 text-sm text-accent-foreground">
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  <span>
+                    {externalUpdateCount} {externalUpdateCount === 1 ? 'field' : 'fields'} updated
+                    externally
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    onClick={acceptAllRemote}
+                    className="text-accent-foreground"
+                  >
+                    Accept all
+                  </Button>
+                </div>
+              )}
               <Button variant="outline" size="sm" onClick={handleClose}>
                 Close
               </Button>
