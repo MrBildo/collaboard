@@ -7,9 +7,16 @@ type UnsavedChangesAction = 'save' | 'discard' | 'cancel';
 type UnsavedChangesDialogProps = {
   open: boolean;
   onAction: (action: UnsavedChangesAction) => void;
+  actionType?: 'close' | 'navigate';
 };
 
-export function UnsavedChangesDialog({ open, onAction }: UnsavedChangesDialogProps) {
+export function UnsavedChangesDialog({
+  open,
+  onAction,
+  actionType = 'close',
+}: UnsavedChangesDialogProps) {
+  const isNavigate = actionType === 'navigate';
+
   return (
     <Dialog
       open={open}
@@ -24,7 +31,9 @@ export function UnsavedChangesDialog({ open, onAction }: UnsavedChangesDialogPro
           </div>
           <h2 className="text-base font-bold">Unsaved Changes</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            You have unsaved changes that will be lost if you close this card.
+            {isNavigate
+              ? 'You have unsaved changes that will be lost if you navigate away.'
+              : 'You have unsaved changes that will be lost if you close this card.'}
           </p>
         </div>
         <div className="flex flex-col-reverse gap-2 border-t px-6 py-4 sm:flex-row sm:justify-end">
@@ -40,9 +49,11 @@ export function UnsavedChangesDialog({ open, onAction }: UnsavedChangesDialogPro
             onClick={() => onAction('discard')}
             className="border-destructive text-destructive hover:bg-destructive/10"
           >
-            Discard
+            {isNavigate ? 'Discard Changes' : 'Discard & Close'}
           </Button>
-          <Button onClick={() => onAction('save')}>Save & Close</Button>
+          <Button onClick={() => onAction('save')}>
+            {isNavigate ? 'Save & Navigate' : 'Save & Close'}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

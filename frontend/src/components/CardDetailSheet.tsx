@@ -9,6 +9,33 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { CardItem, CardSize, Lane } from '@/types';
 import type { UnsavedChangesAction } from '@/components/UnsavedChangesDialog';
 
+// Snapshot navigation context so lane changes don't shift prev/next nav.
+// Uses "setState during render" pattern — React allows this when value differs.
+function useNavSnapshot(card: CardItem | null, cardsInLane: CardItem[] | undefined) {
+  const [snapshot, setSnapshot] = useState<{ cardId: string | null; cards: CardItem[] }>({
+    cardId: null,
+    cards: [],
+  });
+
+  const cardId = card?.id ?? null;
+  const cards = cardsInLane ?? [];
+
+  // Card changed — take fresh snapshot (setState during render is OK for derived state)
+  if (cardId !== snapshot.cardId) {
+    setSnapshot({ cardId, cards });
+    return cards;
+  }
+
+  // Same card, and it's still present in the lane list — update snapshot
+  if (cardId && cards.some((c) => c.id === cardId) && cards !== snapshot.cards) {
+    setSnapshot({ cardId, cards });
+    return cards;
+  }
+
+  // Card moved to different lane — keep frozen snapshot
+  return snapshot.cards;
+}
+
 type PendingAction = { type: 'close' } | { type: 'navigate'; cardNumber: number };
 
 type CardDetailSheetProps = {
@@ -40,16 +67,17 @@ export function CardDetailSheet({
   const formRef = useRef<CardDetailFormHandle>(null);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
 
+  const navSnapshot = useNavSnapshot(card, cardsInLane);
+
   const { prevCard, nextCard } = useMemo(() => {
-    if (!card || !cardsInLane || cardsInLane.length === 0)
-      return { prevCard: null, nextCard: null };
-    const idx = cardsInLane.findIndex((c) => c.id === card.id);
+    if (!card || navSnapshot.length === 0) return { prevCard: null, nextCard: null };
+    const idx = navSnapshot.findIndex((c) => c.id === card.id);
     if (idx === -1) return { prevCard: null, nextCard: null };
     return {
-      prevCard: idx > 0 ? cardsInLane[idx - 1] : null,
-      nextCard: idx < cardsInLane.length - 1 ? cardsInLane[idx + 1] : null,
+      prevCard: idx > 0 ? navSnapshot[idx - 1] : null,
+      nextCard: idx < navSnapshot.length - 1 ? navSnapshot[idx + 1] : null,
     };
-  }, [card, cardsInLane]);
+  }, [card, navSnapshot]);
 
   const executePendingAction = useCallback(
     (action: PendingAction) => {
@@ -62,6 +90,17 @@ export function CardDetailSheet({
     [onOpenChange, onNavigateCard],
   );
 
+  // Ref to hold the pending action that should be executed after save completes
+  const pendingAfterSaveRef = useRef<PendingAction | null>(null);
+
+  const handleSaveComplete = useCallback(() => {
+    const action = pendingAfterSaveRef.current;
+    pendingAfterSaveRef.current = null;
+    if (action) {
+      executePendingAction(action);
+    }
+  }, [executePendingAction]);
+
   const handleUnsavedAction = useCallback(
     (action: UnsavedChangesAction) => {
       const pending = pendingAction;
@@ -70,6 +109,8 @@ export function CardDetailSheet({
       if (action === 'cancel') return;
 
       if (action === 'save') {
+        // Store the pending action so handleSaveComplete can execute it after save
+        pendingAfterSaveRef.current = pending;
         formRef.current?.save();
         return;
       }
@@ -131,8 +172,8 @@ export function CardDetailSheet({
   if (!card) return null;
 
   const navPosition =
-    cardsInLane && cardsInLane.length > 1
-      ? `${(cardsInLane.findIndex((c) => c.id === card.id) ?? 0) + 1} / ${cardsInLane.length}`
+    navSnapshot.length > 1
+      ? `${(navSnapshot.findIndex((c) => c.id === card.id) ?? 0) + 1} / ${navSnapshot.length}`
       : null;
 
   return (
@@ -174,6 +215,7 @@ export function CardDetailSheet({
               key={card.id}
               card={card}
               onClose={() => handleDialogOpenChange(false)}
+              onSaveComplete={handleSaveComplete}
               currentUserId={currentUserId}
               currentUserRole={currentUserRole}
               lanes={lanes}
@@ -187,7 +229,11 @@ export function CardDetailSheet({
           </div>
         </DialogContent>
       </Dialog>
-      <UnsavedChangesDialog open={pendingAction !== null} onAction={handleUnsavedAction} />
+      <UnsavedChangesDialog
+        open={pendingAction !== null}
+        onAction={handleUnsavedAction}
+        actionType={pendingAction?.type}
+      />
     </>
   );
 }

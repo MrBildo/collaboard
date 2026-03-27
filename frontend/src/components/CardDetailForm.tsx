@@ -45,6 +45,7 @@ import {
 import {
   Archive,
   ArchiveRestore,
+  Check,
   ChevronLeft,
   ChevronRight,
   RefreshCw,
@@ -119,6 +120,7 @@ export type CardDetailFormHandle = {
 type CardDetailFormProps = {
   card: CardItem;
   onClose: () => void;
+  onSaveComplete?: () => void;
   currentUserId?: string;
   currentUserRole?: number;
   lanes?: Lane[];
@@ -135,6 +137,7 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
     {
       card,
       onClose,
+      onSaveComplete,
       currentUserId,
       currentUserRole,
       lanes,
@@ -165,6 +168,7 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
     const [restoreLaneId, setRestoreLaneId] = useState<string | null>(null);
     const [showRestorePicker, setShowRestorePicker] = useState(false);
     const [pasteStatus, setPasteStatus] = useState<string | null>(null);
+    const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
     // Touch tracking: fields the user has edited since mount/last save
     const touchedFields = useRef(new Set<FieldName>());
@@ -422,7 +426,13 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
         });
         setExternalUpdates({});
         isDirtyRef.current = false;
-        onClose();
+
+        // Show transient "Saved" indicator
+        setSaveStatus('Saved');
+        setTimeout(() => setSaveStatus(null), 2500);
+
+        // Signal completion so the sheet can execute any pending action
+        onSaveComplete?.();
       },
       onError: (error: unknown) => {
         console.error('Failed to update card:', error);
@@ -466,8 +476,6 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
 
     const handleSave = useCallback(() => {
       if (!isDirty) {
-        isDirtyRef.current = false;
-        onClose();
         return;
       }
 
@@ -483,8 +491,6 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
       updateMutation.mutate(patch);
     }, [
       isDirty,
-      isDirtyRef,
-      onClose,
       name,
       description,
       sizeId,
@@ -538,7 +544,13 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
         tabIndex={-1}
         className="flex min-h-0 flex-1 flex-col overflow-hidden outline-none"
       >
-        {/* Paste feedback */}
+        {/* Save / Paste feedback */}
+        {saveStatus && (
+          <div className="flex items-center gap-1.5 border-b bg-primary/10 px-6 py-2 text-sm text-primary">
+            <Check className="h-4 w-4" />
+            {saveStatus}
+          </div>
+        )}
         {pasteStatus && (
           <div className="bg-primary/10 text-primary border-b px-6 py-2 text-sm">{pasteStatus}</div>
         )}
