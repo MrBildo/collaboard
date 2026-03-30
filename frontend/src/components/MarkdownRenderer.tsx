@@ -1,3 +1,4 @@
+import { isValidElement, type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { MermaidBlock } from '@/components/MermaidBlock';
@@ -6,20 +7,26 @@ type MarkdownRendererProps = {
   children: string;
 };
 
+function getMermaidCode(children: ReactNode): string | null {
+  if (!isValidElement(children)) return null;
+  const props = children.props as { className?: string; children?: ReactNode };
+  if (props.className === 'language-mermaid') {
+    return String(props.children).replace(/\n$/, '');
+  }
+  return null;
+}
+
 export function MarkdownRenderer({ children }: MarkdownRendererProps) {
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
       components={{
-        code({ className, children: codeChildren, ...props }) {
-          if (className === 'language-mermaid') {
-            return <MermaidBlock>{String(codeChildren).replace(/\n$/, '')}</MermaidBlock>;
+        pre({ children: preChildren, ...props }) {
+          const mermaidCode = getMermaidCode(preChildren);
+          if (mermaidCode !== null) {
+            return <MermaidBlock>{mermaidCode}</MermaidBlock>;
           }
-          return (
-            <code className={className} {...props}>
-              {codeChildren}
-            </code>
-          );
+          return <pre {...props}>{preChildren}</pre>;
         },
       }}
     >
