@@ -155,6 +155,17 @@
   }
 }
 
+/* Mermaid text fix — SVG <text> uses fill, but mindmap/timeline nodes use
+   foreignObject with HTML elements that inherit color from .text-foreground.
+   Override both to ensure light text on all dark diagram backgrounds. */
+.mermaid-container text {
+  fill: hsl(210, 15%, 90%) !important;
+}
+
+.mermaid-container foreignObject * {
+  color: hsl(210, 15%, 90%) !important;
+}
+
 /* Scroll fade — top/bottom gradient mask for scrollable panels (desktop only) */
 @media (min-width: 768px) {
   /* Resizable comments panel — width driven by CSS custom property on desktop */

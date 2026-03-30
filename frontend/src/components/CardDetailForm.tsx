@@ -9,8 +9,7 @@ import {
 } from 'react';
 import { usePanelResize } from '@/hooks/use-panel-resize';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { MarkdownRenderer } from '@/components/MarkdownRenderer';
 import { DialogHeader, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -799,7 +798,7 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
               ) : (
                 <div className="prose prose-sm max-w-none overflow-x-auto rounded-md border bg-muted/30 p-4 text-sm text-foreground">
                   {description ? (
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{description}</ReactMarkdown>
+                    <MarkdownRenderer>{description}</MarkdownRenderer>
                   ) : (
                     <p className="italic text-muted-foreground">
                       {isArchived

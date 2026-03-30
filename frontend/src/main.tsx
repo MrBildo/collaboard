@@ -9,7 +9,13 @@ import { App } from './routes/App';
 import { BoardRedirect } from './routes/BoardRedirect';
 import './styles.css';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 10 * 1000,
+    },
+  },
+});
 const persister = createSyncStoragePersister({ storage: window.localStorage });
 
 const router = createBrowserRouter([

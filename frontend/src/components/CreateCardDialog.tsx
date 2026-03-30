@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { MarkdownRenderer } from '@/components/MarkdownRenderer';
 import {
   Dialog,
   DialogContent,
@@ -153,7 +152,7 @@ export function CreateCardDialog({
               {isPreviewingDescription ? (
                 <div className="prose prose-sm max-w-none max-h-64 overflow-y-auto overflow-x-auto rounded-md border bg-muted/30 p-4 text-sm text-foreground">
                   {description.trim() ? (
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{description}</ReactMarkdown>
+                    <MarkdownRenderer>{description}</MarkdownRenderer>
                   ) : (
                     <p className="italic text-muted-foreground">Nothing to preview.</p>
                   )}
