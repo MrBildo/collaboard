@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { MarkdownRenderer } from '@/components/MarkdownRenderer';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { createComment, deleteComment, fetchComments, updateComment } from '@/lib/api';
@@ -153,7 +152,7 @@ export function CardComments({
           {isPreviewingNew && isExpanded ? (
             <div className="prose prose-sm max-w-none overflow-x-auto rounded-md border bg-muted/30 p-4 text-sm text-foreground">
               {newComment.trim() ? (
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{newComment}</ReactMarkdown>
+                <MarkdownRenderer>{newComment}</MarkdownRenderer>
               ) : (
                 <p className="italic text-muted-foreground">Nothing to preview.</p>
               )}
@@ -219,7 +218,7 @@ export function CardComments({
                 {isPreviewingEdit ? (
                   <div className="prose prose-sm max-w-none overflow-x-auto rounded-md border bg-muted/30 p-4 text-sm text-foreground">
                     {editText.trim() ? (
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{editText}</ReactMarkdown>
+                      <MarkdownRenderer>{editText}</MarkdownRenderer>
                     ) : (
                       <p className="italic text-muted-foreground">Nothing to preview.</p>
                     )}
@@ -244,9 +243,7 @@ export function CardComments({
             ) : (
               <>
                 <div className="prose prose-sm max-w-none break-words">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {comment.contentMarkdown}
-                  </ReactMarkdown>
+                  <MarkdownRenderer>{comment.contentMarkdown}</MarkdownRenderer>
                 </div>
                 <div className="mt-2 flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">
