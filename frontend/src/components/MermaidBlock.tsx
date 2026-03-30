@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import mermaid from 'mermaid';
 
 let mermaidInitialized = false;
@@ -141,20 +141,29 @@ export function MermaidBlock({ children }: MermaidBlockProps) {
   const [svgHtml, setSvgHtml] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const prevChildrenRef = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     async function renderDiagram() {
+      // Skip re-render when children haven't changed and we already have SVG
+      if (children === prevChildrenRef.current && svgHtml !== null) {
+        return;
+      }
+
       ensureMermaidInitialized();
-      setIsLoading(true);
+      // Only show loading state on initial render (no existing SVG)
+      if (svgHtml === null) {
+        setIsLoading(true);
+      }
       setError(null);
-      setSvgHtml(null);
 
       try {
         const { svg } = await mermaid.render(mermaidId, children);
         if (!cancelled) {
           setSvgHtml(svg);
+          prevChildrenRef.current = children;
         }
       } catch (err: unknown) {
         if (!cancelled) {
@@ -173,7 +182,8 @@ export function MermaidBlock({ children }: MermaidBlockProps) {
     return () => {
       cancelled = true;
     };
-  }, [children, mermaidId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [children]);
 
   if (error) {
     return (
@@ -196,10 +206,7 @@ export function MermaidBlock({ children }: MermaidBlockProps) {
 
   return (
     <div className="mermaid-container overflow-x-auto rounded-md border border-border bg-[hsl(222,18%,15%)] p-4">
-      <div
-        className="[&>svg]:max-w-full"
-        dangerouslySetInnerHTML={{ __html: svgHtml }}
-      />
+      <div className="[&>svg]:max-w-full" dangerouslySetInnerHTML={{ __html: svgHtml }} />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { isValidElement, type ReactNode } from 'react';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { MermaidBlock } from '@/components/MermaidBlock';
 
@@ -16,20 +16,19 @@ function getMermaidCode(children: ReactNode): string | null {
   return null;
 }
 
+const markdownComponents: Components = {
+  pre({ children: preChildren, ...props }) {
+    const mermaidCode = getMermaidCode(preChildren);
+    if (mermaidCode !== null) {
+      return <MermaidBlock>{mermaidCode}</MermaidBlock>;
+    }
+    return <pre {...props}>{preChildren}</pre>;
+  },
+};
+
 export function MarkdownRenderer({ children }: MarkdownRendererProps) {
   return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      components={{
-        pre({ children: preChildren, ...props }) {
-          const mermaidCode = getMermaidCode(preChildren);
-          if (mermaidCode !== null) {
-            return <MermaidBlock>{mermaidCode}</MermaidBlock>;
-          }
-          return <pre {...props}>{preChildren}</pre>;
-        },
-      }}
-    >
+    <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
       {children}
     </ReactMarkdown>
   );
