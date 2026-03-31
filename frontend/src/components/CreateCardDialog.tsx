@@ -160,7 +160,7 @@ export function CreateCardDialog({
               ) : (
                 <Textarea
                   id="new-card-description"
-                  className="font-mono text-sm"
+                  className="font-mono md:text-sm"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Write a description..."
