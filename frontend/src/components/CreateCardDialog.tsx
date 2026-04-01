@@ -4,7 +4,6 @@ import { MarkdownRenderer } from '@/components/MarkdownRenderer';
 import {
   Dialog,
   DialogContent,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogDescription,
@@ -107,14 +106,17 @@ export function CreateCardDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[60vw]">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
+      <DialogContent
+        data-mobile-fullscreen
+        className="flex flex-col p-0 md:max-h-[85vh] md:max-w-[60vw]"
+      >
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <DialogHeader className="border-b p-4">
             <DialogTitle>Create Card</DialogTitle>
             <DialogDescription>Add a new card to the board.</DialogDescription>
           </DialogHeader>
 
-          <div className="mt-4 flex flex-col gap-4">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
             {/* Name */}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="new-card-name">Name *</Label>
@@ -164,7 +166,7 @@ export function CreateCardDialog({
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Write a description..."
-                  rows={8}
+                  rows={4}
                 />
               )}
             </div>
@@ -227,14 +229,18 @@ export function CreateCardDialog({
             )}
           </div>
 
-          <DialogFooter className="mt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <div className="flex items-center justify-end gap-2 border-t px-4 py-3">
+            <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={createMutation.isPending || !name.trim() || !sizeId}>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={createMutation.isPending || !name.trim() || !sizeId}
+            >
               {createMutation.isPending ? 'Creating...' : 'Create'}
             </Button>
-          </DialogFooter>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
