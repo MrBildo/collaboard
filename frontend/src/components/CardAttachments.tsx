@@ -4,26 +4,55 @@ import { Button } from '@/components/ui/button';
 import { AttachmentRow } from '@/components/AttachmentRow';
 import { AttachmentDropZone } from '@/components/AttachmentDropZone';
 import { api, deleteAttachment, fetchCardAttachments, uploadAttachment } from '@/lib/api';
+import { MAX_FILE_SIZE_BYTES } from '@/lib/attachments';
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { useUserDirectory } from '@/hooks/use-user-directory';
 import { ROLES } from '@/lib/roles';
-import { formatDateTime } from '@/lib/utils';
+import { formatDateTime, formatFileSize } from '@/lib/utils';
+import { AlertCircle, Check, Loader2, Paperclip, Upload, X } from 'lucide-react';
+import type { PendingFile } from '@/lib/attachments';
 import type { AttachmentMeta } from '@/types';
 
-type CardAttachmentsProps = {
+type LiveModeProps = {
+  mode: 'live';
   cardId: string;
   currentUserId?: string;
   currentUserRole?: number;
   readOnly?: boolean;
 };
 
-export function CardAttachments({
-  cardId,
-  currentUserId,
-  currentUserRole,
-  readOnly,
-}: CardAttachmentsProps) {
+type PendingModeProps = {
+  mode: 'pending';
+  pendingFiles: PendingFile[];
+  onAddFiles: (files: File[]) => void;
+  onRemoveFile: (fileId: string) => void;
+  disabled?: boolean;
+};
+
+type CardAttachmentsProps = LiveModeProps | PendingModeProps;
+
+function StatusIcon({ status }: { status: PendingFile['status'] }) {
+  switch (status) {
+    case 'uploading':
+      return <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />;
+    case 'done':
+      return <Check className="h-4 w-4 shrink-0 text-primary" />;
+    case 'error':
+      return <AlertCircle className="h-4 w-4 shrink-0 text-destructive" />;
+    default:
+      return <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" />;
+  }
+}
+
+export function CardAttachments(props: CardAttachmentsProps) {
+  if (props.mode === 'pending') {
+    return <PendingAttachments {...props} />;
+  }
+  return <LiveAttachments {...props} />;
+}
+
+function LiveAttachments({ cardId, currentUserId, currentUserRole, readOnly }: LiveModeProps) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -62,6 +91,10 @@ export function CardAttachments({
 
   const handleFilesDropped = (files: File[]) => {
     for (const file of files) {
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        console.error(`File "${file.name}" exceeds 5MB limit (${formatFileSize(file.size)})`);
+        continue;
+      }
       uploadMutation.mutate(file);
     }
   };
@@ -71,9 +104,12 @@ export function CardAttachments({
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      uploadMutation.mutate(file);
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      handleFilesDropped(Array.from(files));
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -149,13 +185,113 @@ export function CardAttachments({
         ))}
 
         {!readOnly && (
-          <div className="border-t pt-4">
-            <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
-            <Button variant="outline" onClick={handleUpload} disabled={uploadMutation.isPending}>
-              {uploadMutation.isPending ? 'Uploading...' : 'Upload Attachment'}
+          <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleUpload}
+              disabled={uploadMutation.isPending}
+            >
+              <Upload className="mr-1.5 h-4 w-4" />
+              {uploadMutation.isPending ? 'Uploading...' : 'Add Files'}
             </Button>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Drop files, paste images, or click to attach. Max 5MB per file.
+            </p>
           </div>
         )}
+      </div>
+    </AttachmentDropZone>
+  );
+}
+
+function PendingAttachments({
+  pendingFiles,
+  onAddFiles,
+  onRemoveFile,
+  disabled,
+}: PendingModeProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFilesDropped = (files: File[]) => {
+    onAddFiles(files);
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      onAddFiles(Array.from(files));
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  return (
+    <AttachmentDropZone onFiles={handleFilesDropped} disabled={disabled}>
+      <div className="flex flex-col gap-4">
+        {pendingFiles.length > 0 && (
+          <div className="flex flex-col gap-2">
+            {pendingFiles.map((pf) => (
+              <AttachmentRow
+                key={pf.id}
+                fileName={pf.file.name}
+                variant={pf.status === 'error' ? 'error' : 'default'}
+                icon={<StatusIcon status={pf.status} />}
+                metadata={
+                  <>
+                    {formatFileSize(pf.file.size)}
+                    {pf.error && <span className="ml-1 text-destructive"> &mdash; {pf.error}</span>}
+                  </>
+                }
+                actions={
+                  pf.status !== 'uploading' && pf.status !== 'done' ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="ml-2 shrink-0"
+                      onClick={() => onRemoveFile(pf.id)}
+                      disabled={disabled && pf.status !== 'error'}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  ) : undefined
+                }
+              />
+            ))}
+          </div>
+        )}
+
+        <div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={handleFileInputChange}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={disabled}
+          >
+            <Upload className="mr-1.5 h-4 w-4" />
+            Add Files
+          </Button>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Drop files, paste images, or click to attach. Max 5MB per file.
+          </p>
+        </div>
       </div>
     </AttachmentDropZone>
   );

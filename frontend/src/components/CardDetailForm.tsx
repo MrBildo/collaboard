@@ -803,6 +803,7 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
             <div>
               <Label className="mb-2 text-xs text-muted-foreground">Attachments</Label>
               <CardAttachments
+                mode="live"
                 cardId={card.id}
                 currentUserId={currentUserId}
                 currentUserRole={currentUserRole}
