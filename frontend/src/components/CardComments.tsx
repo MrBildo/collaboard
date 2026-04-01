@@ -165,7 +165,7 @@ export function CardComments({
               onFocus={() => setNewCommentFocused(true)}
               placeholder="Add a comment..."
               rows={isExpanded ? 3 : 1}
-              className="bg-muted font-mono text-sm transition-all"
+              className="bg-muted font-mono md:text-sm transition-all"
             />
           )}
           {isExpanded && (
@@ -228,7 +228,7 @@ export function CardComments({
                     value={editText}
                     onChange={(e) => setEditText(e.target.value)}
                     rows={3}
-                    className="bg-muted font-mono text-sm"
+                    className="bg-muted font-mono md:text-sm"
                   />
                 )}
                 <div className="flex justify-end gap-2">

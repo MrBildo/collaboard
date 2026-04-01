@@ -26,10 +26,9 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
       <div className="w-full max-w-sm rounded-xl border border-border bg-card p-8 shadow-lg">
         <div className="text-center">
           <img
-            src="/collaboard-logo.png"
+            src="/collaboard-logo.svg"
             alt="Collaboard"
             className="mx-auto w-80"
-            style={{ imageRendering: 'pixelated' }}
           />
           <p className="mt-3 text-sm text-muted-foreground">Enter your auth key to continue</p>
         </div>

@@ -31,10 +31,9 @@ export function BoardHeader({
     <header className="flex h-14 shrink-0 items-center gap-x-3 border-b border-border px-4">
       {/* Logo — shrink-0 so it never clips */}
       <img
-        src="/collaboard-logo.png"
+        src="/collaboard-logo.svg"
         alt="Collaboard"
         className="w-32 shrink-0 xs:w-48"
-        style={{ imageRendering: 'pixelated' }}
       />
       {/* Board switcher — always inline */}
       {boards.length > 1 && (
