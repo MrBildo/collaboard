@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useClickOutside } from '@/hooks/use-click-outside';
 import { Check, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn, getContrastColor, getReadableColor } from '@/lib/utils';
 import type { Label } from '@/types';
 
@@ -18,7 +18,6 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
   const [isOpen, setIsOpen] = useState(false);
   const [filter, setFilter] = useState('');
   const [focusedIndex, setFocusedIndex] = useState(-1);
-  const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -57,13 +56,13 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
     }
   }, [focusedIndex]);
 
-  const handleOpen = () => {
-    if (!isOpen) {
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open);
+    if (open) {
       setFilter('');
       setFocusedIndex(-1);
       setTimeout(() => inputRef.current?.focus(), 0);
     }
-    setIsOpen(!isOpen);
   };
 
   const handleKeyDown = useCallback(
@@ -85,18 +84,17 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
     [filtered, focusedIndex, toggle],
   );
 
-  const handleClose = useCallback(() => setIsOpen(false), []);
-  useClickOutside(containerRef, handleClose);
-
   return (
-    <div ref={containerRef} className="relative" aria-label="Label picker">
-      <Button
-        variant="outline"
-        size="sm"
-        className="h-auto min-h-8 gap-1.5 px-2.5 py-1"
-        onClick={handleOpen}
-        aria-expanded={isOpen}
-        aria-haspopup="listbox"
+    <Popover open={isOpen} onOpenChange={handleOpenChange}>
+      <PopoverTrigger
+        render={
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-auto min-h-8 gap-1.5 px-2.5 py-1"
+            aria-haspopup="listbox"
+          />
+        }
       >
         <Tag className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
         {assignedLabels.length > 0 ? (
@@ -119,71 +117,71 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
         ) : (
           <span className="text-muted-foreground">Labels</span>
         )}
-      </Button>
+      </PopoverTrigger>
 
-      {isOpen && (
-        <div
-          className="absolute top-full left-0 z-50 mt-1 min-w-[12rem] overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-md"
-          onKeyDown={handleKeyDown}
-        >
-          <div className="p-1">
-            <Input
-              ref={inputRef}
-              value={filter}
-              onChange={(e) => handleFilterChange(e.target.value)}
-              placeholder="Search labels..."
-              className="h-7 text-sm"
-              aria-label="Search labels"
-              role="combobox"
-              aria-expanded={true}
-              aria-controls="label-picker-listbox"
-              aria-activedescendant={
-                focusedIndex >= 0 ? `label-option-${filtered[focusedIndex]?.id}` : undefined
-              }
-            />
-          </div>
-          <div
-            ref={listRef}
-            className="max-h-48 overflow-y-auto p-1"
-            role="listbox"
-            id="label-picker-listbox"
-            aria-label="Available labels"
-          >
-            {filtered.map((label, index) => {
-              const selected = assignedIds.has(label.id);
-              const focused = index === focusedIndex;
-              return (
-                <Button
-                  key={label.id}
-                  id={`label-option-${label.id}`}
-                  variant="ghost"
-                  size="sm"
-                  role="option"
-                  aria-selected={selected}
-                  onClick={() => toggle(label.id)}
-                  className={cn(
-                    'relative w-full justify-start gap-2 pr-8',
-                    focused && 'bg-accent text-accent-foreground',
-                  )}
-                >
-                  <span
-                    className="size-3 shrink-0 rounded-full border"
-                    style={{
-                      backgroundColor: label.color ?? '#6b7280',
-                      borderColor: getReadableColor(label.color),
-                    }}
-                  />
-                  {label.name}
-                  {selected && <Check className="absolute right-2 h-4 w-4" />}
-                </Button>
-              );
-            })}
-            {filtered.length === 0 && (
-              <p className="py-2 text-center text-sm text-muted-foreground">No labels found.</p>
-            )}
-          </div>
+      <PopoverContent
+        side="bottom"
+        align="start"
+        className="w-auto min-w-[12rem] gap-0 p-0"
+        onKeyDown={handleKeyDown}
+      >
+        <div className="p-1">
+          <Input
+            ref={inputRef}
+            value={filter}
+            onChange={(e) => handleFilterChange(e.target.value)}
+            placeholder="Search labels..."
+            className="h-7 text-sm"
+            aria-label="Search labels"
+            role="combobox"
+            aria-expanded={true}
+            aria-controls="label-picker-listbox"
+            aria-activedescendant={
+              focusedIndex >= 0 ? `label-option-${filtered[focusedIndex]?.id}` : undefined
+            }
+          />
         </div>
-      )}
-    </div>
+        <div
+          ref={listRef}
+          className="max-h-48 overflow-y-auto p-1"
+          role="listbox"
+          id="label-picker-listbox"
+          aria-label="Available labels"
+        >
+          {filtered.map((label, index) => {
+            const selected = assignedIds.has(label.id);
+            const focused = index === focusedIndex;
+            return (
+              <Button
+                key={label.id}
+                id={`label-option-${label.id}`}
+                variant="ghost"
+                size="sm"
+                role="option"
+                aria-selected={selected}
+                onClick={() => toggle(label.id)}
+                className={cn(
+                  'relative w-full justify-start gap-2 pr-8',
+                  focused && 'bg-accent text-accent-foreground',
+                )}
+              >
+                <span
+                  className="size-3 shrink-0 rounded-full border"
+                  style={{
+                    backgroundColor: label.color ?? '#6b7280',
+                    borderColor: getReadableColor(label.color),
+                  }}
+                />
+                {label.name}
+                {selected && <Check className="absolute right-2 h-4 w-4" />}
+              </Button>
+            );
+          })}
+          {filtered.length === 0 && (
+            <p className="py-2 text-center text-sm text-muted-foreground">No labels found.</p>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
