@@ -792,7 +792,7 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
                     setDescription(e.target.value);
                   }}
                   rows={16}
-                  className="font-mono text-sm"
+                  className="font-mono md:text-sm"
                   placeholder="Write a description..."
                 />
               ) : (
