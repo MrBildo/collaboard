@@ -85,103 +85,105 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
   );
 
   return (
-    <Popover open={isOpen} onOpenChange={handleOpenChange}>
-      <PopoverTrigger
-        render={
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-auto min-h-8 gap-1.5 px-2.5 py-1"
-            aria-haspopup="listbox"
-          />
-        }
-      >
-        <Tag className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
-        {assignedLabels.length > 0 ? (
-          <span className="flex flex-wrap gap-1">
-            {assignedLabels.map((label) => (
-              <Badge
-                key={label.id}
-                variant="secondary"
-                className="rounded-sm px-1.5 py-0 text-xs leading-4"
-                style={{
-                  backgroundColor: label.color ?? '#6b7280',
-                  color: getContrastColor(label.color),
-                  borderColor: label.color ?? '#6b7280',
-                }}
-              >
-                {label.name}
-              </Badge>
-            ))}
-          </span>
-        ) : (
-          <span className="text-muted-foreground">Labels</span>
-        )}
-      </PopoverTrigger>
-
-      <PopoverContent
-        side="bottom"
-        align="start"
-        className="w-auto min-w-[12rem] gap-0 p-0"
-        onKeyDown={handleKeyDown}
-      >
-        <div className="p-1">
-          <Input
-            ref={inputRef}
-            value={filter}
-            onChange={(e) => handleFilterChange(e.target.value)}
-            placeholder="Search labels..."
-            className="h-7 text-sm"
-            aria-label="Search labels"
-            role="combobox"
-            aria-expanded={true}
-            aria-controls="label-picker-listbox"
-            aria-activedescendant={
-              focusedIndex >= 0 ? `label-option-${filtered[focusedIndex]?.id}` : undefined
-            }
-          />
-        </div>
-        <div
-          ref={listRef}
-          className="max-h-48 overflow-y-auto p-1"
-          role="listbox"
-          id="label-picker-listbox"
-          aria-label="Available labels"
+    <div className="w-fit">
+      <Popover open={isOpen} onOpenChange={handleOpenChange}>
+        <PopoverTrigger
+          render={
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-auto min-h-8 gap-1.5 px-2.5 py-1"
+              aria-haspopup="listbox"
+            />
+          }
         >
-          {filtered.map((label, index) => {
-            const selected = assignedIds.has(label.id);
-            const focused = index === focusedIndex;
-            return (
-              <Button
-                key={label.id}
-                id={`label-option-${label.id}`}
-                variant="ghost"
-                size="sm"
-                role="option"
-                aria-selected={selected}
-                onClick={() => toggle(label.id)}
-                className={cn(
-                  'relative w-full justify-start gap-2 pr-8',
-                  focused && 'bg-accent text-accent-foreground',
-                )}
-              >
-                <span
-                  className="size-3 shrink-0 rounded-full border"
+          <Tag className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+          {assignedLabels.length > 0 ? (
+            <span className="flex flex-wrap gap-1">
+              {assignedLabels.map((label) => (
+                <Badge
+                  key={label.id}
+                  variant="secondary"
+                  className="rounded-sm px-1.5 py-0 text-xs leading-4"
                   style={{
                     backgroundColor: label.color ?? '#6b7280',
-                    borderColor: getReadableColor(label.color),
+                    color: getContrastColor(label.color),
+                    borderColor: label.color ?? '#6b7280',
                   }}
-                />
-                {label.name}
-                {selected && <Check className="absolute right-2 h-4 w-4" />}
-              </Button>
-            );
-          })}
-          {filtered.length === 0 && (
-            <p className="py-2 text-center text-sm text-muted-foreground">No labels found.</p>
+                >
+                  {label.name}
+                </Badge>
+              ))}
+            </span>
+          ) : (
+            <span className="text-muted-foreground">Labels</span>
           )}
-        </div>
-      </PopoverContent>
-    </Popover>
+        </PopoverTrigger>
+
+        <PopoverContent
+          side="bottom"
+          align="start"
+          className="w-auto min-w-[12rem] gap-0 p-0"
+          onKeyDown={handleKeyDown}
+        >
+          <div className="p-1">
+            <Input
+              ref={inputRef}
+              value={filter}
+              onChange={(e) => handleFilterChange(e.target.value)}
+              placeholder="Search labels..."
+              className="h-7 text-sm"
+              aria-label="Search labels"
+              role="combobox"
+              aria-expanded={true}
+              aria-controls="label-picker-listbox"
+              aria-activedescendant={
+                focusedIndex >= 0 ? `label-option-${filtered[focusedIndex]?.id}` : undefined
+              }
+            />
+          </div>
+          <div
+            ref={listRef}
+            className="max-h-48 overflow-y-auto p-1"
+            role="listbox"
+            id="label-picker-listbox"
+            aria-label="Available labels"
+          >
+            {filtered.map((label, index) => {
+              const selected = assignedIds.has(label.id);
+              const focused = index === focusedIndex;
+              return (
+                <Button
+                  key={label.id}
+                  id={`label-option-${label.id}`}
+                  variant="ghost"
+                  size="sm"
+                  role="option"
+                  aria-selected={selected}
+                  onClick={() => toggle(label.id)}
+                  className={cn(
+                    'relative w-full justify-start gap-2 pr-8',
+                    focused && 'bg-accent text-accent-foreground',
+                  )}
+                >
+                  <span
+                    className="size-3 shrink-0 rounded-full border"
+                    style={{
+                      backgroundColor: label.color ?? '#6b7280',
+                      borderColor: getReadableColor(label.color),
+                    }}
+                  />
+                  {label.name}
+                  {selected && <Check className="absolute right-2 h-4 w-4" />}
+                </Button>
+              );
+            })}
+            {filtered.length === 0 && (
+              <p className="py-2 text-center text-sm text-muted-foreground">No labels found.</p>
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
   );
 }
