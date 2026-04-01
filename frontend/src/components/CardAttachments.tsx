@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
+import { AttachmentRow } from '@/components/AttachmentRow';
 import { AttachmentDropZone } from '@/components/AttachmentDropZone';
 import { api, deleteAttachment, fetchCardAttachments, uploadAttachment } from '@/lib/api';
 import { queryKeys } from '@/lib/query-keys';
@@ -116,35 +117,35 @@ export function CardAttachments({
         )}
 
         {attachments.map((attachment) => (
-          <div
+          <AttachmentRow
             key={attachment.id}
-            className="flex items-center justify-between rounded-lg border bg-muted/30 p-3"
-          >
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{attachment.fileName}</p>
-              <p className="text-xs text-muted-foreground">
+            fileName={attachment.fileName}
+            metadata={
+              <>
                 {getUserName(attachment.addedByUserId)} &middot;{' '}
                 {formatDateTime(attachment.addedAtUtc)}
-              </p>
-            </div>
-            <div className="ml-2 flex shrink-0 gap-1">
-              <Button size="xs" variant="outline" onClick={() => handleDownload(attachment)}>
-                Download
-              </Button>
-              {!readOnly &&
-                (currentUserRole === ROLES.Administrator ||
-                  attachment.addedByUserId === currentUserId) && (
-                  <Button
-                    size="xs"
-                    variant="destructive"
-                    onClick={() => handleDelete(attachment.id)}
-                    disabled={deleteMutation.isPending}
-                  >
-                    {confirmDeleteId === attachment.id ? 'Confirm' : 'Delete'}
-                  </Button>
-                )}
-            </div>
-          </div>
+              </>
+            }
+            actions={
+              <>
+                <Button size="xs" variant="outline" onClick={() => handleDownload(attachment)}>
+                  Download
+                </Button>
+                {!readOnly &&
+                  (currentUserRole === ROLES.Administrator ||
+                    attachment.addedByUserId === currentUserId) && (
+                    <Button
+                      size="xs"
+                      variant="destructive"
+                      onClick={() => handleDelete(attachment.id)}
+                      disabled={deleteMutation.isPending}
+                    >
+                      {confirmDeleteId === attachment.id ? 'Confirm' : 'Delete'}
+                    </Button>
+                  )}
+              </>
+            }
+          />
         ))}
 
         {!readOnly && (

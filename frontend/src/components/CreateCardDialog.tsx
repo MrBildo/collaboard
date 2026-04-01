@@ -33,7 +33,8 @@ import { AttachmentDropZone } from '@/components/AttachmentDropZone';
 import { usePasteAttachment } from '@/hooks/use-paste-attachment';
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
-import { cn, formatFileSize } from '@/lib/utils';
+import { AttachmentRow } from '@/components/AttachmentRow';
+import { formatFileSize } from '@/lib/utils';
 import { AlertCircle, Check, Loader2, Paperclip, Upload, X } from 'lucide-react';
 import type { BoardData, CardSize, Lane } from '@/types';
 
@@ -474,51 +475,44 @@ export function CreateCardDialog({
                 {pendingFiles.length > 0 && (
                   <div className="flex flex-col gap-2">
                     {pendingFiles.map((pf) => (
-                      <div
+                      <AttachmentRow
                         key={pf.id}
-                        className={cn(
-                          'flex items-center justify-between rounded-lg border p-3',
-                          pf.status === 'error'
-                            ? 'border-destructive/30 bg-destructive/5'
-                            : 'bg-muted/30',
-                        )}
-                      >
-                        <div className="flex min-w-0 flex-1 items-center gap-2">
-                          {pf.status === 'uploading' && (
+                        fileName={pf.file.name}
+                        variant={pf.status === 'error' ? 'error' : 'default'}
+                        icon={
+                          pf.status === 'uploading' ? (
                             <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
-                          )}
-                          {pf.status === 'done' && (
+                          ) : pf.status === 'done' ? (
                             <Check className="h-4 w-4 shrink-0 text-primary" />
-                          )}
-                          {pf.status === 'error' && (
+                          ) : pf.status === 'error' ? (
                             <AlertCircle className="h-4 w-4 shrink-0 text-destructive" />
-                          )}
-                          {pf.status === 'pending' && (
+                          ) : (
                             <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium">{pf.file.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {formatFileSize(pf.file.size)}
-                              {pf.error && (
-                                <span className="ml-1 text-destructive"> — {pf.error}</span>
-                              )}
-                            </p>
-                          </div>
-                        </div>
-                        {pf.status !== 'uploading' && pf.status !== 'done' && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            className="ml-2 shrink-0"
-                            onClick={() => removeFile(pf.id)}
-                            disabled={isCreating && pf.status !== 'error'}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
+                          )
+                        }
+                        metadata={
+                          <>
+                            {formatFileSize(pf.file.size)}
+                            {pf.error && (
+                              <span className="ml-1 text-destructive"> — {pf.error}</span>
+                            )}
+                          </>
+                        }
+                        actions={
+                          pf.status !== 'uploading' && pf.status !== 'done' ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              className="ml-2 shrink-0"
+                              onClick={() => removeFile(pf.id)}
+                              disabled={isCreating && pf.status !== 'error'}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          ) : undefined
+                        }
+                      />
                     ))}
                   </div>
                 )}
