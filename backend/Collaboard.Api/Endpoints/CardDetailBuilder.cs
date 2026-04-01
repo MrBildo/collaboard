@@ -34,7 +34,7 @@ internal static class CardDetailBuilder
 
         var attachments = await db.Attachments
             .Where(a => a.CardId == card.Id)
-            .Select(a => new CardDetailAttachment(a.Id, a.FileName, a.ContentType, a.AddedByUserId, a.AddedAtUtc))
+            .Select(a => new CardDetailAttachment(a.Id, a.FileName, a.ContentType, (long)a.Payload.Length, a.AddedByUserId, a.AddedAtUtc))
             .ToListAsync(ct);
 
         var sizeName = await db.CardSizes
@@ -70,6 +70,7 @@ internal record CardDetailAttachment(
     Guid Id,
     string FileName,
     string ContentType,
+    long FileSize,
     Guid AddedByUserId,
     DateTimeOffset AddedAtUtc);
 

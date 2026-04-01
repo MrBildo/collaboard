@@ -158,6 +158,7 @@ function LiveAttachments({ cardId, currentUserId, currentUserRole, readOnly }: L
             fileName={attachment.fileName}
             metadata={
               <>
+                {formatFileSize(attachment.fileSize)} &middot;{' '}
                 {getUserName(attachment.addedByUserId)} &middot;{' '}
                 {formatDateTime(attachment.addedAtUtc)}
               </>

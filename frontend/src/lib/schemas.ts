@@ -63,6 +63,7 @@ export const attachmentMetaSchema = z.object({
   id: z.string(),
   fileName: z.string(),
   contentType: z.string(),
+  fileSize: z.number(),
   addedByUserId: z.string(),
   addedAtUtc: z.string(),
 });
