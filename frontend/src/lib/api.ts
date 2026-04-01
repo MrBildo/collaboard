@@ -37,6 +37,8 @@ import {
   cardItemSchema,
   cardSizeSchema,
   cardSummarySchema,
+  createTempCardResponseSchema,
+  finalizeCardResponseSchema,
   labelSchema,
   laneSchema,
   pagedCardSummarySchema,
@@ -158,6 +160,30 @@ export async function reorderCard(
 ): Promise<{ lanes: Lane[]; cards: CardItem[] }> {
   const { data } = await api.post(`/cards/${id}/reorder`, { laneId, index });
   return reorderResponseSchema.parse(data);
+}
+
+// Temp cards (create-with-attachments flow)
+export async function createTempCard(
+  boardId: string,
+  data: {
+    laneId: string;
+    name: string;
+    descriptionMarkdown?: string;
+    sizeId?: string;
+    labelIds?: string[];
+  },
+) {
+  const res = await api.post(`/boards/${boardId}/cards/temp`, data);
+  return createTempCardResponseSchema.parse(res.data);
+}
+
+export async function finalizeCard(cardId: string) {
+  const res = await api.post(`/cards/${cardId}/finalize`);
+  return finalizeCardResponseSchema.parse(res.data);
+}
+
+export async function cancelTempCard(cardId: string) {
+  await api.post(`/cards/${cardId}/cancel`);
 }
 
 // Labels (board-scoped)

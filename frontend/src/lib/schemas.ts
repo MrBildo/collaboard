@@ -154,3 +154,12 @@ export const searchResultSchema = z.object({
   boardSlug: z.string(),
   cards: z.array(cardSummarySchema),
 });
+
+export const createTempCardResponseSchema = z.object({
+  id: z.string(),
+});
+
+export const finalizeCardResponseSchema = z.object({
+  id: z.string(),
+  number: z.number(),
+});

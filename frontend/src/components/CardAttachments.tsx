@@ -1,6 +1,7 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
+import { AttachmentDropZone } from '@/components/AttachmentDropZone';
 import { api, deleteAttachment, fetchCardAttachments, uploadAttachment } from '@/lib/api';
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
@@ -25,8 +26,6 @@ export function CardAttachments({
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const dragCounter = useRef(0);
 
   const { getUserName } = useUserDirectory();
 
@@ -60,34 +59,11 @@ export function CardAttachments({
     },
   });
 
-  const handleDragEnter = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    dragCounter.current++;
-    if (e.dataTransfer.types.includes('Files')) setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    dragCounter.current--;
-    if (dragCounter.current === 0) setIsDragging(false);
-  }, []);
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-  }, []);
-
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      dragCounter.current = 0;
-      setIsDragging(false);
-      const files = Array.from(e.dataTransfer.files);
-      for (const file of files) {
-        uploadMutation.mutate(file);
-      }
-    },
-    [uploadMutation],
-  );
+  const handleFilesDropped = (files: File[]) => {
+    for (const file of files) {
+      uploadMutation.mutate(file);
+    }
+  };
 
   const handleUpload = () => {
     fileInputRef.current?.click();
@@ -129,67 +105,57 @@ export function CardAttachments({
   );
 
   return (
-    <div
-      className="flex flex-col gap-4"
-      onDragEnter={readOnly ? undefined : handleDragEnter}
-      onDragLeave={readOnly ? undefined : handleDragLeave}
-      onDragOver={readOnly ? undefined : handleDragOver}
-      onDrop={readOnly ? undefined : handleDrop}
-    >
-      {isDragging && (
-        <div className="flex items-center justify-center rounded-lg border-2 border-dashed border-primary bg-primary/10 py-6 text-sm text-primary">
-          Drop files to upload
-        </div>
-      )}
+    <AttachmentDropZone onFiles={handleFilesDropped} disabled={readOnly}>
+      <div className="flex flex-col gap-4">
+        {attachmentsQuery.isLoading && (
+          <p className="text-sm text-muted-foreground">Loading attachments...</p>
+        )}
 
-      {attachmentsQuery.isLoading && (
-        <p className="text-sm text-muted-foreground">Loading attachments...</p>
-      )}
+        {attachments.length === 0 && !attachmentsQuery.isLoading && (
+          <p className="text-sm text-muted-foreground">No attachments yet.</p>
+        )}
 
-      {attachments.length === 0 && !attachmentsQuery.isLoading && (
-        <p className="text-sm text-muted-foreground">No attachments yet.</p>
-      )}
-
-      {attachments.map((attachment) => (
-        <div
-          key={attachment.id}
-          className="flex items-center justify-between rounded-lg border bg-muted/30 p-3"
-        >
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{attachment.fileName}</p>
-            <p className="text-xs text-muted-foreground">
-              {getUserName(attachment.addedByUserId)} &middot;{' '}
-              {formatDateTime(attachment.addedAtUtc)}
-            </p>
+        {attachments.map((attachment) => (
+          <div
+            key={attachment.id}
+            className="flex items-center justify-between rounded-lg border bg-muted/30 p-3"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium">{attachment.fileName}</p>
+              <p className="text-xs text-muted-foreground">
+                {getUserName(attachment.addedByUserId)} &middot;{' '}
+                {formatDateTime(attachment.addedAtUtc)}
+              </p>
+            </div>
+            <div className="ml-2 flex shrink-0 gap-1">
+              <Button size="xs" variant="outline" onClick={() => handleDownload(attachment)}>
+                Download
+              </Button>
+              {!readOnly &&
+                (currentUserRole === ROLES.Administrator ||
+                  attachment.addedByUserId === currentUserId) && (
+                  <Button
+                    size="xs"
+                    variant="destructive"
+                    onClick={() => handleDelete(attachment.id)}
+                    disabled={deleteMutation.isPending}
+                  >
+                    {confirmDeleteId === attachment.id ? 'Confirm' : 'Delete'}
+                  </Button>
+                )}
+            </div>
           </div>
-          <div className="ml-2 flex shrink-0 gap-1">
-            <Button size="xs" variant="outline" onClick={() => handleDownload(attachment)}>
-              Download
+        ))}
+
+        {!readOnly && (
+          <div className="border-t pt-4">
+            <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
+            <Button variant="outline" onClick={handleUpload} disabled={uploadMutation.isPending}>
+              {uploadMutation.isPending ? 'Uploading...' : 'Upload Attachment'}
             </Button>
-            {!readOnly &&
-              (currentUserRole === ROLES.Administrator ||
-                attachment.addedByUserId === currentUserId) && (
-                <Button
-                  size="xs"
-                  variant="destructive"
-                  onClick={() => handleDelete(attachment.id)}
-                  disabled={deleteMutation.isPending}
-                >
-                  {confirmDeleteId === attachment.id ? 'Confirm' : 'Delete'}
-                </Button>
-              )}
           </div>
-        </div>
-      ))}
-
-      {!readOnly && (
-        <div className="border-t pt-4">
-          <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
-          <Button variant="outline" onClick={handleUpload} disabled={uploadMutation.isPending}>
-            {uploadMutation.isPending ? 'Uploading...' : 'Upload Attachment'}
-          </Button>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </AttachmentDropZone>
   );
 }
