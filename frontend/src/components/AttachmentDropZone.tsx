@@ -57,7 +57,7 @@ export function AttachmentDropZone({
 
   return (
     <div
-      className={cn('relative', className)}
+      className={cn('relative flex min-h-0 flex-1 flex-col', className)}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
