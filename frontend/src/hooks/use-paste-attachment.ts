@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from 'react';
-import { isTextInputFocused, buildPasteFileName } from '@/lib/utils';
+import { buildPasteFileName } from '@/lib/utils';
 
 type UsePasteAttachmentOptions = {
   onFile: (file: File) => void;
@@ -11,7 +11,6 @@ export function usePasteAttachment({ onFile, enabled, containerRef }: UsePasteAt
   const handlePaste = useCallback(
     (e: ClipboardEvent) => {
       if (!enabled) return;
-      if (isTextInputFocused()) return;
 
       const items = e.clipboardData?.items;
       if (!items) return;
