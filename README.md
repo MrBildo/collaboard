@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/collaboard-logo.png" alt="Collaboard" width="400">
+  <img src="docs/collaboard-logo.svg" alt="Collaboard" width="400">
 </p>
 
 <p align="center">
