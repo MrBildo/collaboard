@@ -61,6 +61,7 @@ public class CardItem
     public DateTimeOffset CreatedAtUtc { get; set; }
     public Guid LastUpdatedByUserId { get; set; }
     public DateTimeOffset LastUpdatedAtUtc { get; set; }
+    public bool IsTemp { get; set; }
 }
 
 public class CardComment

@@ -1,6 +1,7 @@
 using Collaboard.Api.Auth;
 using Collaboard.Api.Events;
 using Collaboard.Api.Models;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace Collaboard.Api.Endpoints;
@@ -17,7 +18,7 @@ internal static class CardEndpoints
                 return Results.NotFound();
             }
 
-            var query = db.Cards.Where(x => x.BoardId == boardId);
+            var query = db.Cards.Where(x => x.BoardId == boardId && !x.IsTemp);
 
             if (includeArchived is not true)
             {
@@ -189,6 +190,11 @@ internal static class CardEndpoints
                 return Results.BadRequest("Archived cards cannot be modified. Restore the card first.");
             }
 
+            if (card.IsTemp)
+            {
+                return Results.BadRequest("Temp cards cannot be modified via this endpoint.");
+            }
+
             if (request.Name is not null)
             {
                 if (string.IsNullOrWhiteSpace(request.Name))
@@ -289,6 +295,11 @@ internal static class CardEndpoints
                 return Results.BadRequest("Archived cards cannot be modified. Restore the card first.");
             }
 
+            if (await TempGuard.IsCardTempAsync(db, id))
+            {
+                return Results.BadRequest("Temp cards cannot be reordered.");
+            }
+
             if (request.LaneId is null)
             {
                 return Results.BadRequest("laneId is required.");
@@ -369,6 +380,11 @@ internal static class CardEndpoints
                 return Results.NotFound();
             }
 
+            if (card.IsTemp)
+            {
+                return Results.BadRequest("Temp cards cannot be archived.");
+            }
+
             var currentLane = await db.Lanes.FindAsync(card.LaneId);
             if (currentLane is not null && currentLane.IsArchiveLane)
             {
@@ -429,6 +445,174 @@ internal static class CardEndpoints
 
             await db.SaveChangesAsync();
             broadcaster.PublishBoardUpdated(card.BoardId);
+
+            return Results.NoContent();
+        }).RequireAuth();
+
+        // Temp card lifecycle endpoints
+        group.MapPost("/boards/{boardId:guid}/cards/temp", async (BoardDbContext db, HttpContext http, Guid boardId, CreateCardRequest request) =>
+        {
+            if (!await db.Boards.AnyAsync(x => x.Id == boardId))
+            {
+                return Results.NotFound();
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                return Results.BadRequest("Name is required.");
+            }
+
+            var requestDescription = request.DescriptionMarkdown ?? "";
+
+            var targetLane = await db.Lanes.FirstOrDefaultAsync(x => x.Id == request.LaneId && x.BoardId == boardId);
+            if (targetLane is null)
+            {
+                return Results.BadRequest("Lane does not belong to this board.");
+            }
+
+            if (targetLane.IsArchiveLane)
+            {
+                return Results.BadRequest("Cards cannot be created in the archive lane.");
+            }
+
+            Guid sizeId;
+            if (request.SizeId is not null)
+            {
+                sizeId = request.SizeId.Value;
+                if (!await db.CardSizes.AnyAsync(s => s.Id == sizeId && s.BoardId == boardId))
+                {
+                    return Results.BadRequest("Size does not belong to this board.");
+                }
+            }
+            else
+            {
+                var defaultSize = await db.CardSizes
+                    .Where(s => s.BoardId == boardId)
+                    .OrderBy(s => s.Ordinal)
+                    .FirstOrDefaultAsync();
+                if (defaultSize is null)
+                {
+                    return Results.BadRequest("Board has no sizes configured.");
+                }
+
+                sizeId = defaultSize.Id;
+            }
+
+            int requestPosition;
+            if (request.Position.HasValue)
+            {
+                requestPosition = request.Position.Value;
+            }
+            else
+            {
+                var maxPosition = await db.Cards.Where(c => c.LaneId == request.LaneId).MaxAsync(c => (int?)c.Position) ?? -10;
+                requestPosition = maxPosition + 10;
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            var currentUser = http.CurrentUser();
+            var card = new CardItem
+            {
+                Id = Guid.NewGuid(),
+                BoardId = boardId,
+                Name = request.Name,
+                DescriptionMarkdown = requestDescription,
+                SizeId = sizeId,
+                LaneId = request.LaneId,
+                Position = requestPosition,
+                Number = 0,
+                IsTemp = true,
+                CreatedAtUtc = now,
+                LastUpdatedAtUtc = now,
+                CreatedByUserId = currentUser.Id,
+                LastUpdatedByUserId = currentUser.Id,
+            };
+
+            if (request.LabelIds is not null && request.LabelIds.Length > 0)
+            {
+                var validCount = await db.Labels.CountAsync(l => request.LabelIds.Contains(l.Id) && l.BoardId == boardId);
+                if (validCount != request.LabelIds.Length)
+                {
+                    return Results.BadRequest("One or more labels do not belong to this board.");
+                }
+
+                foreach (var labelId in request.LabelIds)
+                {
+                    db.CardLabels.Add(new CardLabel { CardId = card.Id, LabelId = labelId });
+                }
+            }
+
+            db.Cards.Add(card);
+            await db.SaveChangesAsync();
+
+            return Results.Created($"/api/v1/cards/{card.Id}", new { card.Id });
+        }).RequireAuth();
+
+        group.MapPost("/cards/{id:guid}/finalize", async (BoardDbContext db, HttpContext http, Guid id, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
+        {
+            var card = await db.Cards.FindAsync(id);
+            if (card is null)
+            {
+                return Results.NotFound();
+            }
+
+            if (!card.IsTemp)
+            {
+                return Results.BadRequest("Card is not a temp card.");
+            }
+
+            if (http.CurrentUser().Id != card.CreatedByUserId)
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            const int maxRetries = 3;
+            for (var attempt = 0; attempt < maxRetries; attempt++)
+            {
+                card.Number = (await db.Cards
+                    .Where(c => c.BoardId == card.BoardId && c.Number > 0)
+                    .MaxAsync(c => (long?)c.Number, ct) ?? 0) + 1;
+                card.IsTemp = false;
+                card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
+                card.LastUpdatedByUserId = http.CurrentUser().Id;
+                try
+                {
+                    await db.SaveChangesAsync(ct);
+                    broadcaster.PublishBoardUpdated(card.BoardId);
+                    return Results.Ok(new { card.Id, card.Number });
+                }
+                catch (DbUpdateException ex)
+                    when (attempt < maxRetries - 1
+                          && ex.InnerException is SqliteException { SqliteErrorCode: 19 })
+                {
+                    await db.Entry(card).ReloadAsync(ct);
+                    card.IsTemp = true;
+                }
+            }
+
+            return Results.StatusCode(500);
+        }).RequireAuth();
+
+        group.MapPost("/cards/{id:guid}/cancel", async (BoardDbContext db, HttpContext http, Guid id) =>
+        {
+            var card = await db.Cards.FindAsync(id);
+            if (card is null)
+            {
+                return Results.NotFound();
+            }
+
+            if (!card.IsTemp)
+            {
+                return Results.BadRequest("Card is not a temp card.");
+            }
+
+            if (http.CurrentUser().Id != card.CreatedByUserId)
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            db.Cards.Remove(card);
+            await db.SaveChangesAsync();
 
             return Results.NoContent();
         }).RequireAuth();

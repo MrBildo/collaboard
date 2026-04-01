@@ -279,7 +279,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             return "Error: Board not found.";
         }
 
-        var query = db.Cards.Where(c => c.BoardId == boardId);
+        var query = db.Cards.Where(c => c.BoardId == boardId && !c.IsTemp);
 
         if (includeArchived is not true)
         {

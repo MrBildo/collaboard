@@ -16,7 +16,7 @@ internal static class CardNumberHelper
         for (var attempt = 0; attempt < maxRetries; attempt++)
         {
             card.Number = (await db.Cards
-                .Where(c => c.BoardId == boardId)
+                .Where(c => c.BoardId == boardId && c.Number > 0)
                 .MaxAsync(c => (long?)c.Number, ct) ?? 0) + 1;
 
             db.Cards.Add(card);

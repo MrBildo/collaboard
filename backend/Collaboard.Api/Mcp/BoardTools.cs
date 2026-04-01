@@ -39,7 +39,7 @@ public sealed class BoardTools(BoardDbContext db, McpAuthService auth)
         }
 
         var cardCounts = await db.Cards
-            .Where(c => c.BoardId == boardId)
+            .Where(c => c.BoardId == boardId && !c.IsTemp)
             .GroupBy(c => c.LaneId)
             .Select(g => new { LaneId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.LaneId, x => x.Count, ct);
