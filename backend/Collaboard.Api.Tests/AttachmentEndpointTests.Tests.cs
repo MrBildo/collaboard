@@ -72,6 +72,8 @@ public class AttachmentEndpointTests(CollaboardApiFactory factory) : IClassFixtu
         first.TryGetProperty("id", out _).ShouldBeTrue();
         first.TryGetProperty("fileName", out _).ShouldBeTrue();
         first.TryGetProperty("contentType", out _).ShouldBeTrue();
+        first.TryGetProperty("fileSize", out var fileSizeProp).ShouldBeTrue();
+        fileSizeProp.GetInt64().ShouldBe(4);
         first.TryGetProperty("addedByUserId", out _).ShouldBeTrue();
         first.TryGetProperty("addedAtUtc", out _).ShouldBeTrue();
         first.TryGetProperty("payload", out _).ShouldBeFalse();

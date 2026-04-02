@@ -59,6 +59,14 @@ export function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('en-US', DATE_FORMAT);
 }
 
+export function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  const units = ['B', 'KB', 'MB'];
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  const value = bytes / Math.pow(1024, i);
+  return `${value.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+}
+
 export function getReadableColor(hex: string | null | undefined): string {
   if (!hex) return '#6b7280';
   const { r, g, b, luminance } = parseLuminance(hex);

@@ -63,6 +63,7 @@ export const attachmentMetaSchema = z.object({
   id: z.string(),
   fileName: z.string(),
   contentType: z.string(),
+  fileSize: z.number(),
   addedByUserId: z.string(),
   addedAtUtc: z.string(),
 });
@@ -153,4 +154,13 @@ export const searchResultSchema = z.object({
   boardName: z.string(),
   boardSlug: z.string(),
   cards: z.array(cardSummarySchema),
+});
+
+export const createTempCardResponseSchema = z.object({
+  id: z.string(),
+});
+
+export const finalizeCardResponseSchema = z.object({
+  id: z.string(),
+  number: z.number(),
 });

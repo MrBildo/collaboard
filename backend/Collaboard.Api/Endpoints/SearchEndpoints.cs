@@ -29,7 +29,7 @@ internal static class SearchEndpoints
                 .Select(l => l.Id)
                 .ToList();
 
-            var query = db.Cards.AsQueryable();
+            var query = db.Cards.Where(c => !c.IsTemp);
             query = SearchHelper.ApplySearchFilter(query, q);
 
             // Exclude archived cards (except those from archiveBoardId)

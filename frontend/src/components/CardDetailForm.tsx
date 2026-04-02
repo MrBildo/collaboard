@@ -34,13 +34,8 @@ import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { useUserDirectory } from '@/hooks/use-user-directory';
 import { useArchiveCard } from '@/hooks/use-archive-card';
 import { useRestoreCard } from '@/hooks/use-restore-card';
-import {
-  cn,
-  isTextInputFocused,
-  buildPasteFileName,
-  arraysEqual,
-  formatDateTime,
-} from '@/lib/utils';
+import { usePasteAttachment } from '@/hooks/use-paste-attachment';
+import { cn, arraysEqual, formatDateTime } from '@/lib/utils';
 import {
   Archive,
   ArchiveRestore,
@@ -197,38 +192,30 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
       },
     });
 
-    const handlePaste = useCallback(
-      (e: ClipboardEvent) => {
-        if (isArchived) return;
-        if (isTextInputFocused()) return;
-
-        const items = e.clipboardData?.items;
-        if (!items) return;
-
-        for (const item of Array.from(items)) {
-          if (item.kind === 'file' && item.type.startsWith('image/')) {
-            const blob = item.getAsFile();
-            if (!blob) continue;
-
-            e.preventDefault();
-            const file = new File([blob], buildPasteFileName(blob.type), { type: blob.type });
-            pasteMutation.mutate(file);
-            return;
-          }
-        }
+    const handlePasteFile = useCallback(
+      (file: File) => {
+        pasteMutation.mutate(file);
       },
-      [isArchived, pasteMutation],
+      [pasteMutation],
     );
+
+    usePasteAttachment({
+      onFile: handlePasteFile,
+      enabled: !isArchived,
+      containerRef: dialogRef,
+    });
 
     useEffect(() => {
       const el = dialogRef.current;
       if (!el) return;
-      el.addEventListener('paste', handlePaste);
-      if (!isTextInputFocused()) {
+      if (
+        !el.contains(document.activeElement) ||
+        (document.activeElement?.tagName !== 'INPUT' &&
+          document.activeElement?.tagName !== 'TEXTAREA')
+      ) {
         el.focus({ preventScroll: true });
       }
-      return () => el.removeEventListener('paste', handlePaste);
-    }, [handlePaste]);
+    }, []);
 
     const canDelete =
       currentUserRole === ROLES.Administrator ||
@@ -816,6 +803,7 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
             <div>
               <Label className="mb-2 text-xs text-muted-foreground">Attachments</Label>
               <CardAttachments
+                mode="live"
                 cardId={card.id}
                 currentUserId={currentUserId}
                 currentUserRole={currentUserRole}

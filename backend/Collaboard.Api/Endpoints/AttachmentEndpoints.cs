@@ -19,7 +19,7 @@ internal static class AttachmentEndpoints
 
             var attachments = await db.Attachments
                 .Where(x => x.CardId == id)
-                .Select(x => new { x.Id, x.FileName, x.ContentType, x.AddedByUserId, x.AddedAtUtc })
+                .Select(x => new { x.Id, x.FileName, x.ContentType, FileSize = (long)x.Payload.Length, x.AddedByUserId, x.AddedAtUtc })
                 .ToListAsync();
             return Results.Ok(attachments);
         }).RequireAuth();

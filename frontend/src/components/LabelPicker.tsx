@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useClickOutside } from '@/hooks/use-click-outside';
 import { Check, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn, getContrastColor, getReadableColor } from '@/lib/utils';
 import type { Label } from '@/types';
 
@@ -18,7 +18,6 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
   const [isOpen, setIsOpen] = useState(false);
   const [filter, setFilter] = useState('');
   const [focusedIndex, setFocusedIndex] = useState(-1);
-  const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -57,13 +56,13 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
     }
   }, [focusedIndex]);
 
-  const handleOpen = () => {
-    if (!isOpen) {
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open);
+    if (open) {
       setFilter('');
       setFocusedIndex(-1);
       setTimeout(() => inputRef.current?.focus(), 0);
     }
-    setIsOpen(!isOpen);
   };
 
   const handleKeyDown = useCallback(
@@ -85,45 +84,46 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
     [filtered, focusedIndex, toggle],
   );
 
-  const handleClose = useCallback(() => setIsOpen(false), []);
-  useClickOutside(containerRef, handleClose);
-
   return (
-    <div ref={containerRef} className="relative" aria-label="Label picker">
-      <Button
-        variant="outline"
-        size="sm"
-        className="h-auto min-h-8 gap-1.5 px-2.5 py-1"
-        onClick={handleOpen}
-        aria-expanded={isOpen}
-        aria-haspopup="listbox"
-      >
-        <Tag className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
-        {assignedLabels.length > 0 ? (
-          <span className="flex flex-wrap gap-1">
-            {assignedLabels.map((label) => (
-              <Badge
-                key={label.id}
-                variant="secondary"
-                className="rounded-sm px-1.5 py-0 text-xs leading-4"
-                style={{
-                  backgroundColor: label.color ?? '#6b7280',
-                  color: getContrastColor(label.color),
-                  borderColor: label.color ?? '#6b7280',
-                }}
-              >
-                {label.name}
-              </Badge>
-            ))}
-          </span>
-        ) : (
-          <span className="text-muted-foreground">Labels</span>
-        )}
-      </Button>
+    <div className="w-fit">
+      <Popover open={isOpen} onOpenChange={handleOpenChange}>
+        <PopoverTrigger
+          render={
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-auto min-h-8 gap-1.5 px-2.5 py-1"
+              aria-haspopup="listbox"
+            />
+          }
+        >
+          <Tag className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+          {assignedLabels.length > 0 ? (
+            <span className="flex flex-wrap gap-1">
+              {assignedLabels.map((label) => (
+                <Badge
+                  key={label.id}
+                  variant="secondary"
+                  className="rounded-sm px-1.5 py-0 text-xs leading-4"
+                  style={{
+                    backgroundColor: label.color ?? '#6b7280',
+                    color: getContrastColor(label.color),
+                    borderColor: label.color ?? '#6b7280',
+                  }}
+                >
+                  {label.name}
+                </Badge>
+              ))}
+            </span>
+          ) : (
+            <span className="text-muted-foreground">Labels</span>
+          )}
+        </PopoverTrigger>
 
-      {isOpen && (
-        <div
-          className="absolute top-full left-0 z-50 mt-1 min-w-[12rem] overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-md"
+        <PopoverContent
+          side="bottom"
+          align="start"
+          className="w-auto min-w-[12rem] gap-0 p-0"
           onKeyDown={handleKeyDown}
         >
           <div className="p-1">
@@ -182,8 +182,8 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
               <p className="py-2 text-center text-sm text-muted-foreground">No labels found.</p>
             )}
           </div>
-        </div>
-      )}
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }

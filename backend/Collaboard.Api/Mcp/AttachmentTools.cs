@@ -33,6 +33,7 @@ public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, Boar
                 attachment.Id,
                 attachment.FileName,
                 attachment.ContentType,
+                FileSize = (long)attachment.Payload.Length,
                 Base64Content = Convert.ToBase64String(attachment.Payload),
             }, JsonSerializerOptions.Web);
     }
