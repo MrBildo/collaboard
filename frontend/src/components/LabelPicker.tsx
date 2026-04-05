@@ -123,7 +123,7 @@ export function LabelPicker({ allLabels, assignedLabels, onAdd, onRemove }: Labe
         <PopoverContent
           side="bottom"
           align="start"
-          className="w-auto min-w-[12rem] gap-0 p-0"
+          className="w-56 gap-0 p-0"
           onKeyDown={handleKeyDown}
         >
           <div className="p-1">
