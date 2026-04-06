@@ -1,7 +1,13 @@
 import { isValidElement, type ReactNode } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
+import rehypeExternalLinks from 'rehype-external-links';
+import rehypeHighlight from 'rehype-highlight';
+import rehypeRaw from 'rehype-raw';
+import rehypeSanitize from 'rehype-sanitize';
+import remarkEmoji from 'remark-emoji';
 import remarkGfm from 'remark-gfm';
 import { MermaidBlock } from '@/components/MermaidBlock';
+import '@/styles/highlight.css';
 
 type MarkdownRendererProps = {
   children: string;
@@ -28,7 +34,16 @@ const markdownComponents: Components = {
 
 export function MarkdownRenderer({ children }: MarkdownRendererProps) {
   return (
-    <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm, remarkEmoji]}
+      rehypePlugins={[
+        rehypeRaw,
+        rehypeSanitize,
+        [rehypeHighlight, { plainText: ['mermaid'] }],
+        [rehypeExternalLinks, { target: '_blank', rel: ['noopener', 'noreferrer'] }],
+      ]}
+      components={markdownComponents}
+    >
       {children}
     </ReactMarkdown>
   );

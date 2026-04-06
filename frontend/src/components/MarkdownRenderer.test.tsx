@@ -29,10 +29,12 @@ describe('MarkdownRenderer', () => {
     expect(screen.getByText('console.log').tagName).toBe('CODE');
   });
 
-  test('renders fenced code blocks as code elements', () => {
+  test('renders fenced code blocks with syntax highlighting', () => {
     const md = '```js\nconst x = 1;\n```';
-    render(<MarkdownRenderer>{md}</MarkdownRenderer>);
-    expect(screen.getByText('const x = 1;')).toBeInTheDocument();
+    const { container } = render(<MarkdownRenderer>{md}</MarkdownRenderer>);
+    const codeEl = container.querySelector('code.hljs');
+    expect(codeEl).not.toBeNull();
+    expect(codeEl!.textContent).toContain('const x = 1;');
   });
 
   test('renders GFM tables', () => {
@@ -79,5 +81,48 @@ describe('MarkdownRenderer', () => {
     render(<MarkdownRenderer>{md}</MarkdownRenderer>);
 
     expect(screen.getByText('Rendering diagram...')).toBeInTheDocument();
+  });
+
+  test('renders HTML ins tag as inserted text', () => {
+    render(<MarkdownRenderer>{'<ins>inserted</ins>'}</MarkdownRenderer>);
+    const el = screen.getByText('inserted');
+    expect(el.tagName).toBe('INS');
+  });
+
+  test('renders HTML del tag as deleted text', () => {
+    render(<MarkdownRenderer>{'<del>removed</del>'}</MarkdownRenderer>);
+    const el = screen.getByText('removed');
+    expect(el.tagName).toBe('DEL');
+  });
+
+  test('renders HTML sup and sub tags', () => {
+    render(<MarkdownRenderer>{'H<sub>2</sub>O is 10<sup>3</sup>'}</MarkdownRenderer>);
+    expect(screen.getByText('2').tagName).toBe('SUB');
+    expect(screen.getByText('3').tagName).toBe('SUP');
+  });
+
+  test('strips script tags for security', () => {
+    render(<MarkdownRenderer>{'<script>alert("xss")</script>safe text'}</MarkdownRenderer>);
+    expect(screen.getByText('safe text')).toBeInTheDocument();
+    expect(document.querySelector('script')).toBeNull();
+  });
+
+  test('adds syntax highlighting classes to fenced code blocks', () => {
+    const md = '```typescript\nconst x: number = 1;\n```';
+    const { container } = render(<MarkdownRenderer>{md}</MarkdownRenderer>);
+    const codeEl = container.querySelector('code.hljs');
+    expect(codeEl).not.toBeNull();
+  });
+
+  test('converts emoji shortcodes to unicode emoji', () => {
+    render(<MarkdownRenderer>{':rocket: launch'}</MarkdownRenderer>);
+    expect(screen.getByText(/\u{1F680}/u)).toBeInTheDocument();
+  });
+
+  test('adds target _blank to external links', () => {
+    render(<MarkdownRenderer>{'[example](https://example.com)'}</MarkdownRenderer>);
+    const link = screen.getByRole('link', { name: 'example' });
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
   });
 });
