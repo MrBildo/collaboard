@@ -80,4 +80,28 @@ describe('MarkdownRenderer', () => {
 
     expect(screen.getByText('Rendering diagram...')).toBeInTheDocument();
   });
+
+  test('renders HTML ins tag as inserted text', () => {
+    render(<MarkdownRenderer>{'<ins>inserted</ins>'}</MarkdownRenderer>);
+    const el = screen.getByText('inserted');
+    expect(el.tagName).toBe('INS');
+  });
+
+  test('renders HTML del tag as deleted text', () => {
+    render(<MarkdownRenderer>{'<del>removed</del>'}</MarkdownRenderer>);
+    const el = screen.getByText('removed');
+    expect(el.tagName).toBe('DEL');
+  });
+
+  test('renders HTML sup and sub tags', () => {
+    render(<MarkdownRenderer>{'H<sub>2</sub>O is 10<sup>3</sup>'}</MarkdownRenderer>);
+    expect(screen.getByText('2').tagName).toBe('SUB');
+    expect(screen.getByText('3').tagName).toBe('SUP');
+  });
+
+  test('strips script tags for security', () => {
+    render(<MarkdownRenderer>{'<script>alert("xss")</script>safe text'}</MarkdownRenderer>);
+    expect(screen.getByText('safe text')).toBeInTheDocument();
+    expect(document.querySelector('script')).toBeNull();
+  });
 });

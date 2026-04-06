@@ -1,5 +1,7 @@
 import { isValidElement, type ReactNode } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
+import rehypeSanitize from 'rehype-sanitize';
 import remarkGfm from 'remark-gfm';
 import { MermaidBlock } from '@/components/MermaidBlock';
 
@@ -28,7 +30,11 @@ const markdownComponents: Components = {
 
 export function MarkdownRenderer({ children }: MarkdownRendererProps) {
   return (
-    <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      rehypePlugins={[rehypeRaw, rehypeSanitize]}
+      components={markdownComponents}
+    >
       {children}
     </ReactMarkdown>
   );
