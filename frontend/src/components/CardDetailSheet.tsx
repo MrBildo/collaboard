@@ -12,23 +12,25 @@ import type { UnsavedChangesAction } from '@/components/UnsavedChangesDialog';
 // Snapshot navigation context so lane changes don't shift prev/next nav.
 // Uses "setState during render" pattern — React allows this when value differs.
 function useNavSnapshot(card: CardItem | null, cardsInLane: CardItem[] | undefined) {
-  const [snapshot, setSnapshot] = useState<{ cardId: string | null; cards: CardItem[] }>({
-    cardId: null,
-    cards: [],
-  });
+  const [snapshot, setSnapshot] = useState<{
+    cardId: string | null;
+    laneId: string | null;
+    cards: CardItem[];
+  }>({ cardId: null, laneId: null, cards: [] });
 
   const cardId = card?.id ?? null;
+  const laneId = card?.laneId ?? null;
   const cards = cardsInLane ?? [];
 
   // Card changed — take fresh snapshot (setState during render is OK for derived state)
   if (cardId !== snapshot.cardId) {
-    setSnapshot({ cardId, cards });
+    setSnapshot({ cardId, laneId, cards });
     return cards;
   }
 
-  // Same card, and it's still present in the lane list — update snapshot
-  if (cardId && cards.some((c) => c.id === cardId) && cards !== snapshot.cards) {
-    setSnapshot({ cardId, cards });
+  // Same card, same lane — update snapshot (handles reorders/additions within the lane)
+  if (cardId && laneId === snapshot.laneId && cards !== snapshot.cards) {
+    setSnapshot({ cardId, laneId, cards });
     return cards;
   }
 
