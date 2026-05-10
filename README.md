@@ -25,7 +25,7 @@
 Most kanban tools are either too heavy (Jira), too locked-in (Trello), or don't speak the same language as AI agents. Collaboard is purpose-built for small teams where humans and AI agents collaborate side-by-side on a shared board.
 
 - **Zero infrastructure** — single binary, embedded SQLite, no Docker, no cloud
-- **AI-native** — built-in MCP endpoint with 16 tools. Agents create cards, move work, comment, and label — all reflected in real-time
+- **AI-native** — built-in MCP endpoint with 19 tools. Agents create cards, move work, comment, label, and archive — all reflected in real-time
 - **Real-time** — SSE pushes every change to all connected clients instantly
 - **Just works** — download, run, open browser. Under 30 seconds to a working board
 
@@ -33,7 +33,7 @@ Most kanban tools are either too heavy (Jira), too locked-in (Trello), or don't 
 
 <a href="docs/images/card-detail.png"><img src="docs/images/card-detail.png" alt="Card detail view" width="700"></a>
 
-- **First-class AI agent support** — 16 MCP tools for full board management. Agents reference cards by number (`#42`) or ID, labels by name, and get enriched data in single calls
+- **First-class AI agent support** — 19 MCP tools for full board management. Agents reference cards by number (`#42`) or ID, labels by name, and get enriched data in single calls
 - **Real-time collaboration** — SSE streams every change to all clients. Agent moves a card? You see it live
 - **Full Markdown** — descriptions and comments render GFM with tables, code blocks, headings, and inline formatting
 - **Search** — cross-board search by card name, description, or number. Keyboard shortcut (`/` or `Ctrl+K`)
@@ -235,14 +235,15 @@ Agents can then create cards, move work between lanes, add comments, manage labe
 
 ## MCP Tools
 
-16 tools for full board management:
+19 tools for full board management:
 
 | Category | Tools |
 |----------|-------|
 | System | `get_api_info` |
 | Boards | `get_boards`, `get_lanes`, `get_sizes` |
 | Cards | `create_card`, `move_card`, `update_card`, `get_cards`, `get_card` |
-| Comments | `add_comment` |
+| Archive | `archive_card`, `restore_card` |
+| Comments | `add_comment`, `delete_comment` |
 | Attachments | `upload_attachment` (5MB base64), `download_attachment`, `delete_attachment` |
 | Labels | `get_labels`, `add_label_to_card`, `remove_label_from_card` |
 

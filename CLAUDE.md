@@ -2,6 +2,16 @@
 
 Kanban board web application — .NET Minimal API backend + React SPA frontend. Designed for both human users and AI agent collaboration via MCP tooling.
 
+## Repository Rules — Hard
+
+These rules are non-negotiable. They apply to every agent, every dispatch, every commit.
+
+1. **`.agents/*` and `.claude/*` are permanently gitignored. Local-only. No exceptions.** Agent workspaces, dispatch logs, specs, review artifacts, and harness state live here. **Never `git add --force` a path under `.agents/*` or `.claude/*`.** Not for "preserving review files." Not for "consistency with prior tracked files." Not for any reason. If a reviewer or planner produces an artifact (review doc, brief, spec) inside a worktree's `.agents/temp/`, copy it OUT to the main repo's `.agents/temp/` (also gitignored) before cleaning up the worktree. If you find tracked files under these paths, scrub via `git rm --cached -r .agents .claude` on a chore branch and PR to main.
+
+2. **Specs live under `.agents/specs/` and are NOT part of the published source.** Source code comments must not reference spec documents (e.g., `// per .agents/specs/multi-board.md §6.2`). Cross-reference internal design via card numbers, GitHub issues, or inline rationale — anything an external reader of the published source can resolve.
+
+3. **Persistence: project decisions live in tracked infra docs, not in auto-memory.** Auto-memory (`.claude/projects/.../memory/`) is ONLY for soft personal preferences. All project decisions, conventions, workflows, and hard rules go in `CLAUDE.md`, `COLLABOARD.md`, specs under `.agents/specs/`, or the `collaboard` skill (board protocol). If it's about how the project works, update the relevant infra doc — not memory.
+
 ## Tech Stack
 
 **Backend**
@@ -25,8 +35,8 @@ Kanban board web application — .NET Minimal API backend + React SPA frontend. 
 - Test file naming: `*.Tests.cs`
 
 **Orchestration**
-- Aspire 13.1 (AppHost + ServiceDefaults)
-- OpenTelemetry (logging, tracing, metrics via service defaults)
+- Aspire 13.3, OpenTelemetry
+- AppHost + ServiceDefaults
 - Aspire Dashboard (dev-time observability)
 
 ## Build & Run
@@ -37,15 +47,25 @@ Kanban board web application — .NET Minimal API backend + React SPA frontend. 
 - Docker Desktop (for Aspire orchestration)
 - Aspire CLI (optional): `irm https://aspire.dev/install.ps1 | iex`
 
-### Local Development (Recommended)
+### Recommended: Aspire
+
+```powershell
+aspire start
+```
+
+Starts the API, frontend Vite dev server, and Aspire dashboard with OpenTelemetry. Use `aspire describe` to check resource status. The dashboard URL is printed to the console on startup — it provides structured logs, traces, metrics, and resource management.
+
+Equivalent without the CLI:
+
 ```powershell
 dotnet run --project backend/Collaboard.AppHost
 ```
-Launches both API and frontend with the Aspire dashboard. The dashboard URL is printed to the console on startup — it provides structured logs, traces, metrics, and resource management.
 
 The API gets a dynamic port (no more hardcoded 58343). The frontend gets a dynamic port. Aspire handles service discovery between them.
 
 Optionally configure `Admin:AuthKey` in `appsettings.Development.json` in `backend/Collaboard.Api/` — otherwise a random key is generated and logged on first run.
+
+Aspire does NOT run workloads natively on Linux. Use standalone `dotnet run` for Linux testing.
 
 ### Tests
 ```powershell
@@ -150,9 +170,9 @@ All endpoints under `/api/v1/`:
 
 | Path | Notes |
 |------|-------|
-| /mcp | Streamable HTTP transport — 18 tools across SystemTools, BoardTools, CardTools, ArchiveTools, CommentTools, AttachmentTools, LabelTools |
+| /mcp | Streamable HTTP transport — 19 tools across SystemTools, BoardTools, CardTools, ArchiveTools, CommentTools, AttachmentTools, LabelTools |
 
-**Tools (18):**
+**Tools (19):**
 - **SystemTools:** `get_api_info` (returns base URL and API prefix for direct REST calls)
 - **BoardTools:** `get_boards`, `get_lanes` (boardId required, includes cardCount per lane; excludes archive lanes), `get_sizes` (boardId required, ordered by ordinal)
 - **CardTools:** `create_card` (supports labelIds, sizeId/sizeName — defaults to lowest-ordinal size; positions at top of lane; blocks archive lane), `move_card` (index optional; blocks to/from archive lane), `update_card` (supports laneId/index move, sizeId/sizeName, labelIds replace, no-op guard; blocks archived cards), `get_cards` (enriched: labels, sizeId, sizeName, commentCount, attachmentCount, isArchived; returns `{ items, totalCount, offset, limit }` paged envelope; `offset` param default 0, `limit` param default 200, max 500; `includeArchived` param default false), `get_card` (enriched: sizeName, attachments, user names, isArchived; supports cardNumber lookup)
@@ -163,102 +183,80 @@ All endpoints under `/api/v1/`:
 
 **Cross-cutting:** Card numbers are **board-scoped** (unique per board, not globally). All card-scoped tools accept `cardNumber` (long) as alternative to `cardId` (Guid), but **`cardNumber` requires `boardId` or `boardSlug`** — no fallback to global lookup. Label assignment tools accept `labelName` as alternative to `labelId`. Size tools accept `sizeName` as alternative to `sizeId`. Shared resolution via `McpCardResolver`.
 
-## .agents/ Directory Structure
+## `.agents/` Workspace (gitignored)
 
-Instance-local workspace (gitignored). See [[.agents/WORKFLOW]] for process. Run `/bootstrap` to create on fresh clone:
+Instance-local workspace. Run `/bootstrap` to create on a fresh clone. Layout:
 
 ```
 .agents/
-├── roadmap/
-│   └── INDEX.md              # Living backlog — what's next, ideas, decisions
-├── specs/
-│   └── TEMPLATE.md           # Spec template
+├── DISPATCH_LOG.md           # Project-scope dispatch log (Cora)
+├── agents/<name>/            # Per-bot workspaces (LESSONS, JOURNAL, TODO, HANDOFF, archive/)
+├── docs/                     # Internal team docs — TEAM.md, ONBOARDING.md
+├── specs/                    # Architecture specs and feature specs (TEMPLATE.md included)
+├── research/                 # Research outputs, grouped per effort
 ├── kb/                       # Knowledge bases
-├── research/                 # Research outputs
-├── temp/                     # Scratch files — cleaned between milestones
-├── archive/
-│   ├── specs/                # Completed specs
-│   ├── milestones/           # Milestone handoff docs
-│   └── postmortems/          # Retrospectives
-└── WORKFLOW.md               # Feature planning workflow
+├── temp/                     # Scratch — design discussions, review artifacts, briefs
+├── roadmap/INDEX.md          # Living backlog of ideas / decisions outside the board
+└── archive/                  # Completed specs, milestone handoffs, post-mortems (append-only)
 ```
 
-**Rules:**
-1. No loose files — everything in designated folders
-2. Specs are working set only; archive when merged to main
-3. Roadmap (`INDEX.md`) is source of truth for future work
-4. `temp/` is scratch — cleaned between milestones
-5. Wikilink-style linking: `[[path/to/file]]` (no `.md` extension)
-6. Run cleanup between milestones to enforce structure
-7. Archive is append-only — never delete archived content.
-8. Research is grouped — each effort gets its own subfolder in `research/`.
+Workspace governance lives in the `agent-workspace` skill — not in this doc. Per-bot workspaces and how they're maintained are owned by each bot.
 
-## Conventions
+## Coding Conventions
 
-### C# Style
-- File-scoped namespaces (required)
-- Primary constructors where appropriate
-- No `sealed` as blanket convention — only use when inheritance would be genuinely harmful
-- Pattern matching: `is null`, `is not null`
-- No XML doc comments — comment only complex business logic
-- `var` for all local variables where type is apparent
-- Private fields: `_camelCase` with underscore prefix
-- All other members: PascalCase
-- Interfaces: `IPascalCase` (prefix with I)
-- Guard clauses: `ArgumentNullException.ThrowIfNull()`
-- Collection expressions: `[]` instead of `new List<>()`
-- Expression-bodied members for one-liners
-- `.editorconfig` enforced — run `dotnet format` before committing
+### Skills agents must use
 
-### Endpoint Structure
-- Endpoints are organized in static classes under `backend/Collaboard.Api/Endpoints/`
-- Each resource has its own file: `BoardEndpoints.cs`, `UserEndpoints.cs`, etc.
-- Extension methods on `RouteGroupBuilder` map to `api.MapXxxEndpoints()`
-- Program.cs is a thin composition root (builder, services, middleware, endpoint registration)
+- **C# / .NET work:** invoke the `dotnet-dev` skill. Universal conventions live there.
+- **TypeScript / React work:** invoke the `typescript-dev` skill. Universal conventions live there.
 
-### Frontend Style
-- Functional components with hooks
-- shadcn/ui components from `@/components/ui/`
-- `cn()` utility for conditional classes (from `@/lib/utils`)
-- TanStack Query for all API calls
-- Axios instance from `@/lib/api`
-- 2-space indentation
+The skills carry universal patterns. The sections below name only Collaboard-specific overrides, project structure, and conventions that don't fit cleanly in skill scope.
 
-### Formatting
-- `.editorconfig` is the source of truth for all formatting
-- C#: 4 spaces, frontend: 2 spaces
-- Null safety: non-nullable reference types, null violations are errors
+### .NET overrides
 
-### Git
-- **NEVER** commit directly to main
-- Branch naming: `feature/`, `bugfix/`, `hotfix/`
-- Conventional commits: `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`
-- Squash merge to main
-- All changes via feature branch + PR
-- **Delete branches after merge** — delete feature/bugfix branches on GitHub and locally after PRs are merged. Don't let stale branches accumulate. Use `gh pr merge --delete-branch` or delete manually.
+- **`.editorconfig` is the source of truth** for formatting and analyzer severity. Don't override it; configure your editor to respect it. Don't modify it to work around conflicts either — restructure the code or use `#pragma` instead.
+- **Run `dotnet format` before committing.**
+- **Use `Results.StatusCode(403)` not `Results.Forbid()`** — there's no auth middleware registered, so `Results.Forbid()` throws at runtime.
 
-#### Multi-Card Branch Strategy
+### Endpoint structure
 
-For multi-card features (e.g., an archive system spanning cards #163-#170), use a parent feature branch:
+- Endpoints live in static classes under `backend/Collaboard.Api/Endpoints/`, one file per resource (`BoardEndpoints.cs`, `UserEndpoints.cs`, etc.).
+- Extension methods on `RouteGroupBuilder` map to `api.MapXxxEndpoints()`.
+- `Program.cs` is a thin composition root (builder + services + middleware + endpoint registration).
 
-1. Create a parent feature branch (e.g., `feature/card-archive`) from the release branch
-2. Sub-card branches PR into the parent feature branch — not directly into the release branch
-3. Create a PR for each feature branch into the release branch (not direct merges) so each feature can be reviewed independently
-4. The final release branch -> main PR is separate and covers the full feature
-5. Add a comment to the card with the PR link when creating PRs
+### Frontend overrides
 
-#### Parallel Work Safety
-
-Branches that touch overlapping files **must** be sequential, not parallel. Create each branch from the release branch after the previous one merges.
-
-When planning parallel work, check file overlap first. Backend cards with different files can run in parallel. Frontend cards touching the same components must be sequenced. The dependency analysis step must drive execution order — not just be documented and ignored. If in doubt, sequence; the time saved by parallelism is lost to conflict resolution.
+- **shadcn/ui primitives only** — components from `@/components/ui/`. Never raw `<button>`, `<input>`, or `<dialog>` elements.
+- **TanStack Query for all API calls.** No bare `fetch` or `axios` calls in components / hooks — go through `@/lib/api` (Axios instance).
+- **`cn()` from `@/lib/utils`** for conditional classes.
+- **Design system lives in `src/styles.css`.** Use semantic tokens (`bg-primary`, `text-foreground`, etc.). Never hardcoded colors. See [Frontend Design System](#frontend-design-system) below for the full token set.
 
 ### Testing
-- xUnit with Shouldly assertions (WebApplicationFactory, real in-memory SQLite, no mocking)
-- Arrange-Act-Assert pattern
-- Test classes per resource: `*EndpointTests.Tests.cs`
-- Shared infrastructure: `Infrastructure/CollaboardApiFactory.cs`, `TestAuthHelper.cs`
-- **No Playwright testing** — don't use Playwright MCP for visual testing unless the user specifically asks. Auth, dynamic Aspire ports, etc. make it unreliable. Rely on TypeScript checks, Vite builds, and backend tests for validation. Let the user do visual/browser testing.
+
+- **Backend:** xUnit + Shouldly via `WebApplicationFactory` + in-memory SQLite. No mocking. Arrange-Act-Assert. Test classes per resource: `*EndpointTests.Tests.cs`. Shared infrastructure: `Infrastructure/CollaboardApiFactory.cs`, `TestAuthHelper.cs`.
+- **Frontend:** TypeScript typecheck + Vite build + `npm run test` cover correctness; lint + format:check cover style.
+- **No Playwright testing** — don't use Playwright MCP for visual testing unless the operator specifically asks. Auth model + dynamic Aspire ports make it unreliable. Rely on tsc + Vite + backend tests; operator does visual/browser testing.
+
+### Git
+
+- **Never commit directly to main.** All changes via feature branch + PR.
+- **Conventional commits:** `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`.
+- **Branch naming:** `feature/`, `bugfix:`, `hotfix/`, `chore/`. Release branches: `release/<descriptive-name>` (never version numbers in release branch names — `release/v1.10.0` is wrong; `release/backend-v1` is right).
+- **Squash merge to main via `gh pr merge --squash --delete-branch`.** Never local `git merge --squash` — it leaves PRs dangling open.
+- **Delete branches after merge** — don't let stale branches accumulate.
+- **Always merge PRs via `gh pr merge`**, never local merge.
+
+#### Multi-card branch strategy
+
+For multi-card features that span several PRs:
+
+1. Cut a `release/<descriptive-name>` branch from main.
+2. Each card cuts a feature branch off the release branch (or, for tightly-coupled work, off a parent feature branch).
+3. Each card PRs into the release branch (not main directly) for independent review.
+4. The final aggregate PR (`release/<name>` → `main`) is the operator's go/no-go gate on the whole feature.
+
+#### Parallel work safety
+
+Branches that touch overlapping files MUST serialize. Backend cards with disjoint files can run in parallel. Frontend cards on the same components must serialize. **If two agents could write to the same file, they must be the same agent.** The dependency check drives execution order — don't document it and ignore it. If in doubt, sequence; the time saved by parallelism is lost to conflict resolution.
 
 ## Agent Behavior Rules
 
@@ -266,6 +264,65 @@ When planning parallel work, check file overlap first. Backend cards with differ
 
 - **Do not auto-fix lint errors.** When any lint errors are encountered — GitHub CI, local eslint, dotnet format, or any other linter — do NOT automatically fix them. Stop, evaluate, summarize the issues to the user, and wait for instructions before making changes.
 - **Ask, don't guess.** If stuck or unsure, report back rather than guessing. Max 3 follow-up rounds per task before escalating to user.
+
+## Frontend Design System
+
+### Colors
+
+Use semantic Tailwind tokens, never hardcoded colors. The design system lives in `src/styles.css`.
+
+```
+bg-background    — page background
+bg-card          — card/panel surfaces
+bg-muted         — muted/recessed areas
+bg-primary       — primary actions (cyan)
+bg-accent        — highlights/badges (amber)
+bg-destructive   — delete/error actions
+text-foreground  — primary text
+text-muted-foreground — secondary/helper text
+border-border    — all borders
+```
+
+### Typography
+
+- **Headings / UI labels:** Space Grotesk (font-sans via Tailwind)
+- **Body / prose:** DM Sans (applied via prose contexts)
+- Use Tailwind text utilities (`text-sm`, `text-base`, `text-lg`). No custom font sizes.
+
+### Components
+
+Always use shadcn/ui primitives from `@/components/ui/`. Never build raw HTML buttons, inputs, or dialogs.
+
+- `<Button variant="default|outline|ghost|destructive" size="default|sm|lg">`
+- `<Badge variant="default|secondary|outline">`
+- `<Dialog>` / `<Sheet>` for modals and panels
+- `<Input>`, `<Textarea>`, `<Select>` for form elements
+- `<Tabs>`, `<Table>` for structured content
+- `<Separator>` for visual dividers
+
+### Cards
+
+Kanban cards use: `rounded-lg shadow-sm border border-border bg-card p-3 hover:shadow-md transition-shadow`
+
+### Icons
+
+Use Lucide React (`lucide-react`). Import individual icons:
+```tsx
+import { Pencil, Trash2, Plus } from 'lucide-react';
+```
+Size: `className="w-4 h-4"` for inline, `"w-5 h-5"` for standalone.
+
+### Dark Mode
+
+Both light and dark themes are defined via CSS custom properties in `styles.css`. Dark mode activates via `data-theme="dark"` on the root element. Components should NOT use `dark:` Tailwind variants — the CSS vars handle everything automatically.
+
+### Don'ts
+
+- No inline styles except `image-rendering: pixelated` on the logo
+- No `dark:` prefixed Tailwind classes — use the semantic tokens instead
+- No new color values — if you need a color, it should come from the existing CSS vars
+- No custom CSS classes — use Tailwind utilities composed via `cn()`
+- No raw `<button>` or `<input>` elements — use shadcn components
 
 ## UI Design Process
 
@@ -318,86 +375,80 @@ Format with `dotnet format` (backend) and `npm run format` (frontend) before com
 
 ## Dispatching Work
 
-### Dispatch Rules
+Dispatch is coordinator scope (Cora). Detailed dispatch protocol — Pre-Dispatch Gate, model selection, token estimation, worktree discipline — lives in `~/.agents/roles/project-manager.md` (the role file) and project-anchored calibration lives in `.agents/agents/cora/LESSONS.md`. Project-canonical rules and the team report format are below.
 
-- **Spec first:** Write specs to `.agents/specs/` before dispatching. No dispatch without a spec.
-- Include ALL context the child needs — it has no memory of this session
-- **Ask, don't guess:** Include: "If you get stuck or unsure, report back rather than guessing."
-- Max 3 follow-up rounds per task before escalating to user
-- Dispatch in parallel when independent, sequentially when dependent
+### Dispatch rules (project-canonical)
 
-### Sub-Agent Conventions
+- **Spec first.** Write specs to `.agents/specs/` before dispatching substantive work. No spec → no dispatch.
+- **Full context in the prompt.** The child has no memory of the parent session — include every constraint, convention citation, and acceptance criterion the child needs to land the work without follow-up rounds.
+- **Ask, don't guess.** Every dispatch prompt includes: *"If you get stuck or unsure, report back rather than guessing."* Max 3 follow-up rounds per task before escalating to the operator.
+- **Sub-agents auto-load convention skills via frontmatter.** Don't restate skill invocations or verification commands in dispatch prompts — restating an incomplete list narrows the bot's work and creates regressions. Reference the canonical doc when needed (*"run the full verification suite per CLAUDE.md § Definition of Done"*).
+- **Spec / architecture / review dispatches default to Opus.** Implementation defaults to Opus on meatier work; Sonnet for narrow refactors and pattern-following tasks. State the model explicitly on every dispatch.
 
-When dispatching coding or evaluation sub-agents via the Agent tool:
+### Standardized report format
 
-- **Model:** Always use `model: "opus"` (Opus High)
-- **Skills:** Instruct sub-agents to use skills appropriate to the task — e.g., dotnet-dev for C# tasks, typescript-dev for TypeScript. A research agent doesn't need coding skills.
-- **Report format:** Every sub-agent must return a standardized report. Include this template in the prompt:
+Every dispatched coding or evaluation sub-agent returns findings in this format:
 
-    ```
-    Return your findings in this standardized format:
+```
+## Report: <card or task title>
 
-    ## Report: <card or task title>
+### Summary
+<1-2 sentence verdict>
 
-    ### Summary
-    <1-2 sentence verdict>
+### Deliverable Status
+| Deliverable | Status | Notes |
+|---|---|---|
+| <item> | Done / Partial / Missing | <detail> |
 
-    ### Deliverable Status
-    | Deliverable | Status | Notes |
-    |---|---|---|
-    | <item> | Done / Partial / Missing | <detail> |
+### Verification
+- Backend build: <pass/fail/not run>
+- Backend tests: <pass/fail/not run — include count>
+- Frontend typecheck: <pass/fail/not run>
+- Frontend lint: <pass/fail/not run>
+- Frontend tests: <pass/fail/not run — include count>
 
-    ### Verification
-    - Backend build: <pass/fail/not run>
-    - Backend tests: <pass/fail/not run — include count>
-    - Frontend typecheck: <pass/fail/not run>
-    - Frontend lint: <pass/fail/not run>
-    - Frontend tests: <pass/fail/not run — include count>
+### Files Touched
+- <path> — <created/modified/read> — <what changed>
 
-    ### Files Touched
-    - <path> — <created/modified/read> — <what changed>
+### Gaps & Issues
+1. <issue description>
 
-    ### Gaps & Issues
-    1. <issue description>
+### Convention Violations
+<list or "None">
 
-    ### Convention Violations
-    <list or "None">
-
-    ### Recommendation
-    <next steps, move to Review, stays in Ready, etc.>
-    ```
-
-### Parallel Dispatch
-
-**Partition by resource, not by task.** When dispatching parallel agents, group work by the files being touched — not by the card or task being worked on. Two cards that edit the same files must go to the same agent. Two cards that touch completely separate projects can go to separate agents. The rule: **if two agents could write to the same file, they must be the same agent.**
-
-When multiple agents need the same repo simultaneously, use **git worktrees** for physically separate working directories.
-
-```powershell
-git worktree add ../<repo>-wt-<short-name> -b feature/<branch-name> <start-point>
+### Recommendation
+<next steps; move to Review, stays in Ready, etc.>
 ```
 
-Each worktree needs its own dependency install. The `.git` store is shared.
+## Named Agents
+
+| Agent | Role | Specialty |
+|---|---|---|
+| **Cora** | Operations coordinator | Board management, dispatch, design facilitation, release lifecycle, conventions stewardship |
+
+Bots sign commits with `Co-Authored-By: <Name> <name>@collabot.dev>`. Cora's first session was 2026-05-09. As the team grows, additions land here.
 
 ## Path Conventions
 
-- **Relative paths in docs and specs.** Never hardcode absolute paths in committed files.
+- **Relative paths in committed docs and specs.** Never hardcode absolute paths in tracked files.
 - **Absolute paths in scripts only** when referencing the script's own location.
-- Reference other projects as `../<name>` (relative to repo root) in CLAUDE.md and runtime configs.
+- Reference sibling projects as `../<name>` (relative to repo root).
 
 ## Relationship to Other Projects
 
 | Project | Path | Relationship |
-|---------|------|-------------|
-| **Collabot** | `../collabot` | Primary consumer — connects via MCP SSE for kanban operations |
-| **Collabot TUI** | `../collabot-tui` | Indirect consumer via Collabot harness |
-| **Ecosystem** | `../ecosystem` | Tracks work on the ecosystem board |
-| **Research Lab** | `../lab` | Tracks investigations on the research-lab board |
-| **Knowledge Base** | `../kb` | Tracks tasks on the knowledge-base board |
-| **Collabhost** | `../collabhost` | Tracks work on the collabhost board |
+|---|---|---|
+| **Collabhost** | `../collabhost` | Peer project. Hosts the production deployment of Collaboard (and itself). Its own work is tracked on the `collabhost` Collaboard board. |
+| **Collabot** | `../collabot` | Primary external consumer — connects via MCP for kanban operations. |
+| **Collabot TUI** | `../collabot-tui` | Indirect consumer via Collabot harness. |
+| **Ecosystem** | `../ecosystem` | Cross-project tooling and shared scripts. Its own work is tracked on the `ecosystem` Collaboard board. |
+| **Research Lab** | `../lab` | Investigation workspace. Its own work is tracked on the `research-lab` Collaboard board. |
+| **Knowledge Base** | `../kb` | Conventions and reference material. Its own work is tracked on the `knowledge-base` Collaboard board. |
 
-**Reference projects for conventions:** `../collabot` (primary — process and orchestration conventions), `../collabot-tui` (.NET conventions), `kindkatchapi` (production .NET reference).
+Cross-project work that spans Collaboard + a peer (e.g., Collabhost) coordinates between named operations coordinators on each side (Cora here, Nolan on Collabhost). Externally-gated cards stay in Backlog with an explicit gate-and-trigger comment; the `Blocked` label is reserved for in-Triage gating.
 
 ## Skills
 
-Use available skills proactively when the task matches — e.g., invoke dotnet-dev when writing C# or typescript-dev for TypeScript. Skills are declared in your session; no need to search directories.
+**Skill wins.** Universal craft (`dotnet-dev`, `typescript-dev`, `agent-workspace`, `collaboard`) lives in user-scope skills. Convention skills auto-load for craft bots via frontmatter. Project-specific overrides are documented above; if you find a pattern in this codebase that disagrees with the skill, the default assumption is "the skill is right, the codebase is behind" — not "the codebase reflects an intentional choice." Land the fix when you touch the surface; don't fix the world in one PR.
+
+Available on demand at session start: `dotnet-dev`, `typescript-dev`, `do-dotnet-backend-architecture`, `agent-workspace`, `collaboard`, `use-github`, `aspire`, `tmux`. Invoke when relevant; bots that load convention skills via frontmatter will see them auto-injected.
