@@ -18,6 +18,7 @@ import type {
   prunePreviewResponseSchema,
   pruneResponseSchema,
   searchResultSchema,
+  runtimeConfigSchema,
 } from '@/lib/schemas';
 
 export type Board = z.infer<typeof boardSchema>;
@@ -62,3 +63,5 @@ export type PruneFilters = {
 };
 
 export type SearchResult = z.infer<typeof searchResultSchema>;
+
+export type RuntimeConfig = z.infer<typeof runtimeConfigSchema>;

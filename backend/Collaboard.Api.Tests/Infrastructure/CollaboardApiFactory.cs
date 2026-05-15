@@ -17,14 +17,56 @@ public class CollaboardApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
     public string AdminAuthKey { get; private set; } = string.Empty;
     public Guid DefaultBoardId { get; private set; }
 
+    // In-memory config overrides applied after the baseline test config. Lets a test
+    // flip Hosting:ServeSpa, populate Cors:AllowedOrigins, set ASPNETCORE_ENVIRONMENT,
+    // etc. Null (the IClassFixture default) preserves today's behavior.
+    public IReadOnlyDictionary<string, string?>? ConfigOverrides { get; init; }
+
+    // Forces the host environment. Null keeps WebApplicationFactory's default
+    // (Development). "Production" exercises the non-dev CORS named-policy branch.
+    public string? EnvironmentName { get; init; }
+
+    public static CollaboardApiFactory WithConfig(IReadOnlyDictionary<string, string?> overrides) =>
+        new() { ConfigOverrides = overrides };
+
+    public static CollaboardApiFactory WithConfig(
+        string environmentName,
+        IReadOnlyDictionary<string, string?> overrides) =>
+        new() { EnvironmentName = environmentName, ConfigOverrides = overrides };
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        if (EnvironmentName is not null)
+        {
+            builder.UseEnvironment(EnvironmentName);
+        }
+
+        // UseSetting feeds the web-host builder configuration, which
+        // WebApplication.CreateBuilder incorporates BEFORE Program.cs reads
+        // builder.Configuration. ConfigureAppConfiguration delegates run later and
+        // are not visible to eager builder.Configuration reads (e.g. the AddCors
+        // policy snapshot). Overrides must go through UseSetting to exercise the
+        // same early-resolution path production uses via Cors__AllowedOrigins__N
+        // environment variables.
+        if (ConfigOverrides is not null)
+        {
+            foreach (var (key, value) in ConfigOverrides)
+            {
+                builder.UseSetting(key, value);
+            }
+        }
+
         builder.ConfigureAppConfiguration((_, config) =>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Admin:AuthKey"] = TestAdminAuthKey,
             });
+
+            if (ConfigOverrides is not null)
+            {
+                config.AddInMemoryCollection(ConfigOverrides);
+            }
         });
 
         builder.ConfigureServices(services =>

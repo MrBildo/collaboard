@@ -21,4 +21,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Collaboard.ServiceDefaults\Collaboard.ServiceDefaults.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Collaboard.Api.Tests" />
+  </ItemGroup>
 </Project>
