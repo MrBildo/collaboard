@@ -164,3 +164,11 @@ export const finalizeCardResponseSchema = z.object({
   id: z.string(),
   number: z.number(),
 });
+
+// Runtime config — fetched from /config.json at app boot (not a build-time env var).
+// Default object behavior strips unknown keys, so a deployed config.json with
+// future fields an older Portal doesn't recognize will not fail validation.
+// (Do not add .strict().)
+export const runtimeConfigSchema = z.object({
+  apiBaseUrl: z.string().min(1),
+});

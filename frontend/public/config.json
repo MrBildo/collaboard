@@ -1,0 +1,3 @@
+{
+  "apiBaseUrl": "/api/v1"
+}
