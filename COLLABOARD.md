@@ -12,17 +12,31 @@ See the `collaboard` skill for the full auth contract and MCP usage. The convent
 
 ## Lanes
 
-Collaboard uses the org-default lane set defined in the `collaboard` skill, with no project-specific deviations today.
+This project deviates from the org-default lane set defined in the `collaboard` skill. Two changes (adopted 2026-05-12):
+
+- **Added: `On Deck`** — sits between `Triage` and `Ready`. Acts as the bench / depth chart for work that's been decided-on but isn't the immediate next pickup.
+- **Removed: `Review`** — review happens on PRs, not on a board lane. The lane was unused.
+
+**Lane order:** `Backlog` → `Triage` → `On Deck` → `Ready` → `In Progress` → `Done` → `Archived`.
 
 | Lane | Purpose |
 |---|---|
-| **Backlog** | Considered for the next quarter or two; not the immediate next pickup. Long-running `Blocked` cards parked here are acceptable — Backlog is a fine parking lot for hard problems. |
-| **Triage** | New items, awaiting disposition. Cards genuinely needing discussion before sizing live here. Sized + labeled cards with no surfaceable triggering question get promoted out by the coordinator without per-card ask. |
-| **Ready** | Sized, scoped, approved — picked up next session (or right now). Curated by the operator; coordinator proposes promotions from Backlog. |
-| **In Progress** | Actively being worked on. |
-| **Review** | PR open, awaiting operator review. |
+| **Backlog** | Someday/maybe. No commitment to ship. Long-running `Blocked` cards parked here are acceptable — Backlog is a fine parking lot for hard problems and externally-gated work. |
+| **Triage** | New items, awaiting disposition. Cards genuinely needing discussion before sizing live here. Sized + labeled cards with no surfaceable triggering question get promoted out by the coordinator without per-card ask. **Default exit is On Deck** (or Backlog if long-tail, or Archived if rejected). |
+| **On Deck** | Decided to do, queued for the cycle, not the immediate next pickup. The bench — coordinator-curated; operator pulls forward to Ready. |
+| **Ready** | Picked up next session (or right now). Curated by the operator; coordinator proposes promotions from On Deck. Target depth: 3-5 cards. |
+| **In Progress** | Actively being worked on. PR-open cards stay here — the PR is the review surface, not a board lane. |
 | **Done** | Merged to main, awaiting archive sweep. |
 | **Archived** | Closed. Archived cards are **frozen** — no edits, comments, labels, or attachment changes (400 response). Only `restore_card` and delete are allowed. |
+
+### Coordinator implications
+
+- Triage walks sub-batch dispositions as **`On Deck / Backlog / Archive`**, not `Ready / Backlog / Archive`.
+- **`HANDOFF.md` "what's next session" is a snapshot of the Ready lane** — no mental subsetting required.
+- When proposing card creation, default destination is Triage for new ideas, **On Deck** if the card surfaces mid-work and the disposition is clearly decided.
+- At session-end, glance at On Deck depth — if it's growing past ~10 cards without churn, surface it (it shouldn't quietly become a second Backlog).
+
+This pattern is borrowed from Collabhost. If it proves out across multiple Collabot-org projects, promote the lane definition into the `collaboard` skill at that point.
 
 ## Labels
 
@@ -61,10 +75,10 @@ Sizes represent effort and risk, not urgency. The **scope of work** — which su
 ## Workflow
 
 1. New items → **Triage** with a type label (`Bug`, `Feature`, etc.).
-2. Size (S/M/L/XL), prioritize → **Backlog**.
-3. Operator approves for work → **Ready**. Agents pick up cards only from Ready.
+2. Size (S/M/L/XL), discuss if needed → **On Deck** (or Backlog if long-tail; coordinator promotes without per-card ask when sizing is clean and no discussion is open).
+3. Operator pulls forward from On Deck → **Ready**. Agents pick up cards only from Ready. Coordinator proposes promotions; operator curates Ready depth (~3-5).
 4. Pick up → **In Progress**, comment with the plan, create a feature branch.
-5. PR open → **Review**, awaiting operator review.
+5. PR open → **stays in In Progress** with a PR link in the comments. The PR is the review surface; the board doesn't mirror PR state.
 6. PR merged → **Done**.
 7. Coordinator sweeps Done → **Archived** as part of session-close hygiene. No external trigger; coordinator's judgment, executed when the lane has accumulated enough to be worth a sweep.
 8. Cards needing a spec get a comment linking to `.agents/specs/`.
@@ -94,9 +108,9 @@ When the operator signals board work:
 
 During a session:
 
-- Move cards as state changes (Triage → Backlog → Ready → In Progress → Review → Done).
+- Move cards as state changes (Triage → On Deck → Ready → In Progress → Done; coordinator promotes Triage → On Deck or Backlog; operator pulls forward On Deck → Ready).
 - Comment on cards as work progresses — write for a reader with no prior context.
-- Create new cards when gaps or ideas surface — put them in Triage with minimal ceremony.
+- Create new cards when gaps or ideas surface — put them in Triage with minimal ceremony (or On Deck if the disposition is clearly decided).
 
 ### Cross-project externally-gated cards
 
