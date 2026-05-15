@@ -1,7 +1,9 @@
 using System.Reflection;
 using Collaboard.Api;
+using Collaboard.Api.Configuration;
 using Collaboard.Api.Endpoints;
 using Collaboard.Api.Events;
+using Collaboard.Api.Hosting;
 using Collaboard.Api.Mcp;
 using Collaboard.Api.Models;
 using Microsoft.AspNetCore.Http.Features;
@@ -22,10 +24,48 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
+// Listen-address dual-pattern: `urls` / `ASPNETCORE_URLS` wins (Aspire dev, hosting-injected,
+// operator override); otherwise the structured Hosting: settings build the bind URL. Runs
+// before AddServiceDefaults so the host's URL story is settled before Aspire's hooks register.
+var bindUrl = HostingBindResolver.Resolve(builder.Configuration);
+if (bindUrl is not null)
+{
+    builder.WebHost.UseUrls(bindUrl);
+}
+
 builder.AddServiceDefaults();
 
 builder.Services.AddOpenApi();
-builder.Services.AddCors();
+
+builder.Services.Configure<HostingSettings>(
+    builder.Configuration.GetSection(HostingSettings.SectionName));
+builder.Services.Configure<CorsSettings>(
+    builder.Configuration.GetSection(CorsSettings.SectionName));
+
+var corsSettings = builder.Configuration
+    .GetSection(CorsSettings.SectionName)
+    .Get<CorsSettings>() ?? new CorsSettings();
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(CorsPolicies.Default, policy =>
+    {
+        if (corsSettings.AllowedOrigins.Count == 0)
+        {
+            // Empty allow-list: no origins authorized. The middleware still runs and
+            // simply emits no Access-Control-Allow-Origin header. Same-origin requests
+            // are unaffected (browser doesn't preflight same-origin).
+            return;
+        }
+
+        policy
+            .WithOrigins([.. corsSettings.AllowedOrigins])
+            .AllowAnyMethod()
+            .AllowAnyHeader()           // X-User-Key is in there
+            .AllowCredentials();        // cookies + auth headers permitted
+    });
+});
+
 var connectionString = builder.Configuration.GetConnectionString("Board") ?? "Data Source=./data/collaboard.db";
 
 // Ensure the data directory exists before EF creates/opens the database
@@ -134,10 +174,21 @@ if (app.Environment.IsDevelopment())
         .AllowAnyMethod()
         .AllowAnyHeader());
 }
+else
+{
+    app.UseCors(CorsPolicies.Default);
+}
 
-// Serve the embedded SPA from wwwroot
-app.UseDefaultFiles();
-app.UseStaticFiles();
+// Serve the embedded SPA from wwwroot — gated on Hosting:ServeSpa so headless
+// (hosted-separately) deployments 404 unmatched routes instead of the SPA shell.
+var serveSpa = app.Configuration
+    .GetValue($"{HostingSettings.SectionName}:{nameof(HostingSettings.ServeSpa)}", true);
+
+if (serveSpa)
+{
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
+}
 
 var api = app.MapGroup("/api/v1");
 
@@ -169,8 +220,12 @@ app.MapMcp("/mcp");
 
 app.MapDefaultEndpoints();
 
-// SPA fallback — serve index.html for any unmatched routes (must be after API/MCP routes)
-app.MapFallbackToFile("index.html");
+// SPA fallback — serve index.html for any unmatched routes (must be after API/MCP routes).
+// Gated on Hosting:ServeSpa: headless deployments skip it so unmatched routes 404.
+if (serveSpa)
+{
+    app.MapFallbackToFile("index.html");
+}
 
 // Complete all SSE channels on shutdown so streamed connections close promptly
 app.Lifetime.ApplicationStopping.Register(() =>
