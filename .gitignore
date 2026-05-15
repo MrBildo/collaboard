@@ -32,7 +32,7 @@ data/
 
 # IDE / editor
 .vscode/
-backend/.vs/
+.vs/
 
 # Secrets / env
 backend/**/Properties/launchSettings.json
