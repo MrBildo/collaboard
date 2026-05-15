@@ -344,7 +344,7 @@ Use `/release` to cut a new version — it waits for CI, creates a GitHub Releas
 
 ## Definition of Done
 
-Before moving any card to Review or declaring work complete:
+Before opening a PR or declaring work complete:
 
 ```powershell
 # 1. Build — backend
@@ -417,7 +417,7 @@ Every dispatched coding or evaluation sub-agent returns findings in this format:
 <list or "None">
 
 ### Recommendation
-<next steps; move to Review, stays in Ready, etc.>
+<next steps; open PR, stays in In Progress with PR link, returns to Ready, etc.>
 ```
 
 ## Named Agents
