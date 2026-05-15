@@ -27,6 +27,7 @@ import type {
   UserDirectoryEntry,
 } from '@/types';
 import { findUserKey } from '@/lib/auth';
+import { getApiBaseUrl } from '@/lib/runtime-config';
 import {
   attachmentMetaSchema,
   authMeSchema,
@@ -52,11 +53,16 @@ import {
 } from '@/lib/schemas';
 
 export const api = axios.create({
-  baseURL: '/api/v1',
+  // baseURL is intentionally omitted here. It is resolved per-request by the
+  // interceptor below from the runtime config (fetched at boot). Reading it
+  // lazily — rather than at module-construction time — removes an invisible
+  // import-order invariant: this module can be imported before the boot
+  // sequence has resolved /config.json without pinning a stale base URL.
   timeout: 30_000,
 });
 
 api.interceptors.request.use((config) => {
+  config.baseURL = getApiBaseUrl();
   const key = findUserKey();
   if (key) {
     config.headers['X-User-Key'] = key;

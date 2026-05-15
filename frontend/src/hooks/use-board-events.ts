@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query-keys';
+import { getApiBaseUrl } from '@/lib/runtime-config';
 
 const SSE_DEBOUNCE_MS = 300;
 
@@ -13,7 +14,13 @@ export function useBoardEvents(boardId: string | undefined) {
       return;
     }
 
-    const es = new EventSource(`/api/v1/boards/${boardId}/events`);
+    // withCredentials lets the cross-origin EventSource participate in the
+    // CORS contract (the API echoes Access-Control-Allow-Origin via
+    // .RequireCors on the SSE endpoint). The same-origin LAN release ignores
+    // the flag harmlessly. getApiBaseUrl() includes the /api/v1 suffix.
+    const es = new EventSource(`${getApiBaseUrl()}/boards/${boardId}/events`, {
+      withCredentials: true,
+    });
 
     es.addEventListener('board-updated', () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
