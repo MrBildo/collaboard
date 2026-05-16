@@ -25,22 +25,28 @@ Collaboard uses `appsettings.json` for configuration. Create `appsettings.Local.
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `Urls` | `http://0.0.0.0:8080` | Bind address and port |
-| `ConnectionStrings:Board` | `Data Source=./data/collaboard.db` | SQLite database path |
+| `ConnectionStrings:Board` | *(required — no default)* | SQLite database path. Must be an **absolute** path; the app does not derive a path from the working or binary directory. The installer writes this into `appsettings.Local.json`. |
 | `Admin:AuthKey` | *(auto-generated)* | Override the admin auth key |
 
 ### Environment Variables
 
-All settings can be overridden with environment variables using double-underscore separators:
+All settings can be overridden with environment variables. Nested keys use a
+double-underscore (`__`) separator; there is no application-specific prefix:
 
 ```bash
-export COLLABOARD__Urls=http://0.0.0.0:9090
-export COLLABOARD__Admin__AuthKey=my-secret-key
-export COLLABOARD__ConnectionStrings__Board="Data Source=/var/data/collaboard.db"
+export Urls=http://0.0.0.0:9090
+export Admin__AuthKey=my-secret-key
+export ConnectionStrings__Board="Data Source=/var/data/collaboard.db"
 ```
 
 ## Database
 
-- SQLite database is created automatically on first run at `./data/collaboard.db`
+- The SQLite database path is **required** configuration — `ConnectionStrings:Board`
+  must be set to an absolute path. The installer writes this into
+  `appsettings.Local.json` (pointing at `<install-dir>/data/collaboard.db`); if you
+  run the binary without the installer, set it yourself before first run or startup
+  fails loud with the missing key named.
+- The database file and its parent directory are created automatically on first run
 - Schema migrations run automatically on startup
 - The database file is backed up automatically before applying new migrations
 - Backups are saved as `collaboard.db.bak-{timestamp}` in the same directory

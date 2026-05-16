@@ -41,6 +41,17 @@ public class CollaboardApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
             builder.UseEnvironment(EnvironmentName);
         }
 
+        // ConnectionStrings:Board is required configuration with no fallback
+        // (#233 G-3b); Program.cs hard-fails at host-build time if it is unset.
+        // That eager read happens before ConfigureServices swaps in the shared
+        // in-memory connection, so the value must be visible to
+        // builder.Configuration — i.e. injected via UseSetting, not
+        // ConfigureAppConfiguration (the WAF eager-read seam). ":memory:" is
+        // the special data source Program.cs's guard exempts from path
+        // validation and directory creation; the actual test database is the
+        // shared SqliteConnection swapped in below.
+        builder.UseSetting("ConnectionStrings:Board", "Data Source=:memory:");
+
         // UseSetting feeds the web-host builder configuration, which
         // WebApplication.CreateBuilder incorporates BEFORE Program.cs reads
         // builder.Configuration. ConfigureAppConfiguration delegates run later and

@@ -66,19 +66,62 @@ builder.Services.AddCors(options =>
     });
 });
 
-var connectionString = builder.Configuration.GetConnectionString("Board") ?? "Data Source=./data/collaboard.db";
-
-// Resolve a relative data source against the app directory (not process cwd) so the
-// data directory is stable under hardened/read-only-cwd hosting. LAN shape is
-// byte-identical (app dir == cwd); absolute overrides pass through. See #232.
-connectionString = DataSourceResolver.Resolve(connectionString);
-
-// Ensure the data directory exists before EF creates/opens the database
-var dbPath = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(connectionString).DataSource;
-var dbDir = Path.GetDirectoryName(dbPath);
-if (!string.IsNullOrEmpty(dbDir))
+// The writable database location is a told input — never derived from the working
+// directory, the binary directory, or $HOME. ConnectionStrings:Board is required
+// configuration with no fallback; an absolute path is required. Misconfiguration
+// fails loud and early here, naming the key and path, rather than degrading to a
+// cwd-relative guess that lands unpredictably under a hardened deployment (#233).
+var connectionString = builder.Configuration.GetConnectionString("Board");
+if (string.IsNullOrWhiteSpace(connectionString))
 {
-    Directory.CreateDirectory(dbDir);
+    throw new InvalidOperationException
+    (
+        "Required configuration 'ConnectionStrings:Board' is not set. Provide an "
+        + "absolute SQLite connection string via appsettings.Local.json, the "
+        + "ConnectionStrings__Board environment variable, or a command-line argument "
+        + "(e.g. \"Data Source=/srv/collaboard/data/collaboard.db\"). The application "
+        + "does not derive a database path from the working or binary directory."
+    );
+}
+
+var dbPath = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(connectionString).DataSource;
+
+// SQLite special data sources (`:memory:`, empty/temp) carry no filesystem path —
+// the in-memory test database relies on this. Real filesystem paths must be
+// absolute and writable; anything else fails loud here, before EF opens the DB.
+var isSpecialDataSource = string.IsNullOrEmpty(dbPath) || dbPath == ":memory:";
+if (!isSpecialDataSource)
+{
+    if (!Path.IsPathRooted(dbPath))
+    {
+        throw new InvalidOperationException
+        (
+            $"Configuration 'ConnectionStrings:Board' resolves to a relative data "
+            + $"source '{dbPath}'. An absolute path is required so the database "
+            + "location does not depend on the process working directory. Set "
+            + "'ConnectionStrings:Board' to an absolute path."
+        );
+    }
+
+    var dbDir = Path.GetDirectoryName(dbPath);
+    if (!string.IsNullOrEmpty(dbDir))
+    {
+        try
+        {
+            Directory.CreateDirectory(dbDir);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw new InvalidOperationException
+            (
+                $"The database directory '{dbDir}' (from 'ConnectionStrings:Board' "
+                + $"= '{dbPath}') could not be created or is not writable: {ex.Message}. "
+                + "Point 'ConnectionStrings:Board' at an absolute path the process "
+                + "can write under this deployment's sandbox.",
+                ex
+            );
+        }
+    }
 }
 
 builder.Services.AddDbContext<BoardDbContext>(options =>

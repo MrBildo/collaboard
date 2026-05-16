@@ -84,7 +84,7 @@ Collaboard ships with sensible defaults. Override settings via `appsettings.Loca
 Or via environment variable:
 
 ```bash
-export COLLABOARD__Urls=http://0.0.0.0:9090
+export Urls=http://0.0.0.0:9090
 ```
 
 ### Admin Auth Key
@@ -102,11 +102,16 @@ By default, a random auth key is generated on first run and printed to the conso
 
 ### Database Location
 
+The database path is **required** configuration with no default — the app never
+derives a path from the working or binary directory. The installer writes an
+absolute path into `appsettings.Local.json` for you; to relocate the database,
+edit it there (use an absolute path):
+
 ```jsonc
 // appsettings.Local.json
 {
   "ConnectionStrings": {
-    "Board": "Data Source=./my-data/boards.db"
+    "Board": "Data Source=/srv/collaboard/data/collaboard.db"
   }
 }
 ```
@@ -116,7 +121,7 @@ By default, a random auth key is generated on first run and printed to the conso
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `Urls` | `http://0.0.0.0:8080` | Bind address and port |
-| `ConnectionStrings:Board` | `Data Source=./data/collaboard.db` | SQLite database path |
+| `ConnectionStrings:Board` | *(required — no default)* | SQLite database path. Must be an **absolute** path; the installer writes this into `appsettings.Local.json`. Startup fails loud if unset or unwritable. |
 | `Admin:AuthKey` | *(auto-generated)* | Override the admin auth key |
 
 ### Version
