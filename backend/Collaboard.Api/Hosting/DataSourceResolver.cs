@@ -38,9 +38,11 @@ internal static class DataSourceResolver
             return connectionString;
         }
 
-        connectionStringBuilder.DataSource = Path.GetFullPath(
+        connectionStringBuilder.DataSource = Path.GetFullPath
+        (
             dataSource,
-            AppContext.BaseDirectory);
+            AppContext.BaseDirectory
+        );
 
         return connectionStringBuilder.ToString();
     }
