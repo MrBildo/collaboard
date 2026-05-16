@@ -36,8 +36,7 @@ public partial class NormalizeDateTimeOffsetStorageFormat : Migration
         {
             // Replace the single separator char at position 11 (1-indexed) with
             // 'T', only for rows still in the old space-separated form.
-            migrationBuilder.Sql(
-                $"""
+            migrationBuilder.Sql($"""
                 UPDATE "{table}"
                 SET "{column}" = substr("{column}", 1, 10) || 'T' || substr("{column}", 12)
                 WHERE substr("{column}", 11, 1) = ' ';
@@ -52,8 +51,7 @@ public partial class NormalizeDateTimeOffsetStorageFormat : Migration
         // store readable by the pre-converter mapping.
         foreach (var (table, column) in _timestampColumns)
         {
-            migrationBuilder.Sql(
-                $"""
+            migrationBuilder.Sql($"""
                 UPDATE "{table}"
                 SET "{column}" = substr("{column}", 1, 10) || ' ' || substr("{column}", 12)
                 WHERE substr("{column}", 11, 1) = 'T';
