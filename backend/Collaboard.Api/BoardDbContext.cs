@@ -1,5 +1,7 @@
+using System.Globalization;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Collaboard.Api;
 
@@ -14,6 +16,20 @@ public class BoardDbContext(DbContextOptions<BoardDbContext> options) : DbContex
     public DbSet<CardAttachment> Attachments => Set<CardAttachment>();
     public DbSet<Label> Labels => Set<Label>();
     public DbSet<CardLabel> CardLabels => Set<CardLabel>();
+
+    // #234: SQLite's default DateTimeOffset mapping cannot be translated when
+    // the comparison appears in a nested query position (correlated sub-query,
+    // set operation), which broke the get_cards `since` activity filter.
+    // Storing DateTimeOffset as a normalized-UTC round-trippable ISO-8601
+    // string keeps the column TEXT (no column-type migration) while making
+    // `>=` a plain string comparison SQLite translates in any position.
+    // "O" on a UTC DateTimeOffset is fixed-width and lexicographically
+    // ordered, so string ordering matches chronological ordering.
+    private static readonly ValueConverter<DateTimeOffset, string> _sortableUtcConverter = new
+    (
+        v => v.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture),
+        v => DateTimeOffset.Parse(v, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind)
+    );
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -100,5 +116,16 @@ public class BoardDbContext(DbContextOptions<BoardDbContext> options) : DbContex
         builder.Entity<CardItem>().HasIndex(x => x.LastUpdatedByUserId);
         builder.Entity<CardComment>().HasIndex(x => x.UserId);
         builder.Entity<CardAttachment>().HasIndex(x => x.AddedByUserId);
+
+        // #234: sortable-UTC string conversion for every DateTimeOffset column.
+        // Applied model-wide (not just the columns the `since` filter touches)
+        // so the storage format is uniform and any future nested date predicate
+        // translates too. Column stays TEXT, so this is a format change, not a
+        // column-type change.
+        builder.Entity<Board>().Property(x => x.CreatedAtUtc).HasConversion(_sortableUtcConverter);
+        builder.Entity<CardItem>().Property(x => x.CreatedAtUtc).HasConversion(_sortableUtcConverter);
+        builder.Entity<CardItem>().Property(x => x.LastUpdatedAtUtc).HasConversion(_sortableUtcConverter);
+        builder.Entity<CardComment>().Property(x => x.LastUpdatedAtUtc).HasConversion(_sortableUtcConverter);
+        builder.Entity<CardAttachment>().Property(x => x.AddedAtUtc).HasConversion(_sortableUtcConverter);
     }
 }
