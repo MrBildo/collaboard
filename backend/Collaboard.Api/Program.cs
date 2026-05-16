@@ -68,6 +68,11 @@ builder.Services.AddCors(options =>
 
 var connectionString = builder.Configuration.GetConnectionString("Board") ?? "Data Source=./data/collaboard.db";
 
+// Resolve a relative data source against the app directory (not process cwd) so the
+// data directory is stable under hardened/read-only-cwd hosting. LAN shape is
+// byte-identical (app dir == cwd); absolute overrides pass through. See #232.
+connectionString = DataSourceResolver.Resolve(connectionString);
+
 // Ensure the data directory exists before EF creates/opens the database
 var dbPath = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(connectionString).DataSource;
 var dbDir = Path.GetDirectoryName(dbPath);
