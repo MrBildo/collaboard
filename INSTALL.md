@@ -2,7 +2,37 @@
 
 ## Quick Start
 
-1. Run the executable:
+If you used the one-line installer (see [Installation Guide](docs/installation.md)),
+`appsettings.Local.json` is already written for you — skip to step 2.
+
+1. **Set the database path (required before first run).** Collaboard requires
+   `ConnectionStrings:Board` to be an absolute path and does not derive one from
+   the working or binary directory — startup fails loud if it is unset. Create
+   `appsettings.Local.json` next to the executable with an absolute path:
+
+   ```jsonc
+   // appsettings.Local.json
+   {
+     "ConnectionStrings": {
+       "Board": "Data Source=/absolute/path/to/data/collaboard.db"
+     }
+   }
+   ```
+
+   On Windows, use a Windows absolute path, escaping backslashes for JSON:
+
+   ```jsonc
+   // appsettings.Local.json
+   {
+     "ConnectionStrings": {
+       "Board": "Data Source=C:\\collaboard\\data\\collaboard.db"
+     }
+   }
+   ```
+
+   The parent directory is created automatically on first run.
+
+2. Run the executable:
 
    **macOS / Linux:**
    ```bash
@@ -14,9 +44,9 @@
    .\Collaboard.Api.exe
    ```
 
-2. Open **http://localhost:8080** in your browser.
+3. Open **http://localhost:8080** in your browser.
 
-3. Copy the **admin auth key** from the console output — you'll need it to create users and manage boards.
+4. Copy the **admin auth key** from the console output — you'll need it to create users and manage boards.
 
 ## Configuration
 

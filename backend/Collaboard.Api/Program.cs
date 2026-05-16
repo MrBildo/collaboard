@@ -69,18 +69,44 @@ builder.Services.AddCors(options =>
 // The writable database location is a told input — never derived from the working
 // directory, the binary directory, or $HOME. ConnectionStrings:Board is required
 // configuration with no fallback; an absolute path is required. Misconfiguration
-// fails loud and early here, naming the key and path, rather than degrading to a
-// cwd-relative guess that lands unpredictably under a hardened deployment (#233).
+// fails loud and early here, naming the key and the offending value, rather than
+// degrading to a cwd-relative guess that lands unpredictably under a hardened
+// deployment (#233). Each actionable failure carries a copy-paste-ready remedy in
+// both forms a user might use — environment variable and appsettings.Local.json —
+// so a manual-download user can fix it in one step (#233 follow-up).
+static string ExampleDbConnectionString() =>
+    OperatingSystem.IsWindows()
+        ? @"Data Source=C:\collaboard\data\collaboard.db"
+        : "Data Source=/var/lib/collaboard/collaboard.db";
+
+static string ConfigRemedy()
+{
+    var example = ExampleDbConnectionString();
+    var jsonValue = example.Replace(@"\", @"\\", StringComparison.Ordinal);
+
+    return $$"""
+        To fix this, set 'ConnectionStrings:Board' to an absolute path in either form:
+
+          - Environment variable:
+              ConnectionStrings__Board={{example}}
+
+          - appsettings.Local.json (next to the executable):
+              {
+                "ConnectionStrings": {
+                  "Board": "{{jsonValue}}"
+                }
+              }
+        """;
+}
+
 var connectionString = builder.Configuration.GetConnectionString("Board");
 if (string.IsNullOrWhiteSpace(connectionString))
 {
     throw new InvalidOperationException
     (
-        "Required configuration 'ConnectionStrings:Board' is not set. Provide an "
-        + "absolute SQLite connection string via appsettings.Local.json, the "
-        + "ConnectionStrings__Board environment variable, or a command-line argument "
-        + "(e.g. \"Data Source=/srv/collaboard/data/collaboard.db\"). The application "
-        + "does not derive a database path from the working or binary directory."
+        "Required configuration 'ConnectionStrings:Board' is not set. The application "
+        + "does not derive a database path from the working or binary directory.\n\n"
+        + ConfigRemedy()
     );
 }
 
@@ -98,8 +124,8 @@ if (!isSpecialDataSource)
         (
             $"Configuration 'ConnectionStrings:Board' resolves to a relative data "
             + $"source '{dbPath}'. An absolute path is required so the database "
-            + "location does not depend on the process working directory. Set "
-            + "'ConnectionStrings:Board' to an absolute path."
+            + "location does not depend on the process working directory.\n\n"
+            + ConfigRemedy()
         );
     }
 
@@ -117,7 +143,7 @@ if (!isSpecialDataSource)
                 $"The database directory '{dbDir}' (from 'ConnectionStrings:Board' "
                 + $"= '{dbPath}') could not be created or is not writable: {ex.Message}. "
                 + "Point 'ConnectionStrings:Board' at an absolute path the process "
-                + "can write under this deployment's sandbox.",
+                + $"can write under this deployment's sandbox.\n\n{ConfigRemedy()}",
                 ex
             );
         }
