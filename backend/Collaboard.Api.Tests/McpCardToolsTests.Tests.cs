@@ -666,4 +666,145 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
         var json = System.Text.Json.JsonDocument.Parse(result);
         json.RootElement.GetProperty("offset").GetInt32().ShouldBe(0);
     }
+
+    // ── get_cards since filter (#234 regression) ─────────────────────────
+    //
+    // Pre-fix, the `since` filter composed top-level db.Comments/db.Attachments
+    // projections via .Contains(x.Id) inside an ||, which the SQLite provider
+    // could not translate — get_cards threw InvalidOperationException at the
+    // first query execution (CountAsync), so any valid ISO 8601 `since` value
+    // failed the whole call. These tests run against the in-memory SQLite
+    // provider so a translation regression fails here, not just in production.
+
+    [Fact]
+    public async Task GetCards_WithSinceFilter_DoesNotThrowAndReturnsPagedEnvelope()
+    {
+        // Arrange
+        var (db, tools, authKey) = CreateTools();
+        var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
+        await CreateCardInLaneAsync(tools, authKey, lanes[0], $"SinceSmoke-{Guid.NewGuid()}");
+        var since = DateTimeOffset.UtcNow.AddDays(-7);
+
+        // Act
+        var result = await tools.GetCardsAsync(authKey, _factory.DefaultBoardId, since: since);
+
+        // Assert — the previously-untranslatable query now executes server-side
+        result.ShouldNotContain("Error");
+        var json = System.Text.Json.JsonDocument.Parse(result);
+        var root = json.RootElement;
+        root.TryGetProperty("items", out _).ShouldBeTrue();
+        root.TryGetProperty("totalCount", out _).ShouldBeTrue();
+        root.GetProperty("items").GetArrayLength().ShouldBeGreaterThanOrEqualTo(1);
+    }
+
+    [Fact]
+    public async Task GetCards_WithSinceFilter_IncludesCardWithRecentCommentOnly()
+    {
+        // Arrange — card itself is old; only a recent comment makes it match.
+        // This isolates the previously-untranslatable comment-activity sub-query.
+        var (db, tools, authKey) = CreateTools();
+        var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
+        var cardId = await CreateCardInLaneAsync(tools, authKey, lanes[0], $"SinceComment-{Guid.NewGuid()}");
+
+        var since = DateTimeOffset.UtcNow.AddDays(-7);
+        var card = await db.Cards.SingleAsync(c => c.Id == cardId);
+        card.CreatedAtUtc = since.AddDays(-30);
+        card.LastUpdatedAtUtc = since.AddDays(-30);
+        db.Comments.Add(new CardComment
+        {
+            Id = Guid.NewGuid(),
+            CardId = cardId,
+            UserId = card.CreatedByUserId,
+            ContentMarkdown = "recent comment",
+            LastUpdatedAtUtc = since.AddDays(1),
+        });
+        await db.SaveChangesAsync();
+
+        // Act
+        var result = await tools.GetCardsAsync(authKey, _factory.DefaultBoardId, since: since);
+
+        // Assert
+        result.ShouldNotContain("Error");
+        var json = System.Text.Json.JsonDocument.Parse(result);
+        var ids = json.RootElement.GetProperty("items")
+            .EnumerateArray()
+            .Select(i => i.GetProperty("id").GetGuid())
+            .ToList();
+        ids.ShouldContain(cardId);
+    }
+
+    [Fact]
+    public async Task GetCards_WithSinceFilter_IncludesCardWithRecentAttachmentOnly()
+    {
+        // Arrange — card itself is old; only a recent attachment makes it match.
+        var (db, tools, authKey) = CreateTools();
+        var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
+        var cardId = await CreateCardInLaneAsync(tools, authKey, lanes[0], $"SinceAttach-{Guid.NewGuid()}");
+
+        var since = DateTimeOffset.UtcNow.AddDays(-7);
+        var card = await db.Cards.SingleAsync(c => c.Id == cardId);
+        card.CreatedAtUtc = since.AddDays(-30);
+        card.LastUpdatedAtUtc = since.AddDays(-30);
+        db.Attachments.Add(new CardAttachment
+        {
+            Id = Guid.NewGuid(),
+            CardId = cardId,
+            FileName = "recent.txt",
+            ContentType = "text/plain",
+            Payload = [1, 2, 3],
+            AddedByUserId = card.CreatedByUserId,
+            AddedAtUtc = since.AddDays(1),
+        });
+        await db.SaveChangesAsync();
+
+        // Act
+        var result = await tools.GetCardsAsync(authKey, _factory.DefaultBoardId, since: since);
+
+        // Assert
+        result.ShouldNotContain("Error");
+        var json = System.Text.Json.JsonDocument.Parse(result);
+        var ids = json.RootElement.GetProperty("items")
+            .EnumerateArray()
+            .Select(i => i.GetProperty("id").GetGuid())
+            .ToList();
+        ids.ShouldContain(cardId);
+    }
+
+    [Fact]
+    public async Task GetCards_WithSinceFilter_ExcludesCardWithNoRecentActivity()
+    {
+        // Arrange — card and its comment are both older than `since`; it must
+        // be filtered out server-side (proves the filter discriminates, not
+        // a pass-through that "works" by returning everything).
+        var (db, tools, authKey) = CreateTools();
+        var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
+        var staleName = $"SinceStale-{Guid.NewGuid()}";
+        var cardId = await CreateCardInLaneAsync(tools, authKey, lanes[0], staleName);
+
+        var since = DateTimeOffset.UtcNow.AddDays(-7);
+        var card = await db.Cards.SingleAsync(c => c.Id == cardId);
+        card.CreatedAtUtc = since.AddDays(-30);
+        card.LastUpdatedAtUtc = since.AddDays(-30);
+        db.Comments.Add(new CardComment
+        {
+            Id = Guid.NewGuid(),
+            CardId = cardId,
+            UserId = card.CreatedByUserId,
+            ContentMarkdown = "stale comment",
+            LastUpdatedAtUtc = since.AddDays(-15),
+        });
+        await db.SaveChangesAsync();
+
+        // Act
+        var result = await tools.GetCardsAsync(authKey, _factory.DefaultBoardId, since: since);
+
+        // Assert
+        result.ShouldNotContain("Error");
+        var json = System.Text.Json.JsonDocument.Parse(result);
+        var ids = json.RootElement.GetProperty("items")
+            .EnumerateArray()
+            .Select(i => i.GetProperty("id").GetGuid())
+            .ToList();
+        ids.ShouldNotContain(cardId);
+    }
 }

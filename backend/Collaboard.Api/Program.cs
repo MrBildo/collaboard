@@ -66,19 +66,88 @@ builder.Services.AddCors(options =>
     });
 });
 
-var connectionString = builder.Configuration.GetConnectionString("Board") ?? "Data Source=./data/collaboard.db";
+// The writable database location is a told input — never derived from the working
+// directory, the binary directory, or $HOME. ConnectionStrings:Board is required
+// configuration with no fallback; an absolute path is required. Misconfiguration
+// fails loud and early here, naming the key and the offending value, rather than
+// degrading to a cwd-relative guess that lands unpredictably under a hardened
+// deployment (#233). Each actionable failure carries a copy-paste-ready remedy in
+// both forms a user might use — environment variable and appsettings.Local.json —
+// so a manual-download user can fix it in one step (#233 follow-up).
+static string ExampleDbConnectionString() =>
+    OperatingSystem.IsWindows()
+        ? @"Data Source=C:\collaboard\data\collaboard.db"
+        : "Data Source=/var/lib/collaboard/collaboard.db";
 
-// Resolve a relative data source against the app directory (not process cwd) so the
-// data directory is stable under hardened/read-only-cwd hosting. LAN shape is
-// byte-identical (app dir == cwd); absolute overrides pass through. See #232.
-connectionString = DataSourceResolver.Resolve(connectionString);
-
-// Ensure the data directory exists before EF creates/opens the database
-var dbPath = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(connectionString).DataSource;
-var dbDir = Path.GetDirectoryName(dbPath);
-if (!string.IsNullOrEmpty(dbDir))
+static string ConfigRemedy()
 {
-    Directory.CreateDirectory(dbDir);
+    var example = ExampleDbConnectionString();
+    var jsonValue = example.Replace(@"\", @"\\", StringComparison.Ordinal);
+
+    return $$"""
+        To fix this, set 'ConnectionStrings:Board' to an absolute path in either form:
+
+          - Environment variable:
+              ConnectionStrings__Board={{example}}
+
+          - appsettings.Local.json (next to the executable):
+              {
+                "ConnectionStrings": {
+                  "Board": "{{jsonValue}}"
+                }
+              }
+        """;
+}
+
+var connectionString = builder.Configuration.GetConnectionString("Board");
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException
+    (
+        "Required configuration 'ConnectionStrings:Board' is not set. The application "
+        + "does not derive a database path from the working or binary directory.\n\n"
+        + ConfigRemedy()
+    );
+}
+
+var dbPath = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(connectionString).DataSource;
+
+// SQLite special data sources (`:memory:`, empty/temp) carry no filesystem path —
+// the in-memory test database relies on this. Real filesystem paths must be
+// absolute and writable; anything else fails loud here, before EF opens the DB.
+var isSpecialDataSource = string.IsNullOrEmpty(dbPath) || dbPath == ":memory:";
+if (!isSpecialDataSource)
+{
+    if (!Path.IsPathRooted(dbPath))
+    {
+        throw new InvalidOperationException
+        (
+            $"Configuration 'ConnectionStrings:Board' resolves to a relative data "
+            + $"source '{dbPath}'. An absolute path is required so the database "
+            + "location does not depend on the process working directory.\n\n"
+            + ConfigRemedy()
+        );
+    }
+
+    var dbDir = Path.GetDirectoryName(dbPath);
+    if (!string.IsNullOrEmpty(dbDir))
+    {
+        try
+        {
+            Directory.CreateDirectory(dbDir);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw new InvalidOperationException
+            (
+                $"The database directory '{dbDir}' (from 'ConnectionStrings:Board' "
+                + $"= '{dbPath}') could not be created or is not writable: {ex.Message}. "
+                + "Point 'ConnectionStrings:Board' at an absolute path the process "
+                + $"can write under this deployment's sandbox.\n\n{ConfigRemedy()}",
+                ex
+            );
+        }
+    }
 }
 
 builder.Services.AddDbContext<BoardDbContext>(options =>

@@ -28,7 +28,21 @@ Download the latest release for your platform from [GitHub Releases](https://git
 | Linux 64-bit | `collaboard-linux-x64.tar.gz` |
 | Linux ARM64 | `collaboard-linux-arm64.tar.gz` |
 
-Extract and run the executable. No runtime or framework installation required.
+Extract the archive. Before the first run, create `appsettings.Local.json` next to
+the executable with an absolute database path — Collaboard requires
+`ConnectionStrings:Board` and does not derive a path from the working or binary
+directory (the one-line installers above write this file for you):
+
+```jsonc
+// appsettings.Local.json
+{
+  "ConnectionStrings": {
+    "Board": "Data Source=/absolute/path/to/data/collaboard.db"
+  }
+}
+```
+
+Then run the executable. No runtime or framework installation required.
 
 ## macOS Gatekeeper
 

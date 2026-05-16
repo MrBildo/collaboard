@@ -76,6 +76,24 @@ rm -rf "$TEMP_DIR"
 # Make executable
 chmod +x "${INSTALL_DIR}/Collaboard.Api"
 
+# Seed appsettings.Local.json with an absolute database path. Collaboard requires
+# ConnectionStrings:Board to be set to an absolute path — it does not derive a
+# database location from the working or binary directory, so the installer (the
+# "told input" for the LAN install) supplies it. Never overwrite an existing
+# user-managed file.
+LOCAL_SETTINGS="${INSTALL_DIR}/appsettings.Local.json"
+if [ ! -f "$LOCAL_SETTINGS" ]; then
+    DB_PATH="${INSTALL_DIR}/data/collaboard.db"
+    cat > "$LOCAL_SETTINGS" <<EOF
+{
+  "ConnectionStrings": {
+    "Board": "Data Source=${DB_PATH}"
+  }
+}
+EOF
+    echo "Wrote ${LOCAL_SETTINGS} (database at ${DB_PATH})"
+fi
+
 echo
 echo "Collaboard installed to ${INSTALL_DIR}"
 echo

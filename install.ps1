@@ -62,6 +62,23 @@ Remove-Item $tempExtract -Recurse -Force
 # Clean up
 Remove-Item $tempFile -Force
 
+# Seed appsettings.Local.json with an absolute database path. Collaboard requires
+# ConnectionStrings:Board to be set to an absolute path — it does not derive a
+# database location from the working or binary directory, so the installer (the
+# "told input" for the LAN install) supplies it. Never overwrite an existing
+# user-managed file.
+$localSettings = Join-Path $InstallDir 'appsettings.Local.json'
+if (-not (Test-Path $localSettings)) {
+    $dbPath = Join-Path $InstallDir 'data\collaboard.db'
+    $settings = [ordered]@{
+        ConnectionStrings = [ordered]@{
+            Board = "Data Source=$dbPath"
+        }
+    }
+    $settings | ConvertTo-Json -Depth 5 | Set-Content -Path $localSettings -Encoding utf8
+    Write-Host "Wrote $localSettings (database at $dbPath)"
+}
+
 Write-Host
 Write-Host "Collaboard installed to $InstallDir"
 Write-Host
