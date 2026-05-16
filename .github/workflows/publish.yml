@@ -76,14 +76,16 @@ jobs:
         id: version
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
-      # Publish self-contained single-file executable
+      # Publish self-contained, non-single-file (directory layout). Self-contained
+      # keeps the no-runtime-needed property; dropping single-file removes the
+      # runtime native-lib self-extraction step entirely, which is the precondition
+      # that fails under hardened/read-only-cwd hosting (Collaboard #231).
       - name: Publish
         run: |
           dotnet publish backend/Collaboard.Api/Collaboard.Api.csproj \
             -c Release \
             -r ${{ matrix.rid }} \
             --self-contained \
-            /p:PublishSingleFile=true \
             /p:Version=${{ steps.version.outputs.VERSION }} \
             -o publish/${{ matrix.artifact }}
 
