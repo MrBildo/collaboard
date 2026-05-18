@@ -240,19 +240,24 @@ The skills carry universal patterns. The sections below name only Collaboard-spe
 
 - **Never commit directly to main.** All changes via feature branch + PR.
 - **Conventional commits:** `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`.
-- **Branch naming:** `feature/`, `bugfix:`, `hotfix/`, `chore/`. Release branches: `release/<descriptive-name>` (never version numbers in release branch names — `release/v1.10.0` is wrong; `release/backend-v1` is right).
+- **Branch naming:** `feature/`, `bugfix/`, `hotfix/`, `chore/`. Release/integration branches (`release/<descriptive-name>` — never version numbers; `release/v1.10.0` is wrong, `release/backend-v1` is right) are the **bundle exception only** — see Branch strategy below.
 - **Squash merge to main via `gh pr merge --squash --delete-branch`.** Never local `git merge --squash` — it leaves PRs dangling open.
 - **Delete branches after merge** — don't let stale branches accumulate.
 - **Always merge PRs via `gh pr merge`**, never local merge.
 
-#### Multi-card branch strategy
+#### Branch strategy — trunk-based by default
 
-For multi-card features that span several PRs:
+Default: **PR every card straight to `main`.** `main` is the integration point and stays releasable at all times. A release is a **tag on a point in `main`'s history**, not a branch that gets merged — cut it with `/release` when enough has accumulated; the changelog reconciles from the conventional-commit `#NNN` PR log since the last tag. The version (PATCH/MINOR/MAJOR) is decided at cut time from what accumulated, not planned up front.
 
-1. Cut a `release/<descriptive-name>` branch from main.
-2. Each card cuts a feature branch off the release branch (or, for tightly-coupled work, off a parent feature branch).
-3. Each card PRs into the release branch (not main directly) for independent review.
-4. The final aggregate PR (`release/<name>` → `main`) is the operator's go/no-go gate on the whole feature.
+This requires `main` stays releasable: **each PR must be independently shippable.** Work that isn't (a half-built feature, a risky or destructive change) goes behind a flag, or uses the integration-branch exception below — it does not land half-done on `main`.
+
+**Integration-branch exception.** Use a single integration branch only when a set of PRs must land *atomically* and is *not* independently shippable, OR when you want one go/no-go gate over a named bundle. The discriminator:
+
+> **Is there a named bundle with a go/no-go gate over the bundle?**
+> - **Yes** (a milestone like the v1.12.0 production split, or a staged destructive change) → cut `release/<descriptive-name>` from `main` (or `feature/<epic>` for a feature epic — mechanically identical; the name is semantic). Sub-cards PR into it; the aggregate PR → `main` is the operator's one go/no-go gate on the bundle.
+> - **No** (independent cards, ship when ready, cut a release when accumulated) → trunk default; PR straight to `main`.
+
+The release/integration branch is the deliberate, named exception — not the default path. Single-PR releases never use it (PR → `main` → `/release`). When trunk is the mode, the operator's go/no-go gate is the changelog-diff review at release-cut time, not an aggregate PR.
 
 #### Parallel work safety
 
@@ -340,7 +345,7 @@ When designing UI features, create self-contained HTML mockup files for user rev
 
 See [[COLLABOARD]] for board conventions, lanes, labels, sizes, and workflow.
 
-Use `/release` to cut a new version — it waits for CI, creates a GitHub Release, monitors the publish workflow, and reports when artifacts are ready.
+Releases are cut from `main` (trunk-based — see Branch strategy). Use `/release` to cut a new version — it waits for CI to pass on `main`, creates a GitHub Release, monitors the publish workflow, and reports when artifacts are ready.
 
 ## Definition of Done
 
