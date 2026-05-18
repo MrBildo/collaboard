@@ -257,6 +257,8 @@ This requires `main` stays releasable: **each PR must be independently shippable
 > - **Yes** (a milestone like the v1.12.0 production split, or a staged destructive change) → cut `release/<descriptive-name>` from `main` (or `feature/<epic>` for a feature epic — mechanically identical; the name is semantic). Sub-cards PR into it; the aggregate PR → `main` is the operator's one go/no-go gate on the bundle.
 > - **No** (independent cards, ship when ready, cut a release when accumulated) → trunk default; PR straight to `main`.
 
+**The discriminator is evaluated continuously, not once at first-card.** An investigation can crystallize into a shared-root-cause multi-PR correction mid-arc — a bundle that earns its gate late (e.g., a production-incident class that fans out into coordinated PRs). When the answer flips to "yes" mid-arc, cut the integration branch at that point and reparent the in-flight work. A discriminator asked only at first-card has no gate when an emergent bundle reveals itself.
+
 The release/integration branch is the deliberate, named exception — not the default path. Single-PR releases never use it (PR → `main` → `/release`). When trunk is the mode, the operator's go/no-go gate is the changelog-diff review at release-cut time, not an aggregate PR.
 
 #### Parallel work safety
