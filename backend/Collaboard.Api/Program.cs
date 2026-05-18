@@ -24,6 +24,14 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
+// WebApplication.CreateBuilder adds an env-var provider at builder-construction time, but it
+// sits below any sources added later. The .Local.json load above otherwise shadows env vars.
+// Re-adding here pushes env vars back to the top of the provider chain
+// (env > appsettings.Local.json > appsettings.json > default). This is what makes Collabhost's
+// Section__Key env injection actually win over an operator-created appsettings.Local.json — the
+// goal being all overrides via Collabhost configuration, no manual appsettings editing (#225).
+builder.Configuration.AddEnvironmentVariables();
+
 // Listen-address dual-pattern: `urls` / `ASPNETCORE_URLS` wins (Aspire dev, hosting-injected,
 // operator override); otherwise the structured Hosting: settings build the bind URL. Runs
 // before AddServiceDefaults so the host's URL story is settled before Aspire's hooks register.
