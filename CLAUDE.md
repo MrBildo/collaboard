@@ -100,6 +100,19 @@ Header-based authentication — no ASP.NET auth middleware:
 - `AgentUser` cannot delete cards; can delete own comments and attachments
 - All users see all boards — no board-level membership
 
+## Configuration Precedence
+
+Settings resolution precedence, highest to lowest:
+
+```
+env (Section__Key) > appsettings.Local.json > appsettings.json > hardcoded default
+```
+
+- **Stock .NET `Section__Key` env-var mapping is the override channel.** No named-env-var ladder, no per-section resolver, no whitespace-is-unset fallthrough. `Section:Key` binds from `Section__Key` (double underscore). This is the model — keep new settings on it.
+- **Collabhost injects production overrides via these env vars.** The deployment contract is "all overrides via Collabhost configuration, no manual `appsettings` editing." `Program.cs` re-adds the env-var provider *after* the `appsettings.Local.json` load so an operator-created overlay cannot shadow a Collabhost-injected env var (#225). Do not remove or reorder that re-add — `ConfigPrecedenceTests` locks it.
+- `appsettings.Local.json` is a runtime-only overlay (not in the source tree, not gitignored — materializes at deploy time).
+- "Hardcoded default" means a settings-POCO initializer or a `GetValue(..., literal)` fallback, not a configuration provider.
+
 ## Archive Model
 
 Cards can be **archived** — hidden from normal views but preserved for reference:
