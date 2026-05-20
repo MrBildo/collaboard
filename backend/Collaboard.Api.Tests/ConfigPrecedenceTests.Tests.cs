@@ -24,8 +24,8 @@ namespace Collaboard.Api.Tests;
 // .Local.json load is gone (T-9, locking that L-2 was actually applied).
 public sealed class ConfigPrecedenceTests : IDisposable
 {
-    private const string Key = "ConfigPrecedence:Probe";
-    private const string EnvKey = "ConfigPrecedence__Probe";
+    private const string _key = "ConfigPrecedence:Probe";
+    private const string _envKey = "ConfigPrecedence__Probe";
 
     private readonly string _dir;
     private readonly string _appsettingsPath;
@@ -39,7 +39,7 @@ public sealed class ConfigPrecedenceTests : IDisposable
 
     public void Dispose()
     {
-        Environment.SetEnvironmentVariable(EnvKey, null);
+        Environment.SetEnvironmentVariable(_envKey, null);
         if (Directory.Exists(_dir))
         {
             Directory.Delete(_dir, recursive: true);
@@ -75,7 +75,7 @@ public sealed class ConfigPrecedenceTests : IDisposable
     // GetValue(..., literal) fallback, not a configuration provider — i.e. a
     // null-coalesce on the resolved config value. Model it exactly that way.
     private string Resolve(IConfiguration config, string hardcodedDefault) =>
-        config[Key] ?? hardcodedDefault;
+        config[_key] ?? hardcodedDefault;
 
     private void WriteAppsettings(string value) =>
         File.WriteAllText(_appsettingsPath, $$"""
@@ -86,7 +86,7 @@ public sealed class ConfigPrecedenceTests : IDisposable
     public void EnvVar_WinsOver_AppsettingsJson()
     {
         WriteAppsettings("from-appsettings");
-        Environment.SetEnvironmentVariable(EnvKey, "from-env");
+        Environment.SetEnvironmentVariable(_envKey, "from-env");
 
         var resolved = Resolve(BuildProgramConfigChain(), "hardcoded-default");
 
