@@ -3,23 +3,25 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// Proves the configuration-provider precedence Program.cs establishes:
+// Proves the configuration-provider precedence Program.cs establishes after #235:
 //
-//   env (Section__Key) > appsettings.Local.json > appsettings.json > hardcoded default
+//   env (Section__Key) > appsettings.json > hardcoded default
 //
-// The fix (#225) re-adds AddEnvironmentVariables() AFTER the appsettings.Local.json
-// load so an operator overlay no longer shadows a Collabhost-injected env var.
+// The appsettings.Local.json overlay channel was retired by #235; Program.cs no longer
+// loads it and the installers no longer write it. The smart-merge on appsettings.json
+// is what now preserves operator edits across upgrades.
 //
 // This is tested by replicating Program.cs's exact provider sequence against a real
 // ConfigurationBuilder (the HostingBindResolverTests pattern) rather than the WAF:
 // WebApplicationFactory injects in-memory providers via UseSetting /
 // ConfigureAppConfiguration, which structurally cannot exercise the AddJsonFile ->
-// AddEnvironmentVariables ordering this fix changes. Temp files + a scoped real env
-// var are the only seam that proves file-vs-env ordering.
+// AddEnvironmentVariables ordering. Temp files + a scoped real env var are the only
+// seam that proves file-vs-env ordering.
 //
-// ProgramConfigChain mirrors Program.cs:23-32. The source-regression guard at the
-// bottom asserts the env re-add still follows the .Local.json load, so a future
-// Program.cs refactor that reorders or drops the line fails loudly here.
+// ProgramConfigChain mirrors Program.cs (post-#235). Source-regression guards at the
+// bottom (a) assert the env re-add still follows WebApplication.CreateBuilder so a
+// future-added JSON source cannot silently re-shadow env vars and (b) assert the
+// .Local.json load is gone (T-9, locking that L-2 was actually applied).
 public sealed class ConfigPrecedenceTests : IDisposable
 {
     private const string Key = "ConfigPrecedence:Probe";
@@ -27,14 +29,12 @@ public sealed class ConfigPrecedenceTests : IDisposable
 
     private readonly string _dir;
     private readonly string _appsettingsPath;
-    private readonly string _localPath;
 
     public ConfigPrecedenceTests()
     {
         _dir = Path.Combine(Path.GetTempPath(), $"cfgprec-{Guid.NewGuid():N}");
         Directory.CreateDirectory(_dir);
         _appsettingsPath = Path.Combine(_dir, "appsettings.json");
-        _localPath = Path.Combine(_dir, "appsettings.Local.json");
     }
 
     public void Dispose()
@@ -46,25 +46,26 @@ public sealed class ConfigPrecedenceTests : IDisposable
         }
     }
 
-    // Mirrors Program.cs:23-32 — the framework default chain (incl. an env-var
-    // provider added at builder-construction time), then appsettings.Local.json,
-    // then the #225 env-var re-add that pushes env back to the top.
+    // Mirrors Program.cs (post-#235) — the framework default chain (incl. an env-var
+    // provider added at builder-construction time), then the env-var re-add. There is
+    // no .Local.json overlay anywhere in this chain.
     private IConfiguration BuildProgramConfigChain()
     {
         var builder = new ConfigurationBuilder();
 
-        // appsettings.json — the shipped default tier.
+        // appsettings.json — the shipped default tier (now operator-editable; edits
+        // survive upgrades via the #235 smart-merge).
         builder.AddJsonFile(_appsettingsPath, optional: true, reloadOnChange: false);
 
         // The env-var provider WebApplication.CreateBuilder adds at construction time.
-        // Present here so the test proves the #225 re-add is what fixes ordering, not
-        // merely that an env provider exists at all.
+        // Present here so the test proves the re-add is what fixes ordering, not merely
+        // that an env provider exists at all.
         builder.AddEnvironmentVariables();
 
-        // Program.cs:25 — the operator overlay, highest until the re-add below.
-        builder.AddJsonFile(_localPath, optional: true, reloadOnChange: false);
-
-        // Program.cs — the #225 fix: re-add env vars AFTER .Local.json.
+        // Program.cs — the env-var re-add (originally #225; #235 retired the .Local.json
+        // load that sat between these two AddEnvironmentVariables calls but kept the
+        // re-add as insurance against a future-added JSON source silently re-shadowing
+        // env vars).
         builder.AddEnvironmentVariables();
 
         return builder.Build();
@@ -81,32 +82,15 @@ public sealed class ConfigPrecedenceTests : IDisposable
             { "ConfigPrecedence": { "Probe": "{{value}}" } }
             """);
 
-    private void WriteLocal(string value) =>
-        File.WriteAllText(_localPath, $$"""
-            { "ConfigPrecedence": { "Probe": "{{value}}" } }
-            """);
-
     [Fact]
-    public void EnvVar_WinsOver_AppsettingsLocalJson()
+    public void EnvVar_WinsOver_AppsettingsJson()
     {
         WriteAppsettings("from-appsettings");
-        WriteLocal("from-local");
         Environment.SetEnvironmentVariable(EnvKey, "from-env");
 
         var resolved = Resolve(BuildProgramConfigChain(), "hardcoded-default");
 
         resolved.ShouldBe("from-env");
-    }
-
-    [Fact]
-    public void AppsettingsLocalJson_WinsOver_AppsettingsJson()
-    {
-        WriteAppsettings("from-appsettings");
-        WriteLocal("from-local");
-
-        var resolved = Resolve(BuildProgramConfigChain(), "hardcoded-default");
-
-        resolved.ShouldBe("from-local");
     }
 
     [Fact]
@@ -127,24 +111,13 @@ public sealed class ConfigPrecedenceTests : IDisposable
         resolved.ShouldBe("hardcoded-default");
     }
 
+    // Source-level regression lock 1 (T-9): the entire post-#235 invariant is that
+    // .Local.json no longer loads. A refactor that re-adds the .Local.json AddJsonFile
+    // call silently re-introduces the retired overlay channel with no behavioral test
+    // able to catch it (Program.cs would once again load operator-editable JSON the
+    // smart-merge contract assumes does not exist).
     [Fact]
-    public void EnvVar_WinsOver_AppsettingsJson_WhenNoLocalOverlay()
-    {
-        WriteAppsettings("from-appsettings");
-        Environment.SetEnvironmentVariable(EnvKey, "from-env");
-
-        var resolved = Resolve(BuildProgramConfigChain(), "hardcoded-default");
-
-        resolved.ShouldBe("from-env");
-    }
-
-    // Source-level regression lock: the entire #225 fix is the ordering of two
-    // Program.cs lines. A refactor that reorders them, or drops the re-add,
-    // silently reintroduces the .Local.json-shadows-env inversion with zero
-    // behavioral test able to catch it (the WAF cannot exercise file-vs-env
-    // ordering). Pin the ordering against the source itself.
-    [Fact]
-    public void ProgramCs_ReaddsEnvVarsAfterLocalJsonLoad()
+    public void ProgramCs_DoesNotLoadAppsettingsLocalJson()
     {
         var programPath = Path.Combine
         (
@@ -159,33 +132,56 @@ public sealed class ConfigPrecedenceTests : IDisposable
 
         var source = File.ReadAllText(programPath);
 
-        var localLoadIndex = source.IndexOf
+        source.ShouldNotContain
         (
-            "AddJsonFile(\"appsettings.Local.json\"",
-            StringComparison.Ordinal
+            "appsettings.Local.json",
+            Case.Sensitive,
+            "#235 retired the appsettings.Local.json overlay channel — Program.cs must not "
+            + "AddJsonFile(\"appsettings.Local.json\", ...) (or reference the file name at all). "
+            + "If the channel needs to come back, do so behind a new card with a re-revised "
+            + "ConfigPrecedenceTests."
         );
-        var envReaddIndex = source.IndexOf
+    }
+
+    // Source-level regression lock 2: the env-var re-add must still appear after
+    // WebApplication.CreateBuilder so a *future*-added JSON source cannot silently
+    // re-shadow env vars. The original #225 fix was about ordering against .Local.json;
+    // .Local.json is gone now, but the re-add stays as structural insurance.
+    [Fact]
+    public void ProgramCs_ReaddsEnvVarsAfterWebApplicationCreateBuilder()
+    {
+        var programPath = Path.Combine
         (
-            "AddEnvironmentVariables()",
-            StringComparison.Ordinal
+            FindRepoRoot(),
+            "backend",
+            "Collaboard.Api",
+            "Program.cs"
         );
 
-        localLoadIndex.ShouldBeGreaterThan
+        File.Exists(programPath)
+            .ShouldBeTrue($"Program.cs not found at {programPath}");
+
+        var source = File.ReadAllText(programPath);
+
+        var createBuilderIndex = source.IndexOf("WebApplication.CreateBuilder", StringComparison.Ordinal);
+        var envReaddIndex = source.IndexOf("AddEnvironmentVariables()", StringComparison.Ordinal);
+
+        createBuilderIndex.ShouldBeGreaterThan
         (
             -1,
-            "appsettings.Local.json load missing from Program.cs"
+            "WebApplication.CreateBuilder call missing from Program.cs"
         );
         envReaddIndex.ShouldBeGreaterThan
         (
             -1,
-            "AddEnvironmentVariables() re-add missing from Program.cs — #225 "
-            + "inversion reintroduced: .Local.json would shadow env vars"
+            "AddEnvironmentVariables() re-add missing from Program.cs — a future-added JSON "
+            + "source could silently shadow env vars without this insurance line"
         );
         envReaddIndex.ShouldBeGreaterThan
         (
-            localLoadIndex,
-            "AddEnvironmentVariables() must appear AFTER the appsettings.Local.json "
-            + "load (#225) — otherwise the operator overlay shadows env vars"
+            createBuilderIndex,
+            "AddEnvironmentVariables() must appear AFTER WebApplication.CreateBuilder so it "
+            + "sits at the top of the provider chain regardless of any future-added JSON source"
         );
     }
 

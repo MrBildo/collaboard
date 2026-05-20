@@ -26,9 +26,9 @@ $tempFile = Join-Path ([IO.Path]::GetTempPath()) "$ArtifactName.zip"
 Write-Host "Downloading $ArtifactName.zip..."
 Invoke-WebRequest -Uri $downloadUrl -OutFile $tempFile -UseBasicParsing
 
-# Extract to temp location first, then merge (preserving data/ and user config)
+# Extract to temp location first, then merge (preserving data/ and operator config)
 Write-Host "Extracting to $InstallDir..."
-$tempExtract = Join-Path ([IO.Path]::GetTempPath()) "collaboard-extract"
+$tempExtract = Join-Path ([IO.Path]::GetTempPath()) 'collaboard-extract'
 if (Test-Path $tempExtract) {
     Remove-Item $tempExtract -Recurse -Force
 }
@@ -44,40 +44,79 @@ if (-not (Test-Path $InstallDir)) {
     New-Item -ItemType Directory -Path $InstallDir | Out-Null
 }
 
-# Copy new files over existing, preserving data/ and user config
+# Copy new files over existing, preserving data/ and appsettings.json (the operator-editable
+# config — smart-merged below via Collaboard.Api --merge-appsettings, #235).
 Get-ChildItem $sourceDir | ForEach-Object {
     $dest = Join-Path $InstallDir $_.Name
     # Skip data directory (contains the database)
     if ($_.Name -eq 'data') { return }
-    # Skip user config overrides
-    if ($_.Name -eq 'appsettings.Local.json') { return }
+    # Carve out appsettings.json — merged below, never overwritten wholesale.
+    if ($_.Name -eq 'appsettings.json') { return }
     if (Test-Path $dest) {
         Remove-Item $dest -Recurse -Force
     }
     Move-Item $_.FullName -Destination $dest -Force
 }
 
+# appsettings.json: smart-merge on upgrade, seed on first install (#235).
+#
+# First install: copy the archive's shipped appsettings.json into place AND seed the
+# sidecar baseline (appsettings.shipped.json) so the next upgrade has a reference for
+# distinguishing operator-edited keys from untouched defaults. Then seed an absolute
+# ConnectionStrings:Board into appsettings.json (Collaboard requires it; no default).
+#
+# Upgrade: invoke `Collaboard.Api.exe --merge-appsettings <shipped> <ondisk> --baseline
+# <baseline>` to perform the three-way merge.
+$shippedSrc = Join-Path $sourceDir 'appsettings.json'
+$appsettingsDst = Join-Path $InstallDir 'appsettings.json'
+$baselineDst = Join-Path $InstallDir 'appsettings.shipped.json'
+$collaboardBin = Join-Path $InstallDir 'Collaboard.Api.exe'
+$dbPath = Join-Path $InstallDir 'data\collaboard.db'
+
+if (-not (Test-Path $appsettingsDst)) {
+    # First install — copy shipped → appsettings.json AND seed the baseline sidecar
+    # (#235 C-3: required so the next upgrade is not stuck in conservative mode).
+    Copy-Item -Path $shippedSrc -Destination $appsettingsDst -Force
+    Copy-Item -Path $shippedSrc -Destination $baselineDst -Force
+    Write-Host "Seeded $appsettingsDst and $baselineDst from shipped defaults"
+
+    # Seed the absolute ConnectionStrings:Board into appsettings.json. Collaboard requires
+    # this key with no default. PowerShell's native ConvertFrom-Json / ConvertTo-Json
+    # handles this without the python3/awk fallback chain the bash installer needs.
+    try {
+        $settings = Get-Content -Path $appsettingsDst -Raw | ConvertFrom-Json
+        if (-not $settings.PSObject.Properties.Match('ConnectionStrings').Count) {
+            $settings | Add-Member -MemberType NoteProperty -Name 'ConnectionStrings' -Value ([pscustomobject]@{ Board = "Data Source=$dbPath" })
+        }
+        elseif ([string]::IsNullOrWhiteSpace($settings.ConnectionStrings.Board)) {
+            $settings.ConnectionStrings.Board = "Data Source=$dbPath"
+        }
+        $settings | ConvertTo-Json -Depth 10 | Set-Content -Path $appsettingsDst -Encoding utf8
+        Write-Host "Seeded ConnectionStrings:Board = Data Source=$dbPath"
+    }
+    catch {
+        Write-Warning "Could not seed ConnectionStrings:Board into ${appsettingsDst}: $($_.Exception.Message)"
+        Write-Warning "Edit $appsettingsDst manually, setting ConnectionStrings:Board to ""Data Source=$dbPath""."
+    }
+}
+else {
+    # Upgrade — invoke the C# merge subcommand. The binary was just unpacked above, so
+    # it is guaranteed to be the version-correct artifact that ships --merge-appsettings.
+    # Every skip path inside the subcommand is loud + non-zero exit (#235 C-4 / AC-3),
+    # so a failure here surfaces and $ErrorActionPreference = 'Stop' aborts the installer
+    # rather than silently leaving an unmerged appsettings.json behind.
+    & $collaboardBin --merge-appsettings $shippedSrc $appsettingsDst --baseline $baselineDst
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "merge-appsettings failed with exit code $LASTEXITCODE"
+        exit $LASTEXITCODE
+    }
+    Write-Host "Smart-merged $appsettingsDst (operator edits preserved, new shipped keys added)"
+}
+
 Remove-Item $tempExtract -Recurse -Force
 
 # Clean up
 Remove-Item $tempFile -Force
-
-# Seed appsettings.Local.json with an absolute database path. Collaboard requires
-# ConnectionStrings:Board to be set to an absolute path — it does not derive a
-# database location from the working or binary directory, so the installer (the
-# "told input" for the LAN install) supplies it. Never overwrite an existing
-# user-managed file.
-$localSettings = Join-Path $InstallDir 'appsettings.Local.json'
-if (-not (Test-Path $localSettings)) {
-    $dbPath = Join-Path $InstallDir 'data\collaboard.db'
-    $settings = [ordered]@{
-        ConnectionStrings = [ordered]@{
-            Board = "Data Source=$dbPath"
-        }
-    }
-    $settings | ConvertTo-Json -Depth 5 | Set-Content -Path $localSettings -Encoding utf8
-    Write-Host "Wrote $localSettings (database at $dbPath)"
-}
 
 Write-Host
 Write-Host "Collaboard installed to $InstallDir"

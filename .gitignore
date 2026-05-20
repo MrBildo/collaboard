@@ -38,6 +38,10 @@ data/
 backend/**/Properties/launchSettings.json
 !backend/Collaboard.AppHost/Properties/launchSettings.json
 backend/**/appsettings.Development.json
+# Smart-merge baseline sidecar (#235). Runtime artifact written by the installer
+# next to appsettings.json; never in the source tree, never committed.
+backend/**/appsettings.shipped.json
+appsettings.shipped.json
 frontend/.env
 frontend/.env.*
 

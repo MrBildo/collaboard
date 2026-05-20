@@ -70,12 +70,16 @@ Open **http://localhost:8080** in your browser. The admin auth key is printed to
 
 ## Host Configuration
 
-Collaboard ships with sensible defaults. Override settings via `appsettings.Local.json` (place next to the executable), environment variables, or command-line arguments.
+Collaboard ships with sensible defaults. Edit `appsettings.json` next to the
+executable to override them — your edits are preserved across upgrades via the
+installer's smart three-way merge (operator edits preserved, untouched defaults
+refreshed, new shipped keys added). Environment variables override
+`appsettings.json` for ad-hoc tweaks.
 
 ### Port and Bind Address
 
 ```jsonc
-// appsettings.Local.json
+// appsettings.json
 {
   "Urls": "http://0.0.0.0:9090"
 }
@@ -92,7 +96,7 @@ export Urls=http://0.0.0.0:9090
 By default, a random auth key is generated on first run and printed to the console. To set a known key:
 
 ```jsonc
-// appsettings.Local.json
+// appsettings.json
 {
   "Admin": {
     "AuthKey": "my-secret-admin-key"
@@ -104,11 +108,12 @@ By default, a random auth key is generated on first run and printed to the conso
 
 The database path is **required** configuration with no default — the app never
 derives a path from the working or binary directory. The installer writes an
-absolute path into `appsettings.Local.json` for you; to relocate the database,
-edit it there (use an absolute path):
+absolute path into `appsettings.json` for you; to relocate the database, edit
+it there (use an absolute path) — your edit is preserved by the smart-merge on
+the next upgrade:
 
 ```jsonc
-// appsettings.Local.json
+// appsettings.json
 {
   "ConnectionStrings": {
     "Board": "Data Source=/srv/collaboard/data/collaboard.db"
@@ -121,7 +126,7 @@ edit it there (use an absolute path):
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `Urls` | `http://0.0.0.0:8080` | Bind address and port |
-| `ConnectionStrings:Board` | *(required — no default)* | SQLite database path. Must be an **absolute** path; the installer writes this into `appsettings.Local.json`. Startup fails loud if unset or unwritable. |
+| `ConnectionStrings:Board` | *(required — no default)* | SQLite database path. Must be an **absolute** path; the installer writes this into `appsettings.json`. Startup fails loud if unset or unwritable. |
 | `Admin:AuthKey` | *(auto-generated)* | Override the admin auth key |
 
 ### Version
@@ -264,8 +269,14 @@ Agents can then create cards, move work between lanes, add comments, manage labe
 ## Updating
 
 1. Stop the running process
-2. Download the new release for your platform
-3. Replace the executable (keep your `data/` directory and `appsettings.Local.json`)
+2. Re-run the one-line installer (recommended) — it preserves your `appsettings.json`
+   edits via smart-merge, refreshes untouched shipped defaults, and adds any new
+   shipped keys. The `data/` directory is left untouched. A baseline sidecar
+   (`appsettings.shipped.json`) is written next to `appsettings.json` for the next
+   merge to use as its reference point.
+3. For a manual install: extract the new release and run
+   `./Collaboard.Api --merge-appsettings <new-appsettings.json> ./appsettings.json --baseline ./appsettings.shipped.json`
+   from the install directory.
 4. Start the app — migrations run automatically, database is backed up first
 
 ## Development
