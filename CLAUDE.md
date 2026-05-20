@@ -105,12 +105,13 @@ Header-based authentication — no ASP.NET auth middleware:
 Settings resolution precedence, highest to lowest:
 
 ```
-env (Section__Key) > appsettings.Local.json > appsettings.json > hardcoded default
+env (Section__Key) > appsettings.json > hardcoded default
 ```
 
 - **Stock .NET `Section__Key` env-var mapping is the override channel.** No named-env-var ladder, no per-section resolver, no whitespace-is-unset fallthrough. `Section:Key` binds from `Section__Key` (double underscore). This is the model — keep new settings on it.
-- **Collabhost injects production overrides via these env vars.** The deployment contract is "all overrides via Collabhost configuration, no manual `appsettings` editing." `Program.cs` re-adds the env-var provider *after* the `appsettings.Local.json` load so an operator-created overlay cannot shadow a Collabhost-injected env var (#225). Do not remove or reorder that re-add — `ConfigPrecedenceTests` locks it.
-- `appsettings.Local.json` is a runtime-only overlay (not in the source tree, not gitignored — materializes at deploy time).
+- **Collabhost injects production overrides via these env vars.** The deployment contract is "all overrides via Collabhost configuration, no manual `appsettings` editing." `Program.cs` re-adds the env-var provider *after* `WebApplication.CreateBuilder` so env vars sit at the top of the provider chain even if a future JSON source is added later (#225 originally established this against `appsettings.Local.json`; #235 retired that overlay but kept the re-add as structural insurance). Do not remove the re-add — `ConfigPrecedenceTests` locks it.
+- `appsettings.json` is operator-editable next to the executable. The installer (and a manual `--merge-appsettings` invocation) performs a smart three-way merge on upgrade — operator edits are preserved, untouched shipped defaults are refreshed, new shipped keys are added (#235). A baseline sidecar `appsettings.shipped.json` (gitignored, runtime artifact) records what was last shipped so the next merge can distinguish operator-edited keys from untouched defaults.
+- `appsettings.Local.json` was retired by #235; do not reintroduce it. `Program.cs` no longer loads it and `ConfigPrecedenceTests.ProgramCs_DoesNotLoadAppsettingsLocalJson` guards the absence.
 - "Hardcoded default" means a settings-POCO initializer or a `GetValue(..., literal)` fallback, not a configuration provider.
 
 ## Archive Model

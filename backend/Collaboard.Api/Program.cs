@@ -4,6 +4,7 @@ using Collaboard.Api.Configuration;
 using Collaboard.Api.Endpoints;
 using Collaboard.Api.Events;
 using Collaboard.Api.Hosting;
+using Collaboard.Api.Installation;
 using Collaboard.Api.Mcp;
 using Collaboard.Api.Models;
 using Microsoft.AspNetCore.Http.Features;
@@ -20,16 +21,21 @@ if (args.Contains("--version"))
     return;
 }
 
+// Installer-invoked subcommand: merge a freshly-shipped appsettings.json against the operator's
+// on-disk file (preserve edits, refresh untouched defaults, add new keys). Runs before any host
+// setup so this path never touches the database, the host, or the network (#235).
+if (args.Length > 0 && args[0] == "--merge-appsettings")
+{
+    Environment.Exit(AppSettingsMergeCli.Run(args[1..], Console.Out, Console.Error));
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
-
-// WebApplication.CreateBuilder adds an env-var provider at builder-construction time, but it
-// sits below any sources added later. The .Local.json load above otherwise shadows env vars.
-// Re-adding here pushes env vars back to the top of the provider chain
-// (env > appsettings.Local.json > appsettings.json > default). This is what makes Collabhost's
-// Section__Key env injection actually win over an operator-created appsettings.Local.json — the
-// goal being all overrides via Collabhost configuration, no manual appsettings editing (#225).
+// WebApplication.CreateBuilder adds an env-var provider at builder-construction time. The
+// re-add below ensures env vars sit at the top of the provider chain even if a future JSON
+// source is added after construction (ConfigPrecedenceTests locks the ordering). Post-#235
+// resolved precedence: env (Section__Key) > appsettings.json > hardcoded default — the
+// .Local.json overlay channel was retired by #235.
 builder.Configuration.AddEnvironmentVariables();
 
 // Listen-address dual-pattern: `urls` / `ASPNETCORE_URLS` wins (Aspire dev, hosting-injected,
@@ -80,8 +86,8 @@ builder.Services.AddCors(options =>
 // fails loud and early here, naming the key and the offending value, rather than
 // degrading to a cwd-relative guess that lands unpredictably under a hardened
 // deployment (#233). Each actionable failure carries a copy-paste-ready remedy in
-// both forms a user might use — environment variable and appsettings.Local.json —
-// so a manual-download user can fix it in one step (#233 follow-up).
+// both forms a user might use — environment variable and appsettings.json — so a
+// manual-download user can fix it in one step (#233 follow-up, updated by #235).
 static string ExampleDbConnectionString() =>
     OperatingSystem.IsWindows()
         ? @"Data Source=C:\collaboard\data\collaboard.db"
@@ -98,7 +104,7 @@ static string ConfigRemedy()
           - Environment variable:
               ConnectionStrings__Board={{example}}
 
-          - appsettings.Local.json (next to the executable):
+          - appsettings.json (next to the executable; edits survive upgrades via #235 smart-merge):
               {
                 "ConnectionStrings": {
                   "Board": "{{jsonValue}}"

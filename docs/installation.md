@@ -28,19 +28,22 @@ Download the latest release for your platform from [GitHub Releases](https://git
 | Linux 64-bit | `collaboard-linux-x64.tar.gz` |
 | Linux ARM64 | `collaboard-linux-arm64.tar.gz` |
 
-Extract the archive. Before the first run, create `appsettings.Local.json` next to
-the executable with an absolute database path — Collaboard requires
+Extract the archive. Before the first run, edit `appsettings.json` next to the
+executable to set an absolute database path — Collaboard requires
 `ConnectionStrings:Board` and does not derive a path from the working or binary
-directory (the one-line installers above write this file for you):
+directory (the one-line installers above do this for you):
 
 ```jsonc
-// appsettings.Local.json
+// appsettings.json
 {
   "ConnectionStrings": {
     "Board": "Data Source=/absolute/path/to/data/collaboard.db"
   }
 }
 ```
+
+Your edits to `appsettings.json` survive upgrades — when you re-run the one-line
+installer it performs a smart three-way merge.
 
 Then run the executable. No runtime or framework installation required.
 
@@ -64,6 +67,10 @@ The admin key is printed once on first startup. To set a persistent key, see [Ho
 ## Updating
 
 1. Stop the running process
-2. Download the new release for your platform
-3. Replace the executable (keep your `data/` directory and `appsettings.Local.json`)
-4. Start the app — migrations run automatically, database is backed up first
+2. Re-run the one-line installer (recommended) — it preserves your `appsettings.json`
+   edits via smart-merge, refreshes untouched shipped defaults, and adds any new
+   shipped keys. The `data/` directory is left untouched.
+3. For a manual install: extract the new release and run
+   `./Collaboard.Api --merge-appsettings <new-appsettings.json> ./appsettings.json --baseline ./appsettings.shipped.json`
+   from the install directory.
+4. Start the app — migrations run automatically, database is backed up first.
