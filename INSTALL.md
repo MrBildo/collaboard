@@ -1,5 +1,14 @@
 # Collaboard — Setup Guide
 
+## Deployment Shapes
+
+Collaboard supports two production deployment shapes. Pick the one that matches your environment, then follow the matching section below.
+
+- **(a) LAN single-process.** One self-contained executable serves both the API and the embedded React Portal from the same origin. SQLite next to the binary, no reverse proxy, no CORS. Recommended for small teams on a trusted network. → **[Quick Start](#quick-start)** + **[Configuration](#configuration)** below.
+- **(b) Portal + API hosted separately.** The headless API runs as one process (`Hosting:ServeSpa=false`); the React Portal is built and served by any static-file host on its own origin. [Collabhost](https://github.com/MrBildo/collabhost) is one worked example; any static-site host paired with any .NET process supervisor works. → **[Hosted separately (Portal + API)](#hosted-separately-portal--api)** below.
+
+The same executable serves both shapes — the difference is configuration (`Hosting:ServeSpa`, `Cors:AllowedOrigins`) and how the Portal is hosted, not which build you download.
+
 ## Quick Start
 
 If you used the one-line installer (see [Installation Guide](docs/installation.md)),
@@ -59,7 +68,11 @@ performed by the installer.
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `Urls` | `http://0.0.0.0:8080` | Bind address and port |
+| `Urls` | *(unset)* | Convenience override for bind address and port. When set (or `ASPNETCORE_URLS` is set), wins over `Hosting:ListenAddress`/`Hosting:ListenPort`. |
+| `Hosting:ListenAddress` | `0.0.0.0` | Bind address. Used with `Hosting:ListenPort` when `Urls`/`ASPNETCORE_URLS` is unset. |
+| `Hosting:ListenPort` | `8080` | Bind port. Used with `Hosting:ListenAddress` when `Urls`/`ASPNETCORE_URLS` is unset. |
+| `Hosting:ServeSpa` | `true` | Serve the embedded React Portal from `wwwroot/`. Set to `false` for headless hosted-separately deployments. See [Hosted separately (Portal + API)](#hosted-separately-portal--api). |
+| `Cors:AllowedOrigins` | `[]` (empty) | Allowed cross-origin Portal hosts. Empty disallows all cross-origin requests; required for hosted-separately deployments. |
 | `ConnectionStrings:Board` | *(required — no default)* | SQLite database path. Must be an **absolute** path; the app does not derive a path from the working or binary directory. The installer writes this into `appsettings.json`. |
 | `Admin:AuthKey` | *(auto-generated)* | Override the admin auth key |
 
@@ -87,6 +100,73 @@ Environment variables win over `appsettings.json`.
 - Schema migrations run automatically on startup
 - The database file is backed up automatically before applying new migrations
 - Backups are saved as `collaboard.db.bak-{timestamp}` in the same directory
+
+## Hosted separately (Portal + API)
+
+In this shape the API runs headless (no embedded Portal); a static-file host serves the React Portal on its own origin and points it at the API's origin via a runtime `config.json`. [Collabhost](https://github.com/MrBildo/collabhost) is the worked example below — substitute any equivalent static-site host and any process supervisor that can run a self-contained .NET binary.
+
+### API process — disable the embedded Portal, allow the Portal's origin
+
+Run the same `Collaboard.Api` binary you would for the LAN shape, but flip `Hosting:ServeSpa` off and tell the API which Portal origin(s) to allow. Either edit `appsettings.json` next to the executable:
+
+```jsonc
+// appsettings.json
+{
+  "Hosting": {
+    "ServeSpa": false,
+    "ListenAddress": "127.0.0.1",
+    "ListenPort": 5000
+  },
+  "Cors": {
+    "AllowedOrigins": [
+      "https://collaboard.example.com"
+    ]
+  },
+  "ConnectionStrings": {
+    "Board": "Data Source=/srv/collaboard/data/collaboard.db"
+  }
+}
+```
+
+…or override via environment variables (typically how a process supervisor injects them):
+
+```bash
+export Hosting__ServeSpa=false
+export Hosting__ListenAddress=127.0.0.1
+export Hosting__ListenPort=5000
+export Cors__AllowedOrigins__0=https://collaboard.example.com
+export ConnectionStrings__Board="Data Source=/srv/collaboard/data/collaboard.db"
+```
+
+Notes:
+
+- `Hosting:ServeSpa=false` makes unmatched routes return 404 instead of the SPA shell. The API endpoints (`/api/v1/*`), MCP endpoint (`/mcp`), and health endpoints (`/health`, `/alive`) keep serving.
+- `Hosting:ListenAddress=127.0.0.1` binds loopback only; the static-site host (or reverse proxy) is expected to be on the same machine. Use `0.0.0.0` if you need to reach the API across machines.
+- `Cors:AllowedOrigins` is an array of full origins (`scheme://host[:port]`). Empty list (the LAN default) disallows all cross-origin requests; populate it with every Portal origin that will call the API.
+- Behind a reverse proxy that injects `ASPNETCORE_URLS`, the API uses that and the structured `Hosting:ListenAddress`/`Hosting:ListenPort` pair is ignored. `Cors:AllowedOrigins` is unaffected by this — set it regardless.
+
+### Portal — static-file host + runtime `config.json`
+
+The Portal artifact is the `frontend/dist/` directory produced by `npx vite build` (also published in the release archives). Deploy it to any static-file host — Collabhost, nginx, Caddy, an S3+CloudFront pair, etc.
+
+Place a `config.json` file at the root of the static-site bundle (next to `index.html`) telling the Portal where the API lives:
+
+```json
+{
+  "apiBaseUrl": "https://api.collaboard.example.com/api/v1"
+}
+```
+
+The Portal fetches `/config.json` from its own origin once at boot, before rendering. `apiBaseUrl` is the absolute URL the Portal uses to reach the API — point it at the API origin's `/api/v1` path. The Portal's origin must also appear in the API's `Cors:AllowedOrigins` list, or the browser will block requests at the preflight stage.
+
+If `/config.json` is absent, malformed, or returns a non-2xx status, the Portal falls back to a same-origin relative base URL (`/api/v1`). That fallback only makes sense for the LAN single-process shape — for hosted-separately deployments, treat a missing or invalid `config.json` as a deployment defect.
+
+### Verifying the hosted-separately deployment
+
+1. The API's `/health` endpoint returns 200 from the API origin.
+2. The Portal loads at its own origin (the static-file host serves `index.html`).
+3. The browser's Network tab shows a successful `GET /config.json` from the Portal origin with the expected `apiBaseUrl`.
+4. Subsequent `GET /api/v1/...` calls from the Portal hit the API origin and return with the expected `Access-Control-Allow-Origin` header. A 204 preflight with no CORS headers means the Portal's origin is not in `Cors:AllowedOrigins`.
 
 ## Updating
 
