@@ -389,6 +389,9 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
       mutationFn: (patch: UpdateCardPatch) => updateCard(card.id, patch),
       onSuccess: (updatedCard) => {
         if (boardId) {
+          // PATCH /cards/{id} now returns the enriched CardSummary (#209), so the
+          // mutation response carries everything the board cache needs — labels,
+          // sizeName, commentCount, attachmentCount, isArchived. No re-fetch needed.
           queryClient.setQueryData<BoardData>(queryKeys.boards.data(boardId), (old) =>
             old
               ? {
@@ -397,7 +400,6 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
                 }
               : old,
           );
-          queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
         }
         queryClient.invalidateQueries({ queryKey: queryKeys.cards.labels(card.id) });
 

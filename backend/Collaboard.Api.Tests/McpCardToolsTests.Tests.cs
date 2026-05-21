@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Collaboard.Api.Events;
 using Collaboard.Api.Mcp;
 using Collaboard.Api.Models;
@@ -88,6 +89,30 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
         result.ShouldBe("No changes specified.");
         var refreshedCard = await db.Cards.FindAsync(cardId);
         refreshedCard!.LastUpdatedAtUtc.ShouldBe(originalTimestamp);
+    }
+
+    [Fact]
+    public async Task UpdateCard_ReturnsEnrichedCardSummary()
+    {
+        // Arrange — parity with create_card: the JSON payload carries sizeName,
+        // labels, commentCount, attachmentCount, isArchived so the caller has
+        // everything without a follow-up get_card. (#209)
+        var (db, tools, authKey) = CreateTools();
+        var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
+        var cardId = await CreateCardInLaneAsync(tools, authKey, lanes[0]);
+
+        // Act
+        var result = await tools.UpdateCardAsync(authKey, cardId, name: "Marcus enriched assert");
+
+        // Assert — parse the JSON payload and check every enriched field
+        using var doc = JsonDocument.Parse(result);
+        var root = doc.RootElement;
+        root.GetProperty("name").GetString().ShouldBe("Marcus enriched assert");
+        root.GetProperty("sizeName").GetString().ShouldNotBeNullOrWhiteSpace();
+        root.GetProperty("commentCount").GetInt32().ShouldBe(0);
+        root.GetProperty("attachmentCount").GetInt32().ShouldBe(0);
+        root.GetProperty("isArchived").GetBoolean().ShouldBeFalse();
+        root.GetProperty("labels").GetArrayLength().ShouldBe(0);
     }
 
     // ── Lane move via update_card ───────────────────────────────────────────

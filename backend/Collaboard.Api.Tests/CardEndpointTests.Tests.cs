@@ -461,6 +461,40 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     }
 
     [Fact]
+    public async Task PatchCard_ReturnsEnrichedCardSummary()
+    {
+        // Arrange — parity with POST /cards: PATCH returns sizeName, labels, commentCount, attachmentCount, isArchived
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+        var pos = Random.Shared.Next(10000, 99999);
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "Enriched Patch Subject",
+            descriptionMarkdown = "starts here",
+            laneId,
+            position = pos
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+        var createdSizeName = created.GetProperty("sizeName").GetString();
+
+        // Act
+        var response = await _client.PatchAsJsonAsync($"/api/v1/cards/{cardId}", new { name = "Enriched Patch Result" });
+
+        // Assert — every enriched-shape field present (matches POST /cards/{boardId}/cards)
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var updated = await response.Content.ReadFromJsonAsync<JsonElement>();
+        updated.GetProperty("name").GetString().ShouldBe("Enriched Patch Result");
+        updated.GetProperty("sizeName").GetString().ShouldBe(createdSizeName);
+        updated.GetProperty("commentCount").GetInt32().ShouldBe(0);
+        updated.GetProperty("attachmentCount").GetInt32().ShouldBe(0);
+        updated.GetProperty("isArchived").GetBoolean().ShouldBeFalse();
+        updated.GetProperty("labels").GetArrayLength().ShouldBe(0);
+    }
+
+    [Fact]
     public async Task DeleteCard_AsAdmin_Returns204()
     {
         // Arrange
