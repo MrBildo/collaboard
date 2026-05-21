@@ -52,8 +52,10 @@ internal static class McpErrorTranslator
     // SDK's body-less wrapper for server-internal failures. Exposed as a
     // static method (not an inline lambda in Program.cs) so tests can drive
     // the exact same filter without standing up the DI pipeline.
-    public static McpRequestHandler<CallToolRequestParams, CallToolResult> WrapForCallTool(
-        McpRequestHandler<CallToolRequestParams, CallToolResult> next) =>
+    public static McpRequestHandler<CallToolRequestParams, CallToolResult> WrapForCallTool
+    (
+        McpRequestHandler<CallToolRequestParams, CallToolResult> next
+    ) =>
         async (context, cancellationToken) =>
         {
             try
