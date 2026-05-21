@@ -17,8 +17,10 @@ jobs:
           dotnet-version: '10.0.x'
       - name: Restore
         run: dotnet restore backend/Collaboard.sln
+      - name: Format
+        run: dotnet format backend/Collaboard.sln --verify-no-changes --no-restore
       - name: Build
-        run: dotnet build backend/Collaboard.sln --no-restore
+        run: dotnet build backend/Collaboard.sln --no-restore --no-incremental
       - name: Test
         run: dotnet test backend/ --no-build --verbosity normal
 
@@ -37,6 +39,9 @@ jobs:
         working-directory: frontend
       - name: Lint
         run: npm run lint
+        working-directory: frontend
+      - name: Format check
+        run: npm run format:check
         working-directory: frontend
       - name: Type check
         run: npx tsc -b
