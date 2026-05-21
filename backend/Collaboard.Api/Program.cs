@@ -180,7 +180,19 @@ builder.WebHost.ConfigureKestrel(options =>
 builder.Services
     .AddMcpServer()
     .WithHttpTransport()
-    .WithToolsFromAssembly();
+    .WithToolsFromAssembly()
+    .WithRequestFilters(filters =>
+    {
+        // #202: Default SDK behaviour swallows non-McpException tool failures
+        // as "An error occurred invoking '<tool>'." with no detail — a typo'd
+        // parameter name then drives multi-step false-alarm investigations.
+        // McpErrorTranslator.WrapForCallTool catches the input-validation
+        // shapes and rethrows as McpException so the wrapper renders
+        // "<tool>': <Type — Message>". Server-internal failures (DB, EF,
+        // downstream) deliberately fall through, preserving the body-less
+        // wrapper response so infrastructure detail does not leak.
+        filters.AddCallToolFilter(McpErrorTranslator.WrapForCallTool);
+    });
 
 var app = builder.Build();
 
