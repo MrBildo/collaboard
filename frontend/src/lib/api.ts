@@ -142,9 +142,9 @@ export async function createCard(
   return cardSummarySchema.parse(data);
 }
 
-export async function updateCard(id: string, patch: UpdateCardPatch): Promise<CardItem> {
+export async function updateCard(id: string, patch: UpdateCardPatch): Promise<CardSummary> {
   const { data } = await api.patch(`/cards/${id}`, patch);
-  return cardItemSchema.parse(data);
+  return cardSummarySchema.parse(data);
 }
 
 export async function deleteCard(id: string): Promise<void> {

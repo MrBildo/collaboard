@@ -144,7 +144,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
     }
 
     [McpServerTool(Name = "update_card", Destructive = false)]
-    [Description("Update a card's name, description, size, lane/position, or labels. All fields are optional — only provided fields are changed. For labelIds, pass a comma-separated list of label GUIDs to replace all current labels (use empty string to clear).")]
+    [Description("Update a card's name, description, size, lane/position, or labels. All fields are optional — only provided fields are changed. For labelIds, pass a comma-separated list of label GUIDs to replace all current labels (use empty string to clear). Returns the enriched card summary (with labels, sizeName, commentCount, attachmentCount, isArchived) — no follow-up get_card needed.")]
     public async Task<string> UpdateCardAsync(
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the card to update (provide this or cardNumber)")] Guid? cardId = null,
@@ -251,7 +251,9 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
         await db.PublishForCardAsync(card.Id, broadcaster);
-        return JsonSerializer.Serialize(card, JsonSerializerOptions.Web);
+
+        var summaries = await CardSummaryBuilder.BuildAsync(db, [card], ct);
+        return JsonSerializer.Serialize(summaries[0], JsonSerializerOptions.Web);
     }
 
     [McpServerTool(Name = "get_cards", ReadOnly = true, Destructive = false)]

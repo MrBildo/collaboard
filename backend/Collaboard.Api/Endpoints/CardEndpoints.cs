@@ -279,7 +279,8 @@ internal static class CardEndpoints
             await db.SaveChangesAsync();
             broadcaster.PublishBoardUpdated(card.BoardId);
 
-            return Results.Ok(card);
+            var summaries = await CardSummaryBuilder.BuildAsync(db, [card]);
+            return Results.Ok(summaries[0]);
         }).RequireAuth();
 
         group.MapPost("/cards/{id:guid}/reorder", async (BoardDbContext db, HttpContext http, Guid id, ReorderCardRequest request, BoardEventBroadcaster broadcaster) =>
