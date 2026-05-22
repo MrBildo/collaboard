@@ -18,6 +18,7 @@ frontend/dist/
 # .NET
 backend/**/bin/
 backend/**/obj/
+backend/**/TestResults/
 
 # Aspire local state
 .aspire/

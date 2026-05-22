@@ -1,0 +1,176 @@
+name: Install smoke
+
+# Lightweight post-publish smoke: download the just-shipped linux-x64 release
+# archive, extract it, launch the binary in the hosted-separately shape
+# (Hosting:ServeSpa=false), curl /health (expect 200), curl /api/v1/boards
+# (expect 401 — sensible non-error proving the API layer is reachable through
+# the auth gate). Catches the most likely shipping regressions — broken bind,
+# missing files, broken health, broken startup — before operators do.
+#
+# Linux-x64 only by design. Collabhost runs the multi-platform / QEMU shape
+# (install-integration.yml); Collaboard's posture is "smallest durable smoke
+# that catches what an operator would hit first." Scope expansion is its own
+# card.
+#
+# Triggers:
+#   - workflow_run (Publish success): post-release validation against the
+#     just-published archive. Chained off publish.yml — NOT release.published —
+#     to avoid the parallel-fire race Collabhost hit on its v1.0.0 cut
+#     (collabhost#211): publish.yml must finish uploading the archive before
+#     this workflow can download it.
+#   - workflow_dispatch: manual runs against an existing tag, useful for
+#     re-running after a transient failure or validating the workflow itself.
+
+on:
+  workflow_run:
+    workflows: [Publish]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release tag to smoke (e.g. v1.12.2). Required.'
+        required: true
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Install smoke (linux-x64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # For workflow_run: only proceed when publish.yml succeeded on a release
+    # event. For workflow_dispatch: always proceed.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'release')
+    steps:
+      - name: Resolve target tag
+        id: resolve
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          # workflow_run: head_branch carries the tag name when publish.yml
+          # was triggered by a release event on a tag push.
+          RELEASE_TAG: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          set -euo pipefail
+
+          if [[ -n "${RELEASE_TAG:-}" ]]; then
+            VERSION="${RELEASE_TAG}"
+            SOURCE="workflow_run (publish.yml)"
+          elif [[ -n "${INPUT_VERSION:-}" ]]; then
+            VERSION="${INPUT_VERSION}"
+            SOURCE="workflow_dispatch input"
+          else
+            echo "No release tag and no workflow_dispatch input provided." >&2
+            exit 1
+          fi
+
+          if [[ ! "${VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Resolved version '${VERSION}' is not a vX.Y.Z tag." >&2
+            exit 1
+          fi
+
+          echo "Resolved version: ${VERSION} (source: ${SOURCE})"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Download release archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/dl"
+          cd "$RUNNER_TEMP/dl"
+          gh release download "$VERSION" \
+            --repo "${{ github.repository }}" \
+            --pattern 'collaboard-linux-x64.tar.gz'
+          ls -la
+
+      - name: Extract archive
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/install"
+          tar -xzf "$RUNNER_TEMP/dl/collaboard-linux-x64.tar.gz" \
+            -C "$RUNNER_TEMP/install"
+          ls -la "$RUNNER_TEMP/install"
+          # Archive wraps in collaboard-linux-x64/; assert that and pin the
+          # install dir so later steps don't drift if the layout ever changes.
+          test -d "$RUNNER_TEMP/install/collaboard-linux-x64"
+          test -x "$RUNNER_TEMP/install/collaboard-linux-x64/Collaboard.Api"
+          echo "INSTALL_DIR=$RUNNER_TEMP/install/collaboard-linux-x64" \
+            >> "$GITHUB_ENV"
+
+      - name: Launch binary (hosted-separately shape)
+        env:
+          # Hosted-separately shape: API headless, listens on loopback, db
+          # under a temp dir we control. The smoke proves the binary starts
+          # under operator-realistic configuration without an installer
+          # having pre-written appsettings.json.
+          Hosting__ServeSpa: 'false'
+          Hosting__ListenAddress: '127.0.0.1'
+          Hosting__ListenPort: '8080'
+          ConnectionStrings__Board: 'Data Source=${{ runner.temp }}/smoke-data/collaboard.db'
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/smoke-data"
+          cd "$INSTALL_DIR"
+          # Launch in background, capture stdout+stderr, record PID for
+          # teardown.
+          ./Collaboard.Api > "$RUNNER_TEMP/api.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/api.pid"
+          echo "Launched PID $(cat "$RUNNER_TEMP/api.pid")"
+
+      - name: Wait for /health (expect 200)
+        run: |
+          set -euo pipefail
+          # Poll up to 30s. Curl --fail makes any non-2xx exit non-zero.
+          for i in $(seq 1 30); do
+            if curl -fsS -o /dev/null -w '%{http_code}\n' \
+                http://127.0.0.1:8080/health 2>/dev/null \
+                | tee /tmp/health_code | grep -q '^200$'; then
+              echo "Health check passed on attempt $i."
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Health check never returned 200." >&2
+          echo "--- last 200 lines of API log ---" >&2
+          tail -n 200 "$RUNNER_TEMP/api.log" >&2 || true
+          exit 1
+
+      - name: Probe /api/v1/boards (expect 401 — API layer reachable through auth gate)
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -o /dev/null -w '%{http_code}' \
+            http://127.0.0.1:8080/api/v1/boards)
+          echo "GET /api/v1/boards -> ${code}"
+          # 401 is the expected auth-gate response with no X-User-Key header.
+          # Any other code (500 = startup contract broken, 404 = routing
+          # broken, 200 = auth gate not wired) is a regression.
+          test "${code}" = "401"
+
+      - name: Teardown
+        if: always()
+        run: |
+          set -eu
+          if [[ -f "$RUNNER_TEMP/api.pid" ]]; then
+            pid=$(cat "$RUNNER_TEMP/api.pid")
+            if kill -0 "$pid" 2>/dev/null; then
+              kill "$pid" || true
+              # Give it a moment to shut down cleanly, then force.
+              for i in $(seq 1 5); do
+                kill -0 "$pid" 2>/dev/null || break
+                sleep 1
+              done
+              kill -9 "$pid" 2>/dev/null || true
+            fi
+          fi
+          # Always dump the last bit of the log to the run output so a
+          # post-mortem of a failed smoke has something to look at.
+          if [[ -f "$RUNNER_TEMP/api.log" ]]; then
+            echo "--- last 50 lines of API log ---"
+            tail -n 50 "$RUNNER_TEMP/api.log" || true
+          fi
