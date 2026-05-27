@@ -72,15 +72,20 @@ export function useBoardDnd(
     },
     onSuccess: (data) => {
       if (!boardId) return;
-      // Merge reorder response into existing cache — the API returns
-      // plain CardItem objects (no labels). We update position/lane
-      // fields while preserving enriched data (labels, counts, etc).
+      // Merge reorder response into existing cache. We update position/lane
+      // on existing cards while preserving enriched fields (labels, counts).
+      //
+      // Lane set is intentionally NOT overwritten: reorder cannot create,
+      // delete, or reposition lanes, so the cached lane list is already
+      // authoritative. The reorder endpoint also returns archive lanes
+      // (unlike the composite board endpoint which filters them out), so
+      // accepting `data.lanes` verbatim would briefly flash the archive
+      // lane into the rendered lane list during the drop transition (#242).
       queryClient.setQueryData<BoardData>(queryKeys.boards.data(boardId), (old) => {
         if (!old) return old;
         const updatedMap = new Map(data.cards.map((c) => [c.id, c]));
         return {
           ...old,
-          lanes: data.lanes,
           cards: old.cards.map((existing) => {
             const updated = updatedMap.get(existing.id);
             return updated

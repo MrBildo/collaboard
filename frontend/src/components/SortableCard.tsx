@@ -87,58 +87,72 @@ export function SortableCard({
         )}
       </div>
 
-      {labels.length > 0 && (
-        <div ref={labelContainerRef} className="mt-2 flex items-center gap-1">
-          {labelLayout.items.map((item) =>
-            item.mode === 'full' ? (
-              <Tooltip key={item.label.id}>
-                <TooltipTrigger render={<span className="flex items-center" />}>
-                  <Badge
-                    variant="secondary"
-                    className="max-w-full rounded-sm text-xs"
-                    style={
-                      item.label.color
-                        ? {
-                            backgroundColor: item.label.color,
-                            color: getContrastColor(item.label.color),
-                          }
-                        : undefined
-                    }
-                  >
-                    {item.label.name}
+      {/*
+       * Label row height is reserved unconditionally so card height does not
+       * change when labels are added or removed. Mid-drop, the drag overlay
+       * (which renders without the label row) and the landed card (which may
+       * have labels) would otherwise differ in height — producing a 1-frame
+       * reflow flash on every drop (#242). aria-hidden when empty so screen
+       * readers don't announce a vacant region.
+       */}
+      <div
+        ref={labelContainerRef}
+        aria-hidden={labels.length === 0}
+        className="mt-2 flex min-h-5 items-center gap-1"
+      >
+        {labels.length > 0 && (
+          <>
+            {labelLayout.items.map((item) =>
+              item.mode === 'full' ? (
+                <Tooltip key={item.label.id}>
+                  <TooltipTrigger render={<span className="flex items-center" />}>
+                    <Badge
+                      variant="secondary"
+                      className="max-w-full rounded-sm text-xs"
+                      style={
+                        item.label.color
+                          ? {
+                              backgroundColor: item.label.color,
+                              color: getContrastColor(item.label.color),
+                            }
+                          : undefined
+                      }
+                    >
+                      {item.label.name}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent>{item.label.name}</TooltipContent>
+                </Tooltip>
+              ) : (
+                <Tooltip key={item.label.id}>
+                  <TooltipTrigger render={<span className="flex items-center" />}>
+                    <span
+                      className="inline-block h-5 w-6 shrink-0 rounded-sm"
+                      style={{ backgroundColor: item.label.color ?? '#6b7280' }}
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent>{item.label.name}</TooltipContent>
+                </Tooltip>
+              ),
+            )}
+            {labelLayout.overflowCount > 0 && (
+              <Tooltip>
+                <TooltipTrigger render={<span />}>
+                  <Badge variant="outline" className="rounded-sm text-xs">
+                    +{labelLayout.overflowCount}
                   </Badge>
                 </TooltipTrigger>
-                <TooltipContent>{item.label.name}</TooltipContent>
+                <TooltipContent>
+                  {labels
+                    .slice(labels.length - labelLayout.overflowCount)
+                    .map((l) => l.name)
+                    .join(', ')}
+                </TooltipContent>
               </Tooltip>
-            ) : (
-              <Tooltip key={item.label.id}>
-                <TooltipTrigger render={<span className="flex items-center" />}>
-                  <span
-                    className="inline-block h-5 w-6 shrink-0 rounded-sm"
-                    style={{ backgroundColor: item.label.color ?? '#6b7280' }}
-                  />
-                </TooltipTrigger>
-                <TooltipContent>{item.label.name}</TooltipContent>
-              </Tooltip>
-            ),
-          )}
-          {labelLayout.overflowCount > 0 && (
-            <Tooltip>
-              <TooltipTrigger render={<span />}>
-                <Badge variant="outline" className="rounded-sm text-xs">
-                  +{labelLayout.overflowCount}
-                </Badge>
-              </TooltipTrigger>
-              <TooltipContent>
-                {labels
-                  .slice(labels.length - labelLayout.overflowCount)
-                  .map((l) => l.name)
-                  .join(', ')}
-              </TooltipContent>
-            </Tooltip>
-          )}
-        </div>
-      )}
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
