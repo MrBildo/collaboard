@@ -250,7 +250,7 @@ The skills carry universal patterns. The sections below name only Collaboard-spe
 
 - **Backend:** xUnit + Shouldly via `WebApplicationFactory` + in-memory SQLite. No mocking. Arrange-Act-Assert. Test classes per resource: `*EndpointTests.Tests.cs`. Shared infrastructure: `Infrastructure/CollaboardApiFactory.cs`, `TestAuthHelper.cs`.
 - **Frontend:** TypeScript typecheck + Vite build + `npm run test` cover correctness; lint + format:check cover style.
-- **No Playwright testing** — don't use Playwright MCP for visual testing unless the operator specifically asks. Auth model + dynamic Aspire ports make it unreliable. Rely on tsc + Vite + backend tests; operator does visual/browser testing.
+- **Visual / browser testing is bot-discretionary via the `browser-verify` skill.** Reach for it when a behavioral question can only be answered in a real browser (e.g., transient drag-drop animation frames, SSE cross-context delivery). For routine correctness, tsc + Vite + backend tests still cover the bar.
 
 ### Git
 
