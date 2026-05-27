@@ -12,6 +12,8 @@ These rules are non-negotiable. They apply to every agent, every dispatch, every
 
 3. **Persistence: project decisions live in tracked infra docs, not in auto-memory.** Auto-memory (`.claude/projects/.../memory/`) is ONLY for soft personal preferences. All project decisions, conventions, workflows, and hard rules go in `CLAUDE.md`, `COLLABOARD.md`, specs under `.agents/specs/`, or the `collaboard` skill (board protocol). If it's about how the project works, update the relevant infra doc — not memory.
 
+4. **Every bot loads `.agents/GLOSSARY.md` at session start, alongside this file and per-bot workspace files.** The glossary is the central hub for team terms, conventions, and operator-anchored rules — including the audience-determines-mode communication rule (human-facing plain English vs bot-internal dialect). Load it before doing work, not after needing it. The file is gitignored; bots read it from their own checkout. Concise by design — bots may extend or prune entries on their own terms.
+
 ## Tech Stack
 
 **Backend**
