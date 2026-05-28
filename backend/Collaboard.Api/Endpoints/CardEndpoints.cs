@@ -18,15 +18,7 @@ internal static class CardEndpoints
                 return Results.NotFound();
             }
 
-            var query = db.Cards.Where(x => x.BoardId == boardId && !x.IsTemp);
-
-            if (includeArchived is not true)
-            {
-                var archiveLaneIds = db.Lanes
-                    .Where(l => l.BoardId == boardId && l.IsArchiveLane)
-                    .Select(l => l.Id);
-                query = query.Where(x => !archiveLaneIds.Contains(x.LaneId));
-            }
+            var query = CardQueryHelper.BoardCards(db.Cards, db.Lanes, boardId, includeArchived is true);
 
             if (laneId.HasValue)
             {
@@ -46,7 +38,7 @@ internal static class CardEndpoints
 
             query = SearchHelper.ApplySearchFilter(query, search);
 
-            var orderedQuery = query.OrderBy(x => x.LaneId).ThenBy(x => x.Position);
+            var orderedQuery = CardQueryHelper.OrderForBoard(query);
 
             // Two queries: COUNT then offset/limit. The count re-executes filter predicates
             // (including since subqueries). Acceptable at current scale; revisit if perf degrades.
