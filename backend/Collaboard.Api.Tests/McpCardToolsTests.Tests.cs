@@ -414,6 +414,122 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
         result.ShouldNotContain("Error");
     }
 
+    // ── labelIds JSON-array shape (regression cover for #241) ───────────────
+
+    [Fact]
+    public async Task CreateCard_WithLabelIdsAsJsonArrayString_AssignsLabels()
+    {
+        // Regression: some MCP-host clients forward array-typed tool args as a JSON-string
+        // (e.g. '["guid1","guid2"]') instead of unwrapping to the documented CSV shape.
+        // The handler must accept both. See card #241.
+        var (db, tools, authKey) = CreateTools();
+        var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
+        var label1 = new Label { Id = Guid.NewGuid(), BoardId = _factory.DefaultBoardId, Name = $"JA1-{Guid.NewGuid()}", Color = "red" };
+        var label2 = new Label { Id = Guid.NewGuid(), BoardId = _factory.DefaultBoardId, Name = $"JA2-{Guid.NewGuid()}", Color = "blue" };
+        db.Labels.AddRange(label1, label2);
+        await db.SaveChangesAsync();
+
+        var jsonArrayShape = JsonSerializer.Serialize(new[] { label1.Id.ToString(), label2.Id.ToString() });
+
+        var result = await tools.CreateCardAsync(authKey, "Json Array Labels", lanes[0], labelIds: jsonArrayShape);
+
+        result.ShouldNotContain("Error");
+        var json = JsonDocument.Parse(result);
+        var cardId = json.RootElement.GetProperty("id").GetGuid();
+        var cardLabels = await db.CardLabels.Where(cl => cl.CardId == cardId).Select(cl => cl.LabelId).ToListAsync();
+        cardLabels.Count.ShouldBe(2);
+        cardLabels.ShouldContain(label1.Id);
+        cardLabels.ShouldContain(label2.Id);
+    }
+
+    [Fact]
+    public async Task CreateCard_WithSingleLabelIdAsJsonArrayString_AssignsLabel()
+    {
+        var (db, tools, authKey) = CreateTools();
+        var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
+        var label = new Label { Id = Guid.NewGuid(), BoardId = _factory.DefaultBoardId, Name = $"JA1S-{Guid.NewGuid()}", Color = "green" };
+        db.Labels.Add(label);
+        await db.SaveChangesAsync();
+
+        var jsonArrayShape = JsonSerializer.Serialize(new[] { label.Id.ToString() });
+
+        var result = await tools.CreateCardAsync(authKey, "Single Json Array", lanes[0], labelIds: jsonArrayShape);
+
+        result.ShouldNotContain("Error");
+        var json = JsonDocument.Parse(result);
+        var cardId = json.RootElement.GetProperty("id").GetGuid();
+        var cardLabels = await db.CardLabels.Where(cl => cl.CardId == cardId).Select(cl => cl.LabelId).ToListAsync();
+        cardLabels.Count.ShouldBe(1);
+        cardLabels.ShouldContain(label.Id);
+    }
+
+    [Fact]
+    public async Task CreateCard_WithEmptyJsonArrayString_CreatesCardWithoutLabels()
+    {
+        var (db, tools, authKey) = CreateTools();
+        var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
+
+        var result = await tools.CreateCardAsync(authKey, "Empty Json Array", lanes[0], labelIds: "[]");
+
+        result.ShouldNotContain("Error");
+        var json = JsonDocument.Parse(result);
+        var cardId = json.RootElement.GetProperty("id").GetGuid();
+        (await db.CardLabels.Where(cl => cl.CardId == cardId).ToListAsync()).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task CreateCard_WithMalformedJsonArrayString_ReturnsError()
+    {
+        // A string that looks array-like but isn't valid JSON should not crash —
+        // it falls through to the CSV path and fails GUID parsing there.
+        var (db, tools, authKey) = CreateTools();
+        var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
+
+        var result = await tools.CreateCardAsync(authKey, "Malformed Json", lanes[0], labelIds: "[not-valid-json]");
+
+        result.ShouldContain("Error");
+    }
+
+    [Fact]
+    public async Task UpdateCard_WithLabelIdsAsJsonArrayString_ReplacesLabels()
+    {
+        // Same shape coverage for update_card — same parser, both surfaces care.
+        var (db, tools, authKey) = CreateTools();
+        var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
+        var cardId = await CreateCardInLaneAsync(tools, authKey, lanes[0]);
+        var label1 = new Label { Id = Guid.NewGuid(), BoardId = _factory.DefaultBoardId, Name = $"UJA1-{Guid.NewGuid()}", Color = "red" };
+        var label2 = new Label { Id = Guid.NewGuid(), BoardId = _factory.DefaultBoardId, Name = $"UJA2-{Guid.NewGuid()}", Color = "blue" };
+        db.Labels.AddRange(label1, label2);
+        await db.SaveChangesAsync();
+
+        var jsonArrayShape = JsonSerializer.Serialize(new[] { label1.Id.ToString(), label2.Id.ToString() });
+
+        var result = await tools.UpdateCardAsync(authKey, cardId, labelIds: jsonArrayShape);
+
+        result.ShouldNotContain("Error");
+        var cardLabels = await db.CardLabels.Where(cl => cl.CardId == cardId).Select(cl => cl.LabelId).ToListAsync();
+        cardLabels.Count.ShouldBe(2);
+        cardLabels.ShouldContain(label1.Id);
+        cardLabels.ShouldContain(label2.Id);
+    }
+
+    [Fact]
+    public async Task UpdateCard_WithEmptyJsonArrayString_ClearsLabels()
+    {
+        var (db, tools, authKey) = CreateTools();
+        var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
+        var cardId = await CreateCardInLaneAsync(tools, authKey, lanes[0]);
+        var label = new Label { Id = Guid.NewGuid(), BoardId = _factory.DefaultBoardId, Name = $"UJAClear-{Guid.NewGuid()}", Color = "red" };
+        db.Labels.Add(label);
+        await db.SaveChangesAsync();
+        await tools.UpdateCardAsync(authKey, cardId, labelIds: label.Id.ToString());
+
+        var result = await tools.UpdateCardAsync(authKey, cardId, labelIds: "[]");
+
+        result.ShouldNotContain("Error");
+        (await db.CardLabels.Where(cl => cl.CardId == cardId).ToListAsync()).ShouldBeEmpty();
+    }
+
     // ── Hardened reorder/move tests ─────────────────────────────────────
 
     [Fact]
