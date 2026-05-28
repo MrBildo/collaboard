@@ -22,7 +22,7 @@ namespace Collaboard.Api.Mcp;
 public sealed class PruneTools(BoardDbContext db, McpAuthService auth, BoardEventBroadcaster broadcaster)
 {
     [McpServerTool(Name = "prune_preview", Destructive = false)]
-    [Description("Preview which cards a prune would match, without changing anything. Requires administrator privileges. At least one filter (olderThan, laneIds, or labelIds) is required. laneIds and labelIds accept comma-separated GUIDs ('guid1,guid2') or a JSON array string ('[\"guid1\",\"guid2\"]'). Archived cards are excluded unless includeArchived is true. Returns { matchCount, cards }.")]
+    [Description("Preview which cards a prune would match, without changing anything. Requires Administrator or AgentAdministrator role. At least one filter (olderThan, laneIds, or labelIds) is required. laneIds and labelIds accept comma-separated GUIDs ('guid1,guid2') or a JSON array string ('[\"guid1\",\"guid2\"]'). Archived cards are excluded unless includeArchived is true. Returns { matchCount, cards }.")]
     public async Task<string> PrunePreviewAsync(
         [Description("Your auth key")] string authKey,
         [Description("The board ID to prune within")] Guid boardId,
@@ -65,7 +65,7 @@ public sealed class PruneTools(BoardDbContext db, McpAuthService auth, BoardEven
     }
 
     [McpServerTool(Name = "prune", Destructive = false)]
-    [Description("Archive every card matching the filters in a single call. Requires administrator privileges. At least one filter (olderThan, laneIds, or labelIds) is required. laneIds and labelIds accept comma-separated GUIDs ('guid1,guid2') or a JSON array string ('[\"guid1\",\"guid2\"]'). Archived cards are excluded unless includeArchived is true. This tool archives only — archived cards remain restorable; there is no bulk-delete on the MCP surface. Returns { archivedCount }.")]
+    [Description("Archive every card matching the filters in a single call. Requires Administrator or AgentAdministrator role. At least one filter (olderThan, laneIds, or labelIds) is required. laneIds and labelIds accept comma-separated GUIDs ('guid1,guid2') or a JSON array string ('[\"guid1\",\"guid2\"]'). Archived cards are excluded unless includeArchived is true. This tool archives only — archived cards remain restorable; there is no bulk-delete on the MCP surface. Returns { archivedCount }.")]
     public async Task<string> PruneAsync(
         [Description("Your auth key")] string authKey,
         [Description("The board ID to prune within")] Guid boardId,

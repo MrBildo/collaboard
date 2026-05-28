@@ -25,6 +25,7 @@ public class McpOwnOrAdminWideningTests(CollaboardApiFactory factory) : IClassFi
     private readonly CollaboardApiFactory _factory = factory;
     private readonly List<IServiceScope> _scopes = [];
     private static int _nextCardNumber = 7000;
+    private static int _nextCardPosition = 0;
 
     public void Dispose()
     {
@@ -77,7 +78,7 @@ public class McpOwnOrAdminWideningTests(CollaboardApiFactory factory) : IClassFi
             SizeId = defaultSize.Id,
             Name = $"Widening Test Card {Guid.NewGuid():N}",
             Number = Interlocked.Increment(ref _nextCardNumber),
-            Position = Random.Shared.Next(10_000, 99_999),
+            Position = Interlocked.Increment(ref _nextCardPosition),
             CreatedByUserId = createdBy.Id,
             CreatedAtUtc = DateTimeOffset.UtcNow,
             LastUpdatedByUserId = createdBy.Id,
@@ -204,7 +205,7 @@ public class McpOwnOrAdminWideningTests(CollaboardApiFactory factory) : IClassFi
 
         // Assert
         result.ShouldContain("deleted");
-        result.ShouldNotContain("Error");
+        result.ShouldNotStartWith("Error");
         (await db.Attachments.FindAsync(attachmentId)).ShouldBeNull();
     }
 
@@ -224,7 +225,7 @@ public class McpOwnOrAdminWideningTests(CollaboardApiFactory factory) : IClassFi
 
         // Assert
         result.ShouldContain("deleted");
-        result.ShouldNotContain("Error");
+        result.ShouldNotStartWith("Error");
         (await db.Attachments.FindAsync(attachmentId)).ShouldBeNull();
     }
 

@@ -149,15 +149,18 @@ public class McpAdminToolTests(CollaboardApiFactory factory) : IClassFixture<Col
     // update_lane
     // ---------------------------------------------------------------------
 
-    [Fact]
-    public async Task UpdateLane_RenamesLane()
+    [Theory]
+    [InlineData(UserRole.Administrator)]
+    [InlineData(UserRole.AgentAdministrator)]
+    public async Task UpdateLane_AdminLevel_RenamesLane(UserRole role)
     {
         var (db, lane, _, _, _) = CreateTools();
+        var authKey = await AuthKeyForAsync(role);
         var created = JsonSerializer.Deserialize<JsonElement>(
-            await lane.CreateLaneAsync(_factory.AdminAuthKey, _factory.DefaultBoardId, "Before", NextLanePosition()));
+            await lane.CreateLaneAsync(_factory.AdminAuthKey, _factory.DefaultBoardId, $"Before-{role}", NextLanePosition()));
         var laneId = created.GetProperty("id").GetGuid();
 
-        var result = await lane.UpdateLaneAsync(_factory.AdminAuthKey, laneId, name: "After");
+        var result = await lane.UpdateLaneAsync(authKey, laneId, name: "After");
 
         JsonSerializer.Deserialize<JsonElement>(result).GetProperty("name").GetString().ShouldBe("After");
         db.ChangeTracker.Clear();
@@ -324,16 +327,19 @@ public class McpAdminToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         result.ShouldBe("Error: A label with that name already exists on this board.");
     }
 
-    [Fact]
-    public async Task UpdateLabel_ChangesNameAndColor()
+    [Theory]
+    [InlineData(UserRole.Administrator)]
+    [InlineData(UserRole.AgentAdministrator)]
+    public async Task UpdateLabel_AdminLevel_ChangesNameAndColor(UserRole role)
     {
         var (db, _, label, _, _) = CreateTools();
+        var authKey = await AuthKeyForAsync(role);
         var created = JsonSerializer.Deserialize<JsonElement>(
-            await label.CreateLabelAsync(_factory.AdminAuthKey, _factory.DefaultBoardId, $"Orig-{Guid.NewGuid():N}", "#000000"));
+            await label.CreateLabelAsync(_factory.AdminAuthKey, _factory.DefaultBoardId, $"Orig-{role}-{Guid.NewGuid():N}", "#000000"));
         var labelId = created.GetProperty("id").GetGuid();
-        var newName = $"Updated-{Guid.NewGuid():N}";
+        var newName = $"Updated-{role}-{Guid.NewGuid():N}";
 
-        var result = await label.UpdateLabelAsync(_factory.AdminAuthKey, labelId, newName, "#ffffff");
+        var result = await label.UpdateLabelAsync(authKey, labelId, newName, "#ffffff");
 
         var json = JsonSerializer.Deserialize<JsonElement>(result);
         json.GetProperty("name").GetString().ShouldBe(newName);
@@ -435,16 +441,19 @@ public class McpAdminToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         result.ShouldBe("Error: Ordinal already taken by another size.");
     }
 
-    [Fact]
-    public async Task UpdateSize_RenamesSize()
+    [Theory]
+    [InlineData(UserRole.Administrator)]
+    [InlineData(UserRole.AgentAdministrator)]
+    public async Task UpdateSize_AdminLevel_RenamesSize(UserRole role)
     {
         var (db, _, _, size, _) = CreateTools();
+        var authKey = await AuthKeyForAsync(role);
         var created = JsonSerializer.Deserialize<JsonElement>(
-            await size.CreateSizeAsync(_factory.AdminAuthKey, _factory.DefaultBoardId, $"RenameOrig-{Guid.NewGuid():N}", ordinal: null));
+            await size.CreateSizeAsync(_factory.AdminAuthKey, _factory.DefaultBoardId, $"RenameOrig-{role}-{Guid.NewGuid():N}", ordinal: null));
         var sizeId = created.GetProperty("id").GetGuid();
-        var newName = $"RenameNew-{Guid.NewGuid():N}";
+        var newName = $"RenameNew-{role}-{Guid.NewGuid():N}";
 
-        var result = await size.UpdateSizeAsync(_factory.AdminAuthKey, sizeId, name: newName);
+        var result = await size.UpdateSizeAsync(authKey, sizeId, name: newName);
 
         JsonSerializer.Deserialize<JsonElement>(result).GetProperty("name").GetString().ShouldBe(newName);
         db.ChangeTracker.Clear();
@@ -553,16 +562,19 @@ public class McpAdminToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         result.ShouldBe("Error: A board with that slug already exists.");
     }
 
-    [Fact]
-    public async Task UpdateBoard_RenamesButKeepsSlug()
+    [Theory]
+    [InlineData(UserRole.Administrator)]
+    [InlineData(UserRole.AgentAdministrator)]
+    public async Task UpdateBoard_AdminLevel_RenamesButKeepsSlug(UserRole role)
     {
         var (db, _, _, _, board) = CreateTools();
+        var authKey = await AuthKeyForAsync(role);
         var created = JsonSerializer.Deserialize<JsonElement>(
-            await board.CreateBoardAsync(_factory.AdminAuthKey, $"Rename Board {Guid.NewGuid():N}"));
+            await board.CreateBoardAsync(_factory.AdminAuthKey, $"Rename Board {role} {Guid.NewGuid():N}"));
         var boardId = created.GetProperty("id").GetGuid();
         var originalSlug = created.GetProperty("slug").GetString();
 
-        var result = await board.UpdateBoardAsync(_factory.AdminAuthKey, boardId, "Totally Different Name");
+        var result = await board.UpdateBoardAsync(authKey, boardId, "Totally Different Name");
 
         var json = JsonSerializer.Deserialize<JsonElement>(result);
         json.GetProperty("name").GetString().ShouldBe("Totally Different Name");

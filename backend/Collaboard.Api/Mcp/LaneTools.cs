@@ -14,7 +14,7 @@ namespace Collaboard.Api.Mcp;
 public sealed class LaneTools(BoardDbContext db, McpAuthService auth, BoardEventBroadcaster broadcaster)
 {
     [McpServerTool(Name = "create_lane", Destructive = false)]
-    [Description("Create a lane (column) on a board. Requires administrator privileges. Position is the lane's ordering value; int.MaxValue is reserved for the archive lane and is rejected.")]
+    [Description("Create a lane (column) on a board. Requires Administrator or AgentAdministrator role. Position is the lane's ordering value; int.MaxValue is reserved for the archive lane and is rejected.")]
     public async Task<string> CreateLaneAsync(
         [Description("Your auth key")] string authKey,
         [Description("The board ID to create the lane on")] Guid boardId,
@@ -51,7 +51,7 @@ public sealed class LaneTools(BoardDbContext db, McpAuthService auth, BoardEvent
     }
 
     [McpServerTool(Name = "update_lane", Destructive = false)]
-    [Description("Update a lane's name and/or position. Requires administrator privileges. Archive lanes cannot be modified. Position int.MaxValue is reserved; a position already taken by another lane on the board is a conflict.")]
+    [Description("Update a lane's name and/or position. Requires Administrator or AgentAdministrator role. Archive lanes cannot be modified. Position int.MaxValue is reserved; a position already taken by another lane on the board is a conflict.")]
     public async Task<string> UpdateLaneAsync(
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the lane to update")] Guid laneId,
@@ -109,7 +109,7 @@ public sealed class LaneTools(BoardDbContext db, McpAuthService auth, BoardEvent
     }
 
     [McpServerTool(Name = "delete_lane", Destructive = true)]
-    [Description("Delete a lane. Requires administrator privileges. Archive lanes cannot be deleted, and a lane must be empty (no cards) before it can be deleted.")]
+    [Description("Delete a lane. Requires Administrator or AgentAdministrator role. Archive lanes cannot be deleted, and a lane must be empty (no cards) before it can be deleted.")]
     public async Task<string> DeleteLaneAsync(
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the lane to delete")] Guid laneId,
