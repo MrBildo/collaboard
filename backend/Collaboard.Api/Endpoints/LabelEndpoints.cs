@@ -49,7 +49,7 @@ internal static class LabelEndpoints
             await db.SaveChangesAsync();
             broadcaster.PublishBoardUpdated(boardId);
             return Results.Created($"/api/v1/boards/{boardId}/labels/{label.Id}", label);
-        }).RequireAdmin();
+        }).RequireAdminOrAgentAdmin();
 
         group.MapPatch("/boards/{boardId:guid}/labels/{id:guid}", async (BoardDbContext db, Guid boardId, Guid id, UpdateLabelRequest request, BoardEventBroadcaster broadcaster) =>
         {
@@ -77,7 +77,7 @@ internal static class LabelEndpoints
             await db.SaveChangesAsync();
             broadcaster.PublishBoardUpdated(boardId);
             return Results.Ok(label);
-        }).RequireAdmin();
+        }).RequireAdminOrAgentAdmin();
 
         group.MapDelete("/boards/{boardId:guid}/labels/{id:guid}", async (BoardDbContext db, Guid boardId, Guid id, BoardEventBroadcaster broadcaster) =>
         {
@@ -93,7 +93,7 @@ internal static class LabelEndpoints
             await db.SaveChangesAsync();
             broadcaster.PublishBoardUpdated(boardId);
             return Results.NoContent();
-        }).RequireAdmin();
+        }).RequireAdminOrAgentAdmin();
 
         // Card-label operations (card-scoped routes, unchanged)
         group.MapGet("/cards/{id:guid}/labels", async (BoardDbContext db, Guid id) =>

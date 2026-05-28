@@ -63,7 +63,7 @@ internal static class BoardEndpoints
 
             await db.SaveChangesAsync();
             return Results.Created($"/api/v1/boards/{board.Id}", board);
-        }).RequireAdmin();
+        }).RequireAdminOrAgentAdmin();
 
         group.MapPatch("/boards/{id:guid}", async (BoardDbContext db, Guid id, UpdateBoardRequest request) =>
         {
@@ -85,7 +85,7 @@ internal static class BoardEndpoints
 
             await db.SaveChangesAsync();
             return Results.Ok(board);
-        }).RequireAdmin();
+        }).RequireAdminOrAgentAdmin();
 
         group.MapDelete("/boards/{id:guid}", async (BoardDbContext db, Guid id) =>
         {
