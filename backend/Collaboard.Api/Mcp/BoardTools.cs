@@ -81,4 +81,91 @@ public sealed class BoardTools(BoardDbContext db, McpAuthService auth)
 
         return JsonSerializer.Serialize(sizes, JsonSerializerOptions.Web);
     }
+
+    // Card #243 Phase 3: admin-level board create/update. Mirrors the REST
+    // surface in BoardEndpoints.cs (POST /boards, PATCH /boards/{id}). Both gate
+    // via RequireAdminLevelAsync. Board delete is intentionally absent from MCP.
+    [McpServerTool(Name = "create_board", Destructive = false)]
+    [Description("Create a board. Requires administrator privileges. The slug is auto-derived from the name. The board is seeded with an archive lane and the default card sizes (S, M, L, XL).")]
+    public async Task<string> CreateBoardAsync(
+        [Description("Your auth key")] string authKey,
+        [Description("The board name")] string name,
+        CancellationToken ct = default)
+    {
+        var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
+        if (error is not null)
+        {
+            return error;
+        }
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return "Error: Name is required.";
+        }
+
+        var slug = Board.GenerateSlug(name);
+
+        if (await db.Boards.AnyAsync(b => b.Slug == slug, ct))
+        {
+            return "Error: A board with that slug already exists.";
+        }
+
+        var board = new Board
+        {
+            Id = Guid.NewGuid(),
+            Name = name,
+            Slug = slug,
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+        };
+        db.Boards.Add(board);
+
+        db.Lanes.Add(new Lane
+        {
+            Id = Guid.NewGuid(),
+            BoardId = board.Id,
+            Name = "Archive",
+            Position = int.MaxValue,
+            IsArchiveLane = true,
+        });
+
+        db.CardSizes.AddRange(
+            new CardSize { Id = Guid.NewGuid(), BoardId = board.Id, Name = "S", Ordinal = 0 },
+            new CardSize { Id = Guid.NewGuid(), BoardId = board.Id, Name = "M", Ordinal = 1 },
+            new CardSize { Id = Guid.NewGuid(), BoardId = board.Id, Name = "L", Ordinal = 2 },
+            new CardSize { Id = Guid.NewGuid(), BoardId = board.Id, Name = "XL", Ordinal = 3 }
+        );
+
+        await db.SaveChangesAsync(ct);
+        return JsonSerializer.Serialize(board, JsonSerializerOptions.Web);
+    }
+
+    [McpServerTool(Name = "update_board", Destructive = false)]
+    [Description("Rename a board. Requires administrator privileges. Only the name can be changed; the slug is immutable.")]
+    public async Task<string> UpdateBoardAsync(
+        [Description("Your auth key")] string authKey,
+        [Description("The ID (guid) of the board to rename")] Guid boardId,
+        [Description("The new board name")] string name,
+        CancellationToken ct = default)
+    {
+        var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
+        if (error is not null)
+        {
+            return error;
+        }
+
+        var board = await db.Boards.FindAsync([boardId], ct);
+        if (board is null)
+        {
+            return "Error: Board not found.";
+        }
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return "Error: Name cannot be empty.";
+        }
+
+        board.Name = name;
+        await db.SaveChangesAsync(ct);
+        return JsonSerializer.Serialize(board, JsonSerializerOptions.Web);
+    }
 }

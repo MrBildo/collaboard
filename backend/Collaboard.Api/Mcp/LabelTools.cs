@@ -33,6 +33,121 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
         return JsonSerializer.Serialize(labels, JsonSerializerOptions.Web);
     }
 
+    // Card #243 Phase 3: admin-level label CRUD. Mirrors the REST surface in
+    // LabelEndpoints.cs (POST/PATCH/DELETE /boards/{boardId}/labels). All three
+    // gate via RequireAdminLevelAsync.
+    [McpServerTool(Name = "create_label", Destructive = false)]
+    [Description("Create a label on a board. Requires administrator privileges. Label names must be unique within a board. Color is an optional string (e.g. a hex value).")]
+    public async Task<string> CreateLabelAsync(
+        [Description("Your auth key")] string authKey,
+        [Description("The board ID to create the label on")] Guid boardId,
+        [Description("The label name")] string name,
+        [Description("The label color (optional)")] string? color = null,
+        CancellationToken ct = default)
+    {
+        var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
+        if (error is not null)
+        {
+            return error;
+        }
+
+        if (!await db.Boards.AnyAsync(b => b.Id == boardId, ct))
+        {
+            return "Error: Board not found.";
+        }
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return "Error: Name is required.";
+        }
+
+        if (await db.Labels.AnyAsync(l => l.BoardId == boardId && l.Name == name, ct))
+        {
+            return "Error: A label with that name already exists on this board.";
+        }
+
+        var label = new Label
+        {
+            Id = Guid.NewGuid(),
+            BoardId = boardId,
+            Name = name,
+            Color = color,
+        };
+        db.Labels.Add(label);
+        await db.SaveChangesAsync(ct);
+        broadcaster.PublishBoardUpdated(boardId);
+        return JsonSerializer.Serialize(label, JsonSerializerOptions.Web);
+    }
+
+    [McpServerTool(Name = "update_label", Destructive = false)]
+    [Description("Update a label's name and/or color. Requires administrator privileges. Color is an optional string (e.g. a hex value).")]
+    public async Task<string> UpdateLabelAsync(
+        [Description("Your auth key")] string authKey,
+        [Description("The ID (guid) of the label to update")] Guid labelId,
+        [Description("The new label name (optional)")] string? name = null,
+        [Description("The new label color (optional)")] string? color = null,
+        CancellationToken ct = default)
+    {
+        var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
+        if (error is not null)
+        {
+            return error;
+        }
+
+        var label = await db.Labels.FindAsync([labelId], ct);
+        if (label is null)
+        {
+            return "Error: Label not found.";
+        }
+
+        if (name is not null)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return "Error: Name cannot be empty.";
+            }
+
+            label.Name = name;
+        }
+
+        if (color is not null)
+        {
+            label.Color = color;
+        }
+
+        await db.SaveChangesAsync(ct);
+        broadcaster.PublishBoardUpdated(label.BoardId);
+        return JsonSerializer.Serialize(label, JsonSerializerOptions.Web);
+    }
+
+    [McpServerTool(Name = "delete_label", Destructive = true)]
+    [Description("Delete a label. Requires administrator privileges. Removing a label un-assigns it from any cards it was applied to; it does not delete cards.")]
+    public async Task<string> DeleteLabelAsync(
+        [Description("Your auth key")] string authKey,
+        [Description("The ID (guid) of the label to delete")] Guid labelId,
+        CancellationToken ct = default)
+    {
+        var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
+        if (error is not null)
+        {
+            return error;
+        }
+
+        var label = await db.Labels.FindAsync([labelId], ct);
+        if (label is null)
+        {
+            return "Error: Label not found.";
+        }
+
+        var cardLabels = await db.CardLabels.Where(cl => cl.LabelId == labelId).ToListAsync(ct);
+        db.CardLabels.RemoveRange(cardLabels);
+        db.Labels.Remove(label);
+        var boardId = label.BoardId;
+        await db.SaveChangesAsync(ct);
+        broadcaster.PublishBoardUpdated(boardId);
+        return "Label deleted.";
+    }
+
     [McpServerTool(Name = "add_label_to_card", Destructive = false)]
     [Description("Add a label to a card. Identify the card by cardId or cardNumber. Identify the label by labelId or labelName. The label must belong to the same board as the card.")]
     public async Task<string> AddLabelToCardAsync(
