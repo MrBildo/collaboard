@@ -9,7 +9,7 @@ namespace Collaboard.Api.Tests;
 
 // Role-gate matrix coverage for the AgentAdministrator role (card #243, Phase 1).
 //
-// Spec: .agents/specs/agent-admin-mcp.md — Part 1, "Per-endpoint disposition (REST)".
+// Role-gate behavior for card #243, Phase 1 — see the umbrella card for the per-endpoint disposition table.
 //
 // Each widened endpoint is exercised with three role classes:
 //   - Administrator         → expected success (status quo)
@@ -330,7 +330,7 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
     }
 
     // action=delete is rejected in-body for AgentAdministrator (the only
-    // in-body role check the design admits — see spec Part 1 and PruneEndpoints.cs).
+    // in-body role check the design admits — see PruneEndpoints.cs for the enforcement and card #243 for the rationale).
     [Fact]
     public async Task PruneDelete_AsAgentAdministrator_Returns403()
     {
