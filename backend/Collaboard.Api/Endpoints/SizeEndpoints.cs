@@ -39,7 +39,7 @@ internal static class SizeEndpoints
             await db.SaveChangesAsync();
             broadcaster.PublishBoardUpdated(boardId);
             return Results.Created($"/api/v1/sizes/{size.Id}", size);
-        }).RequireAdmin();
+        }).RequireAdminOrAgentAdmin();
 
         // By-ID operations (flat)
         group.MapGet("/sizes/{id:guid}", async (BoardDbContext db, Guid id) =>
@@ -65,7 +65,7 @@ internal static class SizeEndpoints
             await db.SaveChangesAsync();
             broadcaster.PublishBoardUpdated(size.BoardId);
             return Results.NoContent();
-        }).RequireAdmin();
+        }).RequireAdminOrAgentAdmin();
 
         group.MapPatch("/sizes/{id:guid}", async (BoardDbContext db, Guid id, UpdateSizeRequest request, BoardEventBroadcaster broadcaster) =>
         {
@@ -99,7 +99,7 @@ internal static class SizeEndpoints
             await db.SaveChangesAsync();
             broadcaster.PublishBoardUpdated(size.BoardId);
             return Results.Ok(size);
-        }).RequireAdmin();
+        }).RequireAdminOrAgentAdmin();
 
         return group;
     }

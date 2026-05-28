@@ -42,9 +42,9 @@ internal static class PruneEndpoints
             }).ToList();
 
             return Results.Ok(new { matchCount = cards.Count, cards = cardSummaries });
-        }).RequireAdmin();
+        }).RequireAdminOrAgentAdmin();
 
-        group.MapPost("/boards/{boardId:guid}/prune", async (BoardDbContext db, Guid boardId, PruneRequest request, BoardEventBroadcaster broadcaster) =>
+        group.MapPost("/boards/{boardId:guid}/prune", async (HttpContext http, BoardDbContext db, Guid boardId, PruneRequest request, BoardEventBroadcaster broadcaster) =>
         {
             if (!await db.Boards.AnyAsync(x => x.Id == boardId))
             {
@@ -62,6 +62,13 @@ internal static class PruneEndpoints
             }
 
             var action = string.IsNullOrEmpty(request.Action) ? "archive" : request.Action;
+
+            // AgentAdministrator is blocked from the destructive delete action.
+            // Bulk delete is named in card #243's exclusion list; only Administrator may invoke it.
+            if (action == "delete" && http.CurrentUser().Role == UserRole.AgentAdministrator)
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
 
             var query = await BuildFilteredQueryAsync(db, boardId, request);
             var cards = await query.ToListAsync();
@@ -93,7 +100,7 @@ internal static class PruneEndpoints
 
                 return Results.Ok(new { deletedCount = cards.Count });
             }
-        }).RequireAdmin();
+        }).RequireAdminOrAgentAdmin();
 
         return group;
     }

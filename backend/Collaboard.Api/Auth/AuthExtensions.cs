@@ -18,4 +18,7 @@ public static class AuthExtensions
 
     public static RouteHandlerBuilder RequireAdmin(this RouteHandlerBuilder builder)
         => builder.RequireRole(UserRole.Administrator);
+
+    public static RouteHandlerBuilder RequireAdminOrAgentAdmin(this RouteHandlerBuilder builder)
+        => builder.RequireRole(UserRole.Administrator, UserRole.AgentAdministrator);
 }

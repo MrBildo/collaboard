@@ -38,7 +38,7 @@ internal static class LaneEndpoints
             await db.SaveChangesAsync();
             broadcaster.PublishBoardUpdated(boardId);
             return Results.Created($"/api/v1/lanes/{lane.Id}", lane);
-        }).RequireAdmin();
+        }).RequireAdminOrAgentAdmin();
 
         // By-ID operations (flat)
         group.MapGet("/lanes/{id:guid}", async (BoardDbContext db, Guid id) =>
@@ -69,7 +69,7 @@ internal static class LaneEndpoints
             await db.SaveChangesAsync();
             broadcaster.PublishBoardUpdated(lane.BoardId);
             return Results.NoContent();
-        }).RequireAdmin();
+        }).RequireAdminOrAgentAdmin();
 
         group.MapPatch("/lanes/{id:guid}", async (BoardDbContext db, Guid id, UpdateLaneRequest request, BoardEventBroadcaster broadcaster) =>
         {
@@ -114,7 +114,7 @@ internal static class LaneEndpoints
             await db.SaveChangesAsync();
             broadcaster.PublishBoardUpdated(lane.BoardId);
             return Results.Ok(lane);
-        }).RequireAdmin();
+        }).RequireAdminOrAgentAdmin();
 
         return group;
     }

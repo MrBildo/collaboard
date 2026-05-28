@@ -8,6 +8,7 @@ public enum UserRole
     Administrator,
     HumanUser,
     AgentUser,
+    AgentAdministrator,
 }
 
 public class Board
