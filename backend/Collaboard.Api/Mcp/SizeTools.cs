@@ -14,7 +14,7 @@ namespace Collaboard.Api.Mcp;
 public sealed class SizeTools(BoardDbContext db, McpAuthService auth, BoardEventBroadcaster broadcaster)
 {
     [McpServerTool(Name = "create_size", Destructive = false)]
-    [Description("Create a card size on a board. Requires administrator privileges. If ordinal is omitted, it is auto-assigned to one greater than the board's current highest ordinal.")]
+    [Description("Create a card size on a board. Requires Administrator or AgentAdministrator role. If ordinal is omitted, it is auto-assigned to one greater than the board's current highest ordinal.")]
     public async Task<string> CreateSizeAsync(
         [Description("Your auth key")] string authKey,
         [Description("The board ID to create the size on")] Guid boardId,
@@ -52,7 +52,7 @@ public sealed class SizeTools(BoardDbContext db, McpAuthService auth, BoardEvent
     }
 
     [McpServerTool(Name = "update_size", Destructive = false)]
-    [Description("Update a card size's name and/or ordinal. Requires administrator privileges. An ordinal already taken by another size on the board is a conflict.")]
+    [Description("Update a card size's name and/or ordinal. Requires Administrator or AgentAdministrator role. An ordinal already taken by another size on the board is a conflict.")]
     public async Task<string> UpdateSizeAsync(
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the size to update")] Guid sizeId,
@@ -99,7 +99,7 @@ public sealed class SizeTools(BoardDbContext db, McpAuthService auth, BoardEvent
     }
 
     [McpServerTool(Name = "delete_size", Destructive = true)]
-    [Description("Delete a card size. Requires administrator privileges. A size in use by any card cannot be deleted.")]
+    [Description("Delete a card size. Requires Administrator or AgentAdministrator role. A size in use by any card cannot be deleted.")]
     public async Task<string> DeleteSizeAsync(
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the size to delete")] Guid sizeId,

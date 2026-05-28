@@ -86,7 +86,7 @@ public sealed class BoardTools(BoardDbContext db, McpAuthService auth)
     // surface in BoardEndpoints.cs (POST /boards, PATCH /boards/{id}). Both gate
     // via RequireAdminLevelAsync. Board delete is intentionally absent from MCP.
     [McpServerTool(Name = "create_board", Destructive = false)]
-    [Description("Create a board. Requires administrator privileges. The slug is auto-derived from the name. The board is seeded with an archive lane and the default card sizes (S, M, L, XL).")]
+    [Description("Create a board. Requires Administrator or AgentAdministrator role. The slug is auto-derived from the name. The board is seeded with an archive lane and the default card sizes (S, M, L, XL).")]
     public async Task<string> CreateBoardAsync(
         [Description("Your auth key")] string authKey,
         [Description("The board name")] string name,
@@ -139,8 +139,14 @@ public sealed class BoardTools(BoardDbContext db, McpAuthService auth)
         return JsonSerializer.Serialize(board, JsonSerializerOptions.Web);
     }
 
+    // Note: `name` is a required non-nullable parameter here (blank is rejected), whereas the
+    // REST PATCH /boards/{id} treats `Name` as optional (allows a no-op PATCH with no body).
+    // This is deliberate: MCP tools operate on explicit intent — a rename call without a name
+    // is always a mistake; REST allows partial-update no-ops as a general contract. Do not
+    // "fix" the asymmetry — the two surfaces serve different callers and the difference is
+    // intentional per card #243 spec Part 2.
     [McpServerTool(Name = "update_board", Destructive = false)]
-    [Description("Rename a board. Requires administrator privileges. Only the name can be changed; the slug is immutable.")]
+    [Description("Rename a board. Requires Administrator or AgentAdministrator role. Only the name can be changed; the slug is immutable. Name is required — a blank name is rejected.")]
     public async Task<string> UpdateBoardAsync(
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the board to rename")] Guid boardId,

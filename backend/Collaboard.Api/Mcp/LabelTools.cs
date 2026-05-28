@@ -37,7 +37,7 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
     // LabelEndpoints.cs (POST/PATCH/DELETE /boards/{boardId}/labels). All three
     // gate via RequireAdminLevelAsync.
     [McpServerTool(Name = "create_label", Destructive = false)]
-    [Description("Create a label on a board. Requires administrator privileges. Label names must be unique within a board. Color is an optional string (e.g. a hex value).")]
+    [Description("Create a label on a board. Requires Administrator or AgentAdministrator role. Label names must be unique within a board. Color is an optional string (e.g. a hex value).")]
     public async Task<string> CreateLabelAsync(
         [Description("Your auth key")] string authKey,
         [Description("The board ID to create the label on")] Guid boardId,
@@ -80,7 +80,7 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
     }
 
     [McpServerTool(Name = "update_label", Destructive = false)]
-    [Description("Update a label's name and/or color. Requires administrator privileges. Color is an optional string (e.g. a hex value).")]
+    [Description("Update a label's name and/or color. Requires Administrator or AgentAdministrator role. Color is an optional string (e.g. a hex value).")]
     public async Task<string> UpdateLabelAsync(
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the label to update")] Guid labelId,
@@ -121,7 +121,7 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
     }
 
     [McpServerTool(Name = "delete_label", Destructive = true)]
-    [Description("Delete a label. Requires administrator privileges. Removing a label un-assigns it from any cards it was applied to; it does not delete cards.")]
+    [Description("Delete a label. Requires Administrator or AgentAdministrator role. Removing a label un-assigns it from any cards it was applied to; it does not delete cards.")]
     public async Task<string> DeleteLabelAsync(
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the label to delete")] Guid labelId,

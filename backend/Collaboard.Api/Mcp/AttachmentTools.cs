@@ -39,7 +39,7 @@ public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, Boar
     }
 
     [McpServerTool(Name = "delete_attachment", Destructive = true)]
-    [Description("Delete an attachment you added. Administrators can delete any attachment.")]
+    [Description("Delete an attachment you added. Administrator and AgentAdministrator roles can delete any attachment.")]
     public async Task<string> DeleteAttachmentAsync(
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the attachment to delete")] Guid attachmentId,

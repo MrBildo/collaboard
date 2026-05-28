@@ -60,7 +60,7 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
     }
 
     [McpServerTool(Name = "delete_comment", Destructive = true)]
-    [Description("Delete a comment you wrote. Administrators can delete any comment.")]
+    [Description("Delete a comment you wrote. Administrator and AgentAdministrator roles can delete any comment.")]
     public async Task<string> DeleteCommentAsync(
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the comment to delete")] Guid commentId,
