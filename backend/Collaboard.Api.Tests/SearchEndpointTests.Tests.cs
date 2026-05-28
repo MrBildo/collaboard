@@ -245,6 +245,67 @@ public class SearchEndpointTests(CollaboardApiFactory factory) : IClassFixture<C
     }
 
     [Fact]
+    public async Task SearchCards_WithBoardId_PrioritizesResultsFromThatBoard()
+    {
+        // Arrange — two boards, each with a card matching the same search term
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        // Create a second board
+        var secondBoardResponse = await _client.PostAsJsonAsync("/api/v1/boards", new { name = "Priority Search Test Board" });
+        secondBoardResponse.EnsureSuccessStatusCode();
+        var secondBoard = await secondBoardResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var secondBoardId = secondBoard.GetProperty("id").GetGuid();
+
+        // New boards have no regular lanes — create one first
+        var createLaneResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/boards/{secondBoardId}/lanes",
+            new { name = "To Do", position = 1 });
+        createLaneResponse.EnsureSuccessStatusCode();
+        var secondBoardLaneId = (await createLaneResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+
+        // Create a card on the second board
+        var secondBoardCardResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/boards/{secondBoardId}/cards",
+            new { name = "PrioritySearchTerm_Xyz987", laneId = secondBoardLaneId, position = 0 });
+        secondBoardCardResponse.EnsureSuccessStatusCode();
+
+        // Create a card on the default board
+        await CreateCardAsync("PrioritySearchTerm_Xyz987");
+
+        // Act — search with boardId set to the default board
+        var response = await _client.GetAsync(
+            $"/api/v1/search/cards?q=PrioritySearchTerm_Xyz987&boardId={_factory.DefaultBoardId}");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var results = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+        results.ShouldNotBeNull();
+        results.Length.ShouldBe(2);
+
+        // Default board (the priority board) should be first
+        results[0].GetProperty("boardId").GetGuid().ShouldBe(_factory.DefaultBoardId);
+        results[1].GetProperty("boardId").GetGuid().ShouldBe(secondBoardId);
+    }
+
+    [Fact]
+    public async Task SearchCards_WithoutBoardId_DoesNotApplyPriority()
+    {
+        // Arrange — search without boardId still returns all matching groups
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        await CreateCardAsync("NoPrioritySearchTerm_Abc123");
+
+        // Act
+        var response = await _client.GetAsync("/api/v1/search/cards?q=NoPrioritySearchTerm_Abc123");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var results = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+        results.ShouldNotBeNull();
+        results.Length.ShouldBeGreaterThanOrEqualTo(1);
+        results[0].GetProperty("boardId").GetGuid().ShouldBe(_factory.DefaultBoardId);
+    }
+
+    [Fact]
     public async Task SearchCards_RequiresAuth()
     {
         // Arrange — no auth header
