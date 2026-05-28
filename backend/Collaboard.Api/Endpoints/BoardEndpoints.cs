@@ -116,14 +116,14 @@ internal static class BoardEndpoints
                 return Results.NotFound();
             }
 
-            var archiveLaneIds = await db.Lanes
-                .Where(x => x.BoardId == boardId && x.IsArchiveLane)
-                .Select(x => x.Id)
-                .ToListAsync();
-
             var lanes = await db.Lanes.Where(x => x.BoardId == boardId && !x.IsArchiveLane).OrderBy(x => x.Position).ToListAsync();
-            var rawCards = await db.Cards.Where(x => x.BoardId == boardId && !archiveLaneIds.Contains(x.LaneId) && !x.IsTemp).OrderBy(x => x.LaneId).ThenBy(x => x.Position).ToListAsync();
+
+            // Composite view reuses the paginated cards-query path with no limit (#162): same
+            // board scope, temp/archive exclusion, and canonical ordering as GET /cards.
+            var cardsQuery = CardQueryHelper.BoardCards(db.Cards, db.Lanes, boardId, includeArchived: false);
+            var rawCards = await CardQueryHelper.OrderForBoard(cardsQuery).ToListAsync();
             var cards = await CardSummaryBuilder.BuildAsync(db, rawCards);
+
             var sizes = await db.CardSizes.Where(x => x.BoardId == boardId).OrderBy(x => x.Ordinal).ToListAsync();
             return Results.Ok(new { lanes, cards, sizes });
         }).RequireAuth();

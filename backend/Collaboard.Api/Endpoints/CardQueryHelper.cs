@@ -5,6 +5,31 @@ namespace Collaboard.Api.Endpoints;
 
 internal static class CardQueryHelper
 {
+    // Board-scoped card query shared by the paginated /cards endpoint and the composite
+    // /board endpoint (#162). Applies the board scope, the temp-card exclusion, and —
+    // unless includeArchived is true — the archive-lane exclusion. Callers layer their
+    // own optional filters (lane, since, label, search) and ordering/pagination on top.
+    public static IQueryable<CardItem> BoardCards(
+        IQueryable<CardItem> cards, IQueryable<Lane> lanes, Guid boardId, bool includeArchived)
+    {
+        var query = cards.Where(x => x.BoardId == boardId && !x.IsTemp);
+
+        if (!includeArchived)
+        {
+            var archiveLaneIds = lanes
+                .Where(l => l.BoardId == boardId && l.IsArchiveLane)
+                .Select(l => l.Id);
+            query = query.Where(x => !archiveLaneIds.Contains(x.LaneId));
+        }
+
+        return query;
+    }
+
+    // Canonical card ordering: grouped by lane, then by intra-lane position. Shared so the
+    // paginated and composite paths return cards in the same order (#162).
+    public static IOrderedQueryable<CardItem> OrderForBoard(IQueryable<CardItem> query) =>
+        query.OrderBy(x => x.LaneId).ThenBy(x => x.Position);
+
     public static IQueryable<CardItem> ApplySinceFilter(
         IQueryable<CardItem> query, BoardDbContext db, DateTimeOffset since)
     {

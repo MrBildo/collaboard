@@ -57,6 +57,55 @@ public class ArchiveLaneTests(CollaboardApiFactory factory) : IClassFixture<Coll
         }
     }
 
+    [Fact]
+    public async Task GetBoardComposite_ExcludesArchivedCards()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var boardName = $"CompositeArchivedCards Test {Guid.NewGuid()}";
+        var createResponse = await _client.PostAsJsonAsync("/api/v1/boards", new { name = boardName });
+        createResponse.EnsureSuccessStatusCode();
+        var board = await createResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        var boardId = board.GetProperty("id").GetGuid();
+
+        var archiveLaneId = await GetArchiveLaneIdAsync(boardId);
+
+        var laneResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/boards/{boardId}/lanes",
+            new { name = "Work", position = 0 });
+        laneResponse.EnsureSuccessStatusCode();
+        var lane = await laneResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var laneId = lane.GetProperty("id").GetGuid();
+
+        var activeCardResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/boards/{boardId}/cards",
+            new { name = "Active Card", laneId });
+        activeCardResponse.EnsureSuccessStatusCode();
+        var activeCard = await activeCardResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        var activeCardId = activeCard.GetProperty("id").GetGuid();
+
+        var archivedCardResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/boards/{boardId}/cards",
+            new { name = "Archived Card", laneId });
+        archivedCardResponse.EnsureSuccessStatusCode();
+        var archivedCard = await archivedCardResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        var archivedCardId = archivedCard.GetProperty("id").GetGuid();
+        await MoveCardToArchiveLaneAsync(archivedCardId, archiveLaneId);
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/boards/{boardId}/board");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        var cardIds = json.GetProperty("cards").EnumerateArray()
+            .Select(c => c.GetProperty("id").GetGuid())
+            .ToList();
+
+        cardIds.ShouldContain(activeCardId);
+        cardIds.ShouldNotContain(archivedCardId);
+    }
+
     // --- New board gets archive lane ---
 
     [Fact]
