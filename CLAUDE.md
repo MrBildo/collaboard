@@ -186,9 +186,9 @@ All endpoints under `/api/v1/`:
 
 | Path | Notes |
 |------|-------|
-| /mcp | Streamable HTTP transport — 32 tools across SystemTools, BoardTools, CardTools, ArchiveTools, CommentTools, AttachmentTools, LabelTools, LaneTools, SizeTools, PruneTools |
+| /mcp | Streamable HTTP transport — 35 tools across SystemTools, BoardTools, CardTools, ArchiveTools, CommentTools, AttachmentTools, LabelTools, LaneTools, SizeTools, PruneTools, BulkCardTools |
 
-**Tools (32):**
+**Tools (35):**
 - **SystemTools:** `get_api_info` (returns base URL and API prefix for direct REST calls)
 - **BoardTools:** `get_boards`, `get_lanes` (boardId required, includes cardCount per lane; excludes archive lanes), `get_sizes` (boardId required, ordered by ordinal), `create_board` (admin-level; slug auto-derived, seeds archive lane + default sizes), `update_board` (admin-level; rename only)
 - **CardTools:** `create_card` (supports labelIds, sizeId/sizeName — defaults to lowest-ordinal size; positions at top of lane; blocks archive lane), `move_card` (index optional; blocks to/from archive lane), `update_card` (supports laneId/index move, sizeId/sizeName, labelIds replace, no-op guard; blocks archived cards; returns enriched card summary with labels, sizeName, commentCount, attachmentCount, isArchived), `get_cards` (enriched: labels, sizeId, sizeName, commentCount, attachmentCount, isArchived; returns `{ items, totalCount, offset, limit }` paged envelope; `offset` param default 0, `limit` param default 200, max 500; `includeArchived` param default false), `get_card` (enriched: sizeName, attachments, user names, isArchived; supports cardNumber lookup)
@@ -199,6 +199,7 @@ All endpoints under `/api/v1/`:
 - **LaneTools:** `create_lane` (admin-level; rejects reserved int.MaxValue position), `update_lane` (admin-level; name/position; rejects archive lane, position collision), `delete_lane` (admin-level; rejects archive lane or non-empty lane)
 - **SizeTools:** `create_size` (admin-level; auto-ordinal if omitted), `update_size` (admin-level; name/ordinal; ordinal collision rejected), `delete_size` (admin-level; rejects size in use by cards)
 - **PruneTools:** `prune_preview` (admin-level; read-only; `{ matchCount, cards }`; filters: olderThan, laneIds, labelIds, includeArchived; excludes archived by default), `prune` (admin-level; **archive only** — no delete action and no prune_delete tool, by design per #243's exclusion list; `{ archivedCount }`)
+- **BulkCardTools:** `bulk_archive_cards`, `bulk_restore_cards` (requires targetLaneId; all cards must share the target lane's board), `bulk_update_cards` (uniform laneId/index move, sizeId/sizeName, labelIds replace — folds in bulk-move; per-card name/description not offered). All three are **all-roles** (gate via `RequireUserAsync`, matching the per-card analogs they batch) and accept `cardIds` (CSV of GUIDs) XOR `cardNumbers` (CSV) + `boardId`/`boardSlug`. **Two-phase semantics:** Phase 1 pre-validation fails loud with a single `"Error: ..."` string and performs no mutations (ref-shape/parse, card existence, board-match and target premises); Phase 2 per-card execution is best-effort with a per-item envelope `{ totalRequested, succeeded, failed, results: [{ cardId, number, status, error? }] }` (results align 1:1 with input order), one `SaveChangesAsync` at the end, one broadcast per affected board (deduplicated). No `bulk_delete_cards` — delete is irreversible, excluded by design. (#196)
 
 **Admin-level tools** require the `Administrator` or `AgentAdministrator` role (gated via `McpAuthService.RequireAdminLevelAsync`). Strict-admin-only operations (delete board, prune-delete, user CRUD) are deliberately absent from the MCP surface entirely.
 
