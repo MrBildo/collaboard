@@ -18,12 +18,12 @@ internal static class PruneEndpoints
                 return Results.NotFound();
             }
 
-            if (!ValidateFilters(request, out var error))
+            if (!PruneFilter.ValidateFilters(request, out var error))
             {
                 return Results.BadRequest(error);
             }
 
-            var query = await BuildFilteredQueryAsync(db, boardId, request);
+            var query = await PruneFilter.BuildFilteredQueryAsync(db, boardId, request);
             var cards = await query.ToListAsync();
 
             // Batch load lane names
@@ -51,7 +51,7 @@ internal static class PruneEndpoints
                 return Results.NotFound();
             }
 
-            if (!ValidateFilters(request, out var error))
+            if (!PruneFilter.ValidateFilters(request, out var error))
             {
                 return Results.BadRequest(error);
             }
@@ -70,7 +70,7 @@ internal static class PruneEndpoints
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
 
-            var query = await BuildFilteredQueryAsync(db, boardId, request);
+            var query = await PruneFilter.BuildFilteredQueryAsync(db, boardId, request);
             var cards = await query.ToListAsync();
 
             if (action == "archive")
@@ -105,23 +105,6 @@ internal static class PruneEndpoints
         return group;
     }
 
-    private static bool ValidateFilters(PruneRequest request, out string? error)
-    {
-        error = null;
-
-        var hasAnyFilter = request.OlderThan is not null
-            || (request.LaneIds is not null && request.LaneIds.Length > 0)
-            || (request.LabelIds is not null && request.LabelIds.Length > 0);
-
-        if (!hasAnyFilter)
-        {
-            error = "At least one filter is required (olderThan, laneIds, or labelIds).";
-            return false;
-        }
-
-        return true;
-    }
-
     private static bool ValidateAction(string? action, out string? error)
     {
         error = null;
@@ -138,53 +121,5 @@ internal static class PruneEndpoints
         }
 
         return true;
-    }
-
-    private static async Task<IQueryable<CardItem>> BuildFilteredQueryAsync(
-        BoardDbContext db,
-        Guid boardId,
-        PruneRequest request)
-    {
-        var query = db.Cards.Where(c => c.BoardId == boardId);
-
-        // Exclude archived cards by default
-        if (request.IncludeArchived is not true)
-        {
-            var archiveLaneIds = await db.Lanes
-                .Where(l => l.BoardId == boardId && l.IsArchiveLane)
-                .Select(l => l.Id)
-                .ToListAsync();
-
-            if (archiveLaneIds.Count > 0)
-            {
-                query = query.Where(c => !archiveLaneIds.Contains(c.LaneId));
-            }
-        }
-
-        if (request.OlderThan.HasValue)
-        {
-            var cutoffIds = db.Cards
-                .FromSqlInterpolated($"SELECT * FROM Cards WHERE LastUpdatedAtUtc < {request.OlderThan.Value.ToString("O")}")
-                .Select(c => c.Id);
-            query = query.Where(c => cutoffIds.Contains(c.Id));
-        }
-
-        if (request.LaneIds is not null && request.LaneIds.Length > 0)
-        {
-            var laneIds = request.LaneIds.ToList();
-            query = query.Where(c => laneIds.Contains(c.LaneId));
-        }
-
-        if (request.LabelIds is not null && request.LabelIds.Length > 0)
-        {
-            var labelIds = request.LabelIds.ToList();
-            var cardIdsWithLabels = db.CardLabels
-                .Where(cl => labelIds.Contains(cl.LabelId))
-                .Select(cl => cl.CardId);
-
-            query = query.Where(c => cardIdsWithLabels.Contains(c.Id));
-        }
-
-        return query;
     }
 }

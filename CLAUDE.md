@@ -186,16 +186,21 @@ All endpoints under `/api/v1/`:
 
 | Path | Notes |
 |------|-------|
-| /mcp | Streamable HTTP transport — 19 tools across SystemTools, BoardTools, CardTools, ArchiveTools, CommentTools, AttachmentTools, LabelTools |
+| /mcp | Streamable HTTP transport — 32 tools across SystemTools, BoardTools, CardTools, ArchiveTools, CommentTools, AttachmentTools, LabelTools, LaneTools, SizeTools, PruneTools |
 
-**Tools (19):**
+**Tools (32):**
 - **SystemTools:** `get_api_info` (returns base URL and API prefix for direct REST calls)
-- **BoardTools:** `get_boards`, `get_lanes` (boardId required, includes cardCount per lane; excludes archive lanes), `get_sizes` (boardId required, ordered by ordinal)
+- **BoardTools:** `get_boards`, `get_lanes` (boardId required, includes cardCount per lane; excludes archive lanes), `get_sizes` (boardId required, ordered by ordinal), `create_board` (admin-level; slug auto-derived, seeds archive lane + default sizes), `update_board` (admin-level; rename only)
 - **CardTools:** `create_card` (supports labelIds, sizeId/sizeName — defaults to lowest-ordinal size; positions at top of lane; blocks archive lane), `move_card` (index optional; blocks to/from archive lane), `update_card` (supports laneId/index move, sizeId/sizeName, labelIds replace, no-op guard; blocks archived cards; returns enriched card summary with labels, sizeName, commentCount, attachmentCount, isArchived), `get_cards` (enriched: labels, sizeId, sizeName, commentCount, attachmentCount, isArchived; returns `{ items, totalCount, offset, limit }` paged envelope; `offset` param default 0, `limit` param default 200, max 500; `includeArchived` param default false), `get_card` (enriched: sizeName, attachments, user names, isArchived; supports cardNumber lookup)
 - **ArchiveTools:** `archive_card` (all roles; moves card to archive lane), `restore_card` (all roles; requires laneId; moves card from archive to target lane)
-- **CommentTools:** `add_comment` (blocks archived cards), `delete_comment` (blocks archived cards)
-- **AttachmentTools:** `upload_attachment` (5MB limit, base64; blocks archived cards), `download_attachment` (returns base64 content), `delete_attachment` (blocks archived cards)
-- **LabelTools:** `get_labels`, `add_label_to_card` (supports labelName; blocks archived cards), `remove_label_from_card` (supports labelName; blocks archived cards)
+- **CommentTools:** `add_comment` (blocks archived cards), `delete_comment` (blocks archived cards; own-or-admin-level)
+- **AttachmentTools:** `upload_attachment` (5MB limit, base64; blocks archived cards), `download_attachment` (returns base64 content), `delete_attachment` (blocks archived cards; own-or-admin-level)
+- **LabelTools:** `get_labels`, `add_label_to_card` (supports labelName; blocks archived cards), `remove_label_from_card` (supports labelName; blocks archived cards), `create_label` (admin-level), `update_label` (admin-level; name/color), `delete_label` (admin-level; cleans up CardLabel rows)
+- **LaneTools:** `create_lane` (admin-level; rejects reserved int.MaxValue position), `update_lane` (admin-level; name/position; rejects archive lane, position collision), `delete_lane` (admin-level; rejects archive lane or non-empty lane)
+- **SizeTools:** `create_size` (admin-level; auto-ordinal if omitted), `update_size` (admin-level; name/ordinal; ordinal collision rejected), `delete_size` (admin-level; rejects size in use by cards)
+- **PruneTools:** `prune_preview` (admin-level; read-only; `{ matchCount, cards }`; filters: olderThan, laneIds, labelIds, includeArchived; excludes archived by default), `prune` (admin-level; **archive only** — no delete action and no prune_delete tool, by design per #243's exclusion list; `{ archivedCount }`)
+
+**Admin-level tools** require the `Administrator` or `AgentAdministrator` role (gated via `McpAuthService.RequireAdminLevelAsync`). Strict-admin-only operations (delete board, prune-delete, user CRUD) are deliberately absent from the MCP surface entirely.
 
 **Cross-cutting:** Card numbers are **board-scoped** (unique per board, not globally). All card-scoped tools accept `cardNumber` (long) as alternative to `cardId` (Guid), but **`cardNumber` requires `boardId` or `boardSlug`** — no fallback to global lookup. Label assignment tools accept `labelName` as alternative to `labelId`. Size tools accept `sizeName` as alternative to `sizeId`. Shared resolution via `McpCardResolver`.
 
