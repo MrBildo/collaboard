@@ -231,7 +231,7 @@ public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardE
         List<Guid>? desiredLabelIds = null;
         if (hasLabels)
         {
-            var (parsed, labelError) = await ParseAndValidateLabelIdsAsync(labelIds, commonBoardId, ct);
+            var (parsed, labelError) = await McpLabelParsing.ParseAndValidateLabelIdsAsync(db, labelIds, commonBoardId, ct);
             if (labelError is not null)
             {
                 return labelError;
@@ -305,74 +305,6 @@ public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardE
         }
 
         return (size.Id, null);
-    }
-
-    // Mirrors CardTools.ParseAndValidateLabelIdsAsync — same CSV-or-JSON-array
-    // permissiveness (#241) and same cross-board rejection contract. Kept local
-    // rather than shared because the bulk pre-validation phase needs it to run
-    // once against the common board, and the per-card analog runs it per call.
-    private async Task<(List<Guid> LabelIds, string? Error)> ParseAndValidateLabelIdsAsync(string? labelIds, Guid boardId, CancellationToken ct)
-    {
-        List<Guid> parsedIds = [];
-        if (string.IsNullOrWhiteSpace(labelIds))
-        {
-            return (parsedIds, null);
-        }
-
-        var parts = TryParseJsonStringArray(labelIds, out var jsonArrayParts)
-            ? jsonArrayParts
-            : labelIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-        foreach (var part in parts)
-        {
-            if (!Guid.TryParse(part, out var parsedId))
-            {
-                return (parsedIds, $"Error: Invalid label ID format: '{part}'. Expected a GUID.");
-            }
-
-            parsedIds.Add(parsedId);
-        }
-
-        var validLabels = await db.Labels
-            .Where(l => parsedIds.Contains(l.Id) && l.BoardId == boardId)
-            .Select(l => l.Id)
-            .ToListAsync(ct);
-
-        var invalidIds = parsedIds.Except(validLabels).ToList();
-        if (invalidIds.Count > 0)
-        {
-            return (parsedIds, $"Error: Labels not found or not on the same board: {string.Join(", ", invalidIds)}");
-        }
-
-        return (parsedIds, null);
-    }
-
-    private static bool TryParseJsonStringArray(string value, out string[] parts)
-    {
-        parts = [];
-        var trimmed = value.AsSpan().Trim();
-        if (trimmed.Length < 2 || trimmed[0] != '[' || trimmed[^1] != ']')
-        {
-            return false;
-        }
-
-        try
-        {
-            var deserialized = JsonSerializer.Deserialize<string[]>(value);
-            if (deserialized is null)
-            {
-                return false;
-            }
-
-            parts = [.. deserialized
-                .Where(static s => !string.IsNullOrWhiteSpace(s))
-                .Select(static s => s.Trim())];
-            return true;
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
     }
 }
 

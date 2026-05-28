@@ -48,7 +48,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         }
 
         // Parse and validate label IDs if provided
-        var (parsedLabelIds, labelError) = await ParseAndValidateLabelIdsAsync(labelIds, lane.BoardId, ct);
+        var (parsedLabelIds, labelError) = await McpLabelParsing.ParseAndValidateLabelIdsAsync(db, labelIds, lane.BoardId, ct);
         if (labelError is not null)
         {
             return labelError;
@@ -226,7 +226,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         if (labelIds is not null)
         {
             var cardBoardId = await db.Lanes.Where(l => l.Id == card.LaneId).Select(l => l.BoardId).FirstOrDefaultAsync(ct);
-            var (desiredLabelIdList, labelError) = await ParseAndValidateLabelIdsAsync(labelIds, cardBoardId, ct);
+            var (desiredLabelIdList, labelError) = await McpLabelParsing.ParseAndValidateLabelIdsAsync(db, labelIds, cardBoardId, ct);
             if (labelError is not null)
             {
                 return labelError;
@@ -380,74 +380,5 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         }
 
         return (defaultSize.Id, null);
-    }
-
-    private async Task<(List<Guid> LabelIds, string? Error)> ParseAndValidateLabelIdsAsync(string? labelIds, Guid boardId, CancellationToken ct)
-    {
-        List<Guid> parsedIds = [];
-        if (string.IsNullOrWhiteSpace(labelIds))
-        {
-            return (parsedIds, null);
-        }
-
-        // Accept two shapes:
-        //   1. Comma-separated GUIDs ("guid1,guid2") — the documented contract.
-        //   2. JSON-string array (e.g. "[\"guid1\",\"guid2\"]") — what some MCP-host clients
-        //      forward when the LLM emits an array literal for a string parameter (#241).
-        // The schema stays a string; the handler is permissive about which shape arrives.
-        var parts = TryParseJsonStringArray(labelIds, out var jsonArrayParts)
-            ? jsonArrayParts
-            : labelIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-        foreach (var part in parts)
-        {
-            if (!Guid.TryParse(part, out var parsedId))
-            {
-                return (parsedIds, $"Error: Invalid label ID format: '{part}'. Expected a GUID.");
-            }
-
-            parsedIds.Add(parsedId);
-        }
-
-        var validLabels = await db.Labels
-            .Where(l => parsedIds.Contains(l.Id) && l.BoardId == boardId)
-            .Select(l => l.Id)
-            .ToListAsync(ct);
-
-        var invalidIds = parsedIds.Except(validLabels).ToList();
-        if (invalidIds.Count > 0)
-        {
-            return (parsedIds, $"Error: Labels not found or not on the same board: {string.Join(", ", invalidIds)}");
-        }
-
-        return (parsedIds, null);
-    }
-
-    private static bool TryParseJsonStringArray(string value, out string[] parts)
-    {
-        parts = [];
-        var trimmed = value.AsSpan().Trim();
-        if (trimmed.Length < 2 || trimmed[0] != '[' || trimmed[^1] != ']')
-        {
-            return false;
-        }
-
-        try
-        {
-            var deserialized = JsonSerializer.Deserialize<string[]>(value);
-            if (deserialized is null)
-            {
-                return false;
-            }
-
-            parts = [.. deserialized
-                .Where(static s => !string.IsNullOrWhiteSpace(s))
-                .Select(static s => s.Trim())];
-            return true;
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
     }
 }
