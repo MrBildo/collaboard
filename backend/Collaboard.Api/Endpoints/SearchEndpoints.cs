@@ -8,7 +8,7 @@ internal static class SearchEndpoints
 {
     public static RouteGroupBuilder MapSearchEndpoints(this RouteGroupBuilder group)
     {
-        group.MapGet("/search/cards", async (BoardDbContext db, string? q, int? limit, Guid? archiveBoardId) =>
+        group.MapGet("/search/cards", async (BoardDbContext db, string? q, int? limit, Guid? archiveBoardId, Guid? boardId) =>
         {
             if (string.IsNullOrWhiteSpace(q))
             {
@@ -102,7 +102,7 @@ internal static class SearchEndpoints
                 archiveLaneIds.Contains(c.LaneId)
             )).ToList();
 
-            // Group by board
+            // Group by board; current board (if specified) ranks first
             var results = summaries
                 .GroupBy(s => cardBoardMap[s.Id])
                 .Where(g => boards.ContainsKey(g.Key))
@@ -111,6 +111,7 @@ internal static class SearchEndpoints
                     var board = boards[g.Key];
                     return new SearchResult(board.Id, board.Name, board.Slug, [.. g]);
                 })
+                .OrderBy(r => r.BoardId == boardId ? 0 : 1)
                 .ToList();
 
             return Results.Ok(results);
