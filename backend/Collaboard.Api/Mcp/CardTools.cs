@@ -20,7 +20,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         [Description("Optional markdown description")] string? descriptionMarkdown = null,
         [Description("Optional size ID (guid). If omitted, uses the board's lowest-ordinal size.")] Guid? sizeId = null,
         [Description("Optional size name (e.g. 'M', 'XL'). Used if sizeId is not provided.")] string? sizeName = null,
-        [Description("Optional comma-separated label IDs (guids) to assign to the card at creation. All labels must belong to the same board as the lane.")] string? labelIds = null,
+        [Description("Optional label IDs (guids) to assign to the card at creation. Accepts comma-separated GUIDs ('guid1,guid2') or a JSON array string ('[\"guid1\",\"guid2\"]'). All labels must belong to the same board as the lane.")] string? labelIds = null,
         CancellationToken ct = default)
     {
         var (user, error) = await auth.RequireUserAsync(authKey, ct);
@@ -144,7 +144,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
     }
 
     [McpServerTool(Name = "update_card", Destructive = false)]
-    [Description("Update a card's name, description, size, lane/position, or labels. All fields are optional — only provided fields are changed. For labelIds, pass a comma-separated list of label GUIDs to replace all current labels (use empty string to clear). Returns the enriched card summary (with labels, sizeName, commentCount, attachmentCount, isArchived) — no follow-up get_card needed.")]
+    [Description("Update a card's name, description, size, lane/position, or labels. All fields are optional — only provided fields are changed. For labelIds, pass either a comma-separated list of label GUIDs ('guid1,guid2') or a JSON array string ('[\"guid1\",\"guid2\"]') to replace all current labels (empty string or empty array clears all). Returns the enriched card summary (with labels, sizeName, commentCount, attachmentCount, isArchived) — no follow-up get_card needed.")]
     public async Task<string> UpdateCardAsync(
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the card to update (provide this or cardNumber)")] Guid? cardId = null,
@@ -155,7 +155,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         [Description("New size name (e.g. 'M', 'XL', optional). Used if sizeId is not provided.")] string? sizeName = null,
         [Description("Target lane ID to move the card to (optional)")] Guid? laneId = null,
         [Description("0-based index position in the target lane (optional, requires laneId — defaults to top of lane)")] int? index = null,
-        [Description("Comma-separated label GUIDs to replace current labels (optional, empty string clears all)")] string? labelIds = null,
+        [Description("Label GUIDs to replace current labels (optional). Accepts comma-separated ('guid1,guid2') or a JSON array string ('[\"guid1\",\"guid2\"]'). Empty string or empty array clears all.")] string? labelIds = null,
         [Description("Board ID (required when using cardNumber)")] Guid? boardId = null,
         [Description("Board slug (alternative to boardId when using cardNumber)")] string? boardSlug = null,
         CancellationToken ct = default)
@@ -390,7 +390,16 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             return (parsedIds, null);
         }
 
-        foreach (var part in labelIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        // Accept two shapes:
+        //   1. Comma-separated GUIDs ("guid1,guid2") — the documented contract.
+        //   2. JSON-string array (e.g. "[\"guid1\",\"guid2\"]") — what some MCP-host clients
+        //      forward when the LLM emits an array literal for a string parameter (#241).
+        // The schema stays a string; the handler is permissive about which shape arrives.
+        var parts = TryParseJsonStringArray(labelIds, out var jsonArrayParts)
+            ? jsonArrayParts
+            : labelIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        foreach (var part in parts)
         {
             if (!Guid.TryParse(part, out var parsedId))
             {
@@ -412,5 +421,33 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         }
 
         return (parsedIds, null);
+    }
+
+    private static bool TryParseJsonStringArray(string value, out string[] parts)
+    {
+        parts = [];
+        var trimmed = value.AsSpan().Trim();
+        if (trimmed.Length < 2 || trimmed[0] != '[' || trimmed[^1] != ']')
+        {
+            return false;
+        }
+
+        try
+        {
+            var deserialized = JsonSerializer.Deserialize<string[]>(value);
+            if (deserialized is null)
+            {
+                return false;
+            }
+
+            parts = [.. deserialized
+                .Where(static s => !string.IsNullOrWhiteSpace(s))
+                .Select(static s => s.Trim())];
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 }
