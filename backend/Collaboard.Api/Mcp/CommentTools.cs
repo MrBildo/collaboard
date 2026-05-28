@@ -83,7 +83,9 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
             return "Archived cards cannot be modified.";
         }
 
-        if (comment.UserId != user!.Id && user.Role != UserRole.Administrator)
+        // Card #243 Phase 2: own-or-admin widens to own-or-admin-or-agent-admin —
+        // AgentAdministrator inherits the admin's "delete others'" privilege.
+        if (comment.UserId != user!.Id && !McpAuthService.IsAdminLevel(user))
         {
             return "Error: You can only delete your own comments.";
         }

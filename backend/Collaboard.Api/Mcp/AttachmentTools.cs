@@ -62,7 +62,9 @@ public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, Boar
             return "Archived cards cannot be modified.";
         }
 
-        if (attachment.AddedByUserId != user!.Id && user.Role != UserRole.Administrator)
+        // Card #243 Phase 2: own-or-admin widens to own-or-admin-or-agent-admin —
+        // AgentAdministrator inherits the admin's "delete others'" privilege.
+        if (attachment.AddedByUserId != user!.Id && !McpAuthService.IsAdminLevel(user))
         {
             return "Error: You can only delete your own attachments.";
         }
