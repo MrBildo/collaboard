@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Pencil } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -35,8 +36,9 @@ import {
   fetchBoards,
   fetchUsers,
   updateBoard,
+  updateUser,
 } from '@/lib/api';
-import type { UpdateBoardPatch } from '@/types';
+import type { UpdateBoardPatch, UpdateUserPatch } from '@/types';
 import { ROLES } from '@/lib/roles';
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
@@ -46,11 +48,16 @@ type GlobalAdminPanelProps = {
   onOpenChange: (open: boolean) => void;
 };
 
-const ROLE_MAP: Record<number, string> = {
-  [ROLES.Administrator]: 'Administrator',
-  [ROLES.Human]: 'Human',
-  [ROLES.Agent]: 'Agent',
-};
+// Role options derived from the ROLES const so adding a new role
+// (e.g. AgentAdministrator) propagates to every selector automatically.
+const ROLE_OPTIONS = Object.entries(ROLES).map(([label, value]) => ({
+  label,
+  value,
+}));
+const ROLE_MAP: Record<number, string> = Object.fromEntries(
+  ROLE_OPTIONS.map(({ label, value }) => [value, label]),
+);
+const DEFAULT_NEW_ROLE = String(ROLES.Human);
 
 export function GlobalAdminPanel({ open, onOpenChange }: GlobalAdminPanelProps) {
   return (
@@ -226,9 +233,13 @@ function BoardsTab() {
 function UsersTab() {
   const queryClient = useQueryClient();
   const [newName, setNewName] = useState('');
-  const [newRole, setNewRole] = useState('1');
+  const [newRole, setNewRole] = useState(DEFAULT_NEW_ROLE);
+  const [editName, setEditName] = useState('');
+  const [editRole, setEditRole] = useState(DEFAULT_NEW_ROLE);
+  const [editError, setEditError] = useState<string | null>(null);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [confirmDeactivateId, setConfirmDeactivateId] = useState<string | null>(null);
+  const list = useEditableList();
 
   const usersQuery = useQuery({
     queryKey: queryKeys.users.all(),
@@ -241,11 +252,24 @@ function UsersTab() {
     onSuccess: (user) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all() });
       setNewName('');
-      setNewRole('1');
+      setNewRole(DEFAULT_NEW_ROLE);
       setCreatedKey(user.authKey);
     },
     onError: (error: unknown) => {
       console.error('Failed to create user:', error);
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: UpdateUserPatch }) => updateUser(id, patch),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.directory() });
+      list.setEditingId(null);
+      setEditError(null);
+    },
+    onError: (error: unknown) => {
+      setEditError(error instanceof Error ? error.message : 'Failed to update user.');
     },
   });
 
@@ -265,6 +289,39 @@ function UsersTab() {
     createMutation.mutate();
   };
 
+  const startEdit = (id: string, name: string, role: number) => {
+    list.startEdit(id);
+    setEditName(name);
+    setEditRole(String(role));
+    setEditError(null);
+    setConfirmDeactivateId(null);
+  };
+
+  const cancelEdit = () => {
+    list.cancelEdit();
+    setEditError(null);
+  };
+
+  const saveEdit = () => {
+    if (!list.editingId) return;
+    const user = usersQuery.data?.find((u) => u.id === list.editingId);
+    if (!user) return;
+    const trimmedName = editName.trim();
+    if (!trimmedName) {
+      setEditError('Name cannot be empty.');
+      return;
+    }
+    const patch: UpdateUserPatch = {};
+    if (trimmedName !== user.name) patch.name = trimmedName;
+    const nextRole = parseInt(editRole, 10);
+    if (nextRole !== user.role) patch.role = nextRole;
+    if (Object.keys(patch).length === 0) {
+      cancelEdit();
+      return;
+    }
+    updateMutation.mutate({ id: list.editingId, patch });
+  };
+
   const handleDeactivate = (id: string) => {
     if (confirmDeactivateId === id) {
       deactivateMutation.mutate(id);
@@ -281,40 +338,83 @@ function UsersTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <EditableListContainer>
+      <EditableListContainer error={editError}>
         {users.map((user) => (
           <EditableListRow key={user.id}>
-            <div className="flex items-center gap-3">
-              <span className="font-medium">{user.name}</span>
-              <Badge
-                variant="secondary"
-                className={
-                  user.role === ROLES.Administrator
-                    ? 'bg-primary/15 text-primary'
-                    : user.role === ROLES.Agent
-                      ? 'bg-accent/15 text-accent'
-                      : ''
-                }
-              >
-                {ROLE_MAP[user.role] ?? `Role ${user.role}`}
-              </Badge>
-              <Badge variant={user.isActive ? 'outline' : 'destructive'}>
-                {user.isActive ? 'Active' : 'Inactive'}
-              </Badge>
-            </div>
-            <div className="flex gap-1">
-              {user.isActive && (
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  className="text-destructive hover:text-destructive"
-                  onClick={() => handleDeactivate(user.id)}
-                  disabled={deactivateMutation.isPending}
-                >
-                  {confirmDeactivateId === user.id ? 'Confirm' : 'Deactivate'}
-                </Button>
-              )}
-            </div>
+            {list.editingId === user.id ? (
+              <>
+                <div className="flex flex-1 items-center gap-2">
+                  <Input
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    maxLength={80}
+                    className="h-7"
+                    placeholder="Name"
+                    aria-label="User name"
+                  />
+                  <Select value={editRole} onValueChange={(v) => v && setEditRole(v)}>
+                    <SelectTrigger className="h-7 w-40" aria-label="User role">
+                      <SelectValue>{ROLE_MAP[parseInt(editRole, 10)] ?? editRole}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ROLE_OPTIONS.map(({ label, value }) => (
+                        <SelectItem key={value} value={String(value)}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <EditFormActions
+                  onSave={saveEdit}
+                  onCancel={cancelEdit}
+                  isPending={updateMutation.isPending}
+                />
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-3">
+                  <span className="font-medium">{user.name}</span>
+                  <Badge
+                    variant="secondary"
+                    className={
+                      user.role === ROLES.Administrator
+                        ? 'bg-primary/15 text-primary'
+                        : user.role === ROLES.Agent
+                          ? 'bg-accent/15 text-accent'
+                          : ''
+                    }
+                  >
+                    {ROLE_MAP[user.role] ?? `Role ${user.role}`}
+                  </Badge>
+                  <Badge variant={user.isActive ? 'outline' : 'destructive'}>
+                    {user.isActive ? 'Active' : 'Inactive'}
+                  </Badge>
+                </div>
+                <div className="flex gap-1">
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    onClick={() => startEdit(user.id, user.name, user.role)}
+                    title="Edit user"
+                    aria-label={`Edit ${user.name}`}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  {user.isActive && (
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => handleDeactivate(user.id)}
+                      disabled={deactivateMutation.isPending}
+                    >
+                      {confirmDeactivateId === user.id ? 'Confirm' : 'Deactivate'}
+                    </Button>
+                  )}
+                </div>
+              </>
+            )}
           </EditableListRow>
         ))}
       </EditableListContainer>
@@ -357,9 +457,11 @@ function UsersTab() {
                 <SelectValue>{ROLE_MAP[parseInt(newRole, 10)] ?? newRole}</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="0">Administrator</SelectItem>
-                <SelectItem value="1">Human</SelectItem>
-                <SelectItem value="2">Agent</SelectItem>
+                {ROLE_OPTIONS.map(({ label, value }) => (
+                  <SelectItem key={value} value={String(value)}>
+                    {label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
