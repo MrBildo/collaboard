@@ -1,0 +1,3 @@
+# EF Core generated migration files — suppress all analyzers
+[*.cs]
+generated_code = true

@@ -1,0 +1,29 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <AnalysisLevel>latest-Recommended</AnalysisLevel>
+    <!-- CA1873: Log argument evaluation — not a hot path (same as CA1848)
+         S3881: Full dispose pattern — overkill for sealed internal types
+         S6966: DisposeAsync — types don't implement IAsyncDisposable -->
+    <NoWarn>$(NoWarn);CA1873;CS1591;S3881;S6966</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Authors>Bill Wheelock</Authors>
+    <Copyright>Copyright (c) 2026 Bill Wheelock</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/MrBildo/collaboard</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Meziantou.Analyzer" Version="3.0.28" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.VisualStudio.Threading.Analyzers" Version="17.14.15" PrivateAssets="all" />
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.22.0.136894" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>
