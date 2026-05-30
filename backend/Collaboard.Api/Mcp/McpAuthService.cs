@@ -1,9 +1,9 @@
+using Collaboard.Api.Auth;
 using Collaboard.Api.Models;
-using Microsoft.EntityFrameworkCore;
 
 namespace Collaboard.Api.Mcp;
 
-public class McpAuthService(BoardDbContext db)
+public class McpAuthService(IUserResolver resolver)
 {
     public async Task<(BoardUser? User, string? Error)> RequireUserAsync(string authKey, CancellationToken ct = default)
     {
@@ -12,7 +12,7 @@ public class McpAuthService(BoardDbContext db)
             return (null, "Error: authKey is required.");
         }
 
-        var user = await db.Users.SingleOrDefaultAsync(x => x.AuthKey == authKey && x.IsActive, ct);
+        var user = await resolver.ResolveAsync(authKey, ct);
         if (user is null)
         {
             return (null, "Error: Invalid or inactive auth key.");

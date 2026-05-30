@@ -1,3 +1,4 @@
+using Collaboard.Api.Auth;
 using Collaboard.Api.Events;
 using Collaboard.Api.Mcp;
 using Collaboard.Api.Models;
@@ -42,7 +43,7 @@ public class McpOwnOrAdminWideningTests(CollaboardApiFactory factory) : IClassFi
         var scope = _factory.Services.CreateScope();
         _scopes.Add(scope);
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
-        var auth = new McpAuthService(db);
+        var auth = new McpAuthService(new UserResolver(db));
         var broadcaster = scope.ServiceProvider.GetRequiredService<BoardEventBroadcaster>();
         var attachmentSettings = Options.Create(new AttachmentSettings());
         return (db, new CommentTools(db, auth, broadcaster), new AttachmentTools(db, auth, broadcaster, attachmentSettings));

@@ -1,5 +1,4 @@
 using Collaboard.Api.Models;
-using Microsoft.EntityFrameworkCore;
 
 namespace Collaboard.Api.Auth;
 
@@ -8,7 +7,7 @@ public class RequireRoleFilter(params UserRole[] allowedRoles) : IEndpointFilter
     public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
         var httpContext = context.HttpContext;
-        var db = httpContext.RequestServices.GetRequiredService<BoardDbContext>();
+        var resolver = httpContext.RequestServices.GetRequiredService<IUserResolver>();
 
         var userKey = httpContext.Request.Headers[AuthExtensions.UserKeyHeader].ToString();
         if (string.IsNullOrWhiteSpace(userKey))
@@ -16,7 +15,7 @@ public class RequireRoleFilter(params UserRole[] allowedRoles) : IEndpointFilter
             return Results.Unauthorized();
         }
 
-        var user = await db.Users.SingleOrDefaultAsync(x => x.AuthKey == userKey && x.IsActive);
+        var user = await resolver.ResolveAsync(userKey, httpContext.RequestAborted);
         if (user is null)
         {
             return Results.Unauthorized();
