@@ -35,7 +35,10 @@ if (Test-Path $tempExtract) {
 
 Expand-Archive -Path $tempFile -DestinationPath $tempExtract -Force
 
-# The archive contains a subdirectory — find the actual files
+# Release archives are flat (contract items at the archive root, no wrapping
+# directory -- enforced by publish.yml's "Verify archive contents" step), so the
+# files land directly in $tempExtract. The $inner probe is retained as a
+# defensive fallback for any older archive that still wraps its contents.
 $inner = Join-Path $tempExtract $ArtifactName
 $sourceDir = if (Test-Path $inner) { $inner } else { $tempExtract }
 

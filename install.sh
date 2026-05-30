@@ -50,11 +50,14 @@ TEMP_DIR="$(mktemp -d)"
 echo "Downloading ${ARTIFACT_NAME}.tar.gz..."
 curl -sSfL "$DOWNLOAD_URL" -o "${TEMP_DIR}/${ARTIFACT_NAME}.tar.gz"
 
-# Extract to temp location first, then merge (preserving data/ and operator config)
+# Extract to temp location first, then merge (preserving data/ and operator config).
+# Release archives are flat (contract items at the archive root, no wrapping
+# directory -- enforced by publish.yml's "Verify archive contents" step), so no
+# --strip-components is used: the files land directly in $TEMP_EXTRACT.
 echo "Extracting to ${INSTALL_DIR}..."
 TEMP_EXTRACT="${TEMP_DIR}/extract"
 mkdir -p "$TEMP_EXTRACT"
-tar xzf "${TEMP_DIR}/${ARTIFACT_NAME}.tar.gz" -C "$TEMP_EXTRACT" --strip-components=1
+tar xzf "${TEMP_DIR}/${ARTIFACT_NAME}.tar.gz" -C "$TEMP_EXTRACT"
 
 mkdir -p "$INSTALL_DIR"
 
