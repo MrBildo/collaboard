@@ -310,4 +310,78 @@ public class TempCardEndpointTests(CollaboardApiFactory factory) : IClassFixture
         json.TryGetProperty("id", out var idProp).ShouldBeTrue();
         idProp.GetGuid().ShouldNotBe(Guid.Empty);
     }
+
+    // The three tests below exercise the shared BuildCardAsync path introduced by #249.
+    // Standard-create tests already cover name/lane/label validation via CardEndpointTests;
+    // these confirm the temp-create path routes through the same logic identically.
+
+    [Fact]
+    public async Task CreateTempCard_EmptyName_Returns400()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var payload = new { name = "  ", descriptionMarkdown = "", laneId };
+
+        // Act
+        var response = await _client.PostAsJsonAsync(
+            $"/api/v1/boards/{_factory.DefaultBoardId}/cards/temp", payload);
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task CreateTempCard_DefaultsToLowestOrdinalSize()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        // The smallest-ordinal size is "S" — omit sizeId and confirm the created card carries it
+        var sizeIdS = await TestDataHelper.GetSizeIdByNameAsync(_client, _factory.DefaultBoardId, "S");
+
+        var payload = new { name = "Size-Default Temp Card", descriptionMarkdown = "", laneId };
+
+        var createResponse = await _client.PostAsJsonAsync(
+            $"/api/v1/boards/{_factory.DefaultBoardId}/cards/temp", payload);
+        createResponse.EnsureSuccessStatusCode();
+        var json = await createResponse.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
+        var tempCardId = json.GetProperty("id").GetGuid();
+
+        // Finalize so we can inspect via GET /cards/{id}
+        await _client.PostAsync($"/api/v1/cards/{tempCardId}/finalize", null);
+
+        // Act
+        var getResponse = await _client.GetAsync($"/api/v1/cards/{tempCardId}");
+
+        // Assert
+        getResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var detail = await getResponse.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
+        detail.GetProperty("card").GetProperty("sizeId").GetGuid().ShouldBe(sizeIdS);
+    }
+
+    [Fact]
+    public async Task CreateTempCard_InvalidLabel_Returns400()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var payload = new
+        {
+            name = "Temp Card With Bad Label",
+            descriptionMarkdown = "",
+            laneId,
+            labelIds = new[] { Guid.NewGuid() },
+        };
+
+        // Act
+        var response = await _client.PostAsJsonAsync(
+            $"/api/v1/boards/{_factory.DefaultBoardId}/cards/temp", payload);
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
 }
