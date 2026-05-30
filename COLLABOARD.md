@@ -22,7 +22,7 @@ This project deviates from the org-default lane set defined in the `collaboard` 
 | Lane | Purpose |
 |---|---|
 | **Backlog** | Someday/maybe. No commitment to ship. Long-running `Blocked` cards parked here are acceptable — Backlog is a fine parking lot for hard problems and externally-gated work. |
-| **Triage** | New items, awaiting disposition. Cards genuinely needing discussion before sizing live here. Sized + labeled cards with no surfaceable triggering question get promoted out by the coordinator without per-card ask. **Default exit is On Deck** (or Backlog if long-tail, or Archived if rejected). |
+| **Triage** | Items awaiting disposition — *needs scope, recon, or discussion before its home can be decided.* Not only new items: a mature card can be sent **back** to Triage when it needs recon to settle (e.g. "is this still an issue?", "does the #234 value converter moot this workaround?"). Sized + labeled cards with no surfaceable triggering question get promoted out by the coordinator without per-card ask. **Default exit is On Deck** (or Backlog if long-tail, or Archived if rejected). |
 | **On Deck** | Decided to do, queued for the cycle, not the immediate next pickup. The bench — coordinator-curated; operator pulls forward to Ready. |
 | **Ready** | Picked up next session (or right now). Curated by the operator; coordinator proposes promotions from On Deck. Target depth: 3-5 cards. |
 | **In Progress** | Actively being worked on. PR-open cards stay here — the PR is the review surface, not a board lane. |

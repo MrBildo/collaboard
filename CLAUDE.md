@@ -101,6 +101,7 @@ Header-based authentication — no ASP.NET auth middleware:
 - **Use `Results.StatusCode(403)` not `Results.Forbid()`** (no auth middleware registered)
 - `AgentUser` cannot delete cards; can delete own comments and attachments
 - All users see all boards — no board-level membership
+- **SSE endpoint (`/boards/{boardId}/events`) is intentionally unauthenticated** (decided 2026-05-29, card #217). The board GUID is the read-only stream's capability; the production-split added no exposure (it was reachable by anyone who could hit the URL before); browser-native `EventSource` can't carry `X-User-Key`. **Revisit before** the board model changes — multi-tenant, public/shared boards, or board-level membership replacing "all users see all boards."
 
 ## Configuration Precedence
 
@@ -409,7 +410,7 @@ Dispatch is coordinator scope (Cora). Detailed dispatch protocol — Pre-Dispatc
 ### Dispatch rules (project-canonical)
 
 - **Spec first.** Write specs to `.agents/specs/` before dispatching substantive work. No spec → no dispatch.
-- **Full context in the prompt.** The child has no memory of the parent session — include every constraint, convention citation, and acceptance criterion the child needs to land the work without follow-up rounds.
+- **Full non-reconstructable context in the prompt.** The child has no memory of the parent session — include the coordinator's synthesis (the thread across cards, the operator's framing, the boundary, judgment guidance) and the boot-up the child can't reconstruct. Point at durable artifacts by reference (card #, PR #, spec path) — the child reads them itself. **Do not transcribe** card bodies, comments, or sibling-card summaries; **do not prescribe** mechanisms a domain bot owns (state what must be true, not how to prove it). Shape: task + boundary + non-reconstructable synthesis, then pointers. The failure mode this guards against is over-transcription — it narrows the bot to the coordinator's possibly-incomplete reading.
 - **Ask, don't guess.** Every dispatch prompt includes: *"If you get stuck or unsure, report back rather than guessing."* Max 3 follow-up rounds per task before escalating to the operator.
 - **Sub-agents auto-load convention skills via frontmatter.** Don't restate skill invocations or verification commands in dispatch prompts — restating an incomplete list narrows the bot's work and creates regressions. Reference the canonical doc when needed (*"run the full verification suite per CLAUDE.md § Definition of Done"*).
 - **Spec / architecture / review dispatches default to Opus.** Implementation defaults to Opus on meatier work; Sonnet for narrow refactors and pattern-following tasks. State the model explicitly on every dispatch.
