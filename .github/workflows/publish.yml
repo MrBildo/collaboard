@@ -8,26 +8,64 @@ permissions:
   contents: write
 
 jobs:
-  publish:
+  extract-version:
+    name: Extract version
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      version: ${{ steps.version.outputs.VERSION }}
+    steps:
+      - name: Parse tag
+        id: version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+
+          # SemVer 2.0 §9 pre-release identifier: dot-separated alphanumerics
+          # (and hyphens). Examples: v1.10.0, v1.10.1-rc1, v2.0.0-beta.3,
+          # v2.0.0-alpha.1.beta. Build metadata (+...) is intentionally NOT
+          # accepted -- VERSION becomes a path segment in archive filenames and
+          # a '+' there is friction across tools (URL-encoding, shell quoting,
+          # the GitHub asset name). Rejecting it before any build leg runs is
+          # the whole point of this gate. If we ever need build-metadata tags,
+          # revisit then. Mirrors Collabhost publish.yml's extract-version job.
+          if [[ ! "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$ ]]; then
+            echo "Tag '${TAG}' does not match vX.Y.Z or vX.Y.Z-<pre-release> (per SemVer 2.0 §9)." >&2
+            echo "Build metadata (+meta) and non-SemVer tags are rejected." >&2
+            exit 1
+          fi
+          echo "VERSION=${TAG#v}" >> "${GITHUB_OUTPUT}"
+
+  publish:
+    name: Build ${{ matrix.rid }}
+    needs: extract-version
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     strategy:
+      fail-fast: false
       matrix:
         include:
           - rid: win-x64
             artifact: collaboard-win-x64
+            bin: Collaboard.Api.exe
             ext: zip
           - rid: osx-arm64
             artifact: collaboard-osx-arm64
+            bin: Collaboard.Api
             ext: tar.gz
           - rid: osx-x64
             artifact: collaboard-osx-x64
+            bin: Collaboard.Api
             ext: tar.gz
           - rid: linux-x64
             artifact: collaboard-linux-x64
+            bin: Collaboard.Api
             ext: tar.gz
           - rid: linux-arm64
             artifact: collaboard-linux-arm64
+            bin: Collaboard.Api
             ext: tar.gz
 
     steps:
@@ -61,7 +99,7 @@ jobs:
         run: npx tsc -b
         working-directory: frontend
 
-      # Build frontend and copy to wwwroot
+      # Build frontend and copy to wwwroot so dotnet publish picks it up.
       - name: Build frontend
         run: npx vite build
         working-directory: frontend
@@ -71,45 +109,247 @@ jobs:
           mkdir -p backend/Collaboard.Api/wwwroot
           cp -r frontend/dist/* backend/Collaboard.Api/wwwroot/
 
-      # Extract version from tag (strip leading 'v')
-      - name: Set version
-        id: version
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-
       # Publish self-contained, non-single-file (directory layout). Self-contained
       # keeps the no-runtime-needed property; dropping single-file removes the
       # runtime native-lib self-extraction step entirely, which is the precondition
       # that fails under hardened/read-only-cwd hosting (Collaboard #231).
       - name: Publish
+        env:
+          VER: ${{ needs.extract-version.outputs.version }}
+          RID: ${{ matrix.rid }}
         run: |
+          set -euo pipefail
           dotnet publish backend/Collaboard.Api/Collaboard.Api.csproj \
             -c Release \
-            -r ${{ matrix.rid }} \
+            -r "${RID}" \
             --self-contained \
-            /p:Version=${{ steps.version.outputs.VERSION }} \
-            -o publish/${{ matrix.artifact }}
+            /p:Version="${VER}" \
+            -o "publish/${{ matrix.artifact }}"
 
-      # Bundle with appsettings.json and INSTALL.md
-      - name: Prepare release bundle
+      # Explicit archive contract via exclusion-based allow-list.
+      #
+      # Collaboard ships a directory-layout self-contained publish (~380 files:
+      # the apphost binary plus the entire .NET runtime as loose DLLs and native
+      # libs). A per-file allow-list -- the shape Collabhost's single-file publish
+      # uses -- is the wrong tool here: enumerating 350+ runtime DLLs is
+      # unmaintainable and self-defeating. Instead the contract is "everything
+      # dotnet publish emits, MINUS a small, named set of dev/debug/SDK-scratch
+      # artifacts that must never reach an operator." The exclusion list IS the
+      # contract boundary; the verify step below fails the leg if any excluded
+      # pattern survives staging (catches future SDK-added-file drift) or any
+      # required item is absent.
+      #
+      # Excluded (and why):
+      #   *.pdb                              debug symbols -- not shipped
+      #   *.xml                              XML doc files (Api/ServiceDefaults) -- not shipped
+      #   appsettings.Development.json       dev-only config -- never ships to operators
+      #   *.staticwebassets.endpoints.json   MapStaticAssets manifest. Collaboard serves
+      #                                      wwwroot via UseStaticFiles + MapFallbackToFile,
+      #                                      NOT MapStaticAssets, so this manifest is unused
+      #                                      at runtime. This is the exact SDK-drift file the
+      #                                      archive contract exists to catch (#221 cite).
+      - name: Stage archive
+        env:
+          RID: ${{ matrix.rid }}
         run: |
-          cp INSTALL.md publish/${{ matrix.artifact }}/
-          # appsettings.json is already in publish output
+          set -euo pipefail
 
-      # Package artifact
+          PUB="publish/${{ matrix.artifact }}"
+          STAGE="archive-stage/${{ matrix.artifact }}"
+
+          rm -rf "${STAGE}"
+          mkdir -p "${STAGE}"
+
+          # Start from the full publish output, then strip the excluded set.
+          cp -R "${PUB}/." "${STAGE}/"
+
+          rm -f "${STAGE}"/*.pdb
+          rm -f "${STAGE}"/*.xml
+          rm -f "${STAGE}/appsettings.Development.json"
+          rm -f "${STAGE}"/*.staticwebassets.endpoints.json
+
+          # Bundle INSTALL.md alongside the binary (operator-facing setup guide).
+          cp INSTALL.md "${STAGE}/"
+
+          # Unix archives must carry the execute bit on the apphost binary.
+          if [[ "${RID}" != win-x64 ]]; then
+            chmod +x "${STAGE}/${{ matrix.bin }}"
+          fi
+
+          echo "Staged top-level contents:"
+          ls -la "${STAGE}"
+
+      # Platform-appropriate, FLAT-layout archive. The archive root IS the stage
+      # directory's contents -- no wrapping "collaboard-<rid>/" directory. The
+      # installer scripts (install.sh, install.ps1) and INSTALL.md assume the
+      # binary and appsettings.json sit at the extract root. tar -C STAGE . and
+      # Compress-Archive "$STAGE/*" both flatten; the verify step locks it.
       - name: Package (zip)
         if: matrix.ext == 'zip'
+        shell: pwsh
         run: |
-          cd publish
-          zip -r ../${{ matrix.artifact }}.zip ${{ matrix.artifact }}/
+          $stage = "archive-stage/${{ matrix.artifact }}"
+          Compress-Archive -Path "$stage/*" `
+                           -DestinationPath "${{ matrix.artifact }}.zip"
 
       - name: Package (tar.gz)
         if: matrix.ext == 'tar.gz'
         run: |
-          cd publish
-          tar czf ../${{ matrix.artifact }}.tar.gz ${{ matrix.artifact }}/
+          set -euo pipefail
+          STAGE="archive-stage/${{ matrix.artifact }}"
+          tar -czf "${{ matrix.artifact }}.tar.gz" -C "${STAGE}" .
 
-      # Attach to GitHub Release
-      - name: Upload release asset
+      # Contract verification: extract the archive into a temp dir and assert
+      # (1) flat layout -- no wrapping directory at the root;
+      # (2) required items present -- binary, appsettings.json, runtimeconfig,
+      #     deps.json, INSTALL.md, wwwroot/index.html;
+      # (3) NO excluded patterns leaked through -- .pdb, .xml,
+      #     appsettings.Development.json, *.staticwebassets.endpoints.json.
+      # Fails the leg hard on any violation. Cheap safety net for a workflow that
+      # cannot be release-run inside a PR.
+      - name: Verify archive contents
+        env:
+          EXT: ${{ matrix.ext }}
+        run: |
+          set -euo pipefail
+
+          ARCHIVE="${{ matrix.artifact }}.${EXT}"
+          VERIFY_DIR="verify-${{ matrix.rid }}"
+
+          rm -rf "${VERIFY_DIR}"
+          mkdir -p "${VERIFY_DIR}"
+
+          case "${ARCHIVE}" in
+            *.zip)    unzip -q "${ARCHIVE}" -d "${VERIFY_DIR}" ;;
+            *.tar.gz) tar -xzf "${ARCHIVE}" -C "${VERIFY_DIR}" ;;
+          esac
+
+          echo "Archive top-level listing:"
+          (cd "${VERIFY_DIR}" && ls -la)
+
+          FAILED=0
+
+          # (1) Flat-layout assertion: the apphost binary must be at the archive
+          # root, not nested under a wrapping "collaboard-<rid>/" directory.
+          if [[ -d "${VERIFY_DIR}/${{ matrix.artifact }}" ]]; then
+            echo "LAYOUT: found wrapping directory ${{ matrix.artifact }}/ at archive root." >&2
+            echo "Archives must be flat (contract items at root). Installers assume flat layout." >&2
+            FAILED=1
+          fi
+
+          # (2) Required items present.
+          for path in \
+            "${{ matrix.bin }}" \
+            "appsettings.json" \
+            "Collaboard.Api.deps.json" \
+            "Collaboard.Api.runtimeconfig.json" \
+            "INSTALL.md"
+          do
+            if [[ ! -f "${VERIFY_DIR}/${path}" ]]; then
+              echo "MISSING: ${path}" >&2
+              FAILED=1
+            fi
+          done
+
+          if [[ ! -f "${VERIFY_DIR}/wwwroot/index.html" ]]; then
+            echo "MISSING: wwwroot/index.html" >&2
+            FAILED=1
+          fi
+
+          # (3) Excluded patterns must NOT be present anywhere in the archive.
+          # This is the "fails on EXTRA files" half of the contract -- it catches
+          # dev/debug artifacts and future SDK-added-file drift leaking into a
+          # shipped archive.
+          LEAKED=$(cd "${VERIFY_DIR}" && find . \
+            \( -name '*.pdb' \
+            -o -name '*.xml' \
+            -o -name 'appsettings.Development.json' \
+            -o -name '*.staticwebassets.endpoints.json' \) \
+            -type f | sort || true)
+          if [[ -n "${LEAKED}" ]]; then
+            echo "EXTRA (excluded artifact leaked into archive):" >&2
+            echo "${LEAKED}" >&2
+            FAILED=1
+          fi
+
+          if [[ "${FAILED}" -ne 0 ]]; then
+            echo "Archive contract verification failed." >&2
+            exit 1
+          fi
+
+          echo "Archive contract verified: flat layout, required items present, no excluded artifacts."
+
+      # Per-archive SHA-256 sidecar. Portable `sha256sum -c`-compatible format
+      # (one line: "<hash>  <archive>"). Runners are ubuntu-latest, so sha256sum
+      # is always present; the shasum fallback is defensive in case a future leg
+      # moves to a macOS/Windows runner.
+      - name: Checksum
+        env:
+          EXT: ${{ matrix.ext }}
+        run: |
+          set -euo pipefail
+          ARCHIVE="${{ matrix.artifact }}.${EXT}"
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "${ARCHIVE}" > "${ARCHIVE}.sha256"
+          else
+            shasum -a 256 "${ARCHIVE}" > "${ARCHIVE}.sha256"
+          fi
+          cat "${ARCHIVE}.sha256"
+
+      # Upload archive + per-archive checksum to the GitHub Release that
+      # triggered this workflow. --clobber makes matrix re-runs idempotent.
+      - name: Upload release assets
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ github.event.release.tag_name }}" "${{ matrix.artifact }}.${{ matrix.ext }}"
+          TAG: ${{ github.event.release.tag_name }}
+          EXT: ${{ matrix.ext }}
+        run: |
+          set -euo pipefail
+          gh release upload "${TAG}" \
+            "${{ matrix.artifact }}.${EXT}" \
+            "${{ matrix.artifact }}.${EXT}.sha256" \
+            --clobber
+
+      # Per-leg checksum artifact for the aggregation job.
+      - name: Upload per-leg checksum artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: checksum-${{ matrix.rid }}
+          path: ${{ matrix.artifact }}.${{ matrix.ext }}.sha256
+          retention-days: 7
+
+  publish-checksums:
+    name: Aggregate checksums.txt
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Download per-leg checksums
+        uses: actions/download-artifact@v5
+        with:
+          pattern: checksum-*
+          merge-multiple: true
+          path: checksums-in
+
+      - name: Aggregate
+        run: |
+          set -euo pipefail
+
+          # Normalize to text-mode format: strip any leading '*' from the
+          # filename column. sha256sum on Git-Bash (Windows runners) defaults to
+          # binary mode and emits "<hash>  *<filename>", while Linux/macOS emit
+          # "<hash>  <filename>". All current legs run on ubuntu-latest so no '*'
+          # is expected, but normalizing keeps checksums.txt uniform if a leg
+          # ever moves to a Windows runner -- one format for human operators and
+          # for `sha256sum -c`.
+          cat checksums-in/*.sha256 | sed 's/  \*/  /' | sort -k2 > checksums.txt
+          echo "Aggregated checksums.txt:"
+          cat checksums.txt
+
+      - name: Upload aggregated checksums to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          gh release upload "${TAG}" checksums.txt --clobber
