@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Collaboard.Api.Auth;
 using Collaboard.Api.Events;
 using Collaboard.Api.Mcp;
 using Collaboard.Api.Models;
@@ -41,7 +42,7 @@ public class McpPruneToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         var scope = _factory.Services.CreateScope();
         _scopes.Add(scope);
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
-        var auth = new McpAuthService(db);
+        var auth = new McpAuthService(new UserResolver(db));
         var broadcaster = scope.ServiceProvider.GetRequiredService<BoardEventBroadcaster>();
         return (db, new PruneTools(db, auth, broadcaster));
     }

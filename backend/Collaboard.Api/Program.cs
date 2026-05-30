@@ -1,5 +1,6 @@
 using System.Reflection;
 using Collaboard.Api;
+using Collaboard.Api.Auth;
 using Collaboard.Api.Configuration;
 using Collaboard.Api.Endpoints;
 using Collaboard.Api.Events;
@@ -170,6 +171,7 @@ builder.Services.AddDbContext<BoardDbContext>(options =>
 builder.Services.Configure<AttachmentSettings>(builder.Configuration.GetSection("Attachments"));
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<BoardEventBroadcaster>();
+builder.Services.AddScoped<IUserResolver, UserResolver>();
 builder.Services.AddScoped<McpAuthService>();
 
 builder.Services.Configure<FormOptions>(options =>
