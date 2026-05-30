@@ -212,7 +212,7 @@ public class ArchiveEndpointTests(CollaboardApiFactory factory) : IClassFixture<
 
     private async Task<Guid> GetArchiveLaneIdAsync(Guid boardId)
     {
-        using var scope = _factory.Services.CreateScope();
+        await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
         var archiveLane = await db.Lanes.FirstAsync(l => l.BoardId == boardId && l.IsArchiveLane);
         return archiveLane.Id;

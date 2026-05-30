@@ -44,22 +44,18 @@ public class McpArchiveToolTests(CollaboardApiFactory factory) : IClassFixture<C
         }
     }
 
-    private async Task<Guid> GetFirstLaneIdAsync(BoardDbContext db)
-    {
-        return await db.Lanes
+    private async Task<Guid> GetFirstLaneIdAsync(BoardDbContext db) =>
+        await db.Lanes
             .Where(l => l.BoardId == _factory.DefaultBoardId && !l.IsArchiveLane)
             .OrderBy(l => l.Position)
             .Select(l => l.Id)
             .FirstAsync();
-    }
 
-    private async Task<Guid> GetArchiveLaneIdAsync(BoardDbContext db)
-    {
-        return await db.Lanes
+    private async Task<Guid> GetArchiveLaneIdAsync(BoardDbContext db) =>
+        await db.Lanes
             .Where(l => l.BoardId == _factory.DefaultBoardId && l.IsArchiveLane)
             .Select(l => l.Id)
             .FirstAsync();
-    }
 
     private async Task<Guid> CreateCardInLaneAsync(CardTools tools, string authKey, Guid laneId, string name = "Test Card")
     {
@@ -232,7 +228,12 @@ public class McpArchiveToolTests(CollaboardApiFactory factory) : IClassFixture<C
     public async Task AgentRole_CanArchive_ButCannotDeleteCards()
     {
         // Arrange
+        // MA0042: scope is owned by the class-level _scopes list and disposed
+        // synchronously in Dispose() (IDisposable fixture), not locally — so the
+        // async-scope suggestion does not apply. Matches the CreateAllTools() pattern.
+#pragma warning disable MA0042
         var scope = _factory.Services.CreateScope();
+#pragma warning restore MA0042
         _scopes.Add(scope);
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
         var broadcaster = scope.ServiceProvider.GetRequiredService<BoardEventBroadcaster>();

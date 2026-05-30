@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Collaboard.Api.Auth;
 using Collaboard.Api.Events;
@@ -101,7 +102,7 @@ public class McpBulkCardToolTests(CollaboardApiFactory factory) : IClassFixture<
         await db.SaveChangesAsync();
     }
 
-    private static string Csv(IEnumerable<Guid> ids) => string.Join(",", ids);
+    private static string Csv(IEnumerable<Guid> ids) => string.Join(',', ids);
 
     // Drains a subscriber channel and returns the message count. One message ==
     // one PublishBoardUpdated against that board.
@@ -281,7 +282,7 @@ public class McpBulkCardToolTests(CollaboardApiFactory factory) : IClassFixture<
 
         var result = await bulk.BulkArchiveCardsAsync(
             _factory.AdminAuthKey,
-            cardNumbers: $"{cardA.Number},{cardB.Number}",
+            cardNumbers: $"{cardA.Number.ToString(CultureInfo.InvariantCulture)},{cardB.Number.ToString(CultureInfo.InvariantCulture)}",
             boardSlug: slug);
 
         Parse(result).GetProperty("succeeded").GetInt32().ShouldBe(2);

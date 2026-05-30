@@ -1,9 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Collaboard.Api.Models;
 using Collaboard.Api.Tests.Infrastructure;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 
@@ -283,7 +281,7 @@ public class ArchivePruneSearchTests(CollaboardApiFactory factory) : IClassFixtu
 
     private async Task BackdateCardAsync(Guid cardId, int daysOld)
     {
-        using var scope = _factory.Services.CreateScope();
+        await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
         var entity = await db.Cards.FindAsync(cardId);
         entity!.LastUpdatedAtUtc = DateTimeOffset.UtcNow.AddDays(-daysOld);
@@ -305,7 +303,7 @@ public class ArchivePruneSearchTests(CollaboardApiFactory factory) : IClassFixtu
 
         if (daysOld > 0)
         {
-            using var scope = _factory.Services.CreateScope();
+            await using var scope = _factory.Services.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
             var entity = await db.Cards.FindAsync(cardId);
             entity!.LastUpdatedAtUtc = DateTimeOffset.UtcNow.AddDays(-daysOld);

@@ -17,10 +17,8 @@ public static class TestAuthHelper
         client.DefaultRequestHeaders.Add("X-User-Key", userKey);
     }
 
-    public static void SetAdminAuth(HttpClient client, CollaboardApiFactory factory)
-    {
+    public static void SetAdminAuth(HttpClient client, CollaboardApiFactory factory) =>
         SetAuth(client, factory.AdminAuthKey);
-    }
 
     public static async Task<BoardUser> CreateUserAsync(
         HttpClient client, CollaboardApiFactory factory, string name, UserRole role)

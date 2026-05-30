@@ -53,7 +53,7 @@ public class TempCardSweepServiceTests(CollaboardApiFactory factory) : IClassFix
     // sitting orphaned (the create-temp endpoint always stamps CreatedAtUtc = now).
     private async Task BackdateCreatedAtAsync(Guid cardId, DateTimeOffset createdAt)
     {
-        using var scope = _factory.Services.CreateScope();
+        await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
         var card = await db.Cards.FindAsync(cardId);
         card.ShouldNotBeNull();
@@ -77,17 +77,17 @@ public class TempCardSweepServiceTests(CollaboardApiFactory factory) : IClassFix
 
         // Act — one sweep tick with a 1-hour TTL cutoff.
         int deleted;
-        using (var scope = _factory.Services.CreateScope())
+        await using (var scope = _factory.Services.CreateAsyncScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
             var cutoff = DateTimeOffset.UtcNow - TimeSpan.FromHours(1);
-            deleted = await Api.TempCardSweepService.SweepAsync(db, cutoff, CancellationToken.None);
+            deleted = await TempCardSweepService.SweepAsync(db, cutoff, CancellationToken.None);
         }
 
         // Assert — exactly the aged temp card removed; fresh temp and real card survive.
         deleted.ShouldBe(1);
 
-        using var verifyScope = _factory.Services.CreateScope();
+        await using var verifyScope = _factory.Services.CreateAsyncScope();
         var verifyDb = verifyScope.ServiceProvider.GetRequiredService<BoardDbContext>();
 
         (await verifyDb.Cards.AnyAsync(c => c.Id == agedTempId)).ShouldBeFalse();
@@ -112,17 +112,17 @@ public class TempCardSweepServiceTests(CollaboardApiFactory factory) : IClassFix
 
         // Act
         int deleted;
-        using (var scope = _factory.Services.CreateScope())
+        await using (var scope = _factory.Services.CreateAsyncScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
             var cutoff = DateTimeOffset.UtcNow - TimeSpan.FromHours(1);
-            deleted = await Api.TempCardSweepService.SweepAsync(db, cutoff, CancellationToken.None);
+            deleted = await TempCardSweepService.SweepAsync(db, cutoff, CancellationToken.None);
         }
 
         // Assert — the finalized card is untouched.
         deleted.ShouldBe(0);
 
-        using var verifyScope = _factory.Services.CreateScope();
+        await using var verifyScope = _factory.Services.CreateAsyncScope();
         var verifyDb = verifyScope.ServiceProvider.GetRequiredService<BoardDbContext>();
         (await verifyDb.Cards.AnyAsync(c => c.Id == cardId)).ShouldBeTrue();
     }
@@ -138,17 +138,17 @@ public class TempCardSweepServiceTests(CollaboardApiFactory factory) : IClassFix
 
         // Act — two consecutive sweeps over the same state.
         int firstDeleted;
-        using (var scope = _factory.Services.CreateScope())
+        await using (var scope = _factory.Services.CreateAsyncScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
-            firstDeleted = await Api.TempCardSweepService.SweepAsync(db, cutoff, CancellationToken.None);
+            firstDeleted = await TempCardSweepService.SweepAsync(db, cutoff, CancellationToken.None);
         }
 
         int secondDeleted;
-        using (var scope = _factory.Services.CreateScope())
+        await using (var scope = _factory.Services.CreateAsyncScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
-            secondDeleted = await Api.TempCardSweepService.SweepAsync(db, cutoff, CancellationToken.None);
+            secondDeleted = await TempCardSweepService.SweepAsync(db, cutoff, CancellationToken.None);
         }
 
         // Assert — first run removes the orphan, second run is a no-op.

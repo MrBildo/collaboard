@@ -349,7 +349,7 @@ public class ArchiveGuardTests(CollaboardApiFactory factory) : IClassFixture<Col
 
     private async Task<Guid> GetArchiveLaneIdAsync()
     {
-        using var scope = _factory.Services.CreateScope();
+        await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
         var archiveLane = await db.Lanes.FirstAsync(l => l.BoardId == _factory.DefaultBoardId && l.IsArchiveLane);
         return archiveLane.Id;

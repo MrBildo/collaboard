@@ -1,4 +1,3 @@
-using Collaboard.Api;
 using Collaboard.Api.Models;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -103,7 +102,7 @@ public class CollaboardApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
         // Force host creation which triggers Program.cs seed logic
         _ = CreateClient();
 
-        using var scope = Services.CreateScope();
+        await using var scope = Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
         var admin = await db.Users.FirstAsync(u => u.Role == UserRole.Administrator);
         AdminAuthKey = admin.AuthKey;

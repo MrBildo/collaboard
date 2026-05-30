@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace Collaboard.Api.Mcp;

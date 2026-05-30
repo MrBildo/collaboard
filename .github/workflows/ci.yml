@@ -18,7 +18,12 @@ jobs:
       - name: Restore
         run: dotnet restore backend/Collaboard.sln
       - name: Format
-        run: dotnet format backend/Collaboard.sln --verify-no-changes --no-restore
+        # --severity error: the gate enforces exactly the editorconfig's :error
+        # rules (the errors-or-quiet model the analyzer adoption is built on).
+        # Default severity (warn) would also fail on the deferred warning-level
+        # nudges, which belong to the separate recurring suggestion-resolution
+        # gate, not this gate (#208).
+        run: dotnet format backend/Collaboard.sln --verify-no-changes --no-restore --severity error
       - name: Build
         run: dotnet build backend/Collaboard.sln --no-restore --no-incremental
       - name: Test

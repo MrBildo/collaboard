@@ -1,3 +1,4 @@
+using System.Globalization;
 using Collaboard.Api.Configuration;
 
 namespace Collaboard.Api.Hosting;
@@ -23,6 +24,6 @@ internal static class HostingBindResolver
             .GetSection(HostingSettings.SectionName)
             .Get<HostingSettings>() ?? new HostingSettings();
 
-        return $"http://{hosting.ListenAddress}:{hosting.ListenPort}";
+        return $"http://{hosting.ListenAddress}:{hosting.ListenPort.ToString(CultureInfo.InvariantCulture)}";
     }
 }

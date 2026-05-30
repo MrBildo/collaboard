@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 using System.Text.Json;
 using Collaboard.Api.Endpoints;
 using Collaboard.Api.Events;
@@ -140,7 +141,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
         await db.PublishForCardAsync(card.Id, broadcaster);
-        return $"Card '{card.Name}' moved to lane at index {resolvedIndex}.";
+        return $"Card '{card.Name}' moved to lane at index {resolvedIndex.ToString(CultureInfo.InvariantCulture)}.";
     }
 
     [McpServerTool(Name = "update_card", Destructive = false)]

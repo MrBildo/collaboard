@@ -52,7 +52,7 @@ internal sealed class TempCardSweepService
     {
         try
         {
-            using var scope = _services.CreateScope();
+            await using var scope = _services.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
 
             var cutoff = DateTimeOffset.UtcNow - _settings.Ttl;

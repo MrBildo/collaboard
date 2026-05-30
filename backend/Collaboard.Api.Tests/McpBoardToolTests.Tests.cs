@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Collaboard.Api.Mcp;
@@ -42,7 +43,7 @@ public class McpBoardToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         {
             var cardResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{boardId}/cards", new
             {
-                name = $"McpCard-L1-{i}",
+                name = $"McpCard-L1-{i.ToString(CultureInfo.InvariantCulture)}",
                 descriptionMarkdown = "",
                 laneId = lane1Id,
                 position = i,
@@ -62,7 +63,7 @@ public class McpBoardToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         singleCardResponse.EnsureSuccessStatusCode();
 
         // Act — call the MCP tool directly
-        using var scope = _factory.Services.CreateScope();
+        await using var scope = _factory.Services.CreateAsyncScope();
         var tools = CreateBoardTools(scope);
         var result = await tools.GetLanesAsync(_factory.AdminAuthKey, boardId);
 
@@ -88,7 +89,7 @@ public class McpBoardToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         var laneId = lane.GetProperty("id").GetGuid();
 
         // Act
-        using var scope = _factory.Services.CreateScope();
+        await using var scope = _factory.Services.CreateAsyncScope();
         var tools = CreateBoardTools(scope);
         var result = await tools.GetLanesAsync(_factory.AdminAuthKey, boardId);
 

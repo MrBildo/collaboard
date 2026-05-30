@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Collaboard.Api.Endpoints;
@@ -122,7 +123,7 @@ public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardE
         var crossBoard = cards!.Where(c => c.BoardId != targetLane.BoardId).ToList();
         if (crossBoard.Count > 0)
         {
-            return $"Error: All cards must be on the target lane's board. Cards not on board {targetLane.BoardId}: {string.Join(", ", crossBoard.Select(c => $"#{c.Number}"))}";
+            return $"Error: All cards must be on the target lane's board. Cards not on board {targetLane.BoardId}: {string.Join(", ", crossBoard.Select(c => $"#{c.Number.ToString(CultureInfo.InvariantCulture)}"))}";
         }
 
         var archiveLaneIds = await db.Lanes

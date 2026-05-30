@@ -1,0 +1,12 @@
+<Project>
+  <!-- Test project suppressions (evaluated after .csproj, so IsTestProject is available) -->
+  <!--
+    CA1707 — test method names use Method_Scenario_ExpectedResult with underscores.
+    VSTHRD200 — xUnit [Fact] / [Theory] methods conventionally don't carry an `Async`
+                suffix (community norm predates the analyzer). Suppressing project-wide
+                avoids per-class #pragma noise on test classes with async methods.
+  -->
+  <PropertyGroup Condition="'$(IsTestProject)' == 'true'">
+    <NoWarn>$(NoWarn);CA1707;VSTHRD200</NoWarn>
+  </PropertyGroup>
+</Project>

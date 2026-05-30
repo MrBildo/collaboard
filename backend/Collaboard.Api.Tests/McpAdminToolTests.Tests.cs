@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Collaboard.Api.Auth;
 using Collaboard.Api.Events;
@@ -103,7 +104,7 @@ public class McpAdminToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         var authKey = await AuthKeyForAsync(role);
         var position = NextLanePosition();
 
-        var result = await lane.CreateLaneAsync(authKey, _factory.DefaultBoardId, $"Lane-{role}-{position}", position);
+        var result = await lane.CreateLaneAsync(authKey, _factory.DefaultBoardId, $"Lane-{role}-{position.ToString(CultureInfo.InvariantCulture)}", position);
 
         var json = JsonSerializer.Deserialize<JsonElement>(result);
         var laneId = json.GetProperty("id").GetGuid();

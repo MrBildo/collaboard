@@ -53,13 +53,13 @@ internal static class CardEndpoints
             }
 
             var cards = await pagedQuery.ToListAsync(ct);
-            var summaries = await CardSummaryBuilder.BuildAsync(db, cards);
+            var summaries = await CardSummaryBuilder.BuildAsync(db, cards, ct);
             return Results.Ok(new PagedResult<CardSummary>(summaries, totalCount, effectiveOffset, effectiveLimit));
         }).RequireAuth();
 
-        group.MapPost("/boards/{boardId:guid}/cards", async (BoardDbContext db, HttpContext http, Guid boardId, CreateCardRequest request, BoardEventBroadcaster broadcaster) =>
+        group.MapPost("/boards/{boardId:guid}/cards", async (BoardDbContext db, HttpContext http, Guid boardId, CreateCardRequest request, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
         {
-            if (!await db.Boards.AnyAsync(x => x.Id == boardId))
+            if (!await db.Boards.AnyAsync(x => x.Id == boardId, ct))
             {
                 return Results.NotFound();
             }
@@ -70,29 +70,29 @@ internal static class CardEndpoints
                 return error;
             }
 
-            await CardNumberHelper.InsertCardWithAutoNumberAsync(db, card!, boardId);
+            await CardNumberHelper.InsertCardWithAutoNumberAsync(db, card!, boardId, ct);
             broadcaster.PublishBoardUpdated(boardId);
 
-            var summaries = await CardSummaryBuilder.BuildAsync(db, [card!]);
+            var summaries = await CardSummaryBuilder.BuildAsync(db, [card!], ct);
             return Results.Created($"/api/v1/cards/{card!.Id}", summaries[0]);
         }).RequireAuth();
 
         // By-ID operations (flat)
-        group.MapGet("/cards/{id:guid}", async (BoardDbContext db, Guid id) =>
+        group.MapGet("/cards/{id:guid}", async (BoardDbContext db, Guid id, CancellationToken ct) =>
         {
-            var card = await db.Cards.FindAsync(id);
+            var card = await db.Cards.FindAsync([id], ct);
             if (card is null)
             {
                 return Results.NotFound();
             }
 
-            var detail = await CardDetailBuilder.BuildAsync(db, card);
+            var detail = await CardDetailBuilder.BuildAsync(db, card, ct);
             return Results.Ok(detail);
         }).RequireAuth();
 
-        group.MapPatch("/cards/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, UpdateCardRequest request, BoardEventBroadcaster broadcaster) =>
+        group.MapPatch("/cards/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, UpdateCardRequest request, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
         {
-            var card = await db.Cards.FindAsync(id);
+            var card = await db.Cards.FindAsync([id], ct);
             if (card is null)
             {
                 return Results.NotFound();
@@ -126,8 +126,8 @@ internal static class CardEndpoints
             if (request.SizeId is not null)
             {
                 var newSizeId = request.SizeId.Value;
-                var sizeLane = await db.Lanes.FindAsync(card.LaneId);
-                if (sizeLane is null || !await db.CardSizes.AnyAsync(s => s.Id == newSizeId && s.BoardId == sizeLane.BoardId))
+                var sizeLane = await db.Lanes.FindAsync([card.LaneId], ct);
+                if (sizeLane is null || !await db.CardSizes.AnyAsync(s => s.Id == newSizeId && s.BoardId == sizeLane.BoardId, ct))
                 {
                     return Results.BadRequest("Size does not belong to this board.");
                 }
@@ -138,7 +138,7 @@ internal static class CardEndpoints
             if (request.LaneId is not null)
             {
                 var newLaneId = request.LaneId.Value;
-                var targetLane = await db.Lanes.FindAsync(newLaneId);
+                var targetLane = await db.Lanes.FindAsync([newLaneId], ct);
                 if (targetLane is null)
                 {
                     return Results.BadRequest("Lane not found.");
@@ -158,7 +158,7 @@ internal static class CardEndpoints
 
                 if (request.Position is null)
                 {
-                    var maxPosition = await db.Cards.Where(c => c.LaneId == newLaneId && c.Id != id).MaxAsync(c => (int?)c.Position) ?? -10;
+                    var maxPosition = await db.Cards.Where(c => c.LaneId == newLaneId && c.Id != id).MaxAsync(c => (int?)c.Position, ct) ?? -10;
                     card.Position = maxPosition + 10;
                 }
             }
@@ -172,14 +172,14 @@ internal static class CardEndpoints
             {
                 if (request.LabelIds.Length > 0)
                 {
-                    var validCount = await db.Labels.CountAsync(l => request.LabelIds.Contains(l.Id) && l.BoardId == card.BoardId);
+                    var validCount = await db.Labels.CountAsync(l => request.LabelIds.Contains(l.Id) && l.BoardId == card.BoardId, ct);
                     if (validCount != request.LabelIds.Length)
                     {
                         return Results.BadRequest("One or more labels do not belong to this board.");
                     }
                 }
 
-                var existingLabels = await db.CardLabels.Where(x => x.CardId == id).ToListAsync();
+                var existingLabels = await db.CardLabels.Where(x => x.CardId == id).ToListAsync(ct);
                 db.CardLabels.RemoveRange(existingLabels);
                 foreach (var labelId in request.LabelIds)
                 {
@@ -189,16 +189,16 @@ internal static class CardEndpoints
 
             card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
             card.LastUpdatedByUserId = http.CurrentUser().Id;
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(ct);
             broadcaster.PublishBoardUpdated(card.BoardId);
 
-            var summaries = await CardSummaryBuilder.BuildAsync(db, [card]);
+            var summaries = await CardSummaryBuilder.BuildAsync(db, [card], ct);
             return Results.Ok(summaries[0]);
         }).RequireAuth();
 
-        group.MapPost("/cards/{id:guid}/reorder", async (BoardDbContext db, HttpContext http, Guid id, ReorderCardRequest request, BoardEventBroadcaster broadcaster) =>
+        group.MapPost("/cards/{id:guid}/reorder", async (BoardDbContext db, HttpContext http, Guid id, ReorderCardRequest request, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
         {
-            var card = await db.Cards.FindAsync(id);
+            var card = await db.Cards.FindAsync([id], ct);
             if (card is null)
             {
                 return Results.NotFound();
@@ -228,7 +228,7 @@ internal static class CardEndpoints
 
             var targetIndex = request.Index.Value;
 
-            var targetLane = await db.Lanes.FindAsync(targetLaneId);
+            var targetLane = await db.Lanes.FindAsync([targetLaneId], ct);
             if (targetLane is null)
             {
                 return Results.BadRequest("Lane not found.");
@@ -239,29 +239,29 @@ internal static class CardEndpoints
                 return Results.BadRequest("Use archive_card to archive cards.");
             }
 
-            var sourceLane = await db.Lanes.FindAsync(card.LaneId);
+            var sourceLane = await db.Lanes.FindAsync([card.LaneId], ct);
             if (sourceLane is null || sourceLane.BoardId != targetLane.BoardId)
             {
                 return Results.BadRequest("Cannot move cards between boards.");
             }
 
-            await CardReorderHelper.MoveCardToLaneAsync(db, card, targetLaneId, targetIndex);
+            await CardReorderHelper.MoveCardToLaneAsync(db, card, targetLaneId, targetIndex, ct);
 
             card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
             card.LastUpdatedByUserId = http.CurrentUser().Id;
 
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(ct);
             broadcaster.PublishBoardUpdated(targetLane.BoardId);
 
-            var boardLaneIds = await db.Lanes.Where(x => x.BoardId == targetLane.BoardId).Select(x => x.Id).ToListAsync();
-            var lanes = await db.Lanes.Where(x => x.BoardId == targetLane.BoardId).OrderBy(l => l.Position).ToListAsync();
-            var cards = await db.Cards.Where(x => boardLaneIds.Contains(x.LaneId)).OrderBy(c => c.LaneId).ThenBy(c => c.Position).ToListAsync();
+            var boardLaneIds = await db.Lanes.Where(x => x.BoardId == targetLane.BoardId).Select(x => x.Id).ToListAsync(ct);
+            var lanes = await db.Lanes.Where(x => x.BoardId == targetLane.BoardId).OrderBy(l => l.Position).ToListAsync(ct);
+            var cards = await db.Cards.Where(x => boardLaneIds.Contains(x.LaneId)).OrderBy(c => c.LaneId).ThenBy(c => c.Position).ToListAsync(ct);
             return Results.Ok(new { lanes, cards });
         }).RequireAuth();
 
-        group.MapDelete("/cards/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, BoardEventBroadcaster broadcaster) =>
+        group.MapDelete("/cards/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
         {
-            var card = await db.Cards.FindAsync(id);
+            var card = await db.Cards.FindAsync([id], ct);
             if (card is null)
             {
                 return Results.NotFound();
@@ -273,10 +273,10 @@ internal static class CardEndpoints
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
 
-            var lane = await db.Lanes.FindAsync(card.LaneId);
+            var lane = await db.Lanes.FindAsync([card.LaneId], ct);
 
             db.Cards.Remove(card);
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(ct);
 
             if (lane is not null)
             {
@@ -286,9 +286,9 @@ internal static class CardEndpoints
             return Results.NoContent();
         }).RequireRole(UserRole.Administrator, UserRole.HumanUser);
 
-        group.MapPost("/cards/{id:guid}/archive", async (BoardDbContext db, HttpContext http, Guid id, BoardEventBroadcaster broadcaster) =>
+        group.MapPost("/cards/{id:guid}/archive", async (BoardDbContext db, HttpContext http, Guid id, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
         {
-            var card = await db.Cards.FindAsync(id);
+            var card = await db.Cards.FindAsync([id], ct);
             if (card is null)
             {
                 return Results.NotFound();
@@ -299,44 +299,44 @@ internal static class CardEndpoints
                 return Results.BadRequest("Temp cards cannot be archived.");
             }
 
-            var currentLane = await db.Lanes.FindAsync(card.LaneId);
+            var currentLane = await db.Lanes.FindAsync([card.LaneId], ct);
             if (currentLane is not null && currentLane.IsArchiveLane)
             {
                 return Results.BadRequest("Card is already archived.");
             }
 
-            var archiveLane = await db.Lanes.FirstOrDefaultAsync(l => l.BoardId == card.BoardId && l.IsArchiveLane);
+            var archiveLane = await db.Lanes.FirstOrDefaultAsync(l => l.BoardId == card.BoardId && l.IsArchiveLane, ct);
             if (archiveLane is null)
             {
                 return Results.BadRequest("Board has no archive lane.");
             }
 
-            await CardReorderHelper.MoveCardToLaneAsync(db, card, archiveLane.Id, 0);
+            await CardReorderHelper.MoveCardToLaneAsync(db, card, archiveLane.Id, 0, ct);
 
             card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
             card.LastUpdatedByUserId = http.CurrentUser().Id;
 
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(ct);
             broadcaster.PublishBoardUpdated(card.BoardId);
 
             return Results.NoContent();
         }).RequireAuth();
 
-        group.MapPost("/cards/{id:guid}/restore", async (BoardDbContext db, HttpContext http, Guid id, RestoreCardRequest request, BoardEventBroadcaster broadcaster) =>
+        group.MapPost("/cards/{id:guid}/restore", async (BoardDbContext db, HttpContext http, Guid id, RestoreCardRequest request, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
         {
-            var card = await db.Cards.FindAsync(id);
+            var card = await db.Cards.FindAsync([id], ct);
             if (card is null)
             {
                 return Results.NotFound();
             }
 
-            var currentLane = await db.Lanes.FindAsync(card.LaneId);
+            var currentLane = await db.Lanes.FindAsync([card.LaneId], ct);
             if (currentLane is null || !currentLane.IsArchiveLane)
             {
                 return Results.BadRequest("Card is not archived.");
             }
 
-            var targetLane = await db.Lanes.FindAsync(request.LaneId);
+            var targetLane = await db.Lanes.FindAsync([request.LaneId], ct);
             if (targetLane is null)
             {
                 return Results.NotFound();
@@ -352,21 +352,21 @@ internal static class CardEndpoints
                 return Results.BadRequest("Lane does not belong to this board.");
             }
 
-            await CardReorderHelper.MoveCardToLaneAsync(db, card, targetLane.Id, 0);
+            await CardReorderHelper.MoveCardToLaneAsync(db, card, targetLane.Id, 0, ct);
 
             card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
             card.LastUpdatedByUserId = http.CurrentUser().Id;
 
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(ct);
             broadcaster.PublishBoardUpdated(card.BoardId);
 
             return Results.NoContent();
         }).RequireAuth();
 
         // Temp card lifecycle endpoints
-        group.MapPost("/boards/{boardId:guid}/cards/temp", async (BoardDbContext db, HttpContext http, Guid boardId, CreateCardRequest request) =>
+        group.MapPost("/boards/{boardId:guid}/cards/temp", async (BoardDbContext db, HttpContext http, Guid boardId, CreateCardRequest request, CancellationToken ct) =>
         {
-            if (!await db.Boards.AnyAsync(x => x.Id == boardId))
+            if (!await db.Boards.AnyAsync(x => x.Id == boardId, ct))
             {
                 return Results.NotFound();
             }
@@ -380,14 +380,14 @@ internal static class CardEndpoints
             card!.Number = 0;
             card.IsTemp = true;
             db.Cards.Add(card);
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(ct);
 
             return Results.Created($"/api/v1/cards/{card.Id}", new { card.Id });
         }).RequireAuth();
 
         group.MapPost("/cards/{id:guid}/finalize", async (BoardDbContext db, HttpContext http, Guid id, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
         {
-            var card = await db.Cards.FindAsync(id);
+            var card = await db.Cards.FindAsync([id], ct);
             if (card is null)
             {
                 return Results.NotFound();
@@ -418,9 +418,9 @@ internal static class CardEndpoints
             return Results.Ok(new { card.Id, card.Number });
         }).RequireAuth();
 
-        group.MapPost("/cards/{id:guid}/cancel", async (BoardDbContext db, HttpContext http, Guid id) =>
+        group.MapPost("/cards/{id:guid}/cancel", async (BoardDbContext db, HttpContext http, Guid id, CancellationToken ct) =>
         {
-            var card = await db.Cards.FindAsync(id);
+            var card = await db.Cards.FindAsync([id], ct);
             if (card is null)
             {
                 return Results.NotFound();
@@ -437,7 +437,7 @@ internal static class CardEndpoints
             }
 
             db.Cards.Remove(card);
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(ct);
 
             return Results.NoContent();
         }).RequireAuth();

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Collaboard.Api.Auth;
 using Collaboard.Api.Events;
@@ -50,7 +51,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
     {
         var result = await tools.CreateCardAsync(authKey, name, laneId);
         result.ShouldNotContain("Error");
-        var json = System.Text.Json.JsonDocument.Parse(result);
+        var json = JsonDocument.Parse(result);
         return json.RootElement.GetProperty("id").GetGuid();
     }
 
@@ -131,7 +132,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
 
         // Assert
         result.ShouldNotContain("Error");
-        var json = System.Text.Json.JsonDocument.Parse(result);
+        var json = JsonDocument.Parse(result);
         json.RootElement.GetProperty("laneId").GetGuid().ShouldBe(lane2);
     }
 
@@ -154,7 +155,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
 
         // Assert
         result.ShouldNotContain("Error");
-        var json = System.Text.Json.JsonDocument.Parse(result);
+        var json = JsonDocument.Parse(result);
         json.RootElement.GetProperty("laneId").GetGuid().ShouldBe(lane2);
         json.RootElement.GetProperty("position").GetInt32().ShouldBe(0);
     }
@@ -177,7 +178,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
 
         // Assert
         result.ShouldNotContain("Error");
-        var json = System.Text.Json.JsonDocument.Parse(result);
+        var json = JsonDocument.Parse(result);
         json.RootElement.GetProperty("laneId").GetGuid().ShouldBe(lane2);
 
         // Card should have the lowest position in lane2
@@ -360,7 +361,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
         var result = await tools.CreateCardAsync(authKey, "Labeled Card", lanes[0], labelIds: $"{label1.Id},{label2.Id}");
 
         result.ShouldNotContain("Error");
-        var json = System.Text.Json.JsonDocument.Parse(result);
+        var json = JsonDocument.Parse(result);
         var cardId = json.RootElement.GetProperty("id").GetGuid();
         var cardLabels = await db.CardLabels.Where(cl => cl.CardId == cardId).Select(cl => cl.LabelId).ToListAsync();
         cardLabels.Count.ShouldBe(2);
@@ -377,7 +378,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
         var result = await tools.CreateCardAsync(authKey, "No Labels", lanes[0]);
 
         result.ShouldNotContain("Error");
-        var json = System.Text.Json.JsonDocument.Parse(result);
+        var json = JsonDocument.Parse(result);
         var cardId = json.RootElement.GetProperty("id").GetGuid();
         (await db.CardLabels.Where(cl => cl.CardId == cardId).ToListAsync()).ShouldBeEmpty();
     }
@@ -610,7 +611,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
         var result = await tools.MoveCardAsync(authKey, lane2, cardId: card, index: 999);
 
         // Assert — clamped to end (after all existing cards)
-        result.ShouldContain($"moved to lane at index {existingCount}");
+        result.ShouldContain($"moved to lane at index {existingCount.ToString(CultureInfo.InvariantCulture)}");
     }
 
     [Fact]
@@ -697,7 +698,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
 
         // Assert
         result.ShouldNotContain("Error");
-        var json = System.Text.Json.JsonDocument.Parse(result);
+        var json = JsonDocument.Parse(result);
         json.RootElement.GetProperty("name").GetString().ShouldBe("Renamed");
         json.RootElement.GetProperty("laneId").GetGuid().ShouldBe(lane2);
 
@@ -720,7 +721,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
 
         // Assert — response is a paged envelope, not a flat array
         result.ShouldNotContain("Error");
-        var json = System.Text.Json.JsonDocument.Parse(result);
+        var json = JsonDocument.Parse(result);
         var root = json.RootElement;
         root.TryGetProperty("items", out _).ShouldBeTrue();
         root.TryGetProperty("totalCount", out _).ShouldBeTrue();
@@ -748,7 +749,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
 
         // Assert
         result.ShouldNotContain("Error");
-        var json = System.Text.Json.JsonDocument.Parse(result);
+        var json = JsonDocument.Parse(result);
         var root = json.RootElement;
         root.GetProperty("items").GetArrayLength().ShouldBe(2);
         root.GetProperty("totalCount").GetInt32().ShouldBeGreaterThanOrEqualTo(3);
@@ -771,8 +772,8 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
         var offsetResult = await tools.GetCardsAsync(authKey, _factory.DefaultBoardId, offset: 2, limit: 500);
 
         // Assert
-        var allJson = System.Text.Json.JsonDocument.Parse(allResult);
-        var offsetJson = System.Text.Json.JsonDocument.Parse(offsetResult);
+        var allJson = JsonDocument.Parse(allResult);
+        var offsetJson = JsonDocument.Parse(offsetResult);
         var allCount = allJson.RootElement.GetProperty("items").GetArrayLength();
         var offsetCount = offsetJson.RootElement.GetProperty("items").GetArrayLength();
         offsetCount.ShouldBe(allCount - 2);
@@ -790,7 +791,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
 
         // Assert
         result.ShouldNotContain("Error");
-        var json = System.Text.Json.JsonDocument.Parse(result);
+        var json = JsonDocument.Parse(result);
         json.RootElement.GetProperty("limit").GetInt32().ShouldBe(500);
     }
 
@@ -805,7 +806,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
 
         // Assert
         result.ShouldNotContain("Error");
-        var json = System.Text.Json.JsonDocument.Parse(result);
+        var json = JsonDocument.Parse(result);
         json.RootElement.GetProperty("offset").GetInt32().ShouldBe(0);
     }
 
@@ -832,7 +833,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
 
         // Assert — the previously-untranslatable query now executes server-side
         result.ShouldNotContain("Error");
-        var json = System.Text.Json.JsonDocument.Parse(result);
+        var json = JsonDocument.Parse(result);
         var root = json.RootElement;
         root.TryGetProperty("items", out _).ShouldBeTrue();
         root.TryGetProperty("totalCount", out _).ShouldBeTrue();
@@ -867,7 +868,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
 
         // Assert
         result.ShouldNotContain("Error");
-        var json = System.Text.Json.JsonDocument.Parse(result);
+        var json = JsonDocument.Parse(result);
         var ids = json.RootElement.GetProperty("items")
             .EnumerateArray()
             .Select(i => i.GetProperty("id").GetGuid())
@@ -904,7 +905,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
 
         // Assert
         result.ShouldNotContain("Error");
-        var json = System.Text.Json.JsonDocument.Parse(result);
+        var json = JsonDocument.Parse(result);
         var ids = json.RootElement.GetProperty("items")
             .EnumerateArray()
             .Select(i => i.GetProperty("id").GetGuid())
@@ -942,7 +943,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
 
         // Assert
         result.ShouldNotContain("Error");
-        var json = System.Text.Json.JsonDocument.Parse(result);
+        var json = JsonDocument.Parse(result);
         var ids = json.RootElement.GetProperty("items")
             .EnumerateArray()
             .Select(i => i.GetProperty("id").GetGuid())
