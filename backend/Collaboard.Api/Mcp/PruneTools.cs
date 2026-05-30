@@ -44,7 +44,7 @@ public sealed class PruneTools(BoardDbContext db, McpAuthService auth, BoardEven
             return parseError;
         }
 
-        var query = await PruneFilter.BuildFilteredQueryAsync(db, boardId, request);
+        var query = PruneFilter.BuildFilteredQuery(db, boardId, request);
         var cards = await query.ToListAsync(ct);
 
         var laneIdSet = cards.Select(c => c.LaneId).Distinct().ToList();
@@ -93,7 +93,7 @@ public sealed class PruneTools(BoardDbContext db, McpAuthService auth, BoardEven
             return "Error: Board has no archive lane.";
         }
 
-        var query = await PruneFilter.BuildFilteredQueryAsync(db, boardId, request);
+        var query = PruneFilter.BuildFilteredQuery(db, boardId, request);
         var cards = await query.ToListAsync(ct);
 
         foreach (var card in cards)

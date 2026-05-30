@@ -23,7 +23,7 @@ internal static class PruneEndpoints
                 return Results.BadRequest(error);
             }
 
-            var query = await PruneFilter.BuildFilteredQueryAsync(db, boardId, request);
+            var query = PruneFilter.BuildFilteredQuery(db, boardId, request);
             var cards = await query.ToListAsync();
 
             // Batch load lane names
@@ -70,7 +70,7 @@ internal static class PruneEndpoints
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
 
-            var query = await PruneFilter.BuildFilteredQueryAsync(db, boardId, request);
+            var query = PruneFilter.BuildFilteredQuery(db, boardId, request);
             var cards = await query.ToListAsync();
 
             if (action == "archive")

@@ -350,6 +350,44 @@ public class McpPruneToolTests(CollaboardApiFactory factory) : IClassFixture<Col
     }
 
     // ---------------------------------------------------------------------
+    // Non-UTC olderThan normalisation (#103 bonus fix)
+    // ---------------------------------------------------------------------
+
+    [Fact]
+    public async Task PrunePreview_NonUtcOlderThan_NormalisesToUtcBeforeComparing()
+    {
+        // The #234 model-wide DateTimeOffset value converter writes every
+        // DateTimeOffset as a normalised-UTC ISO-8601 string (.ToUniversalTime()).
+        // A non-UTC olderThan value must therefore also be normalised before the
+        // TEXT comparison, which the LINQ form achieves automatically (the converter
+        // runs on both sides). The prior FromSqlInterpolated workaround called
+        // .ToString("O") without .ToUniversalTime(), which would compare the stored
+        // UTC string against a non-UTC literal and produce wrong results.
+        //
+        // Concretely: a card at 03:00 UTC should match an olderThan cutoff of
+        // 05:00 UTC regardless of whether that cutoff is expressed in UTC or as an
+        // equivalent non-UTC offset (e.g. 00:00-05:00 = 05:00 UTC). The old code
+        // would have missed the card when the cutoff was expressed as 00:00-05:00
+        // because "2026-...T03:00Z" > "2026-...T00:00-05:00" as a raw string
+        // comparison.
+        var (db, prune) = CreateTools();
+        var (boardId, laneId, sizeId, _) = await CreateBoardAsync(db);
+
+        // Card last updated at 03:00 UTC
+        var cardUtcStamp = new DateTimeOffset(2026, 1, 1, 3, 0, 0, TimeSpan.Zero);
+
+        await AddCardAsync(db, boardId, laneId, sizeId, lastUpdated: cardUtcStamp);
+
+        // Cutoff is 05:00 UTC expressed as 00:00 at UTC-5 — same instant, different offset.
+        // The card at 03:00 UTC is before this cutoff and should be matched.
+        var cutoffNonUtc = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.FromHours(-5));
+
+        var result = await prune.PrunePreviewAsync(_factory.AdminAuthKey, boardId, olderThan: cutoffNonUtc);
+
+        JsonSerializer.Deserialize<JsonElement>(result).GetProperty("matchCount").GetInt32().ShouldBe(1);
+    }
+
+    // ---------------------------------------------------------------------
     // Board existence
     // ---------------------------------------------------------------------
 
