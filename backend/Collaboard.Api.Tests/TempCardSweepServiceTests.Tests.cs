@@ -81,7 +81,7 @@ public class TempCardSweepServiceTests(CollaboardApiFactory factory) : IClassFix
         {
             var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
             var cutoff = DateTimeOffset.UtcNow - TimeSpan.FromHours(1);
-            deleted = await Api.TempCardSweepService.SweepAsync(db, cutoff, CancellationToken.None);
+            deleted = await TempCardSweepService.SweepAsync(db, cutoff, CancellationToken.None);
         }
 
         // Assert — exactly the aged temp card removed; fresh temp and real card survive.
@@ -116,7 +116,7 @@ public class TempCardSweepServiceTests(CollaboardApiFactory factory) : IClassFix
         {
             var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
             var cutoff = DateTimeOffset.UtcNow - TimeSpan.FromHours(1);
-            deleted = await Api.TempCardSweepService.SweepAsync(db, cutoff, CancellationToken.None);
+            deleted = await TempCardSweepService.SweepAsync(db, cutoff, CancellationToken.None);
         }
 
         // Assert — the finalized card is untouched.
@@ -141,14 +141,14 @@ public class TempCardSweepServiceTests(CollaboardApiFactory factory) : IClassFix
         await using (var scope = _factory.Services.CreateAsyncScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
-            firstDeleted = await Api.TempCardSweepService.SweepAsync(db, cutoff, CancellationToken.None);
+            firstDeleted = await TempCardSweepService.SweepAsync(db, cutoff, CancellationToken.None);
         }
 
         int secondDeleted;
         await using (var scope = _factory.Services.CreateAsyncScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
-            secondDeleted = await Api.TempCardSweepService.SweepAsync(db, cutoff, CancellationToken.None);
+            secondDeleted = await TempCardSweepService.SweepAsync(db, cutoff, CancellationToken.None);
         }
 
         // Assert — first run removes the orphan, second run is a no-op.

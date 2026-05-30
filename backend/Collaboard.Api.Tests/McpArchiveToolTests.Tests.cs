@@ -44,22 +44,18 @@ public class McpArchiveToolTests(CollaboardApiFactory factory) : IClassFixture<C
         }
     }
 
-    private async Task<Guid> GetFirstLaneIdAsync(BoardDbContext db)
-    {
-        return await db.Lanes
+    private async Task<Guid> GetFirstLaneIdAsync(BoardDbContext db) =>
+        await db.Lanes
             .Where(l => l.BoardId == _factory.DefaultBoardId && !l.IsArchiveLane)
             .OrderBy(l => l.Position)
             .Select(l => l.Id)
             .FirstAsync();
-    }
 
-    private async Task<Guid> GetArchiveLaneIdAsync(BoardDbContext db)
-    {
-        return await db.Lanes
+    private async Task<Guid> GetArchiveLaneIdAsync(BoardDbContext db) =>
+        await db.Lanes
             .Where(l => l.BoardId == _factory.DefaultBoardId && l.IsArchiveLane)
             .Select(l => l.Id)
             .FirstAsync();
-    }
 
     private async Task<Guid> CreateCardInLaneAsync(CardTools tools, string authKey, Guid laneId, string name = "Test Card")
     {

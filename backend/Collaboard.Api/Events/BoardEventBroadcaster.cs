@@ -99,8 +99,7 @@ public class BoardEventBroadcaster
         }
     }
 
-    private static void WriteToSubscribers(List<Channel<string>> subscribers, string eventType)
-    {
+    private static void WriteToSubscribers(List<Channel<string>> subscribers, string eventType) =>
         subscribers.RemoveAll(ch =>
         {
             if (!ch.Writer.TryWrite(eventType))
@@ -111,5 +110,4 @@ public class BoardEventBroadcaster
 
             return false;
         });
-    }
 }
