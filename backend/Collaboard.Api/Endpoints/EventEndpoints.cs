@@ -18,6 +18,12 @@ internal static class EventEndpoints
 
             try
             {
+                // Emit a priming comment immediately on connect so the browser EventSource
+                // fires onopen promptly without waiting for the first real event (#229).
+                // Also unblocks networkidle-style waits in browser automation.
+                await http.Response.WriteAsync(": ok\n\n", ct);
+                await http.Response.Body.FlushAsync(ct);
+
                 await foreach (var eventType in reader.ReadAllAsync(ct))
                 {
                     await http.Response.WriteAsync($"event: {eventType}\ndata: {{}}\n\n", ct);
