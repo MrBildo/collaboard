@@ -1,9 +1,9 @@
 using System.ComponentModel;
+using System.Globalization;
 using System.Text.Json;
 using Collaboard.Api.Endpoints;
 using Collaboard.Api.Events;
 using Collaboard.Api.Models;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using ModelContextProtocol.Server;
 
@@ -126,7 +126,7 @@ public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, Boar
         if (payload.Length > maxBytes)
         {
             var maxMb = maxBytes / (1024 * 1024);
-            return $"Error: File exceeds {maxMb}MB limit for MCP uploads. Use the REST endpoint POST /api/v1/cards/{{cardId}}/attachments for larger files (up to 50MB).";
+            return $"Error: File exceeds {maxMb.ToString(CultureInfo.InvariantCulture)}MB limit for MCP uploads. Use the REST endpoint POST /api/v1/cards/{{cardId}}/attachments for larger files (up to 50MB).";
         }
 
         var attachment = new CardAttachment

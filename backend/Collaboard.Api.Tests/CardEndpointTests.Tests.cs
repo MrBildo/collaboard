@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -307,7 +308,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         {
             var response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
             {
-                name = $"Sequential Card {i}",
+                name = $"Sequential Card {i.ToString(CultureInfo.InvariantCulture)}",
                 descriptionMarkdown = "",
                 size = "S",
                 laneId,
@@ -708,7 +709,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         {
             var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
             {
-                name = $"Reorder Same Lane Card {i}",
+                name = $"Reorder Same Lane Card {i.ToString(CultureInfo.InvariantCulture)}",
                 descriptionMarkdown = "",
                 size = "M",
                 laneId,
@@ -1063,8 +1064,10 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "Test comment" });
 
         // Add an attachment
-        var attachContent = new MultipartFormDataContent();
-        attachContent.Add(new ByteArrayContent([1, 2, 3]), "file", "test.txt");
+        var attachContent = new MultipartFormDataContent
+        {
+            { new ByteArrayContent([1, 2, 3]), "file", "test.txt" },
+        };
         await _client.PostAsync($"/api/v1/cards/{cardId}/attachments", attachContent);
 
         // Act
@@ -1268,7 +1271,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         var cardNumber = created.GetProperty("number").GetInt64();
 
         // Act
-        using var scope = _factory.Services.CreateScope();
+        await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
         var authService = scope.ServiceProvider.GetRequiredService<Mcp.McpAuthService>();
         var broadcaster = scope.ServiceProvider.GetRequiredService<Events.BoardEventBroadcaster>();
@@ -1286,7 +1289,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     public async Task McpGetCard_NeitherIdNorNumber_ReturnsError()
     {
         // Arrange
-        using var scope = _factory.Services.CreateScope();
+        await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
         var authService = scope.ServiceProvider.GetRequiredService<Mcp.McpAuthService>();
         var broadcaster = scope.ServiceProvider.GetRequiredService<Events.BoardEventBroadcaster>();
@@ -1303,7 +1306,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     public async Task McpGetCard_InvalidCardNumber_ReturnsError()
     {
         // Arrange
-        using var scope = _factory.Services.CreateScope();
+        await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
         var authService = scope.ServiceProvider.GetRequiredService<Mcp.McpAuthService>();
         var broadcaster = scope.ServiceProvider.GetRequiredService<Events.BoardEventBroadcaster>();
@@ -1344,7 +1347,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         await _client.PostAsync($"/api/v1/cards/{cardId}/attachments", attachContent);
 
         // Act
-        using var scope = _factory.Services.CreateScope();
+        await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
         var authService = scope.ServiceProvider.GetRequiredService<Mcp.McpAuthService>();
         var broadcaster = scope.ServiceProvider.GetRequiredService<Events.BoardEventBroadcaster>();

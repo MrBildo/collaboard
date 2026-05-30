@@ -155,7 +155,7 @@ public class CascadeDeleteTests(CollaboardApiFactory factory) : IClassFixture<Co
         // Act — delete the lane (which should cascade to cards, comments, attachments)
         // The lane endpoint currently checks for cards and returns 409.
         // With FK cascade in place, we test that directly via the DbContext.
-        using var scope = _factory.Services.CreateScope();
+        await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
 
         var laneEntity = await db.Lanes.FindAsync(laneId);
@@ -221,7 +221,7 @@ public class CascadeDeleteTests(CollaboardApiFactory factory) : IClassFixture<Co
         var cardId = await CreateCardAsync(laneId);
 
         // Act — try to delete the user directly via DbContext (should throw due to FK Restrict)
-        using var scope = _factory.Services.CreateScope();
+        await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
 
         var userEntity = await db.Users.FindAsync(user.Id);

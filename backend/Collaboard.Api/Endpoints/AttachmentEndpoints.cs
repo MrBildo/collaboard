@@ -24,9 +24,9 @@ internal static class AttachmentEndpoints
             return Results.Ok(attachments);
         }).RequireAuth();
 
-        group.MapPost("/cards/{id:guid}/attachments", async (BoardDbContext db, HttpContext http, Guid id, IFormFile file, BoardEventBroadcaster broadcaster, IOptions<AttachmentSettings> settings) =>
+        group.MapPost("/cards/{id:guid}/attachments", async (BoardDbContext db, HttpContext http, Guid id, IFormFile file, BoardEventBroadcaster broadcaster, IOptions<AttachmentSettings> settings, CancellationToken ct) =>
         {
-            if (!await db.Cards.AnyAsync(x => x.Id == id))
+            if (!await db.Cards.AnyAsync(x => x.Id == id, ct))
             {
                 return Results.NotFound();
             }
@@ -42,7 +42,7 @@ internal static class AttachmentEndpoints
             }
 
             await using var ms = new MemoryStream();
-            await file.CopyToAsync(ms);
+            await file.CopyToAsync(ms, ct);
             var attachment = new CardAttachment
             {
                 Id = Guid.NewGuid(),
@@ -54,7 +54,7 @@ internal static class AttachmentEndpoints
                 AddedAtUtc = DateTimeOffset.UtcNow,
             };
             db.Attachments.Add(attachment);
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(ct);
             await db.PublishForCardAsync(id, broadcaster);
             return Results.Created($"/api/v1/cards/{id}/attachments/{attachment.Id}", new { attachment.Id, attachment.FileName });
         }).DisableAntiforgery().RequireAuth();
@@ -65,9 +65,9 @@ internal static class AttachmentEndpoints
             return attachment is null ? Results.NotFound() : Results.File(attachment.Payload, attachment.ContentType, attachment.FileName);
         }).RequireAuth();
 
-        group.MapDelete("/attachments/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, BoardEventBroadcaster broadcaster) =>
+        group.MapDelete("/attachments/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
         {
-            var attachment = await db.Attachments.FindAsync(id);
+            var attachment = await db.Attachments.FindAsync([id], ct);
             if (attachment is null)
             {
                 return Results.NotFound();
@@ -86,7 +86,7 @@ internal static class AttachmentEndpoints
 
             var cardId = attachment.CardId;
             db.Attachments.Remove(attachment);
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(ct);
             await db.PublishForCardAsync(cardId, broadcaster);
             return Results.NoContent();
         }).RequireAuth();

@@ -16,4 +16,4 @@ builder.AddViteApp("frontend", "../../frontend")
     .WithReference(api)
     .WaitFor(api);
 
-builder.Build().Run();
+await builder.Build().RunAsync();

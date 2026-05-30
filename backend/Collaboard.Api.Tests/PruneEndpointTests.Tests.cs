@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Collaboard.Api;
 using Collaboard.Api.Models;
 using Collaboard.Api.Tests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
@@ -39,7 +38,7 @@ public class PruneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
 
         if (daysOld > 0)
         {
-            using var scope = _factory.Services.CreateScope();
+            await using var scope = _factory.Services.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
             var entity = await db.Cards.FindAsync(cardId);
             entity!.LastUpdatedAtUtc = DateTimeOffset.UtcNow.AddDays(-daysOld);

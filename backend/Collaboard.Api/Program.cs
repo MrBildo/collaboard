@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Reflection;
 using Collaboard.Api;
 using Collaboard.Api.Auth;
@@ -201,7 +202,7 @@ builder.Services
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
+await using (var scope = app.Services.CreateAsyncScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
 
@@ -213,7 +214,7 @@ using (var scope = app.Services.CreateScope())
         var currentDbPath = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(currentConnectionString).DataSource;
         if (File.Exists(currentDbPath))
         {
-            var backupPath = $"{currentDbPath}.bak-{DateTime.UtcNow:yyyyMMddHHmmss}";
+            var backupPath = $"{currentDbPath}.bak-{DateTime.UtcNow.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture)}";
             File.Copy(currentDbPath, backupPath);
             app.Logger.LogInformation("Database backed up to {BackupPath} before applying {Count} pending migration(s)",
                 backupPath, pendingMigrations.Count());
@@ -336,6 +337,4 @@ if (serveSpa)
 app.Lifetime.ApplicationStopping.Register(() =>
     app.Services.GetRequiredService<BoardEventBroadcaster>().CompleteAll());
 
-app.Run();
-
-public partial class Program { }
+await app.RunAsync();

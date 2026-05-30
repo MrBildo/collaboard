@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Collaboard.Api.Auth;
 using Collaboard.Api.Events;
@@ -610,7 +611,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
         var result = await tools.MoveCardAsync(authKey, lane2, cardId: card, index: 999);
 
         // Assert — clamped to end (after all existing cards)
-        result.ShouldContain($"moved to lane at index {existingCount}");
+        result.ShouldContain($"moved to lane at index {existingCount.ToString(CultureInfo.InvariantCulture)}");
     }
 
     [Fact]

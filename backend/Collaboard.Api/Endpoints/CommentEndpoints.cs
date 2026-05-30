@@ -24,9 +24,9 @@ internal static class CommentEndpoints
             return Results.Ok(comments);
         }).RequireAuth();
 
-        group.MapPost("/cards/{id:guid}/comments", async (BoardDbContext db, HttpContext http, Guid id, CreateCommentRequest request, BoardEventBroadcaster broadcaster) =>
+        group.MapPost("/cards/{id:guid}/comments", async (BoardDbContext db, HttpContext http, Guid id, CreateCommentRequest request, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
         {
-            if (!await db.Cards.AnyAsync(x => x.Id == id))
+            if (!await db.Cards.AnyAsync(x => x.Id == id, ct))
             {
                 return Results.NotFound();
             }
@@ -45,14 +45,14 @@ internal static class CommentEndpoints
                 LastUpdatedAtUtc = DateTimeOffset.UtcNow,
             };
             db.Comments.Add(comment);
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(ct);
             await db.PublishForCardAsync(id, broadcaster);
             return Results.Created($"/api/v1/cards/{id}/comments/{comment.Id}", comment);
         }).RequireAuth();
 
-        group.MapDelete("/comments/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, BoardEventBroadcaster broadcaster) =>
+        group.MapDelete("/comments/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
         {
-            var comment = await db.Comments.FindAsync(id);
+            var comment = await db.Comments.FindAsync([id], ct);
             if (comment is null)
             {
                 return Results.NotFound();
@@ -71,14 +71,14 @@ internal static class CommentEndpoints
 
             var cardId = comment.CardId;
             db.Comments.Remove(comment);
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(ct);
             await db.PublishForCardAsync(cardId, broadcaster);
             return Results.NoContent();
         }).RequireAuth();
 
-        group.MapPatch("/comments/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, UpdateCommentRequest request, BoardEventBroadcaster broadcaster) =>
+        group.MapPatch("/comments/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, UpdateCommentRequest request, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
         {
-            var comment = await db.Comments.FindAsync(id);
+            var comment = await db.Comments.FindAsync([id], ct);
             if (comment is null)
             {
                 return Results.NotFound();
@@ -106,7 +106,7 @@ internal static class CommentEndpoints
             }
 
             comment.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(ct);
             await db.PublishForCardAsync(comment.CardId, broadcaster);
             return Results.Ok(comment);
         }).RequireAuth();

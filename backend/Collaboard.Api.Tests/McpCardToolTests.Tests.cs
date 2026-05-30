@@ -65,7 +65,7 @@ public class McpCardToolTests(CollaboardApiFactory factory) : IClassFixture<Coll
         var moveCardId = moveCard.GetProperty("id").GetGuid();
 
         // Act — call MoveCardAsync without specifying index (null)
-        using var scope = _factory.Services.CreateScope();
+        await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
         var authService = scope.ServiceProvider.GetRequiredService<McpAuthService>();
         var broadcaster = scope.ServiceProvider.GetRequiredService<BoardEventBroadcaster>();
@@ -141,7 +141,7 @@ public class McpCardToolTests(CollaboardApiFactory factory) : IClassFixture<Coll
         var moveCardId = moveCard.GetProperty("id").GetGuid();
 
         // Act — call MoveCardAsync with explicit index 0 (beginning)
-        using var scope = _factory.Services.CreateScope();
+        await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
         var authService = scope.ServiceProvider.GetRequiredService<McpAuthService>();
         var broadcaster = scope.ServiceProvider.GetRequiredService<BoardEventBroadcaster>();

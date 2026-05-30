@@ -1,4 +1,3 @@
-using Collaboard.Api.Auth;
 using Collaboard.Api.Configuration;
 using Collaboard.Api.Events;
 

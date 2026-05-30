@@ -232,7 +232,12 @@ public class McpArchiveToolTests(CollaboardApiFactory factory) : IClassFixture<C
     public async Task AgentRole_CanArchive_ButCannotDeleteCards()
     {
         // Arrange
+        // MA0042: scope is owned by the class-level _scopes list and disposed
+        // synchronously in Dispose() (IDisposable fixture), not locally — so the
+        // async-scope suggestion does not apply. Matches the CreateAllTools() pattern.
+#pragma warning disable MA0042
         var scope = _factory.Services.CreateScope();
+#pragma warning restore MA0042
         _scopes.Add(scope);
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
         var broadcaster = scope.ServiceProvider.GetRequiredService<BoardEventBroadcaster>();

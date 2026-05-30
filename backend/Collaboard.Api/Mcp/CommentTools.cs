@@ -3,7 +3,6 @@ using System.Text.Json;
 using Collaboard.Api.Endpoints;
 using Collaboard.Api.Events;
 using Collaboard.Api.Models;
-using Microsoft.EntityFrameworkCore;
 using ModelContextProtocol.Server;
 
 namespace Collaboard.Api.Mcp;

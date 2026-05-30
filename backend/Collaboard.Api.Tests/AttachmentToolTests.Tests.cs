@@ -16,7 +16,7 @@ public class AttachmentToolTests(CollaboardApiFactory factory) : IClassFixture<C
 
     private async Task<(AttachmentTools Tools, Guid CardId, string AuthKey)> CreateToolWithCardAsync()
     {
-        var scope = _factory.Services.CreateScope();
+        var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
         var auth = scope.ServiceProvider.GetRequiredService<McpAuthService>();
         var broadcaster = scope.ServiceProvider.GetRequiredService<BoardEventBroadcaster>();

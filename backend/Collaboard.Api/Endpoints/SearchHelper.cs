@@ -38,8 +38,8 @@ internal static class SearchHelper
     }
 
     private static string EscapeLike(string term) =>
-        term.Replace("\\", "\\\\")
-            .Replace("%", "\\%")
-            .Replace("_", "\\_")
-            .Replace("[", "\\[");
+        term.Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("%", "\\%", StringComparison.Ordinal)
+            .Replace("_", "\\_", StringComparison.Ordinal)
+            .Replace("[", "\\[", StringComparison.Ordinal);
 }

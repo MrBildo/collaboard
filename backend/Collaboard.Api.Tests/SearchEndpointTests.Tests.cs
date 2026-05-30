@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -79,7 +80,7 @@ public class SearchEndpointTests(CollaboardApiFactory factory) : IClassFixture<C
         var cardNumber = created.GetProperty("number").GetInt64();
 
         // Act
-        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards?search=%23{cardNumber}");
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards?search=%23{cardNumber.ToString(CultureInfo.InvariantCulture)}");
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -205,7 +206,7 @@ public class SearchEndpointTests(CollaboardApiFactory factory) : IClassFixture<C
         var cardNumber = created.GetProperty("number").GetInt64();
 
         // Act
-        var response = await _client.GetAsync($"/api/v1/search/cards?q=%23{cardNumber}");
+        var response = await _client.GetAsync($"/api/v1/search/cards?q=%23{cardNumber.ToString(CultureInfo.InvariantCulture)}");
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);

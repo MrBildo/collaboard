@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -274,7 +275,7 @@ public class ArchiveLaneTests(CollaboardApiFactory factory) : IClassFixture<Coll
         {
             var cardResponse = await _client.PostAsJsonAsync(
                 $"/api/v1/boards/{boardId}/cards",
-                new { name = $"Card {i}", laneId });
+                new { name = $"Card {i.ToString(CultureInfo.InvariantCulture)}", laneId });
             cardResponse.EnsureSuccessStatusCode();
 
             // Move card to archive lane via reorder
@@ -327,7 +328,7 @@ public class ArchiveLaneTests(CollaboardApiFactory factory) : IClassFixture<Coll
 
     private async Task<Guid> GetArchiveLaneIdAsync(Guid boardId)
     {
-        using var scope = _factory.Services.CreateScope();
+        await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
         var archiveLane = await db.Lanes.FirstAsync(l => l.BoardId == boardId && l.IsArchiveLane);
         return archiveLane.Id;
@@ -336,7 +337,7 @@ public class ArchiveLaneTests(CollaboardApiFactory factory) : IClassFixture<Coll
     private async Task MoveCardToArchiveLaneAsync(Guid cardId, Guid archiveLaneId)
     {
         // Move directly via DB since the reorder endpoint may get guards later
-        using var scope = _factory.Services.CreateScope();
+        await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
         var card = await db.Cards.FindAsync(cardId);
         card!.LaneId = archiveLaneId;

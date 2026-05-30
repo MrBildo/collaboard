@@ -44,9 +44,9 @@ internal static class PruneEndpoints
             return Results.Ok(new { matchCount = cards.Count, cards = cardSummaries });
         }).RequireAdminOrAgentAdmin();
 
-        group.MapPost("/boards/{boardId:guid}/prune", async (HttpContext http, BoardDbContext db, Guid boardId, PruneRequest request, BoardEventBroadcaster broadcaster) =>
+        group.MapPost("/boards/{boardId:guid}/prune", async (HttpContext http, BoardDbContext db, Guid boardId, PruneRequest request, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
         {
-            if (!await db.Boards.AnyAsync(x => x.Id == boardId))
+            if (!await db.Boards.AnyAsync(x => x.Id == boardId, ct))
             {
                 return Results.NotFound();
             }
@@ -71,11 +71,11 @@ internal static class PruneEndpoints
             }
 
             var query = PruneFilter.BuildFilteredQuery(db, boardId, request);
-            var cards = await query.ToListAsync();
+            var cards = await query.ToListAsync(ct);
 
             if (action == "archive")
             {
-                var archiveLane = await db.Lanes.FirstOrDefaultAsync(l => l.BoardId == boardId && l.IsArchiveLane);
+                var archiveLane = await db.Lanes.FirstOrDefaultAsync(l => l.BoardId == boardId && l.IsArchiveLane, ct);
                 if (archiveLane is null)
                 {
                     return Results.BadRequest("Board has no archive lane.");
@@ -83,10 +83,10 @@ internal static class PruneEndpoints
 
                 foreach (var card in cards)
                 {
-                    await CardReorderHelper.MoveCardToLaneAsync(db, card, archiveLane.Id, 0);
+                    await CardReorderHelper.MoveCardToLaneAsync(db, card, archiveLane.Id, 0, ct);
                 }
 
-                await db.SaveChangesAsync();
+                await db.SaveChangesAsync(ct);
                 broadcaster.PublishBoardUpdated(boardId);
 
                 return Results.Ok(new { archivedCount = cards.Count });
@@ -94,7 +94,7 @@ internal static class PruneEndpoints
             else
             {
                 db.Cards.RemoveRange(cards);
-                await db.SaveChangesAsync();
+                await db.SaveChangesAsync(ct);
 
                 broadcaster.PublishBoardUpdated(boardId);
 

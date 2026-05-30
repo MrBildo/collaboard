@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 using Collaboard.Api.Endpoints;
 using Collaboard.Api.Events;
 using Microsoft.EntityFrameworkCore;
@@ -55,7 +56,7 @@ public sealed class ArchiveTools(BoardDbContext db, McpAuthService auth, BoardEv
         await db.SaveChangesAsync(ct);
         broadcaster.PublishBoardUpdated(card.BoardId);
 
-        return $"Card #{card.Number} archived.";
+        return $"Card #{card.Number.ToString(CultureInfo.InvariantCulture)} archived.";
     }
 
     [McpServerTool(Name = "restore_card", Destructive = false)]
@@ -115,6 +116,6 @@ public sealed class ArchiveTools(BoardDbContext db, McpAuthService auth, BoardEv
         await db.SaveChangesAsync(ct);
         broadcaster.PublishBoardUpdated(card.BoardId);
 
-        return $"Card #{card.Number} restored to lane '{targetLane.Name}'.";
+        return $"Card #{card.Number.ToString(CultureInfo.InvariantCulture)} restored to lane '{targetLane.Name}'.";
     }
 }

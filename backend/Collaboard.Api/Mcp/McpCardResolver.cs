@@ -1,3 +1,4 @@
+using System.Globalization;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -101,7 +102,7 @@ internal static class McpCardResolver
         var missing = requestedNumbers.Where(n => !foundByNumber.ContainsKey(n)).ToList();
         if (missing.Count > 0)
         {
-            return (null, $"Error: Cards not found on this board: {string.Join(", ", missing.Select(n => $"#{n}"))}");
+            return (null, $"Error: Cards not found on this board: {string.Join(", ", missing.Select(n => $"#{n.ToString(CultureInfo.InvariantCulture)}"))}");
         }
 
         var ordered = requestedNumbers.Select(n => foundByNumber[n]).ToList();
@@ -139,7 +140,7 @@ internal static class McpCardResolver
             c => c.BoardId == resolvedBoardId && c.Number == cardNumber, ct);
         return card is not null
             ? (card.Id, null)
-            : (null, $"Error: Card #{cardNumber} not found on this board.");
+            : (null, $"Error: Card #{cardNumber!.Value.ToString(CultureInfo.InvariantCulture)} not found on this board.");
     }
 
     private static async Task<(Guid? BoardId, string? Error)> ResolveBoardIdAsync(
