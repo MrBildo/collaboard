@@ -1,7 +1,6 @@
 using Collaboard.Api.Auth;
 using Collaboard.Api.Events;
 using Collaboard.Api.Models;
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace Collaboard.Api.Endpoints;
@@ -65,95 +64,17 @@ internal static class CardEndpoints
                 return Results.NotFound();
             }
 
-            if (string.IsNullOrWhiteSpace(request.Name))
+            var (card, error) = await CardCreateHelper.BuildCardAsync(db, boardId, request, http.CurrentUser());
+            if (error is not null)
             {
-                return Results.BadRequest("Name is required.");
+                return error;
             }
 
-            var requestDescription = request.DescriptionMarkdown ?? "";
-
-            // Verify the lane belongs to this board and is not the archive lane
-            var targetLane = await db.Lanes.FirstOrDefaultAsync(x => x.Id == request.LaneId && x.BoardId == boardId);
-            if (targetLane is null)
-            {
-                return Results.BadRequest("Lane does not belong to this board.");
-            }
-
-            if (targetLane.IsArchiveLane)
-            {
-                return Results.BadRequest("Cards cannot be created in the archive lane.");
-            }
-
-            Guid sizeId;
-            if (request.SizeId is not null)
-            {
-                sizeId = request.SizeId.Value;
-                if (!await db.CardSizes.AnyAsync(s => s.Id == sizeId && s.BoardId == boardId))
-                {
-                    return Results.BadRequest("Size does not belong to this board.");
-                }
-            }
-            else
-            {
-                var defaultSize = await db.CardSizes
-                    .Where(s => s.BoardId == boardId)
-                    .OrderBy(s => s.Ordinal)
-                    .FirstOrDefaultAsync();
-                if (defaultSize is null)
-                {
-                    return Results.BadRequest("Board has no sizes configured.");
-                }
-
-                sizeId = defaultSize.Id;
-            }
-
-            int requestPosition;
-            if (request.Position.HasValue)
-            {
-                requestPosition = request.Position.Value;
-            }
-            else
-            {
-                var maxPosition = await db.Cards.Where(c => c.LaneId == request.LaneId).MaxAsync(c => (int?)c.Position) ?? -10;
-                requestPosition = maxPosition + 10;
-            }
-
-            var now = DateTimeOffset.UtcNow;
-            var currentUser = http.CurrentUser();
-            var card = new CardItem
-            {
-                Id = Guid.NewGuid(),
-                BoardId = boardId,
-                Name = request.Name,
-                DescriptionMarkdown = requestDescription,
-                SizeId = sizeId,
-                LaneId = request.LaneId,
-                Position = requestPosition,
-                CreatedAtUtc = now,
-                LastUpdatedAtUtc = now,
-                CreatedByUserId = currentUser.Id,
-                LastUpdatedByUserId = currentUser.Id,
-            };
-            // Validate and attach labels before saving
-            if (request.LabelIds is not null && request.LabelIds.Length > 0)
-            {
-                var validCount = await db.Labels.CountAsync(l => request.LabelIds.Contains(l.Id) && l.BoardId == boardId);
-                if (validCount != request.LabelIds.Length)
-                {
-                    return Results.BadRequest("One or more labels do not belong to this board.");
-                }
-
-                foreach (var labelId in request.LabelIds)
-                {
-                    db.CardLabels.Add(new CardLabel { CardId = card.Id, LabelId = labelId });
-                }
-            }
-
-            await CardNumberHelper.InsertCardWithAutoNumberAsync(db, card, boardId);
+            await CardNumberHelper.InsertCardWithAutoNumberAsync(db, card!, boardId);
             broadcaster.PublishBoardUpdated(boardId);
 
-            var summaries = await CardSummaryBuilder.BuildAsync(db, [card]);
-            return Results.Created($"/api/v1/cards/{card.Id}", summaries[0]);
+            var summaries = await CardSummaryBuilder.BuildAsync(db, [card!]);
+            return Results.Created($"/api/v1/cards/{card!.Id}", summaries[0]);
         }).RequireAuth();
 
         // By-ID operations (flat)
@@ -450,91 +371,14 @@ internal static class CardEndpoints
                 return Results.NotFound();
             }
 
-            if (string.IsNullOrWhiteSpace(request.Name))
+            var (card, error) = await CardCreateHelper.BuildCardAsync(db, boardId, request, http.CurrentUser());
+            if (error is not null)
             {
-                return Results.BadRequest("Name is required.");
+                return error;
             }
 
-            var requestDescription = request.DescriptionMarkdown ?? "";
-
-            var targetLane = await db.Lanes.FirstOrDefaultAsync(x => x.Id == request.LaneId && x.BoardId == boardId);
-            if (targetLane is null)
-            {
-                return Results.BadRequest("Lane does not belong to this board.");
-            }
-
-            if (targetLane.IsArchiveLane)
-            {
-                return Results.BadRequest("Cards cannot be created in the archive lane.");
-            }
-
-            Guid sizeId;
-            if (request.SizeId is not null)
-            {
-                sizeId = request.SizeId.Value;
-                if (!await db.CardSizes.AnyAsync(s => s.Id == sizeId && s.BoardId == boardId))
-                {
-                    return Results.BadRequest("Size does not belong to this board.");
-                }
-            }
-            else
-            {
-                var defaultSize = await db.CardSizes
-                    .Where(s => s.BoardId == boardId)
-                    .OrderBy(s => s.Ordinal)
-                    .FirstOrDefaultAsync();
-                if (defaultSize is null)
-                {
-                    return Results.BadRequest("Board has no sizes configured.");
-                }
-
-                sizeId = defaultSize.Id;
-            }
-
-            int requestPosition;
-            if (request.Position.HasValue)
-            {
-                requestPosition = request.Position.Value;
-            }
-            else
-            {
-                var maxPosition = await db.Cards.Where(c => c.LaneId == request.LaneId).MaxAsync(c => (int?)c.Position) ?? -10;
-                requestPosition = maxPosition + 10;
-            }
-
-            var now = DateTimeOffset.UtcNow;
-            var currentUser = http.CurrentUser();
-            var card = new CardItem
-            {
-                Id = Guid.NewGuid(),
-                BoardId = boardId,
-                Name = request.Name,
-                DescriptionMarkdown = requestDescription,
-                SizeId = sizeId,
-                LaneId = request.LaneId,
-                Position = requestPosition,
-                Number = 0,
-                IsTemp = true,
-                CreatedAtUtc = now,
-                LastUpdatedAtUtc = now,
-                CreatedByUserId = currentUser.Id,
-                LastUpdatedByUserId = currentUser.Id,
-            };
-
-            if (request.LabelIds is not null && request.LabelIds.Length > 0)
-            {
-                var validCount = await db.Labels.CountAsync(l => request.LabelIds.Contains(l.Id) && l.BoardId == boardId);
-                if (validCount != request.LabelIds.Length)
-                {
-                    return Results.BadRequest("One or more labels do not belong to this board.");
-                }
-
-                foreach (var labelId in request.LabelIds)
-                {
-                    db.CardLabels.Add(new CardLabel { CardId = card.Id, LabelId = labelId });
-                }
-            }
-
+            card!.Number = 0;
+            card.IsTemp = true;
             db.Cards.Add(card);
             await db.SaveChangesAsync();
 
@@ -559,31 +403,19 @@ internal static class CardEndpoints
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
 
-            const int maxRetries = 3;
-            for (var attempt = 0; attempt < maxRetries; attempt++)
+            card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
+            card.LastUpdatedByUserId = http.CurrentUser().Id;
+            try
             {
-                card.Number = (await db.Cards
-                    .Where(c => c.BoardId == card.BoardId && c.Number > 0)
-                    .MaxAsync(c => (long?)c.Number, ct) ?? 0) + 1;
-                card.IsTemp = false;
-                card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
-                card.LastUpdatedByUserId = http.CurrentUser().Id;
-                try
-                {
-                    await db.SaveChangesAsync(ct);
-                    broadcaster.PublishBoardUpdated(card.BoardId);
-                    return Results.Ok(new { card.Id, card.Number });
-                }
-                catch (DbUpdateException ex)
-                    when (attempt < maxRetries - 1
-                          && ex.InnerException is SqliteException { SqliteErrorCode: 19 })
-                {
-                    await db.Entry(card).ReloadAsync(ct);
-                    card.IsTemp = true;
-                }
+                await CardNumberHelper.FinalizeCardNumberAsync(db, card, card.BoardId, ct);
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.StatusCode(500);
             }
 
-            return Results.StatusCode(500);
+            broadcaster.PublishBoardUpdated(card.BoardId);
+            return Results.Ok(new { card.Id, card.Number });
         }).RequireAuth();
 
         group.MapPost("/cards/{id:guid}/cancel", async (BoardDbContext db, HttpContext http, Guid id) =>
@@ -611,5 +443,105 @@ internal static class CardEndpoints
         }).RequireAuth();
 
         return group;
+    }
+}
+
+// Shared card-construction logic for the standard create and temp-create paths.
+// Both paths take the same CreateCardRequest and perform identical validation,
+// size resolution, position calculation, and label staging. They differ only in
+// how the card is persisted (number allocation via CardNumberHelper vs. plain Add
+// with IsTemp = true). BuildCardAsync encapsulates the shared portion; the caller
+// sets Number / IsTemp and saves.
+file static class CardCreateHelper
+{
+    public static async Task<(CardItem? Card, IResult? Error)> BuildCardAsync(
+        BoardDbContext db,
+        Guid boardId,
+        CreateCardRequest request,
+        BoardUser currentUser)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            return (null, Results.BadRequest("Name is required."));
+        }
+
+        var targetLane = await db.Lanes.FirstOrDefaultAsync(x => x.Id == request.LaneId && x.BoardId == boardId);
+        if (targetLane is null)
+        {
+            return (null, Results.BadRequest("Lane does not belong to this board."));
+        }
+
+        if (targetLane.IsArchiveLane)
+        {
+            return (null, Results.BadRequest("Cards cannot be created in the archive lane."));
+        }
+
+        Guid sizeId;
+        if (request.SizeId is not null)
+        {
+            sizeId = request.SizeId.Value;
+            if (!await db.CardSizes.AnyAsync(s => s.Id == sizeId && s.BoardId == boardId))
+            {
+                return (null, Results.BadRequest("Size does not belong to this board."));
+            }
+        }
+        else
+        {
+            var defaultSize = await db.CardSizes
+                .Where(s => s.BoardId == boardId)
+                .OrderBy(s => s.Ordinal)
+                .FirstOrDefaultAsync();
+            if (defaultSize is null)
+            {
+                return (null, Results.BadRequest("Board has no sizes configured."));
+            }
+
+            sizeId = defaultSize.Id;
+        }
+
+        int position;
+        if (request.Position.HasValue)
+        {
+            position = request.Position.Value;
+        }
+        else
+        {
+            var maxPosition = await db.Cards
+                .Where(c => c.LaneId == request.LaneId)
+                .MaxAsync(c => (int?)c.Position) ?? -10;
+            position = maxPosition + 10;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var card = new CardItem
+        {
+            Id = Guid.NewGuid(),
+            BoardId = boardId,
+            Name = request.Name,
+            DescriptionMarkdown = request.DescriptionMarkdown ?? "",
+            SizeId = sizeId,
+            LaneId = request.LaneId,
+            Position = position,
+            CreatedAtUtc = now,
+            LastUpdatedAtUtc = now,
+            CreatedByUserId = currentUser.Id,
+            LastUpdatedByUserId = currentUser.Id,
+        };
+
+        if (request.LabelIds is not null && request.LabelIds.Length > 0)
+        {
+            var validCount = await db.Labels.CountAsync(l => request.LabelIds.Contains(l.Id) && l.BoardId == boardId);
+            if (validCount != request.LabelIds.Length)
+            {
+                return (null, Results.BadRequest("One or more labels do not belong to this board."));
+            }
+
+            foreach (var labelId in request.LabelIds)
+            {
+                db.CardLabels.Add(new CardLabel { CardId = card.Id, LabelId = labelId });
+            }
+        }
+
+        return (card, null);
     }
 }
