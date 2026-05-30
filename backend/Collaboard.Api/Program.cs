@@ -169,10 +169,13 @@ builder.Services.AddDbContext<BoardDbContext>(options =>
     options.UseSqlite(connectionString));
 
 builder.Services.Configure<AttachmentSettings>(builder.Configuration.GetSection("Attachments"));
+builder.Services.Configure<TempCardSweepSettings>(
+    builder.Configuration.GetSection(TempCardSweepSettings.SectionName));
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<BoardEventBroadcaster>();
 builder.Services.AddScoped<IUserResolver, UserResolver>();
 builder.Services.AddScoped<McpAuthService>();
+builder.Services.AddHostedService<TempCardSweepService>();
 
 builder.Services.Configure<FormOptions>(options =>
     options.MultipartBodyLengthLimit = 50 * 1024 * 1024);
