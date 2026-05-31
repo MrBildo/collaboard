@@ -101,7 +101,8 @@ public class CardAttachment
 
 public record CardLabelSummary(Guid Id, string Name, string? Color);
 
-public record CardSummary(
+public record CardSummary
+(
     Guid Id,
     long Number,
     string Name,
@@ -117,7 +118,8 @@ public record CardSummary(
     List<CardLabelSummary> Labels,
     int CommentCount,
     int AttachmentCount,
-    bool IsArchived);
+    bool IsArchived
+);
 
 public record SearchResult(Guid BoardId, string BoardName, string BoardSlug, List<CardSummary> Cards);
 

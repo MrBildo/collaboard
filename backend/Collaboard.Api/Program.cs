@@ -53,10 +53,8 @@ builder.AddServiceDefaults();
 
 builder.Services.AddOpenApi();
 
-builder.Services.Configure<HostingSettings>(
-    builder.Configuration.GetSection(HostingSettings.SectionName));
-builder.Services.Configure<CorsSettings>(
-    builder.Configuration.GetSection(CorsSettings.SectionName));
+builder.Services.Configure<HostingSettings>(builder.Configuration.GetSection(HostingSettings.SectionName));
+builder.Services.Configure<CorsSettings>(builder.Configuration.GetSection(CorsSettings.SectionName));
 
 var corsSettings = builder.Configuration
     .GetSection(CorsSettings.SectionName)
@@ -166,22 +164,18 @@ if (!isSpecialDataSource)
     }
 }
 
-builder.Services.AddDbContext<BoardDbContext>(options =>
-    options.UseSqlite(connectionString));
+builder.Services.AddDbContext<BoardDbContext>(options => options.UseSqlite(connectionString));
 
 builder.Services.Configure<AttachmentSettings>(builder.Configuration.GetSection("Attachments"));
-builder.Services.Configure<TempCardSweepSettings>(
-    builder.Configuration.GetSection(TempCardSweepSettings.SectionName));
+builder.Services.Configure<TempCardSweepSettings>(builder.Configuration.GetSection(TempCardSweepSettings.SectionName));
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<BoardEventBroadcaster>();
 builder.Services.AddScoped<IUserResolver, UserResolver>();
 builder.Services.AddScoped<McpAuthService>();
 builder.Services.AddHostedService<TempCardSweepService>();
 
-builder.Services.Configure<FormOptions>(options =>
-    options.MultipartBodyLengthLimit = 50 * 1024 * 1024);
-builder.WebHost.ConfigureKestrel(options =>
-    options.Limits.MaxRequestBodySize = 50 * 1024 * 1024);
+builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 50 * 1024 * 1024);
+builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 50 * 1024 * 1024);
 
 builder.Services
     .AddMcpServer()
@@ -216,8 +210,12 @@ await using (var scope = app.Services.CreateAsyncScope())
         {
             var backupPath = $"{currentDbPath}.bak-{DateTime.UtcNow.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture)}";
             File.Copy(currentDbPath, backupPath);
-            app.Logger.LogInformation("Database backed up to {BackupPath} before applying {Count} pending migration(s)",
-                backupPath, pendingMigrations.Count());
+            app.Logger.LogInformation
+            (
+                "Database backed up to {BackupPath} before applying {Count} pending migration(s)",
+                backupPath,
+                pendingMigrations.Count()
+            );
         }
     }
 
@@ -248,14 +246,16 @@ await using (var scope = app.Services.CreateAsyncScope())
         };
         db.Boards.Add(defaultBoard);
 
-        db.Lanes.AddRange(
+        db.Lanes.AddRange
+        (
             new Lane { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "Backlog", Position = 0 },
             new Lane { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "In Progress", Position = 1 },
             new Lane { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "Done", Position = 2 },
             new Lane { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "Archive", Position = int.MaxValue, IsArchiveLane = true }
         );
 
-        db.Set<CardSize>().AddRange(
+        db.Set<CardSize>().AddRange
+        (
             new CardSize { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "S", Ordinal = 0 },
             new CardSize { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "M", Ordinal = 1 },
             new CardSize { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "L", Ordinal = 2 },

@@ -10,8 +10,8 @@ internal static class EventExtensions
     {
         var boardId = await db.Cards
             .Where(c => c.Id == cardId)
-            .Select(c => c.BoardId)
-            .FirstOrDefaultAsync();
+                .Select(c => c.BoardId)
+                    .FirstOrDefaultAsync();
 
         if (boardId != Guid.Empty)
         {

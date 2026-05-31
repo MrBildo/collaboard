@@ -10,6 +10,9 @@ namespace Collaboard.Api;
 // This periodic sweep deletes temp cards older than the configured TTL. Children
 // (attachments, comments, label assignments) are DB-resident and cascade-delete at the
 // database level (BoardDbContext FK config), so no manual child cleanup is needed.
+//
+// sealed: a DI-registered leaf hosted service — there is no subtype, and subclassing a
+// BackgroundService's ExecuteAsync loop is an inheritance trap we have no reason to allow.
 internal sealed class TempCardSweepService
 (
     IServiceProvider services,
