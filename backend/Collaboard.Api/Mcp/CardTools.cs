@@ -14,7 +14,8 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
 {
     [McpServerTool(Name = "create_card", Destructive = false)]
     [Description("Create a new card on the kanban board.")]
-    public async Task<string> CreateCardAsync(
+    public async Task<string> CreateCardAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("The title/name of the card")] string name,
         [Description("The ID (guid) of the lane to place the card in")] Guid laneId,
@@ -22,7 +23,8 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         [Description("Optional size ID (guid). If omitted, uses the board's lowest-ordinal size.")] Guid? sizeId = null,
         [Description("Optional size name (e.g. 'M', 'XL'). Used if sizeId is not provided.")] string? sizeName = null,
         [Description("Optional label IDs (guids) to assign to the card at creation. Accepts comma-separated GUIDs ('guid1,guid2') or a JSON array string ('[\"guid1\",\"guid2\"]'). All labels must belong to the same board as the lane.")] string? labelIds = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (user, error) = await auth.RequireUserAsync(authKey, ct);
         if (error is not null)
@@ -88,7 +90,8 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
 
     [McpServerTool(Name = "move_card", Destructive = false)]
     [Description("Move a card to a different lane and/or position (index) within that lane. If index is omitted, the card is placed at the top of the target lane (index 0).")]
-    public async Task<string> MoveCardAsync(
+    public async Task<string> MoveCardAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the target lane")] Guid laneId,
         [Description("The ID (guid) of the card to move (provide this or cardNumber)")] Guid? cardId = null,
@@ -96,7 +99,8 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         [Description("Optional 0-based index position in the target lane. Defaults to top of lane (index 0).")] int? index = null,
         [Description("Board ID (required when using cardNumber)")] Guid? boardId = null,
         [Description("Board slug (alternative to boardId when using cardNumber)")] string? boardSlug = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (user, error) = await auth.RequireUserAsync(authKey, ct);
         if (error is not null)
@@ -146,7 +150,8 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
 
     [McpServerTool(Name = "update_card", Destructive = false)]
     [Description("Update a card's name, description, size, lane/position, or labels. All fields are optional — only provided fields are changed. For labelIds, pass either a comma-separated list of label GUIDs ('guid1,guid2') or a JSON array string ('[\"guid1\",\"guid2\"]') to replace all current labels (empty string or empty array clears all). Returns the enriched card summary (with labels, sizeName, commentCount, attachmentCount, isArchived) — no follow-up get_card needed.")]
-    public async Task<string> UpdateCardAsync(
+    public async Task<string> UpdateCardAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the card to update (provide this or cardNumber)")] Guid? cardId = null,
         [Description("The card number (provide this or cardId). Requires boardId or boardSlug.")] long? cardNumber = null,
@@ -159,7 +164,8 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         [Description("Label GUIDs to replace current labels (optional). Accepts comma-separated ('guid1,guid2') or a JSON array string ('[\"guid1\",\"guid2\"]'). Empty string or empty array clears all.")] string? labelIds = null,
         [Description("Board ID (required when using cardNumber)")] Guid? boardId = null,
         [Description("Board slug (alternative to boardId when using cardNumber)")] string? boardSlug = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (user, error) = await auth.RequireUserAsync(authKey, ct);
         if (error is not null)
@@ -242,9 +248,9 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             db.CardLabels.RemoveRange(toRemove);
 
             // Add missing labels
-            foreach (var lid in desiredLabelIds.Where(id => !currentLabelIds.Contains(id)))
+            foreach (var labelId in desiredLabelIds.Where(id => !currentLabelIds.Contains(id)))
             {
-                db.CardLabels.Add(new CardLabel { CardId = card.Id, LabelId = lid });
+                db.CardLabels.Add(new CardLabel { CardId = card.Id, LabelId = labelId });
             }
         }
 
@@ -259,7 +265,8 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
 
     [McpServerTool(Name = "get_cards", ReadOnly = true, Destructive = false)]
     [Description("List cards for a board with optional filters. Use the 'since' filter to check for recent activity (includes cards with new/edited comments and new attachments). Returns a paged envelope: { items, totalCount, offset, limit }.")]
-    public async Task<string> GetCardsAsync(
+    public async Task<string> GetCardsAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("The board ID to list cards from")] Guid boardId,
         [Description("Only return cards with activity (created, updated, commented, attachment added) after this date. ISO 8601 format.")] DateTimeOffset? since = null,
@@ -269,7 +276,8 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         [Description("Include archived cards in results (default false)")] bool? includeArchived = null,
         [Description("Number of cards to skip (default 0). Use with limit for pagination.")] int? offset = null,
         [Description("Maximum number of cards to return (default 200, max 500). Use to avoid exceeding token limits on large boards.")] int? limit = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (_, error) = await auth.RequireUserAsync(authKey, ct);
         if (error is not null)
@@ -288,7 +296,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         {
             var archiveLaneIds = db.Lanes
                 .Where(l => l.BoardId == boardId && l.IsArchiveLane)
-                .Select(l => l.Id);
+                    .Select(l => l.Id);
             query = query.Where(c => !archiveLaneIds.Contains(c.LaneId));
         }
 
@@ -321,13 +329,15 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
 
     [McpServerTool(Name = "get_card", ReadOnly = true, Destructive = false)]
     [Description("Get a single card by its ID or card number, including its comments, labels, and attachments (metadata only). To download attachment content, GET /api/v1/attachments/{id} with X-User-Key header.")]
-    public async Task<string> GetCardAsync(
+    public async Task<string> GetCardAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the card (provide this or cardNumber)")] Guid? cardId = null,
         [Description("The card number (provide this or cardId). Requires boardId or boardSlug.")] long? cardNumber = null,
         [Description("Board ID (required when using cardNumber)")] Guid? boardId = null,
         [Description("Board slug (alternative to boardId when using cardNumber)")] string? boardSlug = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (_, error) = await auth.RequireUserAsync(authKey, ct);
         if (error is not null)

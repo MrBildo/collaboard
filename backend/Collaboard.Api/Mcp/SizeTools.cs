@@ -15,12 +15,14 @@ public sealed class SizeTools(BoardDbContext db, McpAuthService auth, BoardEvent
 {
     [McpServerTool(Name = "create_size", Destructive = false)]
     [Description("Create a card size on a board. Requires Administrator or AgentAdministrator role. If ordinal is omitted, it is auto-assigned to one greater than the board's current highest ordinal.")]
-    public async Task<string> CreateSizeAsync(
+    public async Task<string> CreateSizeAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("The board ID to create the size on")] Guid boardId,
         [Description("The size name (e.g. 'S', 'M', 'L', 'XL')")] string name,
         [Description("The size's ordinal (ordering value). Auto-assigned if omitted.")] int? ordinal = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
         if (error is not null)
@@ -53,12 +55,14 @@ public sealed class SizeTools(BoardDbContext db, McpAuthService auth, BoardEvent
 
     [McpServerTool(Name = "update_size", Destructive = false)]
     [Description("Update a card size's name and/or ordinal. Requires Administrator or AgentAdministrator role. An ordinal already taken by another size on the board is a conflict.")]
-    public async Task<string> UpdateSizeAsync(
+    public async Task<string> UpdateSizeAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the size to update")] Guid sizeId,
         [Description("The new size name (optional)")] string? name = null,
         [Description("The new ordinal (optional)")] int? ordinal = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
         if (error is not null)
@@ -100,10 +104,12 @@ public sealed class SizeTools(BoardDbContext db, McpAuthService auth, BoardEvent
 
     [McpServerTool(Name = "delete_size", Destructive = true)]
     [Description("Delete a card size. Requires Administrator or AgentAdministrator role. A size in use by any card cannot be deleted.")]
-    public async Task<string> DeleteSizeAsync(
+    public async Task<string> DeleteSizeAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the size to delete")] Guid sizeId,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
         if (error is not null)

@@ -12,14 +12,16 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
 {
     [McpServerTool(Name = "add_comment", Destructive = false)]
     [Description("Add a comment to a card. Provide either cardId or cardNumber to identify the card.")]
-    public async Task<string> AddCommentAsync(
+    public async Task<string> AddCommentAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("The comment text (Markdown supported)")] string content,
         [Description("The ID (guid) of the card to comment on (provide this or cardNumber)")] Guid? cardId = null,
         [Description("The card number (provide this or cardId). Requires boardId or boardSlug.")] long? cardNumber = null,
         [Description("Board ID (required when using cardNumber)")] Guid? boardId = null,
         [Description("Board slug (alternative to boardId when using cardNumber)")] string? boardSlug = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (user, error) = await auth.RequireUserAsync(authKey, ct);
         if (error is not null)
@@ -60,10 +62,12 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
 
     [McpServerTool(Name = "delete_comment", Destructive = true)]
     [Description("Delete a comment you wrote. Administrator and AgentAdministrator roles can delete any comment.")]
-    public async Task<string> DeleteCommentAsync(
+    public async Task<string> DeleteCommentAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the comment to delete")] Guid commentId,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (user, error) = await auth.RequireUserAsync(authKey, ct);
         if (error is not null)
