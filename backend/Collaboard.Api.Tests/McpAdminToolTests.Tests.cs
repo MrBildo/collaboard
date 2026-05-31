@@ -59,11 +59,13 @@ public class McpAdminToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         }
 
         using var setupClient = _factory.CreateClient();
-        var user = await TestAuthHelper.CreateUserAsync(
+        var user = await TestAuthHelper.CreateUserAsync
+        (
             setupClient,
             _factory,
             $"admintool-{role}-{Guid.NewGuid():N}",
-            role);
+            role
+        );
         return user.AuthKey;
     }
 
@@ -190,8 +192,8 @@ public class McpAdminToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         var (db, lane, _, _, _) = CreateTools();
         var archiveLaneId = await db.Lanes
             .Where(l => l.BoardId == _factory.DefaultBoardId && l.IsArchiveLane)
-            .Select(l => l.Id)
-            .FirstAsync();
+                .Select(l => l.Id)
+                    .FirstAsync();
 
         var result = await lane.UpdateLaneAsync(_factory.AdminAuthKey, archiveLaneId, name: "Hacked");
 
@@ -257,8 +259,8 @@ public class McpAdminToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         var (db, lane, _, _, _) = CreateTools();
         var archiveLaneId = await db.Lanes
             .Where(l => l.BoardId == _factory.DefaultBoardId && l.IsArchiveLane)
-            .Select(l => l.Id)
-            .FirstAsync();
+                .Select(l => l.Id)
+                    .FirstAsync();
 
         var result = await lane.DeleteLaneAsync(_factory.AdminAuthKey, archiveLaneId);
 

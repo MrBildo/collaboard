@@ -28,8 +28,11 @@ public class TempCardEndpointTests(CollaboardApiFactory factory) : IClassFixture
             position = Random.Shared.Next(10000, 99999),
         };
 
-        var response = await _client.PostAsJsonAsync(
-            $"/api/v1/boards/{_factory.DefaultBoardId}/cards/temp", payload);
+        var response = await _client.PostAsJsonAsync
+        (
+            $"/api/v1/boards/{_factory.DefaultBoardId}/cards/temp",
+            payload
+        );
         response.EnsureSuccessStatusCode();
         var json = await response.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
         return json.GetProperty("id").GetGuid();
@@ -48,8 +51,11 @@ public class TempCardEndpointTests(CollaboardApiFactory factory) : IClassFixture
             position = Random.Shared.Next(10000, 99999),
         };
 
-        var response = await _client.PostAsJsonAsync(
-            $"/api/v1/boards/{_factory.DefaultBoardId}/cards", payload);
+        var response = await _client.PostAsJsonAsync
+        (
+            $"/api/v1/boards/{_factory.DefaultBoardId}/cards",
+            payload
+        );
         response.EnsureSuccessStatusCode();
         var json = await response.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
         return json.GetProperty("id").GetGuid();
@@ -70,8 +76,11 @@ public class TempCardEndpointTests(CollaboardApiFactory factory) : IClassFixture
         };
 
         // Act
-        var response = await _client.PostAsJsonAsync(
-            $"/api/v1/boards/{_factory.DefaultBoardId}/cards/temp", payload);
+        var response = await _client.PostAsJsonAsync
+        (
+            $"/api/v1/boards/{_factory.DefaultBoardId}/cards/temp",
+            payload
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
@@ -88,8 +97,7 @@ public class TempCardEndpointTests(CollaboardApiFactory factory) : IClassFixture
         TestAuthHelper.SetAdminAuth(_client, _factory);
 
         // Act
-        var response = await _client.GetAsync(
-            $"/api/v1/boards/{_factory.DefaultBoardId}/cards");
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards");
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -108,8 +116,7 @@ public class TempCardEndpointTests(CollaboardApiFactory factory) : IClassFixture
         TestAuthHelper.SetAdminAuth(_client, _factory);
 
         // Act
-        var response = await _client.GetAsync(
-            $"/api/v1/boards/{_factory.DefaultBoardId}/board");
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/board");
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -127,8 +134,11 @@ public class TempCardEndpointTests(CollaboardApiFactory factory) : IClassFixture
         TestAuthHelper.SetAdminAuth(_client, _factory);
 
         // Act
-        var response = await _client.PostAsync(
-            $"/api/v1/cards/{tempCardId}/finalize", null);
+        var response = await _client.PostAsync
+        (
+            $"/api/v1/cards/{tempCardId}/finalize",
+            null
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -147,8 +157,7 @@ public class TempCardEndpointTests(CollaboardApiFactory factory) : IClassFixture
         await _client.PostAsync($"/api/v1/cards/{tempCardId}/finalize", null);
 
         // Act
-        var response = await _client.GetAsync(
-            $"/api/v1/boards/{_factory.DefaultBoardId}/cards");
+        var response = await _client.GetAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards");
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -167,8 +176,11 @@ public class TempCardEndpointTests(CollaboardApiFactory factory) : IClassFixture
         TestAuthHelper.SetAdminAuth(_client, _factory);
 
         // Act
-        var response = await _client.PostAsync(
-            $"/api/v1/cards/{normalCardId}/finalize", null);
+        var response = await _client.PostAsync
+        (
+            $"/api/v1/cards/{normalCardId}/finalize",
+            null
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -179,13 +191,21 @@ public class TempCardEndpointTests(CollaboardApiFactory factory) : IClassFixture
     {
         // Arrange
         var tempCardId = await CreateTempCardAsync();
-        var otherUser = await TestAuthHelper.CreateUserAsync(
-            _client, _factory, "Other User Finalize", UserRole.HumanUser);
+        var otherUser = await TestAuthHelper.CreateUserAsync
+        (
+            _client,
+            _factory,
+            "Other User Finalize",
+            UserRole.HumanUser
+        );
         TestAuthHelper.SetAuth(_client, otherUser.AuthKey);
 
         // Act
-        var response = await _client.PostAsync(
-            $"/api/v1/cards/{tempCardId}/finalize", null);
+        var response = await _client.PostAsync
+        (
+            $"/api/v1/cards/{tempCardId}/finalize",
+            null
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
@@ -199,8 +219,11 @@ public class TempCardEndpointTests(CollaboardApiFactory factory) : IClassFixture
         TestAuthHelper.SetAdminAuth(_client, _factory);
 
         // Act
-        var response = await _client.PostAsync(
-            $"/api/v1/cards/{tempCardId}/cancel", null);
+        var response = await _client.PostAsync
+        (
+            $"/api/v1/cards/{tempCardId}/cancel",
+            null
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
@@ -219,15 +242,21 @@ public class TempCardEndpointTests(CollaboardApiFactory factory) : IClassFixture
         byteContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
         fileContent.Add(byteContent, "file", "test-attachment.bin");
 
-        var uploadResponse = await _client.PostAsync(
-            $"/api/v1/cards/{tempCardId}/attachments", fileContent);
+        var uploadResponse = await _client.PostAsync
+        (
+            $"/api/v1/cards/{tempCardId}/attachments",
+            fileContent
+        );
         uploadResponse.EnsureSuccessStatusCode();
         var uploadJson = await uploadResponse.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
         var attachmentId = uploadJson.GetProperty("id").GetGuid();
 
         // Act
-        var cancelResponse = await _client.PostAsync(
-            $"/api/v1/cards/{tempCardId}/cancel", null);
+        var cancelResponse = await _client.PostAsync
+        (
+            $"/api/v1/cards/{tempCardId}/cancel",
+            null
+        );
 
         // Assert
         cancelResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
@@ -249,8 +278,11 @@ public class TempCardEndpointTests(CollaboardApiFactory factory) : IClassFixture
         TestAuthHelper.SetAdminAuth(_client, _factory);
 
         // Act
-        var response = await _client.PostAsync(
-            $"/api/v1/cards/{normalCardId}/cancel", null);
+        var response = await _client.PostAsync
+        (
+            $"/api/v1/cards/{normalCardId}/cancel",
+            null
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -265,9 +297,11 @@ public class TempCardEndpointTests(CollaboardApiFactory factory) : IClassFixture
         var laneId = await GetFirstLaneIdAsync();
 
         // Act
-        var response = await _client.PostAsJsonAsync(
+        var response = await _client.PostAsJsonAsync
+        (
             $"/api/v1/cards/{tempCardId}/reorder",
-            new { laneId, index = 0 });
+            new { laneId, index = 0 }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -281,8 +315,11 @@ public class TempCardEndpointTests(CollaboardApiFactory factory) : IClassFixture
         TestAuthHelper.SetAdminAuth(_client, _factory);
 
         // Act
-        var response = await _client.PostAsync(
-            $"/api/v1/cards/{tempCardId}/archive", null);
+        var response = await _client.PostAsync
+        (
+            $"/api/v1/cards/{tempCardId}/archive",
+            null
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -301,8 +338,11 @@ public class TempCardEndpointTests(CollaboardApiFactory factory) : IClassFixture
         fileContent.Add(byteContent, "file", "temp-card-attachment.bin");
 
         // Act
-        var response = await _client.PostAsync(
-            $"/api/v1/cards/{tempCardId}/attachments", fileContent);
+        var response = await _client.PostAsync
+        (
+            $"/api/v1/cards/{tempCardId}/attachments",
+            fileContent
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
@@ -325,8 +365,11 @@ public class TempCardEndpointTests(CollaboardApiFactory factory) : IClassFixture
         var payload = new { name = "  ", descriptionMarkdown = "", laneId };
 
         // Act
-        var response = await _client.PostAsJsonAsync(
-            $"/api/v1/boards/{_factory.DefaultBoardId}/cards/temp", payload);
+        var response = await _client.PostAsJsonAsync
+        (
+            $"/api/v1/boards/{_factory.DefaultBoardId}/cards/temp",
+            payload
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -344,8 +387,11 @@ public class TempCardEndpointTests(CollaboardApiFactory factory) : IClassFixture
 
         var payload = new { name = "Size-Default Temp Card", descriptionMarkdown = "", laneId };
 
-        var createResponse = await _client.PostAsJsonAsync(
-            $"/api/v1/boards/{_factory.DefaultBoardId}/cards/temp", payload);
+        var createResponse = await _client.PostAsJsonAsync
+        (
+            $"/api/v1/boards/{_factory.DefaultBoardId}/cards/temp",
+            payload
+        );
         createResponse.EnsureSuccessStatusCode();
         var json = await createResponse.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
         var tempCardId = json.GetProperty("id").GetGuid();
@@ -378,8 +424,11 @@ public class TempCardEndpointTests(CollaboardApiFactory factory) : IClassFixture
         };
 
         // Act
-        var response = await _client.PostAsJsonAsync(
-            $"/api/v1/boards/{_factory.DefaultBoardId}/cards/temp", payload);
+        var response = await _client.PostAsJsonAsync
+        (
+            $"/api/v1/boards/{_factory.DefaultBoardId}/cards/temp",
+            payload
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);

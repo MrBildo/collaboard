@@ -71,10 +71,12 @@ public class McpCardToolTests(CollaboardApiFactory factory) : IClassFixture<Coll
         var broadcaster = scope.ServiceProvider.GetRequiredService<BoardEventBroadcaster>();
         var cardTools = new CardTools(db, authService, broadcaster);
 
-        var result = await cardTools.MoveCardAsync(
+        var result = await cardTools.MoveCardAsync
+        (
             _factory.AdminAuthKey,
             targetLaneId,
-            cardId: moveCardId);
+            cardId: moveCardId
+        );
 
         // Assert — card should be at the top (index 0, before the two existing cards)
         result.ShouldContain("moved to lane at index 0");
@@ -147,11 +149,13 @@ public class McpCardToolTests(CollaboardApiFactory factory) : IClassFixture<Coll
         var broadcaster = scope.ServiceProvider.GetRequiredService<BoardEventBroadcaster>();
         var cardTools = new CardTools(db, authService, broadcaster);
 
-        var result = await cardTools.MoveCardAsync(
+        var result = await cardTools.MoveCardAsync
+        (
             _factory.AdminAuthKey,
             targetLaneId,
             cardId: moveCardId,
-            index: 0);
+            index: 0
+        );
 
         // Assert — card should be at index 0
         result.ShouldContain("moved to lane at index 0");

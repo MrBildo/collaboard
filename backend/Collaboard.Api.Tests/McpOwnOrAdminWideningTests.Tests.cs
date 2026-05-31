@@ -55,11 +55,13 @@ public class McpOwnOrAdminWideningTests(CollaboardApiFactory factory) : IClassFi
         // seed flow match production. The MCP tools under test only need
         // a valid (BoardUser.AuthKey, BoardUser.Role) pair.
         using var setupClient = _factory.CreateClient();
-        return await TestAuthHelper.CreateUserAsync(
+        return await TestAuthHelper.CreateUserAsync
+        (
             setupClient,
             _factory,
             $"{nameHint}-{role}-{Guid.NewGuid():N}",
-            role);
+            role
+        );
     }
 
     private async Task<Guid> CreateCardAsync(BoardDbContext db, BoardUser createdBy)
@@ -69,7 +71,7 @@ public class McpOwnOrAdminWideningTests(CollaboardApiFactory factory) : IClassFi
         var defaultSize = await db.CardSizes
             .Where(s => s.BoardId == board.Id)
             .OrderBy(s => s.Ordinal)
-            .FirstAsync();
+                .FirstAsync();
 
         var card = new CardItem
         {

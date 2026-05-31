@@ -280,10 +280,12 @@ public class McpBulkCardToolTests(CollaboardApiFactory factory) : IClassFixture<
         var cardA = await AddCardAsync(db, board);
         var cardB = await AddCardAsync(db, board);
 
-        var result = await bulk.BulkArchiveCardsAsync(
+        var result = await bulk.BulkArchiveCardsAsync
+        (
             _factory.AdminAuthKey,
             cardNumbers: $"{cardA.Number.ToString(CultureInfo.InvariantCulture)},{cardB.Number.ToString(CultureInfo.InvariantCulture)}",
-            boardSlug: slug);
+            boardSlug: slug
+        );
 
         Parse(result).GetProperty("succeeded").GetInt32().ShouldBe(2);
         db.ChangeTracker.Clear();
@@ -395,7 +397,7 @@ public class McpBulkCardToolTests(CollaboardApiFactory factory) : IClassFixture<
 
         var results = Parse(result).GetProperty("results").EnumerateArray()
             .Select(r => r.GetProperty("cardId").GetGuid())
-            .ToList();
+                .ToList();
         results.ShouldBe(order, "results align 1:1 with input order");
     }
 

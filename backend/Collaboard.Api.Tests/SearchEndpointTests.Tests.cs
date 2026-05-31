@@ -258,16 +258,20 @@ public class SearchEndpointTests(CollaboardApiFactory factory) : IClassFixture<C
         var secondBoardId = secondBoard.GetProperty("id").GetGuid();
 
         // New boards have no regular lanes — create one first
-        var createLaneResponse = await _client.PostAsJsonAsync(
+        var createLaneResponse = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{secondBoardId}/lanes",
-            new { name = "To Do", position = 1 });
+            new { name = "To Do", position = 1 }
+        );
         createLaneResponse.EnsureSuccessStatusCode();
         var secondBoardLaneId = (await createLaneResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
 
         // Create a card on the second board
-        var secondBoardCardResponse = await _client.PostAsJsonAsync(
+        var secondBoardCardResponse = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{secondBoardId}/cards",
-            new { name = "PrioritySearchTerm_Xyz987", laneId = secondBoardLaneId, position = 0 });
+            new { name = "PrioritySearchTerm_Xyz987", laneId = secondBoardLaneId, position = 0 }
+        );
         secondBoardCardResponse.EnsureSuccessStatusCode();
 
         // Create a card on the default board

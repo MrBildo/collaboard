@@ -48,14 +48,14 @@ public class McpArchiveToolTests(CollaboardApiFactory factory) : IClassFixture<C
         await db.Lanes
             .Where(l => l.BoardId == _factory.DefaultBoardId && !l.IsArchiveLane)
             .OrderBy(l => l.Position)
-            .Select(l => l.Id)
-            .FirstAsync();
+                .Select(l => l.Id)
+                    .FirstAsync();
 
     private async Task<Guid> GetArchiveLaneIdAsync(BoardDbContext db) =>
         await db.Lanes
             .Where(l => l.BoardId == _factory.DefaultBoardId && l.IsArchiveLane)
-            .Select(l => l.Id)
-            .FirstAsync();
+                .Select(l => l.Id)
+                    .FirstAsync();
 
     private async Task<Guid> CreateCardInLaneAsync(CardTools tools, string authKey, Guid laneId, string name = "Test Card")
     {
@@ -285,8 +285,13 @@ public class McpArchiveToolTests(CollaboardApiFactory factory) : IClassFixture<C
         await archiveTools.ArchiveCardAsync(authKey, cardId: cardId);
 
         // Act
-        var result = await attachmentTools.UploadAttachmentAsync(
-            authKey, "test.txt", Convert.ToBase64String("test"u8.ToArray()), cardId: cardId);
+        var result = await attachmentTools.UploadAttachmentAsync
+        (
+            authKey,
+            "test.txt",
+            Convert.ToBase64String("test"u8.ToArray()),
+            cardId: cardId
+        );
 
         // Assert
         result.ShouldContain("Archived cards cannot be modified.");
@@ -386,8 +391,13 @@ public class McpArchiveToolTests(CollaboardApiFactory factory) : IClassFixture<C
         var cardId = await CreateCardInLaneAsync(cardTools, authKey, laneId, "Block Attachment Delete");
 
         // Upload an attachment before archiving
-        var uploadResult = await attachmentTools.UploadAttachmentAsync(
-            authKey, "file.txt", Convert.ToBase64String("data"u8.ToArray()), cardId: cardId);
+        var uploadResult = await attachmentTools.UploadAttachmentAsync
+        (
+            authKey,
+            "file.txt",
+            Convert.ToBase64String("data"u8.ToArray()),
+            cardId: cardId
+        );
         uploadResult.ShouldNotContain("Error");
         var uploadJson = System.Text.Json.JsonDocument.Parse(uploadResult);
         var attachmentId = uploadJson.RootElement.GetProperty("id").GetGuid();

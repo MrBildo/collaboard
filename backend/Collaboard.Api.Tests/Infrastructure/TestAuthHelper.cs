@@ -20,8 +20,13 @@ public static class TestAuthHelper
     public static void SetAdminAuth(HttpClient client, CollaboardApiFactory factory) =>
         SetAuth(client, factory.AdminAuthKey);
 
-    public static async Task<BoardUser> CreateUserAsync(
-        HttpClient client, CollaboardApiFactory factory, string name, UserRole role)
+    public static async Task<BoardUser> CreateUserAsync
+    (
+        HttpClient client,
+        CollaboardApiFactory factory,
+        string name,
+        UserRole role
+    )
     {
         SetAdminAuth(client, factory);
         var response = await client.PostAsJsonAsync("/api/v1/users", new { name, role });

@@ -202,9 +202,11 @@ public class ArchiveEndpointTests(CollaboardApiFactory factory) : IClassFixture<
 
     private async Task<Guid> CreateCardAsync(Guid laneId, string name)
     {
-        var response = await _client.PostAsJsonAsync(
+        var response = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/cards",
-            new { name, laneId });
+            new { name, laneId }
+        );
         response.EnsureSuccessStatusCode();
         var card = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         return card.GetProperty("id").GetGuid();

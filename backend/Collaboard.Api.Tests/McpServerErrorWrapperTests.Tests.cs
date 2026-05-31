@@ -38,9 +38,11 @@ public class McpServerErrorWrapperTests(CollaboardApiFactory factory) : IClassFi
         // ArgumentException the SDK's AIFunction binder produces on missing
         // required parameters (Nolan-bot's add_comment typo incident).
         var pipeline = McpErrorTranslator.WrapForCallTool(static (_, _) =>
-            throw new ArgumentException(
+            throw new ArgumentException
+            (
                 "The arguments dictionary is missing a value for the required parameter 'content'.",
-                "arguments"));
+                "arguments"
+            ));
 
         // Act — context is unused by the filter; pass null to keep the test
         // independent of RequestContext's non-trivial ctor.

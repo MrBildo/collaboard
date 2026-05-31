@@ -27,7 +27,7 @@ public class AttachmentToolTests(CollaboardApiFactory factory) : IClassFixture<C
         var defaultSize = await db.CardSizes
             .Where(s => s.BoardId == board.Id)
             .OrderBy(s => s.Ordinal)
-            .FirstAsync();
+                .FirstAsync();
 
         var card = new CardItem
         {
@@ -60,8 +60,13 @@ public class AttachmentToolTests(CollaboardApiFactory factory) : IClassFixture<C
         var base64Content = Convert.ToBase64String(oversizedPayload);
 
         // Act
-        var result = await tools.UploadAttachmentAsync(
-            authKey, "big-file.bin", base64Content, cardId: cardId);
+        var result = await tools.UploadAttachmentAsync
+        (
+            authKey,
+            "big-file.bin",
+            base64Content,
+            cardId: cardId
+        );
 
         // Assert
         result.ShouldContain("File exceeds 5MB limit");
@@ -77,8 +82,13 @@ public class AttachmentToolTests(CollaboardApiFactory factory) : IClassFixture<C
         var base64Content = Convert.ToBase64String(exactPayload);
 
         // Act
-        var result = await tools.UploadAttachmentAsync(
-            authKey, "exact-5mb.bin", base64Content, cardId: cardId);
+        var result = await tools.UploadAttachmentAsync
+        (
+            authKey,
+            "exact-5mb.bin",
+            base64Content,
+            cardId: cardId
+        );
 
         // Assert
         result.ShouldNotContain("Error");
