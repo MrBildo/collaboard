@@ -454,11 +454,13 @@ internal static class CardEndpoints
 // sets Number / IsTemp and saves.
 file static class CardCreateHelper
 {
-    public static async Task<(CardItem? Card, IResult? Error)> BuildCardAsync(
+    public static async Task<(CardItem? Card, IResult? Error)> BuildCardAsync
+    (
         BoardDbContext db,
         Guid boardId,
         CreateCardRequest request,
-        BoardUser currentUser)
+        BoardUser currentUser
+    )
     {
         if (string.IsNullOrWhiteSpace(request.Name))
         {
@@ -490,7 +492,7 @@ file static class CardCreateHelper
             var defaultSize = await db.CardSizes
                 .Where(s => s.BoardId == boardId)
                 .OrderBy(s => s.Ordinal)
-                .FirstOrDefaultAsync();
+                    .FirstOrDefaultAsync();
             if (defaultSize is null)
             {
                 return (null, Results.BadRequest("Board has no sizes configured."));
@@ -508,7 +510,7 @@ file static class CardCreateHelper
         {
             var maxPosition = await db.Cards
                 .Where(c => c.LaneId == request.LaneId)
-                .MaxAsync(c => (int?)c.Position) ?? -10;
+                    .MaxAsync(c => (int?)c.Position) ?? -10;
             position = maxPosition + 10;
         }
 

@@ -9,43 +9,52 @@ internal static class CardDetailBuilder
     {
         var comments = (await db.Comments
             .Where(c => c.CardId == card.Id)
-            .ToListAsync(ct))
+                .ToListAsync(ct))
             .OrderBy(c => c.LastUpdatedAtUtc)
-            .ToList();
+                .ToList();
 
-        var userIds = comments.Select(c => c.UserId)
+        var userIds = comments
+            .Select(c => c.UserId)
             .Append(card.CreatedByUserId)
             .Append(card.LastUpdatedByUserId)
             .Distinct()
-            .ToList();
+                .ToList();
         var userNames = await db.Users
             .Where(u => userIds.Contains(u.Id))
-            .ToDictionaryAsync(u => u.Id, u => u.Name, ct);
+                .ToDictionaryAsync(u => u.Id, u => u.Name, ct);
 
-        var commentsWithUserNames = comments.Select(c => new CardDetailComment(
-            c.Id, c.CardId, c.UserId,
-            userNames.GetValueOrDefault(c.UserId),
-            c.ContentMarkdown, c.LastUpdatedAtUtc
-        )).ToList();
+        var commentsWithUserNames = comments
+            .Select(c => new CardDetailComment
+            (
+                c.Id,
+                c.CardId,
+                c.UserId,
+                userNames.GetValueOrDefault(c.UserId),
+                c.ContentMarkdown,
+                c.LastUpdatedAtUtc
+            ))
+                .ToList();
 
-        var labels = await db.CardLabels.Where(cl => cl.CardId == card.Id)
-            .Join(db.Labels, cl => cl.LabelId, l => l.Id, (_, l) => l)
-            .ToListAsync(ct);
+        var labels = await db.CardLabels
+            .Where(cl => cl.CardId == card.Id)
+                .Join(db.Labels, cl => cl.LabelId, l => l.Id, (_, l) => l)
+                    .ToListAsync(ct);
 
         var attachments = await db.Attachments
             .Where(a => a.CardId == card.Id)
-            .Select(a => new CardDetailAttachment(a.Id, a.FileName, a.ContentType, (long)a.Payload.Length, a.AddedByUserId, a.AddedAtUtc))
-            .ToListAsync(ct);
+                .Select(a => new CardDetailAttachment(a.Id, a.FileName, a.ContentType, (long)a.Payload.Length, a.AddedByUserId, a.AddedAtUtc))
+                    .ToListAsync(ct);
 
         var sizeName = await db.CardSizes
             .Where(s => s.Id == card.SizeId)
-            .Select(s => s.Name)
-            .FirstOrDefaultAsync(ct) ?? "?";
+                .Select(s => s.Name)
+                    .FirstOrDefaultAsync(ct) ?? "?";
 
         var isArchived = await db.Lanes
             .AnyAsync(l => l.Id == card.LaneId && l.IsArchiveLane, ct);
 
-        return new CardDetail(
+        return new CardDetail
+        (
             card,
             sizeName,
             userNames.GetValueOrDefault(card.CreatedByUserId),
@@ -58,23 +67,28 @@ internal static class CardDetailBuilder
     }
 }
 
-internal record CardDetailComment(
+internal record CardDetailComment
+(
     Guid Id,
     Guid CardId,
     Guid UserId,
     string? UserName,
     string ContentMarkdown,
-    DateTimeOffset LastUpdatedAtUtc);
+    DateTimeOffset LastUpdatedAtUtc
+);
 
-internal record CardDetailAttachment(
+internal record CardDetailAttachment
+(
     Guid Id,
     string FileName,
     string ContentType,
     long FileSize,
     Guid AddedByUserId,
-    DateTimeOffset AddedAtUtc);
+    DateTimeOffset AddedAtUtc
+);
 
-internal record CardDetail(
+internal record CardDetail
+(
     CardItem Card,
     string SizeName,
     string? CreatedByUserName,
@@ -82,4 +96,5 @@ internal record CardDetail(
     List<CardDetailComment> Comments,
     List<Label> Labels,
     List<CardDetailAttachment> Attachments,
-    bool IsArchived);
+    bool IsArchived
+);

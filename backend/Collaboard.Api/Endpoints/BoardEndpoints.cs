@@ -54,7 +54,8 @@ internal static class BoardEndpoints
                 IsArchiveLane = true,
             });
 
-            db.CardSizes.AddRange(
+            db.CardSizes.AddRange
+            (
                 new CardSize { Id = Guid.NewGuid(), BoardId = board.Id, Name = "S", Ordinal = 0 },
                 new CardSize { Id = Guid.NewGuid(), BoardId = board.Id, Name = "M", Ordinal = 1 },
                 new CardSize { Id = Guid.NewGuid(), BoardId = board.Id, Name = "L", Ordinal = 2 },

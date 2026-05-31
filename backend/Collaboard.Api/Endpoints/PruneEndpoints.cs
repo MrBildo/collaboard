@@ -30,16 +30,18 @@ internal static class PruneEndpoints
             var laneIdSet = cards.Select(c => c.LaneId).Distinct().ToList();
             var laneNames = await db.Lanes
                 .Where(l => laneIdSet.Contains(l.Id))
-                .ToDictionaryAsync(l => l.Id, l => l.Name);
+                    .ToDictionaryAsync(l => l.Id, l => l.Name);
 
-            var cardSummaries = cards.Select(c => new
-            {
-                c.Id,
-                c.Number,
-                c.Name,
-                laneName = laneNames.GetValueOrDefault(c.LaneId, "?"),
-                c.LastUpdatedAtUtc,
-            }).ToList();
+            var cardSummaries = cards
+                .Select(c => new
+                {
+                    c.Id,
+                    c.Number,
+                    c.Name,
+                    laneName = laneNames.GetValueOrDefault(c.LaneId, "?"),
+                    c.LastUpdatedAtUtc,
+                })
+                    .ToList();
 
             return Results.Ok(new { matchCount = cards.Count, cards = cardSummaries });
         }).RequireAdminOrAgentAdmin();
