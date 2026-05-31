@@ -55,11 +55,13 @@ public class McpPruneToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         }
 
         using var setupClient = _factory.CreateClient();
-        var user = await TestAuthHelper.CreateUserAsync(
+        var user = await TestAuthHelper.CreateUserAsync
+        (
             setupClient,
             _factory,
             $"prunetool-{role}-{Guid.NewGuid():N}",
-            role);
+            role
+        );
         return user.AuthKey;
     }
 
@@ -90,12 +92,14 @@ public class McpPruneToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         return (boardId, lane.Id, size.Id, archiveLane.Id);
     }
 
-    private async Task<CardItem> AddCardAsync(
+    private async Task<CardItem> AddCardAsync
+    (
         BoardDbContext db,
         Guid boardId,
         Guid laneId,
         Guid sizeId,
-        DateTimeOffset? lastUpdated = null)
+        DateTimeOffset? lastUpdated = null
+    )
     {
         var adminId = await db.Users.Where(u => u.Role == UserRole.Administrator).Select(u => u.Id).FirstAsync();
         var stamp = lastUpdated ?? DateTimeOffset.UtcNow;

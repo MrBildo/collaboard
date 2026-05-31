@@ -27,9 +27,11 @@ public class ArchivePruneSearchTests(CollaboardApiFactory factory) : IClassFixtu
         var olderThan = DateTimeOffset.UtcNow.AddDays(-30).ToString("O");
 
         // Act
-        var response = await _client.PostAsJsonAsync(
+        var response = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/prune",
-            new { olderThan, action = "archive" });
+            new { olderThan, action = "archive" }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -54,9 +56,11 @@ public class ArchivePruneSearchTests(CollaboardApiFactory factory) : IClassFixtu
         var olderThan = DateTimeOffset.UtcNow.AddDays(-30).ToString("O");
 
         // Act
-        var response = await _client.PostAsJsonAsync(
+        var response = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/prune",
-            new { olderThan, action = "delete" });
+            new { olderThan, action = "delete" }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -79,9 +83,11 @@ public class ArchivePruneSearchTests(CollaboardApiFactory factory) : IClassFixtu
         var olderThan = DateTimeOffset.UtcNow.AddDays(-30).ToString("O");
 
         // Act — no action specified, should default to archive
-        var response = await _client.PostAsJsonAsync(
+        var response = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/prune",
-            new { olderThan });
+            new { olderThan }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -112,9 +118,11 @@ public class ArchivePruneSearchTests(CollaboardApiFactory factory) : IClassFixtu
         var olderThan = DateTimeOffset.UtcNow.AddDays(-30).ToString("O");
 
         // Act — delete with includeArchived=true should find the archived card
-        var response = await _client.PostAsJsonAsync(
+        var response = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/prune",
-            new { olderThan, action = "delete", includeArchived = true });
+            new { olderThan, action = "delete", includeArchived = true }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -143,9 +151,11 @@ public class ArchivePruneSearchTests(CollaboardApiFactory factory) : IClassFixtu
         var olderThan = DateTimeOffset.UtcNow.AddDays(-30).ToString("O");
 
         // Act — preview without includeArchived should NOT find the archived card
-        var response = await _client.PostAsJsonAsync(
+        var response = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/prune/preview",
-            new { olderThan });
+            new { olderThan }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -162,9 +172,11 @@ public class ArchivePruneSearchTests(CollaboardApiFactory factory) : IClassFixtu
         var olderThan = DateTimeOffset.UtcNow.AddDays(-30).ToString("O");
 
         // Act
-        var response = await _client.PostAsJsonAsync(
+        var response = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/prune",
-            new { olderThan, action = "invalid" });
+            new { olderThan, action = "invalid" }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -187,9 +199,11 @@ public class ArchivePruneSearchTests(CollaboardApiFactory factory) : IClassFixtu
         var olderThan = DateTimeOffset.UtcNow.AddDays(-30).ToString("O");
 
         // Act — preview with includeArchived=true should find the archived card
-        var response = await _client.PostAsJsonAsync(
+        var response = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/prune/preview",
-            new { olderThan, includeArchived = true });
+            new { olderThan, includeArchived = true }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -294,9 +308,11 @@ public class ArchivePruneSearchTests(CollaboardApiFactory factory) : IClassFixtu
     private async Task<Guid> CreateCardAsync(Guid laneId, string name, int daysOld = 0)
     {
         TestAuthHelper.SetAdminAuth(_client, _factory);
-        var response = await _client.PostAsJsonAsync(
+        var response = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/cards",
-            new { name, laneId, position = Random.Shared.Next(10000, 99999) });
+            new { name, laneId, position = Random.Shared.Next(10000, 99999) }
+        );
         response.EnsureSuccessStatusCode();
         var card = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         var cardId = card.GetProperty("id").GetGuid();

@@ -59,11 +59,13 @@ public class McpAdminToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         }
 
         using var setupClient = _factory.CreateClient();
-        var user = await TestAuthHelper.CreateUserAsync(
+        var user = await TestAuthHelper.CreateUserAsync
+        (
             setupClient,
             _factory,
             $"admintool-{role}-{Guid.NewGuid():N}",
-            role);
+            role
+        );
         return user.AuthKey;
     }
 

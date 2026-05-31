@@ -285,8 +285,13 @@ public class McpArchiveToolTests(CollaboardApiFactory factory) : IClassFixture<C
         await archiveTools.ArchiveCardAsync(authKey, cardId: cardId);
 
         // Act
-        var result = await attachmentTools.UploadAttachmentAsync(
-            authKey, "test.txt", Convert.ToBase64String("test"u8.ToArray()), cardId: cardId);
+        var result = await attachmentTools.UploadAttachmentAsync
+        (
+            authKey,
+            "test.txt",
+            Convert.ToBase64String("test"u8.ToArray()),
+            cardId: cardId
+        );
 
         // Assert
         result.ShouldContain("Archived cards cannot be modified.");
@@ -386,8 +391,13 @@ public class McpArchiveToolTests(CollaboardApiFactory factory) : IClassFixture<C
         var cardId = await CreateCardInLaneAsync(cardTools, authKey, laneId, "Block Attachment Delete");
 
         // Upload an attachment before archiving
-        var uploadResult = await attachmentTools.UploadAttachmentAsync(
-            authKey, "file.txt", Convert.ToBase64String("data"u8.ToArray()), cardId: cardId);
+        var uploadResult = await attachmentTools.UploadAttachmentAsync
+        (
+            authKey,
+            "file.txt",
+            Convert.ToBase64String("data"u8.ToArray()),
+            cardId: cardId
+        );
         uploadResult.ShouldNotContain("Error");
         var uploadJson = System.Text.Json.JsonDocument.Parse(uploadResult);
         var attachmentId = uploadJson.RootElement.GetProperty("id").GetGuid();

@@ -71,23 +71,29 @@ public class ArchiveLaneTests(CollaboardApiFactory factory) : IClassFixture<Coll
 
         var archiveLaneId = await GetArchiveLaneIdAsync(boardId);
 
-        var laneResponse = await _client.PostAsJsonAsync(
+        var laneResponse = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{boardId}/lanes",
-            new { name = "Work", position = 0 });
+            new { name = "Work", position = 0 }
+        );
         laneResponse.EnsureSuccessStatusCode();
         var lane = await laneResponse.Content.ReadFromJsonAsync<JsonElement>();
         var laneId = lane.GetProperty("id").GetGuid();
 
-        var activeCardResponse = await _client.PostAsJsonAsync(
+        var activeCardResponse = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{boardId}/cards",
-            new { name = "Active Card", laneId });
+            new { name = "Active Card", laneId }
+        );
         activeCardResponse.EnsureSuccessStatusCode();
         var activeCard = await activeCardResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         var activeCardId = activeCard.GetProperty("id").GetGuid();
 
-        var archivedCardResponse = await _client.PostAsJsonAsync(
+        var archivedCardResponse = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{boardId}/cards",
-            new { name = "Archived Card", laneId });
+            new { name = "Archived Card", laneId }
+        );
         archivedCardResponse.EnsureSuccessStatusCode();
         var archivedCard = await archivedCardResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         var archivedCardId = archivedCard.GetProperty("id").GetGuid();
@@ -144,9 +150,11 @@ public class ArchiveLaneTests(CollaboardApiFactory factory) : IClassFixture<Coll
         TestAuthHelper.SetAdminAuth(_client, _factory);
 
         // Act
-        var response = await _client.PostAsJsonAsync(
+        var response = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/lanes",
-            new { name = "Sneaky Lane", position = int.MaxValue });
+            new { name = "Sneaky Lane", position = int.MaxValue }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -159,17 +167,21 @@ public class ArchiveLaneTests(CollaboardApiFactory factory) : IClassFixture<Coll
     {
         // Arrange
         TestAuthHelper.SetAdminAuth(_client, _factory);
-        var createResponse = await _client.PostAsJsonAsync(
+        var createResponse = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/lanes",
-            new { name = "PatchMaxVal", position = 600 });
+            new { name = "PatchMaxVal", position = 600 }
+        );
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
         var laneId = created.GetProperty("id").GetGuid();
 
         // Act
-        var response = await _client.PatchAsJsonAsync(
+        var response = await _client.PatchAsJsonAsync
+        (
             $"/api/v1/lanes/{laneId}",
-            new { position = int.MaxValue });
+            new { position = int.MaxValue }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -214,9 +226,11 @@ public class ArchiveLaneTests(CollaboardApiFactory factory) : IClassFixture<Coll
         var archiveLaneId = await GetArchiveLaneIdAsync(boardId);
 
         // Act
-        var response = await _client.PatchAsJsonAsync(
+        var response = await _client.PatchAsJsonAsync
+        (
             $"/api/v1/lanes/{archiveLaneId}",
-            new { name = "Renamed Archive" });
+            new { name = "Renamed Archive" }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -263,9 +277,11 @@ public class ArchiveLaneTests(CollaboardApiFactory factory) : IClassFixture<Coll
         var archiveLaneId = await GetArchiveLaneIdAsync(boardId);
 
         // Add a normal lane first to create a card
-        var laneResponse = await _client.PostAsJsonAsync(
+        var laneResponse = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{boardId}/lanes",
-            new { name = "Temp Lane", position = 0 });
+            new { name = "Temp Lane", position = 0 }
+        );
         laneResponse.EnsureSuccessStatusCode();
         var lane = await laneResponse.Content.ReadFromJsonAsync<JsonElement>();
         var laneId = lane.GetProperty("id").GetGuid();
@@ -273,9 +289,11 @@ public class ArchiveLaneTests(CollaboardApiFactory factory) : IClassFixture<Coll
         // Create two cards
         for (var i = 0; i < 2; i++)
         {
-            var cardResponse = await _client.PostAsJsonAsync(
+            var cardResponse = await _client.PostAsJsonAsync
+            (
                 $"/api/v1/boards/{boardId}/cards",
-                new { name = $"Card {i.ToString(CultureInfo.InvariantCulture)}", laneId });
+                new { name = $"Card {i.ToString(CultureInfo.InvariantCulture)}", laneId }
+            );
             cardResponse.EnsureSuccessStatusCode();
 
             // Move card to archive lane via reorder
