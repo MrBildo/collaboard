@@ -18,9 +18,9 @@ internal static class CommentEndpoints
 
             var comments = (await db.Comments
                 .Where(x => x.CardId == id)
-                .ToListAsync())
+                    .ToListAsync())
                 .OrderBy(x => x.LastUpdatedAtUtc)
-                .ToList();
+                    .ToList();
             return Results.Ok(comments);
         }).RequireAuth();
 

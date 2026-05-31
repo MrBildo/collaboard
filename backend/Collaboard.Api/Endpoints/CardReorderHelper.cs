@@ -7,15 +7,21 @@ internal static class CardReorderHelper
 {
     internal const int PositionGap = 10;
 
-    public static async Task<int> MoveCardToLaneAsync(
-        BoardDbContext db, CardItem card, Guid targetLaneId, int? index, CancellationToken ct = default)
+    public static async Task<int> MoveCardToLaneAsync
+    (
+        BoardDbContext db,
+        CardItem card,
+        Guid targetLaneId,
+        int? index,
+        CancellationToken ct = default
+    )
     {
         var sourceLaneId = card.LaneId;
 
         var targetCards = await db.Cards
             .Where(c => c.LaneId == targetLaneId && c.Id != card.Id)
             .OrderBy(c => c.Position)
-            .ToListAsync(ct);
+                .ToListAsync(ct);
 
         var resolvedIndex = Math.Clamp(index ?? 0, 0, targetCards.Count);
         targetCards.Insert(resolvedIndex, card);
@@ -32,7 +38,7 @@ internal static class CardReorderHelper
             var sourceCards = await db.Cards
                 .Where(c => c.LaneId == sourceLaneId && c.Id != card.Id)
                 .OrderBy(c => c.Position)
-                .ToListAsync(ct);
+                    .ToListAsync(ct);
 
             for (var i = 0; i < sourceCards.Count; i++)
             {

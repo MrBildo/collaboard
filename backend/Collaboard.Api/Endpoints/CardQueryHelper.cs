@@ -8,8 +8,13 @@ internal static class CardQueryHelper
     // /board endpoint (#162). Applies the board scope, the temp-card exclusion, and —
     // unless includeArchived is true — the archive-lane exclusion. Callers layer their
     // own optional filters (lane, since, label, search) and ordering/pagination on top.
-    public static IQueryable<CardItem> BoardCards(
-        IQueryable<CardItem> cards, IQueryable<Lane> lanes, Guid boardId, bool includeArchived)
+    public static IQueryable<CardItem> BoardCards
+    (
+        IQueryable<CardItem> cards,
+        IQueryable<Lane> lanes,
+        Guid boardId,
+        bool includeArchived
+    )
     {
         var query = cards.Where(x => x.BoardId == boardId && !x.IsTemp);
 
@@ -17,7 +22,7 @@ internal static class CardQueryHelper
         {
             var archiveLaneIds = lanes
                 .Where(l => l.BoardId == boardId && l.IsArchiveLane)
-                .Select(l => l.Id);
+                    .Select(l => l.Id);
             query = query.Where(x => !archiveLaneIds.Contains(x.LaneId));
         }
 
@@ -37,8 +42,12 @@ internal static class CardQueryHelper
     // BoardDbContext.OnModelCreating) — SQLite cannot translate a
     // DateTimeOffset comparison in a nested query position without it. The
     // whole filter runs server-side; nothing is materialized client-side.
-    public static IQueryable<CardItem> ApplySinceFilter(
-        IQueryable<CardItem> query, BoardDbContext db, DateTimeOffset since) =>
+    public static IQueryable<CardItem> ApplySinceFilter
+    (
+        IQueryable<CardItem> query,
+        BoardDbContext db,
+        DateTimeOffset since
+    ) =>
         query.Where(x =>
             x.CreatedAtUtc >= since
             || x.LastUpdatedAtUtc >= since

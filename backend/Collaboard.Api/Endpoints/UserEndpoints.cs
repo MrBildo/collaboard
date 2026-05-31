@@ -49,8 +49,8 @@ internal static class UserEndpoints
             var users = await db.Users
                 .Where(x => x.IsActive)
                 .OrderBy(x => x.Name)
-                .Select(x => new { x.Id, x.Name })
-                .ToListAsync();
+                    .Select(x => new { x.Id, x.Name })
+                        .ToListAsync();
             return Results.Ok(users);
         }).RequireAuth();
 

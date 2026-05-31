@@ -105,8 +105,8 @@ internal static class LabelEndpoints
 
             var labels = await db.CardLabels
                 .Where(cl => cl.CardId == id)
-                .Join(db.Labels, cl => cl.LabelId, l => l.Id, (cl, l) => l)
-                .ToListAsync();
+                    .Join(db.Labels, cl => cl.LabelId, l => l.Id, (cl, l) => l)
+                        .ToListAsync();
 
             return Results.Ok(labels);
         }).RequireAuth();
@@ -168,8 +168,8 @@ internal static class LabelEndpoints
 
             var boardId = await db.Cards
                 .Where(c => c.Id == id)
-                .Join(db.Lanes, c => c.LaneId, l => l.Id, (_, l) => l.BoardId)
-                .FirstOrDefaultAsync();
+                    .Join(db.Lanes, c => c.LaneId, l => l.Id, (_, l) => l.BoardId)
+                        .FirstOrDefaultAsync();
             if (boardId != Guid.Empty)
             {
                 broadcaster.PublishBoardUpdated(boardId);
