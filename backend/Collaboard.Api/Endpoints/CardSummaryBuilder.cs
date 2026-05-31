@@ -33,14 +33,14 @@ internal static class CardSummaryBuilder
         var commentCounts = await db.Comments
             .Where(cm => cardIds.Contains(cm.CardId))
                 .GroupBy(cm => cm.CardId)
-                .Select(g => new { CardId = g.Key, Count = g.Count() })
-                    .ToDictionaryAsync(x => x.CardId, x => x.Count, ct);
+                    .Select(g => new { CardId = g.Key, Count = g.Count() })
+                        .ToDictionaryAsync(x => x.CardId, x => x.Count, ct);
 
         var attachmentCounts = await db.Attachments
             .Where(a => cardIds.Contains(a.CardId))
                 .GroupBy(a => a.CardId)
-                .Select(g => new { CardId = g.Key, Count = g.Count() })
-                    .ToDictionaryAsync(x => x.CardId, x => x.Count, ct);
+                    .Select(g => new { CardId = g.Key, Count = g.Count() })
+                        .ToDictionaryAsync(x => x.CardId, x => x.Count, ct);
 
         // Batch load archive lane IDs for the boards in the result set
         var boardIds = cards.Select(c => c.BoardId).Distinct().ToList();

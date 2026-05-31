@@ -76,14 +76,14 @@ internal static class SearchEndpoints
             var commentCounts = await db.Comments
                 .Where(cm => cardIds.Contains(cm.CardId))
                     .GroupBy(cm => cm.CardId)
-                    .Select(g => new { CardId = g.Key, Count = g.Count() })
-                        .ToDictionaryAsync(x => x.CardId, x => x.Count);
+                        .Select(g => new { CardId = g.Key, Count = g.Count() })
+                            .ToDictionaryAsync(x => x.CardId, x => x.Count);
 
             var attachmentCounts = await db.Attachments
                 .Where(a => cardIds.Contains(a.CardId))
                     .GroupBy(a => a.CardId)
-                    .Select(g => new { CardId = g.Key, Count = g.Count() })
-                        .ToDictionaryAsync(x => x.CardId, x => x.Count);
+                        .Select(g => new { CardId = g.Key, Count = g.Count() })
+                            .ToDictionaryAsync(x => x.CardId, x => x.Count);
 
             // Build a cardId -> boardId lookup
             var cardBoardMap = cards.ToDictionary(c => c.Id, c => c.BoardId);
