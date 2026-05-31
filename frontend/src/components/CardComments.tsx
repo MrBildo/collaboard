@@ -27,7 +27,7 @@ export function CardComments({
 
   const { getUserName } = useUserDirectory();
   const [newComment, setNewComment] = useState('');
-  const [newCommentFocused, setNewCommentFocused] = useState(false);
+  const [isNewCommentFocused, setIsNewCommentFocused] = useState(false);
   const [isPreviewingNew, setIsPreviewingNew] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
@@ -46,7 +46,7 @@ export function CardComments({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.comments(cardId) });
       setNewComment('');
-      setNewCommentFocused(false);
+      setIsNewCommentFocused(false);
     },
     onError: (error: unknown) => {
       console.error('Failed to create comment:', error);
@@ -85,7 +85,7 @@ export function CardComments({
 
   const handleCancelNew = useCallback(() => {
     setNewComment('');
-    setNewCommentFocused(false);
+    setIsNewCommentFocused(false);
     setIsPreviewingNew(false);
     newCommentRef.current?.blur();
   }, []);
@@ -124,7 +124,7 @@ export function CardComments({
     [commentsQuery.data],
   );
 
-  const isExpanded = newCommentFocused || newComment.length > 0;
+  const isExpanded = isNewCommentFocused || newComment.length > 0;
 
   return (
     <div className="flex flex-1 flex-col gap-3 overflow-hidden">
@@ -162,7 +162,7 @@ export function CardComments({
               ref={newCommentRef}
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
-              onFocus={() => setNewCommentFocused(true)}
+              onFocus={() => setIsNewCommentFocused(true)}
               placeholder="Add a comment..."
               rows={isExpanded ? 3 : 1}
               className="bg-muted font-mono md:text-sm transition-all"
