@@ -397,7 +397,7 @@ public class McpBulkCardToolTests(CollaboardApiFactory factory) : IClassFixture<
 
         var results = Parse(result).GetProperty("results").EnumerateArray()
             .Select(r => r.GetProperty("cardId").GetGuid())
-            .ToList();
+                .ToList();
         results.ShouldBe(order, "results align 1:1 with input order");
     }
 

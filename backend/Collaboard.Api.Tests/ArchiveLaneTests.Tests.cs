@@ -107,7 +107,7 @@ public class ArchiveLaneTests(CollaboardApiFactory factory) : IClassFixture<Coll
         var json = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         var cardIds = json.GetProperty("cards").EnumerateArray()
             .Select(c => c.GetProperty("id").GetGuid())
-            .ToList();
+                .ToList();
 
         cardIds.ShouldContain(activeCardId);
         cardIds.ShouldNotContain(archivedCardId);

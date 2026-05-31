@@ -27,7 +27,7 @@ public class AttachmentToolTests(CollaboardApiFactory factory) : IClassFixture<C
         var defaultSize = await db.CardSizes
             .Where(s => s.BoardId == board.Id)
             .OrderBy(s => s.Ordinal)
-            .FirstAsync();
+                .FirstAsync();
 
         var card = new CardItem
         {

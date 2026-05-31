@@ -40,8 +40,8 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
         var lanes = await db.Lanes
             .Where(l => l.BoardId == _factory.DefaultBoardId)
             .OrderBy(l => l.Position)
-            .Select(l => l.Id)
-            .ToListAsync();
+                .Select(l => l.Id)
+                    .ToListAsync();
 
         lanes.Count.ShouldBeGreaterThanOrEqualTo(2);
         return (lanes[0], lanes[1]);
@@ -184,7 +184,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
         // Card should have the lowest position in lane2
         var minPosOtherCards = await db.Cards
             .Where(c => c.LaneId == lane2 && c.Id != cardId)
-            .MinAsync(c => (int?)c.Position) ?? int.MaxValue;
+                .MinAsync(c => (int?)c.Position) ?? int.MaxValue;
         json.RootElement.GetProperty("position").GetInt32().ShouldBeLessThan(minPosOtherCards);
     }
 
@@ -226,7 +226,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
         var sourceCards = await db.Cards
             .Where(c => c.LaneId == lane1 && (c.Id == card1Id || c.Id == card3Id))
             .OrderBy(c => c.Position)
-            .ToListAsync();
+                .ToListAsync();
 
         sourceCards.Count.ShouldBe(2);
         sourceCards.Select(c => c.Id).ShouldContain(card1Id);
@@ -871,8 +871,8 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
         var json = JsonDocument.Parse(result);
         var ids = json.RootElement.GetProperty("items")
             .EnumerateArray()
-            .Select(i => i.GetProperty("id").GetGuid())
-            .ToList();
+                .Select(i => i.GetProperty("id").GetGuid())
+                    .ToList();
         ids.ShouldContain(cardId);
     }
 
@@ -908,8 +908,8 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
         var json = JsonDocument.Parse(result);
         var ids = json.RootElement.GetProperty("items")
             .EnumerateArray()
-            .Select(i => i.GetProperty("id").GetGuid())
-            .ToList();
+                .Select(i => i.GetProperty("id").GetGuid())
+                    .ToList();
         ids.ShouldContain(cardId);
     }
 
@@ -946,8 +946,8 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
         var json = JsonDocument.Parse(result);
         var ids = json.RootElement.GetProperty("items")
             .EnumerateArray()
-            .Select(i => i.GetProperty("id").GetGuid())
-            .ToList();
+                .Select(i => i.GetProperty("id").GetGuid())
+                    .ToList();
         ids.ShouldNotContain(cardId);
     }
 }

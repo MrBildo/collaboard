@@ -47,7 +47,7 @@ public class LabelToolsTests(CollaboardApiFactory factory) : IClassFixture<Colla
         var defaultSize = await db.CardSizes
             .Where(s => s.BoardId == boardId)
             .OrderBy(s => s.Ordinal)
-            .FirstAsync();
+                .FirstAsync();
         var nextNumber = (await db.Cards.Where(c => c.BoardId == boardId).MaxAsync(c => (long?)c.Number) ?? 0) + 1;
         var card = new CardItem
         {

@@ -71,7 +71,7 @@ public class McpOwnOrAdminWideningTests(CollaboardApiFactory factory) : IClassFi
         var defaultSize = await db.CardSizes
             .Where(s => s.BoardId == board.Id)
             .OrderBy(s => s.Ordinal)
-            .FirstAsync();
+                .FirstAsync();
 
         var card = new CardItem
         {

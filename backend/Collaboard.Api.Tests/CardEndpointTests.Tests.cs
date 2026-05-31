@@ -1573,7 +1573,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
 
         var timestamps = comments.EnumerateArray()
             .Select(c => DateTimeOffset.Parse(c.GetProperty("lastUpdatedAtUtc").GetString()!))
-            .ToList();
+                .ToList();
 
         // Comments should be in chronological order
         for (var i = 1; i < timestamps.Count; i++)
