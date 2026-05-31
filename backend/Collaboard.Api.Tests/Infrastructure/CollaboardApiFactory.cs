@@ -28,9 +28,11 @@ public class CollaboardApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
     public static CollaboardApiFactory WithConfig(IReadOnlyDictionary<string, string?> overrides) =>
         new() { ConfigOverrides = overrides };
 
-    public static CollaboardApiFactory WithConfig(
+    public static CollaboardApiFactory WithConfig
+    (
         string environmentName,
-        IReadOnlyDictionary<string, string?> overrides) =>
+        IReadOnlyDictionary<string, string?> overrides
+    ) =>
         new() { EnvironmentName = environmentName, ConfigOverrides = overrides };
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -81,8 +83,7 @@ public class CollaboardApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
 
         builder.ConfigureServices(services =>
         {
-            var descriptor = services.SingleOrDefault(
-                d => d.ServiceType == typeof(DbContextOptions<BoardDbContext>));
+            var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<BoardDbContext>));
             if (descriptor is not null)
             {
                 services.Remove(descriptor);

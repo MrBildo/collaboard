@@ -10,14 +10,22 @@ using ModelContextProtocol.Server;
 namespace Collaboard.Api.Mcp;
 
 [McpServerToolType]
-public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, BoardEventBroadcaster broadcaster, IOptions<AttachmentSettings> attachmentSettings)
+public sealed class AttachmentTools
+(
+    BoardDbContext db,
+    McpAuthService auth,
+    BoardEventBroadcaster broadcaster,
+    IOptions<AttachmentSettings> attachmentSettings
+)
 {
     [McpServerTool(Name = "download_attachment", ReadOnly = true, Destructive = false)]
     [Description("Download an attachment's content as base64. Returns the file name, content type, and base64-encoded payload.")]
-    public async Task<string> DownloadAttachmentAsync(
+    public async Task<string> DownloadAttachmentAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the attachment to download")] Guid attachmentId,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (_, error) = await auth.RequireUserAsync(authKey, ct);
         if (error is not null)
@@ -40,10 +48,12 @@ public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, Boar
 
     [McpServerTool(Name = "delete_attachment", Destructive = true)]
     [Description("Delete an attachment you added. Administrator and AgentAdministrator roles can delete any attachment.")]
-    public async Task<string> DeleteAttachmentAsync(
+    public async Task<string> DeleteAttachmentAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the attachment to delete")] Guid attachmentId,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (user, error) = await auth.RequireUserAsync(authKey, ct);
         if (error is not null)
@@ -78,7 +88,8 @@ public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, Boar
 
     [McpServerTool(Name = "upload_attachment", Destructive = false)]
     [Description("Upload a file attachment to a card using base64-encoded content. Limited to 5MB. For larger files (up to 50MB), use the REST endpoint POST /api/v1/cards/{cardId}/attachments (multipart/form-data).")]
-    public async Task<string> UploadAttachmentAsync(
+    public async Task<string> UploadAttachmentAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("The file name (e.g., 'report.pdf')")] string fileName,
         [Description("The base64-encoded file content")] string base64Content,
@@ -87,7 +98,8 @@ public sealed class AttachmentTools(BoardDbContext db, McpAuthService auth, Boar
         [Description("The MIME content type (e.g., 'application/pdf', 'image/png'). Defaults to 'application/octet-stream'")] string? contentType = null,
         [Description("Board ID (required when using cardNumber)")] Guid? boardId = null,
         [Description("Board slug (alternative to boardId when using cardNumber)")] string? boardSlug = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (user, error) = await auth.RequireUserAsync(authKey, ct);
         if (error is not null)

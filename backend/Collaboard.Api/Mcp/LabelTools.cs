@@ -13,10 +13,12 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
 {
     [McpServerTool(Name = "get_labels", ReadOnly = true, Destructive = false)]
     [Description("Get all labels for a specific board.")]
-    public async Task<string> GetLabelsAsync(
+    public async Task<string> GetLabelsAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("The board ID to list labels from")] Guid boardId,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (_, error) = await auth.RequireUserAsync(authKey, ct);
         if (error is not null)
@@ -38,12 +40,14 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
     // gate via RequireAdminLevelAsync.
     [McpServerTool(Name = "create_label", Destructive = false)]
     [Description("Create a label on a board. Requires Administrator or AgentAdministrator role. Label names must be unique within a board. Color is an optional string (e.g. a hex value).")]
-    public async Task<string> CreateLabelAsync(
+    public async Task<string> CreateLabelAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("The board ID to create the label on")] Guid boardId,
         [Description("The label name")] string name,
         [Description("The label color (optional)")] string? color = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
         if (error is not null)
@@ -81,12 +85,14 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
 
     [McpServerTool(Name = "update_label", Destructive = false)]
     [Description("Update a label's name and/or color. Requires Administrator or AgentAdministrator role. Color is an optional string (e.g. a hex value).")]
-    public async Task<string> UpdateLabelAsync(
+    public async Task<string> UpdateLabelAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the label to update")] Guid labelId,
         [Description("The new label name (optional)")] string? name = null,
         [Description("The new label color (optional)")] string? color = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
         if (error is not null)
@@ -122,10 +128,12 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
 
     [McpServerTool(Name = "delete_label", Destructive = true)]
     [Description("Delete a label. Requires Administrator or AgentAdministrator role. Removing a label un-assigns it from any cards it was applied to; it does not delete cards.")]
-    public async Task<string> DeleteLabelAsync(
+    public async Task<string> DeleteLabelAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the label to delete")] Guid labelId,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
         if (error is not null)
@@ -150,7 +158,8 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
 
     [McpServerTool(Name = "add_label_to_card", Destructive = false)]
     [Description("Add a label to a card. Identify the card by cardId or cardNumber. Identify the label by labelId or labelName. The label must belong to the same board as the card.")]
-    public async Task<string> AddLabelToCardAsync(
+    public async Task<string> AddLabelToCardAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the card (provide this or cardNumber)")] Guid? cardId = null,
         [Description("The card number (provide this or cardId). Requires boardId or boardSlug.")] long? cardNumber = null,
@@ -158,7 +167,8 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
         [Description("The name of the label to add (matched case-insensitively within the card's board). Provide this or labelId, not both.")] string? labelName = null,
         [Description("Board ID (required when using cardNumber)")] Guid? boardId = null,
         [Description("Board slug (alternative to boardId when using cardNumber)")] string? boardSlug = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (_, error) = await auth.RequireUserAsync(authKey, ct);
         if (error is not null)
@@ -215,7 +225,8 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
 
     [McpServerTool(Name = "remove_label_from_card", Destructive = false)]
     [Description("Remove a label from a card. Identify the card by cardId or cardNumber. Identify the label by labelId or labelName.")]
-    public async Task<string> RemoveLabelFromCardAsync(
+    public async Task<string> RemoveLabelFromCardAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the card (provide this or cardNumber)")] Guid? cardId = null,
         [Description("The card number (provide this or cardId). Requires boardId or boardSlug.")] long? cardNumber = null,
@@ -223,7 +234,8 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
         [Description("The name of the label to remove (matched case-insensitively within the card's board). Provide this or labelId, not both.")] string? labelName = null,
         [Description("Board ID (required when using cardNumber)")] Guid? boardId = null,
         [Description("Board slug (alternative to boardId when using cardNumber)")] string? boardSlug = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (_, error) = await auth.RequireUserAsync(authKey, ct);
         if (error is not null)
@@ -268,8 +280,13 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
         return "Label removed successfully.";
     }
 
-    private async Task<(Guid? LabelId, string? Error)> ResolveLabelAsync(
-        Guid? labelId, string? labelName, Guid boardId, CancellationToken ct)
+    private async Task<(Guid? LabelId, string? Error)> ResolveLabelAsync
+    (
+        Guid? labelId,
+        string? labelName,
+        Guid boardId,
+        CancellationToken ct
+    )
     {
         var hasId = labelId.HasValue && labelId.Value != Guid.Empty;
         var hasName = !string.IsNullOrWhiteSpace(labelName);
@@ -291,15 +308,15 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
 
         var matches = await db.Labels
             .Where(l => l.BoardId == boardId && EF.Functions.Collate(l.Name, "NOCASE") == labelName!)
-            .ToListAsync(ct);
+                .ToListAsync(ct);
 
         if (matches.Count == 0)
         {
             var available = await db.Labels
                 .Where(l => l.BoardId == boardId)
                 .OrderBy(l => l.Name)
-                .Select(l => l.Name)
-                .ToListAsync(ct);
+                    .Select(l => l.Name)
+                        .ToListAsync(ct);
 
             var availableList = available.Count > 0
                 ? string.Join(", ", available)

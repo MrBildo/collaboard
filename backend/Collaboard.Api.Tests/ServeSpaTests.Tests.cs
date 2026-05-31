@@ -6,8 +6,7 @@ namespace Collaboard.Api.Tests;
 
 public class ServeSpaTests
 {
-    private static async Task<CollaboardApiFactory> CreateFactoryAsync(
-        IReadOnlyDictionary<string, string?> overrides)
+    private static async Task<CollaboardApiFactory> CreateFactoryAsync(IReadOnlyDictionary<string, string?> overrides)
     {
         var factory = CollaboardApiFactory.WithConfig(overrides);
         await factory.InitializeAsync();

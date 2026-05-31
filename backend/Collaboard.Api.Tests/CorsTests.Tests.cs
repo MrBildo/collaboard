@@ -120,15 +120,19 @@ public class CorsTests
         var client = factory.CreateClient();
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        var request = new HttpRequestMessage(
+        var request = new HttpRequestMessage
+        (
             HttpMethod.Get,
-            $"/api/v1/boards/{factory.DefaultBoardId}/events");
+            $"/api/v1/boards/{factory.DefaultBoardId}/events"
+        );
         request.Headers.Add("Origin", _allowedOrigin);
 
-        var response = await client.SendAsync(
+        var response = await client.SendAsync
+        (
             request,
             HttpCompletionOption.ResponseHeadersRead,
-            cts.Token);
+            cts.Token
+        );
 
         response.Headers.GetValues("Access-Control-Allow-Origin").ShouldContain(_allowedOrigin);
     }

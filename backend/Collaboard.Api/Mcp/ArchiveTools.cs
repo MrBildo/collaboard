@@ -12,13 +12,15 @@ public sealed class ArchiveTools(BoardDbContext db, McpAuthService auth, BoardEv
 {
     [McpServerTool(Name = "archive_card", Destructive = false)]
     [Description("Archive a card — hides it from normal views but preserves it for reference. All roles can archive.")]
-    public async Task<string> ArchiveCardAsync(
+    public async Task<string> ArchiveCardAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("Card ID (provide this or cardNumber)")] Guid? cardId = null,
         [Description("Card number (requires boardId or boardSlug)")] long? cardNumber = null,
         [Description("Board ID (required with cardNumber)")] Guid? boardId = null,
         [Description("Board slug (alternative to boardId)")] string? boardSlug = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (user, authError) = await auth.RequireUserAsync(authKey, ct);
         if (user is null)
@@ -61,14 +63,16 @@ public sealed class ArchiveTools(BoardDbContext db, McpAuthService auth, BoardEv
 
     [McpServerTool(Name = "restore_card", Destructive = false)]
     [Description("Restore an archived card to a specified lane.")]
-    public async Task<string> RestoreCardAsync(
+    public async Task<string> RestoreCardAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("Target lane ID (required)")] Guid laneId,
         [Description("Card ID (provide this or cardNumber)")] Guid? cardId = null,
         [Description("Card number (requires boardId or boardSlug)")] long? cardNumber = null,
         [Description("Board ID (required with cardNumber)")] Guid? boardId = null,
         [Description("Board slug (alternative to boardId)")] string? boardSlug = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (user, authError) = await auth.RequireUserAsync(authKey, ct);
         if (user is null)

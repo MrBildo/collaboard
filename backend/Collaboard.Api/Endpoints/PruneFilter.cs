@@ -29,19 +29,23 @@ internal static class PruneFilter
         return true;
     }
 
-    public static IQueryable<CardItem> BuildFilteredQuery(
+    public static IQueryable<CardItem> BuildFilteredQuery
+    (
         BoardDbContext db,
         Guid boardId,
-        PruneRequest request)
+        PruneRequest request
+    )
     {
         // CardQueryHelper.BoardCards applies board scope, temp-card exclusion, and —
         // when includeArchived is false — the archive-lane exclusion via a correlated
         // sub-query (fully server-side, same converter path as the `since` filter).
-        var query = CardQueryHelper.BoardCards(
+        var query = CardQueryHelper.BoardCards
+        (
             db.Cards,
             db.Lanes,
             boardId,
-            includeArchived: request.IncludeArchived is true);
+            includeArchived: request.IncludeArchived is true
+        );
 
         if (request.OlderThan.HasValue)
         {
@@ -67,7 +71,7 @@ internal static class PruneFilter
             var labelIds = request.LabelIds.ToList();
             var cardIdsWithLabels = db.CardLabels
                 .Where(cl => labelIds.Contains(cl.LabelId))
-                .Select(cl => cl.CardId);
+                    .Select(cl => cl.CardId);
 
             query = query.Where(c => cardIdsWithLabels.Contains(c.Id));
         }

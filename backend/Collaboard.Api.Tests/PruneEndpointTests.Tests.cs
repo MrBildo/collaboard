@@ -81,9 +81,11 @@ public class PruneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         var olderThan = DateTimeOffset.UtcNow.AddDays(-30).ToString("O");
 
         // Act
-        var response = await _client.PostAsJsonAsync(
+        var response = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/prune/preview",
-            new { olderThan });
+            new { olderThan }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -109,9 +111,11 @@ public class PruneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         var cardInLane1 = await CreateCardAsync(laneId: lane1Id);
 
         // Act
-        var response = await _client.PostAsJsonAsync(
+        var response = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/prune/preview",
-            new { laneIds = new[] { lane1Id } });
+            new { laneIds = new[] { lane1Id } }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -135,9 +139,11 @@ public class PruneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         var cardWithoutLabel = await CreateCardAsync();
 
         // Act
-        var response = await _client.PostAsJsonAsync(
+        var response = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/prune/preview",
-            new { labelIds = new[] { labelId } });
+            new { labelIds = new[] { labelId } }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -168,9 +174,11 @@ public class PruneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         var olderThan = DateTimeOffset.UtcNow.AddDays(-30).ToString("O");
 
         // Act
-        var response = await _client.PostAsJsonAsync(
+        var response = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/prune/preview",
-            new { olderThan, laneIds = new[] { lane1Id } });
+            new { olderThan, laneIds = new[] { lane1Id } }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -189,9 +197,11 @@ public class PruneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         TestAuthHelper.SetAdminAuth(_client, _factory);
 
         // Act
-        var response = await _client.PostAsJsonAsync(
+        var response = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/prune/preview",
-            new { });
+            new { }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -207,9 +217,11 @@ public class PruneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         var olderThan = DateTimeOffset.UtcNow.AddDays(-30).ToString("O");
 
         // Act
-        var response = await _client.PostAsJsonAsync(
+        var response = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/prune/preview",
-            new { olderThan });
+            new { olderThan }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
@@ -226,9 +238,11 @@ public class PruneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         var olderThan = DateTimeOffset.UtcNow.AddDays(-30).ToString("O");
 
         // Act
-        var response = await _client.PostAsJsonAsync(
+        var response = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/prune",
-            new { olderThan, action = "delete" });
+            new { olderThan, action = "delete" }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -253,9 +267,11 @@ public class PruneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         var cardId = await CreateCardAsync(daysOld: 60);
 
         // Add a comment to the card
-        var commentResponse = await _client.PostAsJsonAsync(
+        var commentResponse = await _client.PostAsJsonAsync
+        (
             $"/api/v1/cards/{cardId}/comments",
-            new { contentMarkdown = "Comment on card to be pruned" });
+            new { contentMarkdown = "Comment on card to be pruned" }
+        );
         commentResponse.EnsureSuccessStatusCode();
         var comment = await commentResponse.Content.ReadFromJsonAsync<JsonElement>();
         var commentId = comment.GetProperty("id").GetGuid();
@@ -263,9 +279,11 @@ public class PruneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         var olderThan = DateTimeOffset.UtcNow.AddDays(-30).ToString("O");
 
         // Act
-        var response = await _client.PostAsJsonAsync(
+        var response = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/prune",
-            new { olderThan, action = "delete" });
+            new { olderThan, action = "delete" }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -290,9 +308,11 @@ public class PruneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         var fakeLaneId = Guid.NewGuid();
 
         // Act
-        var response = await _client.PostAsJsonAsync(
+        var response = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/prune",
-            new { laneIds = new[] { fakeLaneId }, action = "delete" });
+            new { laneIds = new[] { fakeLaneId }, action = "delete" }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -310,9 +330,11 @@ public class PruneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         var olderThan = DateTimeOffset.UtcNow.AddDays(-30).ToString("O");
 
         // Act
-        var response = await _client.PostAsJsonAsync(
+        var response = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{fakeBoardId}/prune/preview",
-            new { olderThan });
+            new { olderThan }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);

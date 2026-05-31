@@ -29,8 +29,11 @@ public class TempCardSweepServiceTests(CollaboardApiFactory factory) : IClassFix
             position = Random.Shared.Next(10000, 99999),
         };
 
-        var response = await _client.PostAsJsonAsync(
-            $"/api/v1/boards/{_factory.DefaultBoardId}/cards/temp", payload);
+        var response = await _client.PostAsJsonAsync
+        (
+            $"/api/v1/boards/{_factory.DefaultBoardId}/cards/temp",
+            payload
+        );
         response.EnsureSuccessStatusCode();
         var json = await response.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
         return json.GetProperty("id").GetGuid();

@@ -20,14 +20,14 @@ internal static class SearchEndpoints
             // Load all archive lane IDs upfront (spans all boards)
             var allArchiveLanes = await db.Lanes
                 .Where(l => l.IsArchiveLane)
-                .Select(l => new { l.Id, l.BoardId })
-                .ToListAsync();
+                    .Select(l => new { l.Id, l.BoardId })
+                        .ToListAsync();
 
             // Separate: exclude archive lanes from all boards except the archiveBoardId
             var excludeArchiveLaneIds = allArchiveLanes
                 .Where(l => l.BoardId != archiveBoardId)
-                .Select(l => l.Id)
-                .ToList();
+                    .Select(l => l.Id)
+                        .ToList();
 
             var query = db.Cards.Where(c => !c.IsTemp);
             query = SearchHelper.ApplySearchFilter(query, q);
@@ -42,7 +42,7 @@ internal static class SearchEndpoints
                 .OrderBy(c => c.BoardId)
                 .ThenByDescending(c => c.Number)
                 .Take(effectiveLimit)
-                .ToListAsync();
+                    .ToListAsync();
 
             if (cards.Count == 0)
             {
@@ -55,33 +55,35 @@ internal static class SearchEndpoints
             // Batch load boards
             var boards = await db.Boards
                 .Where(b => boardIds.Contains(b.Id))
-                .ToDictionaryAsync(b => b.Id, b => b);
+                    .ToDictionaryAsync(b => b.Id, b => b);
 
             // Batch load sizes
             var sizeIds = cards.Select(c => c.SizeId).Distinct().ToList();
             var sizeNames = await db.CardSizes
                 .Where(s => sizeIds.Contains(s.Id))
-                .ToDictionaryAsync(s => s.Id, s => s.Name);
+                    .ToDictionaryAsync(s => s.Id, s => s.Name);
 
             // Batch load labels
             var cardLabels = await db.CardLabels
                 .Where(cl => cardIds.Contains(cl.CardId))
-                .Join(db.Labels, cl => cl.LabelId, l => l.Id, (cl, l) => new { cl.CardId, Label = new CardLabelSummary(l.Id, l.Name, l.Color) })
-                .ToListAsync();
-            var labelsByCard = cardLabels.GroupBy(x => x.CardId).ToDictionary(g => g.Key, g => g.Select(x => x.Label).ToList());
+                    .Join(db.Labels, cl => cl.LabelId, l => l.Id, (cl, l) => new { cl.CardId, Label = new CardLabelSummary(l.Id, l.Name, l.Color) })
+                        .ToListAsync();
+            var labelsByCard = cardLabels
+                .GroupBy(x => x.CardId)
+                    .ToDictionary(g => g.Key, g => g.Select(x => x.Label).ToList());
 
             // Batch load counts
             var commentCounts = await db.Comments
                 .Where(cm => cardIds.Contains(cm.CardId))
-                .GroupBy(cm => cm.CardId)
-                .Select(g => new { CardId = g.Key, Count = g.Count() })
-                .ToDictionaryAsync(x => x.CardId, x => x.Count);
+                    .GroupBy(cm => cm.CardId)
+                        .Select(g => new { CardId = g.Key, Count = g.Count() })
+                            .ToDictionaryAsync(x => x.CardId, x => x.Count);
 
             var attachmentCounts = await db.Attachments
                 .Where(a => cardIds.Contains(a.CardId))
-                .GroupBy(a => a.CardId)
-                .Select(g => new { CardId = g.Key, Count = g.Count() })
-                .ToDictionaryAsync(x => x.CardId, x => x.Count);
+                    .GroupBy(a => a.CardId)
+                        .Select(g => new { CardId = g.Key, Count = g.Count() })
+                            .ToDictionaryAsync(x => x.CardId, x => x.Count);
 
             // Build a cardId -> boardId lookup
             var cardBoardMap = cards.ToDictionary(c => c.Id, c => c.BoardId);
@@ -90,29 +92,39 @@ internal static class SearchEndpoints
             var archiveLaneIds = allArchiveLanes.Select(l => l.Id).ToHashSet();
 
             // Project to summaries
-            var summaries = cards.Select(c => new CardSummary(
-                c.Id, c.Number, c.Name, c.DescriptionMarkdown,
-                c.SizeId, sizeNames.GetValueOrDefault(c.SizeId, "?"),
-                c.LaneId, c.Position,
-                c.CreatedByUserId, c.CreatedAtUtc,
-                c.LastUpdatedByUserId, c.LastUpdatedAtUtc,
-                labelsByCard.GetValueOrDefault(c.Id, []),
-                commentCounts.GetValueOrDefault(c.Id, 0),
-                attachmentCounts.GetValueOrDefault(c.Id, 0),
-                archiveLaneIds.Contains(c.LaneId)
-            )).ToList();
+            var summaries = cards
+                .Select(c => new CardSummary
+                (
+                    c.Id,
+                    c.Number,
+                    c.Name,
+                    c.DescriptionMarkdown,
+                    c.SizeId,
+                    sizeNames.GetValueOrDefault(c.SizeId, "?"),
+                    c.LaneId,
+                    c.Position,
+                    c.CreatedByUserId,
+                    c.CreatedAtUtc,
+                    c.LastUpdatedByUserId,
+                    c.LastUpdatedAtUtc,
+                    labelsByCard.GetValueOrDefault(c.Id, []),
+                    commentCounts.GetValueOrDefault(c.Id, 0),
+                    attachmentCounts.GetValueOrDefault(c.Id, 0),
+                    archiveLaneIds.Contains(c.LaneId)
+                ))
+                    .ToList();
 
             // Group by board; current board (if specified) ranks first
             var results = summaries
                 .GroupBy(s => cardBoardMap[s.Id])
                 .Where(g => boards.ContainsKey(g.Key))
-                .Select(g =>
-                {
-                    var board = boards[g.Key];
-                    return new SearchResult(board.Id, board.Name, board.Slug, [.. g]);
-                })
-                .OrderBy(r => r.BoardId == boardId ? 0 : 1)
-                .ToList();
+                    .Select(g =>
+                    {
+                        var board = boards[g.Key];
+                        return new SearchResult(board.Id, board.Name, board.Slug, [.. g]);
+                    })
+                    .OrderBy(r => r.BoardId == boardId ? 0 : 1)
+                        .ToList();
 
             return Results.Ok(results);
         }).RequireAuth();

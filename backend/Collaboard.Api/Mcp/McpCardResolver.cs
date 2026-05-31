@@ -14,9 +14,15 @@ internal static class McpCardResolver
     // when the disjunction is violated, or when any referenced card does not
     // exist. On success it returns the cards in input order so the caller's
     // per-card result envelope aligns 1:1 with the requested order.
-    public static async Task<(List<CardItem>? Cards, string? Error)> ResolveCardRefsAsync(
-        BoardDbContext db, string? cardIds, string? cardNumbers,
-        Guid? boardId, string? boardSlug, CancellationToken ct = default)
+    public static async Task<(List<CardItem>? Cards, string? Error)> ResolveCardRefsAsync
+    (
+        BoardDbContext db,
+        string? cardIds,
+        string? cardNumbers,
+        Guid? boardId,
+        string? boardSlug,
+        CancellationToken ct = default
+    )
     {
         var hasIds = !string.IsNullOrWhiteSpace(cardIds);
         var hasNumbers = !string.IsNullOrWhiteSpace(cardNumbers);
@@ -30,8 +36,12 @@ internal static class McpCardResolver
         };
     }
 
-    private static async Task<(List<CardItem>? Cards, string? Error)> ResolveByIdsAsync(
-        BoardDbContext db, string cardIds, CancellationToken ct)
+    private static async Task<(List<CardItem>? Cards, string? Error)> ResolveByIdsAsync
+    (
+        BoardDbContext db,
+        string cardIds,
+        CancellationToken ct
+    )
     {
         var parts = cardIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
@@ -67,8 +77,14 @@ internal static class McpCardResolver
         return (ordered, null);
     }
 
-    private static async Task<(List<CardItem>? Cards, string? Error)> ResolveByNumbersAsync(
-        BoardDbContext db, string cardNumbers, Guid? boardId, string? boardSlug, CancellationToken ct)
+    private static async Task<(List<CardItem>? Cards, string? Error)> ResolveByNumbersAsync
+    (
+        BoardDbContext db,
+        string cardNumbers,
+        Guid? boardId,
+        string? boardSlug,
+        CancellationToken ct
+    )
     {
         var (resolvedBoardId, boardError) = await ResolveBoardIdAsync(db, boardId, boardSlug, ct);
         if (boardError is not null)
@@ -109,10 +125,15 @@ internal static class McpCardResolver
         return (ordered, null);
     }
 
-    public static async Task<(Guid? CardId, string? Error)> ResolveCardIdAsync(
-        BoardDbContext db, Guid? cardId, long? cardNumber,
-        Guid? boardId = null, string? boardSlug = null,
-        CancellationToken ct = default)
+    public static async Task<(Guid? CardId, string? Error)> ResolveCardIdAsync
+    (
+        BoardDbContext db,
+        Guid? cardId,
+        long? cardNumber,
+        Guid? boardId = null,
+        string? boardSlug = null,
+        CancellationToken ct = default
+    )
     {
         if (cardId.HasValue && cardNumber.HasValue)
         {
@@ -136,15 +157,23 @@ internal static class McpCardResolver
             return (null, boardError);
         }
 
-        var card = await db.Cards.FirstOrDefaultAsync(
-            c => c.BoardId == resolvedBoardId && c.Number == cardNumber, ct);
+        var card = await db.Cards.FirstOrDefaultAsync
+        (
+            c => c.BoardId == resolvedBoardId && c.Number == cardNumber,
+            ct
+        );
         return card is not null
             ? (card.Id, null)
             : (null, $"Error: Card #{cardNumber!.Value.ToString(CultureInfo.InvariantCulture)} not found on this board.");
     }
 
-    private static async Task<(Guid? BoardId, string? Error)> ResolveBoardIdAsync(
-        BoardDbContext db, Guid? boardId, string? boardSlug, CancellationToken ct)
+    private static async Task<(Guid? BoardId, string? Error)> ResolveBoardIdAsync
+    (
+        BoardDbContext db,
+        Guid? boardId,
+        string? boardSlug,
+        CancellationToken ct
+    )
     {
         if (boardId.HasValue && !string.IsNullOrWhiteSpace(boardSlug))
         {

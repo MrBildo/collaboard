@@ -34,13 +34,15 @@ public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardE
 {
     [McpServerTool(Name = "bulk_archive_cards", Destructive = false)]
     [Description("Archive multiple cards in a single call (move them to their boards' archive lanes). Provide cardIds (CSV of card GUIDs) OR cardNumbers (CSV) + boardId/boardSlug, not both. Pre-validates all refs (fails loud with no mutations if any is invalid or missing), then archives best-effort. Returns a per-card result envelope: { totalRequested, succeeded, failed, results: [{ cardId, number, status, error? }] } aligned 1:1 with the input order.")]
-    public async Task<string> BulkArchiveCardsAsync(
+    public async Task<string> BulkArchiveCardsAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("CSV of card GUIDs (provide this OR cardNumbers)")] string? cardIds = null,
         [Description("CSV of card numbers (requires boardId or boardSlug)")] string? cardNumbers = null,
         [Description("Board ID (required with cardNumbers)")] Guid? boardId = null,
         [Description("Board slug (alternative to boardId, with cardNumbers)")] string? boardSlug = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (user, error) = await auth.RequireUserAsync(authKey, ct);
         if (error is not null)
@@ -58,7 +60,7 @@ public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardE
         var affectedBoardIds = cards!.Select(c => c.BoardId).Distinct().ToList();
         var archiveLanes = await db.Lanes
             .Where(l => affectedBoardIds.Contains(l.BoardId) && l.IsArchiveLane)
-            .ToListAsync(ct);
+                .ToListAsync(ct);
         var archiveLaneByBoard = archiveLanes.ToDictionary(l => l.BoardId, l => l.Id);
         var archiveLaneIds = archiveLanes.Select(l => l.Id).ToHashSet();
 
@@ -86,14 +88,16 @@ public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardE
 
     [McpServerTool(Name = "bulk_restore_cards", Destructive = false)]
     [Description("Restore multiple archived cards to a single target lane in one call. Provide cardIds (CSV of card GUIDs) OR cardNumbers (CSV) + boardId/boardSlug, not both. All cards must be on the same board as the target lane — cross-board mixing is rejected up-front with no mutations. Pre-validates all refs and the board match, then restores best-effort. Returns a per-card result envelope: { totalRequested, succeeded, failed, results: [{ cardId, number, status, error? }] }.")]
-    public async Task<string> BulkRestoreCardsAsync(
+    public async Task<string> BulkRestoreCardsAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("Target lane ID to restore the cards into (required)")] Guid targetLaneId,
         [Description("CSV of card GUIDs (provide this OR cardNumbers)")] string? cardIds = null,
         [Description("CSV of card numbers (requires boardId or boardSlug)")] string? cardNumbers = null,
         [Description("Board ID (required with cardNumbers)")] Guid? boardId = null,
         [Description("Board slug (alternative to boardId, with cardNumbers)")] string? boardSlug = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (user, error) = await auth.RequireUserAsync(authKey, ct);
         if (error is not null)
@@ -128,8 +132,8 @@ public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardE
 
         var archiveLaneIds = await db.Lanes
             .Where(l => l.BoardId == targetLane.BoardId && l.IsArchiveLane)
-            .Select(l => l.Id)
-            .ToListAsync(ct);
+                .Select(l => l.Id)
+                    .ToListAsync(ct);
         var archiveLaneIdSet = archiveLaneIds.ToHashSet();
 
         var now = DateTimeOffset.UtcNow;
@@ -151,7 +155,8 @@ public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardE
 
     [McpServerTool(Name = "bulk_update_cards", Destructive = false)]
     [Description("Apply a uniform update to multiple cards in one call — lane/position move, size change, and/or label-set replace. (bulk_move_cards is folded in here: pass laneId to move N cards to one lane.) Per-card name/description bulk update is NOT offered. Provide cardIds (CSV of card GUIDs) OR cardNumbers (CSV) + boardId/boardSlug, not both. For labelIds, pass a CSV of label GUIDs or a JSON array string to replace all current labels (empty clears all). When laneId, sizeId/sizeName, or labelIds is provided, all cards must be on the same board as that target (validated up-front, no mutations on failure). Archived cards are rejected per-card. Returns a per-card result envelope: { totalRequested, succeeded, failed, results: [{ cardId, number, status, error? }] }.")]
-    public async Task<string> BulkUpdateCardsAsync(
+    public async Task<string> BulkUpdateCardsAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("CSV of card GUIDs (provide this OR cardNumbers)")] string? cardIds = null,
         [Description("CSV of card numbers (requires boardId or boardSlug)")] string? cardNumbers = null,
@@ -162,7 +167,8 @@ public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardE
         [Description("Label GUIDs to replace current labels on all cards (optional). Accepts comma-separated ('guid1,guid2') or a JSON array string ('[\"guid1\",\"guid2\"]'). Empty string or empty array clears all.")] string? labelIds = null,
         [Description("Board ID (required with cardNumbers)")] Guid? boardId = null,
         [Description("Board slug (alternative to boardId, with cardNumbers)")] string? boardSlug = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (user, error) = await auth.RequireUserAsync(authKey, ct);
         if (error is not null)
@@ -281,9 +287,9 @@ public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardE
         var toRemove = current.Where(cl => !desired.Contains(cl.LabelId)).ToList();
         db.CardLabels.RemoveRange(toRemove);
 
-        foreach (var lid in desired.Where(id => !currentIds.Contains(id)))
+        foreach (var labelId in desired.Where(id => !currentIds.Contains(id)))
         {
-            db.CardLabels.Add(new CardLabel { CardId = cardId, LabelId = lid });
+            db.CardLabels.Add(new CardLabel { CardId = cardId, LabelId = labelId });
         }
     }
 
@@ -373,10 +379,12 @@ file sealed class BulkExecution(BoardDbContext db, BoardEventBroadcaster broadca
 
 // Error is omitted on "ok" results so the envelope matches the spec example shape
 // ({ cardId, number, status } for ok; + error for non-ok).
-file record BulkCardResult(
+file record BulkCardResult
+(
     Guid CardId,
     long Number,
     string Status,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Error);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Error
+);
 
 file record BulkResultEnvelope(int TotalRequested, int Succeeded, int Failed, List<BulkCardResult> Results);

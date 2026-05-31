@@ -253,9 +253,11 @@ public class ArchiveGuardTests(CollaboardApiFactory factory) : IClassFixture<Col
 
     private async Task<Guid> CreateCardAsync(Guid laneId, string name)
     {
-        var response = await _client.PostAsJsonAsync(
+        var response = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/cards",
-            new { name, laneId });
+            new { name, laneId }
+        );
         response.EnsureSuccessStatusCode();
         var card = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         return card.GetProperty("id").GetGuid();
@@ -269,9 +271,11 @@ public class ArchiveGuardTests(CollaboardApiFactory factory) : IClassFixture<Col
 
     private async Task<Guid> CreateCommentAsync(Guid cardId, string content)
     {
-        var response = await _client.PostAsJsonAsync(
+        var response = await _client.PostAsJsonAsync
+        (
             $"/api/v1/cards/{cardId}/comments",
-            new { contentMarkdown = content });
+            new { contentMarkdown = content }
+        );
         response.EnsureSuccessStatusCode();
         var comment = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         return comment.GetProperty("id").GetGuid();
@@ -279,9 +283,11 @@ public class ArchiveGuardTests(CollaboardApiFactory factory) : IClassFixture<Col
 
     private async Task<Guid> CreateLabelAsync(string name)
     {
-        var response = await _client.PostAsJsonAsync(
+        var response = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/labels",
-            new { name, color = "#FF0000" });
+            new { name, color = "#FF0000" }
+        );
         response.EnsureSuccessStatusCode();
         var label = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         return label.GetProperty("id").GetGuid();
@@ -315,9 +321,11 @@ public class ArchiveGuardTests(CollaboardApiFactory factory) : IClassFixture<Col
         var archiveLaneId = await GetArchiveLaneIdAsync();
 
         // Act
-        var response = await _client.PostAsJsonAsync(
+        var response = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/cards",
-            new { name = "Sneaky Card", laneId = archiveLaneId });
+            new { name = "Sneaky Card", laneId = archiveLaneId }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
@@ -331,17 +339,21 @@ public class ArchiveGuardTests(CollaboardApiFactory factory) : IClassFixture<Col
         var laneId = await TestDataHelper.GetFirstLaneIdAsync(_client, _factory.DefaultBoardId);
         var archiveLaneId = await GetArchiveLaneIdAsync();
 
-        var createResponse = await _client.PostAsJsonAsync(
+        var createResponse = await _client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/cards",
-            new { name = "Move To Archive Test", laneId });
+            new { name = "Move To Archive Test", laneId }
+        );
         createResponse.EnsureSuccessStatusCode();
         var card = await createResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         var cardId = card.GetProperty("id").GetGuid();
 
         // Act
-        var response = await _client.PatchAsJsonAsync(
+        var response = await _client.PatchAsJsonAsync
+        (
             $"/api/v1/cards/{cardId}",
-            new { laneId = archiveLaneId });
+            new { laneId = archiveLaneId }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);

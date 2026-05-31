@@ -32,11 +32,13 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
     private async Task<HttpClient> ClientForRoleAsync(UserRole role, string nameHint)
     {
         var setupClient = _factory.CreateClient();
-        var user = await TestAuthHelper.CreateUserAsync(
+        var user = await TestAuthHelper.CreateUserAsync
+        (
             setupClient,
             _factory,
             $"{nameHint}-{role}-{Guid.NewGuid():N}",
-            role);
+            role
+        );
 
         var client = _factory.CreateClient();
         TestAuthHelper.SetAuth(client, user.AuthKey);
@@ -58,9 +60,11 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         var client = await ClientForRoleAsync(role, "post-lane");
 
         // Act
-        var response = await client.PostAsJsonAsync(
+        var response = await client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/lanes",
-            new { name = $"RoleGate Lane {Guid.NewGuid():N}", position = Random.Shared.Next(50_000, 100_000) });
+            new { name = $"RoleGate Lane {Guid.NewGuid():N}", position = Random.Shared.Next(50_000, 100_000) }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(expected);
@@ -78,9 +82,11 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         var client = await ClientForRoleAsync(role, "patch-lane");
 
         // Act
-        var response = await client.PatchAsJsonAsync(
+        var response = await client.PatchAsJsonAsync
+        (
             $"/api/v1/lanes/{laneId}",
-            new { name = "Renamed" });
+            new { name = "Renamed" }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(expected);
@@ -119,9 +125,11 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         var client = await ClientForRoleAsync(role, "post-label");
 
         // Act
-        var response = await client.PostAsJsonAsync(
+        var response = await client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/labels",
-            new { name = $"RoleGate Label {Guid.NewGuid():N}", color = "#abcdef" });
+            new { name = $"RoleGate Label {Guid.NewGuid():N}", color = "#abcdef" }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(expected);
@@ -139,9 +147,11 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         var client = await ClientForRoleAsync(role, "patch-label");
 
         // Act
-        var response = await client.PatchAsJsonAsync(
+        var response = await client.PatchAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/labels/{labelId}",
-            new { name = $"Renamed-{role}-{Guid.NewGuid():N}" });
+            new { name = $"Renamed-{role}-{Guid.NewGuid():N}" }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(expected);
@@ -180,9 +190,11 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         var client = await ClientForRoleAsync(role, "post-size");
 
         // Act
-        var response = await client.PostAsJsonAsync(
+        var response = await client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/sizes",
-            new { name = $"RG-{Guid.NewGuid():N}".Substring(0, 8) });
+            new { name = $"RG-{Guid.NewGuid():N}".Substring(0, 8) }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(expected);
@@ -200,9 +212,11 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         var client = await ClientForRoleAsync(role, "patch-size");
 
         // Act
-        var response = await client.PatchAsJsonAsync(
+        var response = await client.PatchAsJsonAsync
+        (
             $"/api/v1/sizes/{sizeId}",
-            new { name = $"R-{role}-{Guid.NewGuid().ToString("N").Substring(0, 6)}" });
+            new { name = $"R-{role}-{Guid.NewGuid().ToString("N").Substring(0, 6)}" }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(expected);
@@ -241,9 +255,11 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         var client = await ClientForRoleAsync(role, "post-board");
 
         // Act
-        var response = await client.PostAsJsonAsync(
+        var response = await client.PostAsJsonAsync
+        (
             "/api/v1/boards",
-            new { name = $"RoleGate Board {Guid.NewGuid():N}" });
+            new { name = $"RoleGate Board {Guid.NewGuid():N}" }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(expected);
@@ -261,9 +277,11 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         var client = await ClientForRoleAsync(role, "patch-board");
 
         // Act
-        var response = await client.PatchAsJsonAsync(
+        var response = await client.PatchAsJsonAsync
+        (
             $"/api/v1/boards/{boardId}",
-            new { name = $"Renamed {Guid.NewGuid():N}" });
+            new { name = $"Renamed {Guid.NewGuid():N}" }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(expected);
@@ -302,9 +320,11 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         var client = await ClientForRoleAsync(role, "prune-preview");
 
         // Act — pass a filter (preview requires at least one)
-        var response = await client.PostAsJsonAsync(
+        var response = await client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/prune/preview",
-            new { olderThan = DateTimeOffset.UtcNow.AddYears(-100) });
+            new { olderThan = DateTimeOffset.UtcNow.AddYears(-100) }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(expected);
@@ -321,9 +341,11 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         var client = await ClientForRoleAsync(role, "prune-archive");
 
         // Act — archive action, filter that matches nothing (no cards old enough)
-        var response = await client.PostAsJsonAsync(
+        var response = await client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/prune",
-            new { action = "archive", olderThan = DateTimeOffset.UtcNow.AddYears(-100) });
+            new { action = "archive", olderThan = DateTimeOffset.UtcNow.AddYears(-100) }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(expected);
@@ -338,9 +360,11 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         var client = await ClientForRoleAsync(UserRole.AgentAdministrator, "prune-delete");
 
         // Act
-        var response = await client.PostAsJsonAsync(
+        var response = await client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/prune",
-            new { action = "delete", olderThan = DateTimeOffset.UtcNow.AddYears(-100) });
+            new { action = "delete", olderThan = DateTimeOffset.UtcNow.AddYears(-100) }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
@@ -353,9 +377,11 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         var client = AdminClient();
 
         // Act
-        var response = await client.PostAsJsonAsync(
+        var response = await client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/prune",
-            new { action = "delete", olderThan = DateTimeOffset.UtcNow.AddYears(-100) });
+            new { action = "delete", olderThan = DateTimeOffset.UtcNow.AddYears(-100) }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -372,9 +398,11 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         var client = await ClientForRoleAsync(UserRole.AgentAdministrator, "post-user");
 
         // Act
-        var response = await client.PostAsJsonAsync(
+        var response = await client.PostAsJsonAsync
+        (
             "/api/v1/users",
-            new { name = "Should Not Create", role = (int)UserRole.AgentUser });
+            new { name = "Should Not Create", role = (int)UserRole.AgentUser }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
@@ -385,9 +413,11 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
     {
         // Arrange — make a target user; only an Administrator should be able to PATCH them.
         var adminClient = AdminClient();
-        var targetResponse = await adminClient.PostAsJsonAsync(
+        var targetResponse = await adminClient.PostAsJsonAsync
+        (
             "/api/v1/users",
-            new { name = $"PatchTarget-{Guid.NewGuid():N}", role = (int)UserRole.AgentUser });
+            new { name = $"PatchTarget-{Guid.NewGuid():N}", role = (int)UserRole.AgentUser }
+        );
         targetResponse.EnsureSuccessStatusCode();
         var target = await targetResponse.Content.ReadFromJsonAsync<JsonElement>();
         var targetId = target.GetProperty("id").GetGuid();
@@ -395,9 +425,11 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         var client = await ClientForRoleAsync(UserRole.AgentAdministrator, "patch-user");
 
         // Act
-        var response = await client.PatchAsJsonAsync(
+        var response = await client.PatchAsJsonAsync
+        (
             $"/api/v1/users/{targetId}",
-            new { name = "Renamed" });
+            new { name = "Renamed" }
+        );
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
@@ -408,9 +440,11 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
     {
         // Arrange
         var adminClient = AdminClient();
-        var targetResponse = await adminClient.PostAsJsonAsync(
+        var targetResponse = await adminClient.PostAsJsonAsync
+        (
             "/api/v1/users",
-            new { name = $"DeactivateTarget-{Guid.NewGuid():N}", role = (int)UserRole.AgentUser });
+            new { name = $"DeactivateTarget-{Guid.NewGuid():N}", role = (int)UserRole.AgentUser }
+        );
         targetResponse.EnsureSuccessStatusCode();
         var target = await targetResponse.Content.ReadFromJsonAsync<JsonElement>();
         var targetId = target.GetProperty("id").GetGuid();
@@ -444,9 +478,11 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
     private async Task<Guid> CreateLaneAsAdminAsync(string namePrefix, int position)
     {
         var client = AdminClient();
-        var response = await client.PostAsJsonAsync(
+        var response = await client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/lanes",
-            new { name = $"{namePrefix} {Guid.NewGuid():N}", position });
+            new { name = $"{namePrefix} {Guid.NewGuid():N}", position }
+        );
         response.EnsureSuccessStatusCode();
         var lane = await response.Content.ReadFromJsonAsync<JsonElement>();
         return lane.GetProperty("id").GetGuid();
@@ -455,9 +491,11 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
     private async Task<Guid> CreateLabelAsAdminAsync()
     {
         var client = AdminClient();
-        var response = await client.PostAsJsonAsync(
+        var response = await client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/labels",
-            new { name = $"RoleGate Label {Guid.NewGuid():N}", color = "#cccccc" });
+            new { name = $"RoleGate Label {Guid.NewGuid():N}", color = "#cccccc" }
+        );
         response.EnsureSuccessStatusCode();
         var label = await response.Content.ReadFromJsonAsync<JsonElement>();
         return label.GetProperty("id").GetGuid();
@@ -466,9 +504,11 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
     private async Task<Guid> CreateSizeAsAdminAsync()
     {
         var client = AdminClient();
-        var response = await client.PostAsJsonAsync(
+        var response = await client.PostAsJsonAsync
+        (
             $"/api/v1/boards/{_factory.DefaultBoardId}/sizes",
-            new { name = $"RG-{Guid.NewGuid().ToString("N").Substring(0, 6)}" });
+            new { name = $"RG-{Guid.NewGuid().ToString("N").Substring(0, 6)}" }
+        );
         response.EnsureSuccessStatusCode();
         var size = await response.Content.ReadFromJsonAsync<JsonElement>();
         return size.GetProperty("id").GetGuid();
@@ -477,9 +517,11 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
     private async Task<Guid> CreateBoardAsAdminAsync()
     {
         var client = AdminClient();
-        var response = await client.PostAsJsonAsync(
+        var response = await client.PostAsJsonAsync
+        (
             "/api/v1/boards",
-            new { name = $"RoleGate Board {Guid.NewGuid():N}" });
+            new { name = $"RoleGate Board {Guid.NewGuid():N}" }
+        );
         response.EnsureSuccessStatusCode();
         var board = await response.Content.ReadFromJsonAsync<JsonElement>();
         return board.GetProperty("id").GetGuid();
