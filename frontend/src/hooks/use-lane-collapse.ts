@@ -21,20 +21,20 @@ export function useLaneCollapse(boardId: string | undefined) {
   const [collapseMap, setCollapseMap] = useState<CollapseMap>(() =>
     boardId ? (readCollapseMap(boardId) ?? {}) : {},
   );
-  const [defaultsApplied, setDefaultsApplied] = useState(false);
+  const [hasAppliedDefaults, setHasAppliedDefaults] = useState(false);
 
   // Reset when board changes (React-recommended "adjust state during render" pattern)
   const [prevBoardId, setPrevBoardId] = useState(boardId);
   if (boardId !== prevBoardId) {
     setPrevBoardId(boardId);
     setCollapseMap(boardId ? (readCollapseMap(boardId) ?? {}) : {});
-    setDefaultsApplied(false);
+    setHasAppliedDefaults(false);
   }
 
   const initDefaults = useCallback(
     (lanes: { id: string; cardCount: number }[]) => {
-      if (!boardId || defaultsApplied) return;
-      setDefaultsApplied(true);
+      if (!boardId || hasAppliedDefaults) return;
+      setHasAppliedDefaults(true);
 
       const saved = readCollapseMap(boardId);
       if (saved) return;
@@ -46,7 +46,7 @@ export function useLaneCollapse(boardId: string | undefined) {
       setCollapseMap(defaults);
       writeCollapseMap(boardId, defaults);
     },
-    [boardId, defaultsApplied],
+    [boardId, hasAppliedDefaults],
   );
 
   const toggle = useCallback(

@@ -33,7 +33,7 @@ export function SearchCommand() {
   const currentBoardId = boardMetaQuery.data?.id;
 
   // Derive open state: show dropdown when query is valid and not dismissed for this specific query
-  const [inputFocused, setInputFocused] = useState(false);
+  const [isInputFocused, setIsInputFocused] = useState(false);
   const open = isSearchable && dismissedQuery !== debouncedQuery;
 
   // Close on outside click — callback always sees latest debouncedQuery via latest-ref pattern in hook
@@ -217,14 +217,14 @@ export function SearchCommand() {
         <Input
           ref={inputRef}
           type="text"
-          placeholder={inputFocused ? '' : placeholder}
+          placeholder={isInputFocused ? '' : placeholder}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => {
-            setInputFocused(true);
+            setIsInputFocused(true);
             setDismissedQuery(null);
           }}
-          onBlur={() => setInputFocused(false)}
+          onBlur={() => setIsInputFocused(false)}
           onKeyDown={handleInputKeyDown}
           className="pl-8 pr-8"
         />
