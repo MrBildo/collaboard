@@ -23,14 +23,16 @@ public sealed class PruneTools(BoardDbContext db, McpAuthService auth, BoardEven
 {
     [McpServerTool(Name = "prune_preview", Destructive = false)]
     [Description("Preview which cards a prune would match, without changing anything. Requires Administrator or AgentAdministrator role. At least one filter (olderThan, laneIds, or labelIds) is required. laneIds and labelIds accept comma-separated GUIDs ('guid1,guid2') or a JSON array string ('[\"guid1\",\"guid2\"]'). Archived cards are excluded unless includeArchived is true. Returns { matchCount, cards }.")]
-    public async Task<string> PrunePreviewAsync(
+    public async Task<string> PrunePreviewAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("The board ID to prune within")] Guid boardId,
         [Description("Match cards last updated before this timestamp (ISO-8601, optional)")] DateTimeOffset? olderThan = null,
         [Description("Match cards in these lanes (optional). Comma-separated GUIDs or a JSON array string.")] string? laneIds = null,
         [Description("Match cards carrying any of these labels (optional). Comma-separated GUIDs or a JSON array string.")] string? labelIds = null,
         [Description("Include archived cards in the match (optional, default false)")] bool? includeArchived = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
         if (error is not null)
@@ -50,30 +52,34 @@ public sealed class PruneTools(BoardDbContext db, McpAuthService auth, BoardEven
         var laneIdSet = cards.Select(c => c.LaneId).Distinct().ToList();
         var laneNames = await db.Lanes
             .Where(l => laneIdSet.Contains(l.Id))
-            .ToDictionaryAsync(l => l.Id, l => l.Name, ct);
+                .ToDictionaryAsync(l => l.Id, l => l.Name, ct);
 
-        var cardSummaries = cards.Select(c => new
-        {
-            c.Id,
-            c.Number,
-            c.Name,
-            laneName = laneNames.GetValueOrDefault(c.LaneId, "?"),
-            c.LastUpdatedAtUtc,
-        }).ToList();
+        var cardSummaries = cards
+            .Select(c => new
+            {
+                c.Id,
+                c.Number,
+                c.Name,
+                laneName = laneNames.GetValueOrDefault(c.LaneId, "?"),
+                c.LastUpdatedAtUtc,
+            })
+                .ToList();
 
         return JsonSerializer.Serialize(new { matchCount = cards.Count, cards = cardSummaries }, JsonSerializerOptions.Web);
     }
 
     [McpServerTool(Name = "prune", Destructive = false)]
     [Description("Archive every card matching the filters in a single call. Requires Administrator or AgentAdministrator role. At least one filter (olderThan, laneIds, or labelIds) is required. laneIds and labelIds accept comma-separated GUIDs ('guid1,guid2') or a JSON array string ('[\"guid1\",\"guid2\"]'). Archived cards are excluded unless includeArchived is true. This tool archives only — archived cards remain restorable; there is no bulk-delete on the MCP surface. Returns { archivedCount }.")]
-    public async Task<string> PruneAsync(
+    public async Task<string> PruneAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("The board ID to prune within")] Guid boardId,
         [Description("Match cards last updated before this timestamp (ISO-8601, optional)")] DateTimeOffset? olderThan = null,
         [Description("Match cards in these lanes (optional). Comma-separated GUIDs or a JSON array string.")] string? laneIds = null,
         [Description("Match cards carrying any of these labels (optional). Comma-separated GUIDs or a JSON array string.")] string? labelIds = null,
         [Description("Include archived cards in the match (optional, default false)")] bool? includeArchived = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
         if (error is not null)
@@ -112,13 +118,15 @@ public sealed class PruneTools(BoardDbContext db, McpAuthService auth, BoardEven
     // on success, or (default, "Error: ...") on the first failure. Action is fixed
     // to archive — the request's Action stays null, which PruneFilter treats as the
     // archive path; the MCP surface never carries a delete action.
-    private async Task<(PruneRequest Request, string? Error)> BuildRequestAsync(
+    private async Task<(PruneRequest Request, string? Error)> BuildRequestAsync
+    (
         Guid boardId,
         DateTimeOffset? olderThan,
         string? laneIds,
         string? labelIds,
         bool? includeArchived,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         if (!await db.Boards.AnyAsync(b => b.Id == boardId, ct))
         {

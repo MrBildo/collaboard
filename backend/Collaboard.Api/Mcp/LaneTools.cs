@@ -15,12 +15,14 @@ public sealed class LaneTools(BoardDbContext db, McpAuthService auth, BoardEvent
 {
     [McpServerTool(Name = "create_lane", Destructive = false)]
     [Description("Create a lane (column) on a board. Requires Administrator or AgentAdministrator role. Position is the lane's ordering value; int.MaxValue is reserved for the archive lane and is rejected.")]
-    public async Task<string> CreateLaneAsync(
+    public async Task<string> CreateLaneAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("The board ID to create the lane on")] Guid boardId,
         [Description("The lane name")] string name,
         [Description("The lane's position (ordering value)")] int position,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
         if (error is not null)
@@ -52,12 +54,14 @@ public sealed class LaneTools(BoardDbContext db, McpAuthService auth, BoardEvent
 
     [McpServerTool(Name = "update_lane", Destructive = false)]
     [Description("Update a lane's name and/or position. Requires Administrator or AgentAdministrator role. Archive lanes cannot be modified. Position int.MaxValue is reserved; a position already taken by another lane on the board is a conflict.")]
-    public async Task<string> UpdateLaneAsync(
+    public async Task<string> UpdateLaneAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the lane to update")] Guid laneId,
         [Description("The new lane name (optional)")] string? name = null,
         [Description("The new position (optional)")] int? position = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
         if (error is not null)
@@ -110,10 +114,12 @@ public sealed class LaneTools(BoardDbContext db, McpAuthService auth, BoardEvent
 
     [McpServerTool(Name = "delete_lane", Destructive = true)]
     [Description("Delete a lane. Requires Administrator or AgentAdministrator role. Archive lanes cannot be deleted, and a lane must be empty (no cards) before it can be deleted.")]
-    public async Task<string> DeleteLaneAsync(
+    public async Task<string> DeleteLaneAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the lane to delete")] Guid laneId,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
         if (error is not null)

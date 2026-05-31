@@ -20,8 +20,13 @@ internal static class McpLabelParsing
     //      parameter.
     // The schema stays a string; the handler is permissive about which shape
     // arrives. Null or whitespace input returns an empty list with no error.
-    public static async Task<(List<Guid> LabelIds, string? Error)> ParseAndValidateLabelIdsAsync(
-        BoardDbContext db, string? labelIds, Guid boardId, CancellationToken ct)
+    public static async Task<(List<Guid> LabelIds, string? Error)> ParseAndValidateLabelIdsAsync
+    (
+        BoardDbContext db,
+        string? labelIds,
+        Guid boardId,
+        CancellationToken ct
+    )
     {
         List<Guid> parsedIds = [];
         if (string.IsNullOrWhiteSpace(labelIds))
@@ -45,8 +50,8 @@ internal static class McpLabelParsing
 
         var validLabels = await db.Labels
             .Where(l => parsedIds.Contains(l.Id) && l.BoardId == boardId)
-            .Select(l => l.Id)
-            .ToListAsync(ct);
+                .Select(l => l.Id)
+                    .ToListAsync(ct);
 
         var invalidIds = parsedIds.Except(validLabels).ToList();
         if (invalidIds.Count > 0)

@@ -9,9 +9,11 @@ public sealed class SystemTools(McpAuthService auth, IHttpContextAccessor httpCo
 {
     [McpServerTool(Name = "get_api_info", ReadOnly = true, Destructive = false)]
     [Description("Returns the API's base URL and version. Use this to discover the API address for direct REST calls (e.g. downloading large attachments).")]
-    public async Task<string> GetApiInfoAsync(
+    public async Task<string> GetApiInfoAsync
+    (
         [Description("Your auth key")] string authKey,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (_, error) = await auth.RequireUserAsync(authKey, ct);
         if (error is not null)

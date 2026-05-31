@@ -11,9 +11,11 @@ public sealed class BoardTools(BoardDbContext db, McpAuthService auth)
 {
     [McpServerTool(Name = "get_boards", ReadOnly = true, Destructive = false)]
     [Description("List all boards. Use this to discover board IDs for scoping other tools.")]
-    public async Task<string> GetBoardsAsync(
+    public async Task<string> GetBoardsAsync
+    (
         [Description("Your auth key (X-User-Key)")] string authKey,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (_, error) = await auth.RequireUserAsync(authKey, ct);
         if (error is not null)
@@ -27,10 +29,12 @@ public sealed class BoardTools(BoardDbContext db, McpAuthService auth)
 
     [McpServerTool(Name = "get_lanes", ReadOnly = true, Destructive = false)]
     [Description("Get all lanes (columns) for a board, ordered by position. Each lane includes a cardCount with the number of cards in that lane.")]
-    public async Task<string> GetLanesAsync(
+    public async Task<string> GetLanesAsync
+    (
         [Description("Your auth key (X-User-Key)")] string authKey,
         [Description("Board ID to scope results")] Guid boardId,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (_, error) = await auth.RequireUserAsync(authKey, ct);
         if (error is not null)
@@ -40,33 +44,37 @@ public sealed class BoardTools(BoardDbContext db, McpAuthService auth)
 
         var cardCounts = await db.Cards
             .Where(c => c.BoardId == boardId && !c.IsTemp)
-            .GroupBy(c => c.LaneId)
-            .Select(g => new { LaneId = g.Key, Count = g.Count() })
-            .ToDictionaryAsync(x => x.LaneId, x => x.Count, ct);
+                .GroupBy(c => c.LaneId)
+                    .Select(g => new { LaneId = g.Key, Count = g.Count() })
+                        .ToDictionaryAsync(x => x.LaneId, x => x.Count, ct);
 
         var lanes = await db.Lanes
             .Where(l => l.BoardId == boardId && !l.IsArchiveLane)
             .OrderBy(l => l.Position)
-            .ToListAsync(ct);
+                .ToListAsync(ct);
 
-        var result = lanes.Select(l => new
-        {
-            l.Id,
-            l.BoardId,
-            l.Name,
-            l.Position,
-            CardCount = cardCounts.GetValueOrDefault(l.Id, 0)
-        }).ToList();
+        var result = lanes
+            .Select(l => new
+            {
+                l.Id,
+                l.BoardId,
+                l.Name,
+                l.Position,
+                CardCount = cardCounts.GetValueOrDefault(l.Id, 0),
+            })
+                .ToList();
 
         return JsonSerializer.Serialize(result, JsonSerializerOptions.Web);
     }
 
     [McpServerTool(Name = "get_sizes", ReadOnly = true, Destructive = false)]
     [Description("Get all card sizes for a board, ordered by ordinal. Use this to discover valid size IDs/names when creating or updating cards.")]
-    public async Task<string> GetSizesAsync(
+    public async Task<string> GetSizesAsync
+    (
         [Description("Your auth key (X-User-Key)")] string authKey,
         [Description("Board ID to scope results")] Guid boardId,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (_, error) = await auth.RequireUserAsync(authKey, ct);
         if (error is not null)
@@ -87,10 +95,12 @@ public sealed class BoardTools(BoardDbContext db, McpAuthService auth)
     // via RequireAdminLevelAsync. Board delete is intentionally absent from MCP.
     [McpServerTool(Name = "create_board", Destructive = false)]
     [Description("Create a board. Requires Administrator or AgentAdministrator role. The slug is auto-derived from the name. The board is seeded with an archive lane and the default card sizes (S, M, L, XL).")]
-    public async Task<string> CreateBoardAsync(
+    public async Task<string> CreateBoardAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("The board name")] string name,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
         if (error is not null)
@@ -128,7 +138,8 @@ public sealed class BoardTools(BoardDbContext db, McpAuthService auth)
             IsArchiveLane = true,
         });
 
-        db.CardSizes.AddRange(
+        db.CardSizes.AddRange
+        (
             new CardSize { Id = Guid.NewGuid(), BoardId = board.Id, Name = "S", Ordinal = 0 },
             new CardSize { Id = Guid.NewGuid(), BoardId = board.Id, Name = "M", Ordinal = 1 },
             new CardSize { Id = Guid.NewGuid(), BoardId = board.Id, Name = "L", Ordinal = 2 },
@@ -147,11 +158,13 @@ public sealed class BoardTools(BoardDbContext db, McpAuthService auth)
     // intentional per card #243 spec Part 2.
     [McpServerTool(Name = "update_board", Destructive = false)]
     [Description("Rename a board. Requires Administrator or AgentAdministrator role. Only the name can be changed; the slug is immutable. Name is required — a blank name is rejected.")]
-    public async Task<string> UpdateBoardAsync(
+    public async Task<string> UpdateBoardAsync
+    (
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the board to rename")] Guid boardId,
         [Description("The new board name")] string name,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
         if (error is not null)
