@@ -704,7 +704,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         TestAuthHelper.SetAdminAuth(_client, _factory);
         var laneId = await GetFirstLaneIdAsync();
 
-        var cardIds = new List<Guid>();
+        List<Guid> cardIds = [];
         for (var i = 0; i < 3; i++)
         {
             var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
@@ -732,7 +732,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
 
         var board = await response.Content.ReadFromJsonAsync<JsonElement>();
         var cards = board.GetProperty("cards");
-        var reorderedCards = new List<JsonElement>();
+        List<JsonElement> reorderedCards = [];
         foreach (var c in cards.EnumerateArray())
         {
             if (c.GetProperty("laneId").GetGuid() == laneId && cardIds.Contains(c.GetProperty("id").GetGuid()))
@@ -1976,7 +1976,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         var card = await response.Content.ReadFromJsonAsync<JsonElement>();
         card.GetProperty("labels").GetArrayLength().ShouldBe(2);
 
-        var returnedLabelIds = new HashSet<Guid>();
+        HashSet<Guid> returnedLabelIds = [];
         foreach (var label in card.GetProperty("labels").EnumerateArray())
         {
             returnedLabelIds.Add(label.GetProperty("id").GetGuid());
