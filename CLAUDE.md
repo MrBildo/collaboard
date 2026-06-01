@@ -156,7 +156,7 @@ All endpoints under `/api/v1/`:
 | GET | /boards/{boardId}/sizes | All | List card sizes for a board (ordered by ordinal) |
 | POST | /boards/{boardId}/sizes | Admin | Create size in a board (auto-ordinal if omitted) |
 | GET | /boards/{boardId}/cards | All | List cards (enriched: labels, sizeId, sizeName, commentCount, attachmentCount, isArchived). Returns `{ items, totalCount, offset, limit }` paged envelope. Optional query params: `since` (DateTimeOffset), `labelId` (Guid), `laneId` (Guid), `includeArchived` (bool, default false), `offset` (int, default 0), `limit` (int, optional, max 200 — omit for all results) |
-| POST | /boards/{boardId}/cards | All | Create card in a board (accepts `sizeId`, defaults to lowest-ordinal size). Card numbers are board-scoped (each board starts at 1 independently) |
+| POST | /boards/{boardId}/cards | All | Create card in a board (accepts `sizeId` or `sizeName`, defaults to lowest-ordinal size). Card numbers are board-scoped (each board starts at 1 independently) |
 | GET | /boards/{boardId}/labels | All | List labels for a board |
 | POST | /boards/{boardId}/labels | Admin | Create label in a board |
 | PATCH | /boards/{boardId}/labels/{id} | Admin | Update label name/color |
