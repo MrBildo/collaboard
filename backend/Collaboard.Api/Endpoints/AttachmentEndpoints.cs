@@ -36,7 +36,7 @@ internal static class AttachmentEndpoints
                 return Results.BadRequest("Archived cards cannot be modified. Restore the card first.");
             }
 
-            if (file.Length > settings.Value.MaxFileSizeBytes)
+            if (file.Length > settings.Value.MaxRestUploadBytes)
             {
                 return Results.BadRequest("File too large.");
             }

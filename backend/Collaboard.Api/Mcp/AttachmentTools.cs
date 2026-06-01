@@ -134,11 +134,12 @@ public sealed class AttachmentTools
             return "Error: Invalid base64 content.";
         }
 
-        var maxBytes = attachmentSettings.Value.MaxFileSizeBytes;
+        var maxBytes = attachmentSettings.Value.MaxMcpUploadBytes;
         if (payload.Length > maxBytes)
         {
             var maxMb = maxBytes / (1024 * 1024);
-            return $"Error: File exceeds {maxMb.ToString(CultureInfo.InvariantCulture)}MB limit for MCP uploads. Use the REST endpoint POST /api/v1/cards/{{cardId}}/attachments for larger files (up to 50MB).";
+            var restMaxMb = attachmentSettings.Value.MaxRestUploadBytes / (1024 * 1024);
+            return $"Error: File exceeds {maxMb.ToString(CultureInfo.InvariantCulture)}MB limit for MCP uploads. Use the REST endpoint POST /api/v1/cards/{{cardId}}/attachments for larger files (up to {restMaxMb.ToString(CultureInfo.InvariantCulture)}MB).";
         }
 
         var attachment = new CardAttachment
