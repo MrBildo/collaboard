@@ -93,24 +93,16 @@ public sealed class PruneTools(BoardDbContext db, McpAuthService auth, BoardEven
             return parseError;
         }
 
-        var archiveLane = await db.Lanes.FirstOrDefaultAsync(l => l.BoardId == boardId && l.IsArchiveLane, ct);
-        if (archiveLane is null)
-        {
-            return "Error: Board has no archive lane.";
-        }
-
         var query = PruneFilter.BuildFilteredQuery(db, boardId, request);
-        var cards = await query.ToListAsync(ct);
-
-        foreach (var card in cards)
+        var (archivedCount, archiveError) = await PruneArchiveHelper.ArchiveMatchedAsync(db, boardId, query, ct);
+        if (archiveError is not null)
         {
-            await CardReorderHelper.MoveCardToLaneAsync(db, card, archiveLane.Id, 0, ct);
+            return $"Error: {archiveError}";
         }
 
-        await db.SaveChangesAsync(ct);
         broadcaster.PublishBoardUpdated(boardId);
 
-        return JsonSerializer.Serialize(new { archivedCount = cards.Count }, JsonSerializerOptions.Web);
+        return JsonSerializer.Serialize(new { archivedCount }, JsonSerializerOptions.Web);
     }
 
     // Validates the board exists, parses the CSV/JSON-array GUID filters into a

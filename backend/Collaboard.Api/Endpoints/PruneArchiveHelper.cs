@@ -1,0 +1,40 @@
+using Collaboard.Api.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace Collaboard.Api.Endpoints;
+
+// Shared prune archive-loop orchestration for the REST PruneEndpoints and the MCP
+// PruneTools. PruneFilter already shares the match query; the mutation loop that
+// archives the matched cards (archive-lane lookup -> foreach MoveCardToLaneAsync ->
+// save) was duplicated across both surfaces (#267 D6). Extracted on the PruneFilter
+// precedent so the archive mutation cannot drift either.
+//
+// Archive only — the REST delete branch is REST-only by design (#243 exclusion) and
+// stays inline at its call site. The caller owns the post-save broadcast.
+internal static class PruneArchiveHelper
+{
+    public static async Task<(int ArchivedCount, string? Error)> ArchiveMatchedAsync
+    (
+        BoardDbContext db,
+        Guid boardId,
+        IQueryable<CardItem> filtered,
+        CancellationToken ct
+    )
+    {
+        var archiveLane = await db.Lanes.FirstOrDefaultAsync(l => l.BoardId == boardId && l.IsArchiveLane, ct);
+        if (archiveLane is null)
+        {
+            return (0, "Board has no archive lane.");
+        }
+
+        var cards = await filtered.ToListAsync(ct);
+
+        foreach (var card in cards)
+        {
+            await CardReorderHelper.MoveCardToLaneAsync(db, card, archiveLane.Id, 0, ct);
+        }
+
+        await db.SaveChangesAsync(ct);
+        return (cards.Count, null);
+    }
+}
