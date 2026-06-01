@@ -114,6 +114,26 @@ public class AttachmentEndpointTests(CollaboardApiFactory factory) : IClassFixtu
     }
 
     [Fact]
+    public async Task PostAttachment_SixMb_OverMcpCapUnderRestCap_Succeeds()
+    {
+        // Arrange — 6MB exceeds the 5MB MCP cap but is well under the 50MB REST cap;
+        // the REST path must accept it (the doc'd 5MB-MCP / 50MB-REST split, #265).
+        var cardId = await CreateCardAsync();
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var sixMb = new byte[6 * 1024 * 1024];
+        var upload = CreateFileUpload(sixMb, "six-mb.bin");
+
+        // Act
+        var response = await _client.PostAsync($"/api/v1/cards/{cardId}/attachments", upload);
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
+        json.GetProperty("fileName").GetString().ShouldBe("six-mb.bin");
+    }
+
+    [Fact]
     public async Task PostAttachment_OnNonexistentCard_Returns404()
     {
         // Arrange

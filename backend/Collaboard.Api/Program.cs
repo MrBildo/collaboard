@@ -166,7 +166,7 @@ if (!isSpecialDataSource)
 
 builder.Services.AddDbContext<BoardDbContext>(options => options.UseSqlite(connectionString));
 
-builder.Services.Configure<AttachmentSettings>(builder.Configuration.GetSection("Attachments"));
+builder.Services.Configure<AttachmentSettings>(builder.Configuration.GetSection(AttachmentSettings.SectionName));
 builder.Services.Configure<TempCardSweepSettings>(builder.Configuration.GetSection(TempCardSweepSettings.SectionName));
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<BoardEventBroadcaster>();
@@ -174,8 +174,16 @@ builder.Services.AddScoped<IUserResolver, UserResolver>();
 builder.Services.AddScoped<McpAuthService>();
 builder.Services.AddHostedService<TempCardSweepService>();
 
-builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 50 * 1024 * 1024);
-builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 50 * 1024 * 1024);
+// The request-body limits must track the configured REST upload cap — Kestrel and
+// FormOptions reject oversize bodies with a 413 before the endpoint's friendlier 400
+// runs, so binding both to MaxRestUploadBytes keeps the framework floor in lockstep
+// with the application cap instead of duplicating a magic number.
+var attachmentSettings = builder.Configuration
+    .GetSection(AttachmentSettings.SectionName)
+    .Get<AttachmentSettings>() ?? new AttachmentSettings();
+
+builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = attachmentSettings.MaxRestUploadBytes);
+builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = attachmentSettings.MaxRestUploadBytes);
 
 builder.Services
     .AddMcpServer()

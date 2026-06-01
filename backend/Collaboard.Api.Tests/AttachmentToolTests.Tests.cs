@@ -74,6 +74,31 @@ public class AttachmentToolTests(CollaboardApiFactory factory) : IClassFixture<C
     }
 
     [Fact]
+    public async Task UploadAttachment_SixMb_OverMcpCapUnderRestCap_ReturnsError()
+    {
+        // Arrange — 6MB is the size the REST path accepts (see
+        // AttachmentEndpointTests.PostAttachment_SixMb_OverMcpCapUnderRestCap_Succeeds);
+        // MCP must still reject it and point the caller at REST, per the 5MB-MCP /
+        // 50MB-REST split (#265).
+        var (tools, cardId, authKey) = await CreateToolWithCardAsync();
+        var sixMb = new byte[6 * 1024 * 1024];
+        var base64Content = Convert.ToBase64String(sixMb);
+
+        // Act
+        var result = await tools.UploadAttachmentAsync
+        (
+            authKey,
+            "six-mb.bin",
+            base64Content,
+            cardId: cardId
+        );
+
+        // Assert
+        result.ShouldContain("File exceeds 5MB limit");
+        result.ShouldContain("up to 50MB");
+    }
+
+    [Fact]
     public async Task UploadAttachment_ExactlyFiveMb_Succeeds()
     {
         // Arrange
