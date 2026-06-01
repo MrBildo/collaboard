@@ -27,6 +27,8 @@ import {
 import { CardComments } from '@/components/CardComments';
 import { CardAttachments } from '@/components/CardAttachments';
 import { deleteCard, fetchCardLabels, fetchLabels, updateCard, uploadAttachment } from '@/lib/api';
+import { InlineError } from '@/components/ui/inline-error';
+import { toMessage } from '@/lib/mutation-floor';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { LabelPicker } from '@/components/LabelPicker';
 import { queryKeys } from '@/lib/query-keys';
@@ -163,6 +165,9 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
     const [showRestorePicker, setShowRestorePicker] = useState(false);
     const [pasteStatus, setPasteStatus] = useState<string | null>(null);
     const [saveStatus, setSaveStatus] = useState<string | null>(null);
+    // Inline error for the card-update path (card #203, spec §2a). The operator
+    // is looking at this form, so a save failure belongs here, not in a toast.
+    const [saveError, setSaveError] = useState<string | null>(null);
 
     // Touch tracking: fields the user has edited since mount/last save
     const touchedFields = useRef(new Set<FieldName>());
@@ -386,6 +391,11 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
     }, [isDirty, isDirtyRef]);
 
     const updateMutation = useMutation({
+      // Inline tier (card #203, spec §1 discriminator): the operator is looking
+      // at this form, so the failure belongs in the form, not a toast. Opt out
+      // of the floor's toast and render <InlineError> at the form footer. This
+      // is the app's biggest current silent-loss gap (spec §2a).
+      meta: { skipToast: true },
       mutationFn: (patch: UpdateCardPatch) => updateCard(card.id, patch),
       onSuccess: (updatedCard) => {
         if (boardId) {
@@ -414,6 +424,7 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
         });
         setExternalUpdates({});
         isDirtyRef.current = false;
+        setSaveError(null);
 
         // Show transient "Saved" indicator
         setSaveStatus('Saved');
@@ -423,11 +434,14 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
         onSaveComplete?.();
       },
       onError: (error: unknown) => {
-        console.error('Failed to update card:', error);
+        // Inline surface: render the message in the form (skipToast above).
+        setSaveError(toMessage(error));
       },
     });
 
     const deleteMutation = useMutation({
+      // Board action (no form to attach to) — the floor toasts it (spec §2a).
+      meta: { errorMessage: "Couldn't delete card" },
       mutationFn: () => deleteCard(card.id),
       onSuccess: () => {
         if (boardId) {
@@ -439,9 +453,7 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
         isDirtyRef.current = false;
         onClose();
       },
-      onError: (error: unknown) => {
-        console.error('Failed to delete card:', error);
-      },
+      // No onError: the floor handles the toast (spec §5 Rule 1).
     });
 
     const archiveMutation = useArchiveCard({
@@ -476,6 +488,7 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
       if (!arraysEqual(effectiveLabelIds, baselineState.labelIds))
         patch.labelIds = effectiveLabelIds;
 
+      setSaveError(null);
       updateMutation.mutate(patch);
     }, [
       isDirty,
@@ -850,10 +863,14 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
           </div>
         </div>
 
-        {/* Error display */}
-        {(archiveMutation.isError || restoreMutation.isError) && (
-          <div className="mx-6 mb-1 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-            {archiveMutation.isError ? 'Failed to archive card.' : 'Failed to restore card.'}
+        {/* Inline save error (card #203, spec §2a) — the card-update path is
+            the biggest current silent-loss gap; the error stays in the form so
+            the draft is intact. Archive/restore failures are board-action tier
+            and now surface via the global toast floor (use-archive-card /
+            use-restore-card), so they're no longer rendered here. */}
+        {saveError && (
+          <div className="mx-6 mb-1">
+            <InlineError message={saveError} />
           </div>
         )}
 

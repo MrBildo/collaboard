@@ -4,6 +4,8 @@ import { MarkdownRenderer } from '@/components/MarkdownRenderer';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { createComment, deleteComment, fetchComments, updateComment } from '@/lib/api';
+import { InlineError } from '@/components/ui/inline-error';
+import { toMessage } from '@/lib/mutation-floor';
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { useUserDirectory } from '@/hooks/use-user-directory';
@@ -33,6 +35,10 @@ export function CardComments({
   const [editText, setEditText] = useState('');
   const [isPreviewingEdit, setIsPreviewingEdit] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  // Inline errors (card #203, spec §2a) — the operator is composing/editing in
+  // place, so create/update failures belong next to the text, not in a toast.
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
   const newCommentRef = useRef<HTMLTextAreaElement>(null);
 
   const commentsQuery = useQuery({
@@ -42,44 +48,52 @@ export function CardComments({
   });
 
   const createMutation = useMutation({
+    // Inline tier (spec §2a) — error stays below the composer, draft preserved.
+    meta: { skipToast: true },
     mutationFn: (content: string) => createComment(cardId, content),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.comments(cardId) });
       setNewComment('');
       setIsNewCommentFocused(false);
+      setCreateError(null);
     },
     onError: (error: unknown) => {
-      console.error('Failed to create comment:', error);
+      setCreateError(toMessage(error));
     },
   });
 
   const updateMutation = useMutation({
+    // Inline tier (spec §2a) — error stays on the editing row.
+    meta: { skipToast: true },
     mutationFn: ({ id, content }: { id: string; content: string }) =>
       updateComment(id, { contentMarkdown: content }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.comments(cardId) });
       setEditingId(null);
       setEditText('');
+      setEditError(null);
     },
     onError: (error: unknown) => {
-      console.error('Failed to update comment:', error);
+      setEditError(toMessage(error));
     },
   });
 
   const deleteMutation = useMutation({
+    // Board action — no input surface, comment persists; the floor toasts it
+    // (card #203, spec §2a).
+    meta: { errorMessage: "Couldn't delete comment" },
     mutationFn: (id: string) => deleteComment(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.comments(cardId) });
       setConfirmDeleteId(null);
     },
-    onError: (error: unknown) => {
-      console.error('Failed to delete comment:', error);
-    },
+    // No onError: the floor handles the toast.
   });
 
   const handleAdd = () => {
     const trimmed = newComment.trim();
     if (!trimmed) return;
+    setCreateError(null);
     createMutation.mutate(trimmed);
   };
 
@@ -87,18 +101,21 @@ export function CardComments({
     setNewComment('');
     setIsNewCommentFocused(false);
     setIsPreviewingNew(false);
+    setCreateError(null);
     newCommentRef.current?.blur();
   }, []);
 
   const handleEdit = (id: string, currentContent: string) => {
     setEditingId(id);
     setEditText(currentContent);
+    setEditError(null);
   };
 
   const handleSaveEdit = () => {
     if (!editingId) return;
     const trimmed = editText.trim();
     if (!trimmed) return;
+    setEditError(null);
     updateMutation.mutate({ id: editingId, content: trimmed });
   };
 
@@ -106,6 +123,7 @@ export function CardComments({
     setEditingId(null);
     setEditText('');
     setIsPreviewingEdit(false);
+    setEditError(null);
   };
 
   const handleDelete = (id: string) => {
@@ -182,6 +200,7 @@ export function CardComments({
               </Button>
             </div>
           )}
+          {createError && <InlineError message={createError} />}
         </div>
       )}
 
@@ -239,6 +258,7 @@ export function CardComments({
                     {updateMutation.isPending ? 'Saving...' : 'Save'}
                   </Button>
                 </div>
+                {editError && <InlineError message={editError} />}
               </div>
             ) : (
               <>

@@ -64,6 +64,12 @@ export function useBoardDnd(
   const localCards = dragPhase === 'idle' ? sortedServerCards : (dragCards ?? sortedServerCards);
 
   const reorderMutation = useMutation({
+    // Fork A (ratified, card #203 spec §7): a failed drag toasts ON TOP of the
+    // optimistic snap-back. The snap is the primary self-evident signal; the
+    // toast adds the "why" — disambiguating a server error from a misdrop,
+    // which matters on a multi-user board (spec §2b). The onError below still
+    // performs the rollback; the floor reads this meta and toasts.
+    meta: { errorMessage: "Couldn't move card — try again" },
     mutationFn: (vars: { cardId: string; laneId: string; index: number }) =>
       reorderCard(vars.cardId, vars.laneId, vars.index),
     onMutate: async () => {

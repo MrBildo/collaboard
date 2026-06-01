@@ -41,7 +41,12 @@ export function LanesTab({ boardId }: LanesTabProps) {
     queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
   };
 
+  // Admin-tab mutations are inline tier (card #203, spec §2d) — the operator is
+  // looking at the list, so create/update/delete failures surface inline via
+  // `list.setDeleteError` → <EditableListContainer>. skipToast keeps the floor
+  // quiet; the call site owns the surface.
   const createMutation = useMutation({
+    meta: { skipToast: true },
     mutationFn: () => {
       const lanes = lanesQuery.data ?? [];
       const pos = newPosition
@@ -63,17 +68,19 @@ export function LanesTab({ boardId }: LanesTabProps) {
   });
 
   const updateMutation = useMutation({
+    meta: { skipToast: true },
     mutationFn: ({ id, patch }: { id: string; patch: UpdateLanePatch }) => updateLane(id, patch),
     onSuccess: () => {
       invalidate();
       list.setEditingId(null);
     },
-    onError: (error: unknown) => {
-      console.error('Failed to update lane:', error);
+    onError: (err) => {
+      list.setDeleteError(err instanceof Error ? err.message : 'Failed to update lane.');
     },
   });
 
   const deleteMutation = useMutation({
+    meta: { skipToast: true },
     mutationFn: (id: string) => deleteLane(id),
     onSuccess: () => {
       invalidate();

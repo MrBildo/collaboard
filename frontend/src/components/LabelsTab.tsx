@@ -35,38 +35,46 @@ export function LabelsTab({ boardId }: LabelsTabProps) {
     ...QUERY_DEFAULTS.labels,
   });
 
+  // Admin-tab mutations are inline tier (card #203, spec §2d) — failures surface
+  // inline via `list.setDeleteError` → <EditableListContainer>. Previously all
+  // three paths went silent (console.error only); this brings them in line with
+  // the other admin tabs. skipToast keeps the floor quiet; the call site owns
+  // the surface.
   const createMutation = useMutation({
+    meta: { skipToast: true },
     mutationFn: () => createLabel(boardId, newName.trim(), newColor || undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.labels.all(boardId) });
       setNewName('');
       setNewColor('#3b82f6');
     },
-    onError: (error: unknown) => {
-      console.error('Failed to create label:', error);
+    onError: (err) => {
+      list.setDeleteError(err instanceof Error ? err.message : 'Failed to create label.');
     },
   });
 
   const updateMutation = useMutation({
+    meta: { skipToast: true },
     mutationFn: ({ id, patch }: { id: string; patch: UpdateLabelPatch }) =>
       updateLabel(boardId, id, patch),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.labels.all(boardId) });
       list.setEditingId(null);
     },
-    onError: (error: unknown) => {
-      console.error('Failed to update label:', error);
+    onError: (err) => {
+      list.setDeleteError(err instanceof Error ? err.message : 'Failed to update label.');
     },
   });
 
   const deleteMutation = useMutation({
+    meta: { skipToast: true },
     mutationFn: (id: string) => deleteLabel(boardId, id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.labels.all(boardId) });
       list.clearDelete();
     },
-    onError: (error: unknown) => {
-      console.error('Failed to delete label:', error);
+    onError: (err) => {
+      list.setDeleteError(err instanceof Error ? err.message : 'Failed to delete label.');
     },
   });
 
@@ -107,7 +115,7 @@ export function LabelsTab({ boardId }: LabelsTabProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <EditableListContainer>
+      <EditableListContainer error={list.deleteError}>
         {labels.map((label) => (
           <EditableListRow key={label.id}>
             {list.editingId === label.id ? (
