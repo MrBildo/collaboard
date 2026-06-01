@@ -54,7 +54,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         var (card, buildError) = await CardCreateHelper.BuildCardAsync(db, lane.BoardId, request, parsedLabelIds, user!, ct);
         if (buildError is not null)
         {
-            return buildError;
+            return $"Error: {buildError}";
         }
 
         await CardNumberHelper.InsertCardWithAutoNumberAsync(db, card!, lane.BoardId, ct);
@@ -188,7 +188,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             var (resolvedSizeId, sizeError) = await SizeResolver.ResolveAsync(db, cardBoardId, sizeId, sizeName, ct);
             if (sizeError is not null)
             {
-                return sizeError;
+                return $"Error: {sizeError}";
             }
 
             card.SizeId = resolvedSizeId!.Value;

@@ -95,6 +95,15 @@ public class CardCreateParityTests(CollaboardApiFactory factory) : IClassFixture
         mcpResult.ShouldContain("Error");
         mcpResult.ShouldContain("Name is required");
 
+        // Assert — the 400 BODY carries each surface's own idiom: REST returns the bare
+        // message (no "Error: " prefix — the pre-#252 REST contract); MCP keeps its
+        // "Error: ..." form. Pins the contract so the shared helper's MCP idiom can't
+        // re-bleed into the REST body.
+        var restBody = await restResponse.Content.ReadAsStringAsync();
+        restBody.ShouldContain("Name is required");
+        restBody.ShouldNotContain("Error:");
+        mcpResult.ShouldContain("Error: Name is required");
+
         var whitespaceNamed = await db.Cards.AnyAsync(c => c.Name == "   " && c.BoardId == _factory.DefaultBoardId);
         whitespaceNamed.ShouldBeFalse();
     }

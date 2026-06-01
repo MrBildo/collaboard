@@ -228,7 +228,7 @@ public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardE
             var (sid, sizeError) = await SizeResolver.ResolveAsync(db, commonBoardId, sizeId, sizeName, ct);
             if (sizeError is not null)
             {
-                return sizeError;
+                return $"Error: {sizeError}";
             }
 
             resolvedSizeId = sid;
