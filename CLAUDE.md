@@ -254,6 +254,7 @@ The skills carry universal patterns. The sections below name only Collaboard-spe
 - **TanStack Query for all API calls.** No bare `fetch` or `axios` calls in components / hooks — go through `@/lib/api` (Axios instance).
 - **`cn()` from `@/lib/utils`** for conditional classes.
 - **Design system lives in `src/styles.css`.** Use semantic tokens (`bg-primary`, `text-foreground`, etc.). Never hardcoded colors. See [Frontend Design System](#frontend-design-system) below for the full token set.
+- **No silent mutation failures.** A mutation `onError` never has `console.error` as its only operator-facing behavior. Every mutation either surfaces through the global `MutationCache.onError` floor — a toast or inline error chosen by the attention-locus rule (operator looking at the thing that failed → inline; attention elsewhere → toast) — or handles the failure inline at the call site with `meta: { skipToast: true }`. `console.error` is fine as a developer log on top, never the only surface. Success is silent by default (toast only where the result isn't already visible on screen). Convention set by #203 (PR #250); the #240 review gate cites this — a new `onError` that only `console.error`s is a convention miss.
 
 ### Testing
 
