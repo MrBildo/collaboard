@@ -290,15 +290,10 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             return "Error: Board not found.";
         }
 
-        var query = db.Cards.Where(c => c.BoardId == boardId && !c.IsTemp);
-
-        if (includeArchived is not true)
-        {
-            var archiveLaneIds = db.Lanes
-                .Where(l => l.BoardId == boardId && l.IsArchiveLane)
-                    .Select(l => l.Id);
-            query = query.Where(c => !archiveLaneIds.Contains(c.LaneId));
-        }
+        // Board scope + temp exclusion + archive-lane exclusion via the shared helper
+        // REST's GET /cards already uses — the same 3-clause exclusion both surfaces
+        // must keep identical (#267 D3).
+        var query = CardQueryHelper.BoardCards(db.Cards, db.Lanes, boardId, includeArchived is true);
 
         if (laneId.HasValue)
         {
