@@ -1,5 +1,6 @@
 using Collaboard.Api.Auth;
 using Collaboard.Api.Events;
+using Collaboard.Api.Mcp;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -64,7 +65,10 @@ internal static class CommentEndpoints
             }
 
             var user = http.CurrentUser();
-            if (comment.UserId != user.Id && user.Role != UserRole.Administrator)
+
+            // Own-or-admin-level: Administrator or AgentAdministrator may delete
+            // another user's comment, matching the MCP delete_comment tool (#266 / #243).
+            if (comment.UserId != user.Id && !McpAuthService.IsAdminLevel(user))
             {
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }

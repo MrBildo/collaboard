@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Collaboard.Api.Models;
@@ -472,6 +473,80 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
     }
 
     // ---------------------------------------------------------------------
+    // Moderation — DELETE comment/attachment is own-or-admin-level (card #266).
+    // AgentAdministrator may delete another user's content over REST, matching
+    // the MCP delete_comment / delete_attachment tools. Plain non-owners cannot.
+    // ---------------------------------------------------------------------
+
+    // Admin-level roles can delete a comment they did not author.
+    [Theory]
+    [InlineData(UserRole.Administrator)]
+    [InlineData(UserRole.AgentAdministrator)]
+    public async Task DeleteComment_AsAdminLevel_DeletesOthersComment(UserRole role)
+    {
+        // Arrange — a HumanUser authors the comment; an admin-level user deletes it.
+        var commentId = await CreateCommentAsAuthorAsync();
+        var client = await ClientForRoleAsync(role, "delete-comment-admin");
+
+        // Act
+        var response = await client.DeleteAsync($"/api/v1/comments/{commentId}");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+    }
+
+    // Non-owner, non-admin roles cannot delete someone else's comment.
+    [Theory]
+    [InlineData(UserRole.HumanUser)]
+    [InlineData(UserRole.AgentUser)]
+    public async Task DeleteComment_AsNonOwnerNonAdmin_Returns403(UserRole role)
+    {
+        // Arrange
+        var commentId = await CreateCommentAsAuthorAsync();
+        var client = await ClientForRoleAsync(role, "delete-comment-nonadmin");
+
+        // Act
+        var response = await client.DeleteAsync($"/api/v1/comments/{commentId}");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    // Admin-level roles can delete an attachment they did not add.
+    [Theory]
+    [InlineData(UserRole.Administrator)]
+    [InlineData(UserRole.AgentAdministrator)]
+    public async Task DeleteAttachment_AsAdminLevel_DeletesOthersAttachment(UserRole role)
+    {
+        // Arrange — a HumanUser adds the attachment; an admin-level user deletes it.
+        var attachmentId = await CreateAttachmentAsAuthorAsync();
+        var client = await ClientForRoleAsync(role, "delete-attachment-admin");
+
+        // Act
+        var response = await client.DeleteAsync($"/api/v1/attachments/{attachmentId}");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+    }
+
+    // Non-owner, non-admin roles cannot delete someone else's attachment.
+    [Theory]
+    [InlineData(UserRole.HumanUser)]
+    [InlineData(UserRole.AgentUser)]
+    public async Task DeleteAttachment_AsNonOwnerNonAdmin_Returns403(UserRole role)
+    {
+        // Arrange
+        var attachmentId = await CreateAttachmentAsAuthorAsync();
+        var client = await ClientForRoleAsync(role, "delete-attachment-nonadmin");
+
+        // Act
+        var response = await client.DeleteAsync($"/api/v1/attachments/{attachmentId}");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    // ---------------------------------------------------------------------
     // Helpers
     // ---------------------------------------------------------------------
 
@@ -525,5 +600,53 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         response.EnsureSuccessStatusCode();
         var board = await response.Content.ReadFromJsonAsync<JsonElement>();
         return board.GetProperty("id").GetGuid();
+    }
+
+    private async Task<Guid> CreateCardAsAdminAsync()
+    {
+        var client = AdminClient();
+        var laneId = await TestDataHelper.GetFirstLaneIdAsync(client, _factory.DefaultBoardId);
+        var response = await client.PostAsJsonAsync
+        (
+            $"/api/v1/boards/{_factory.DefaultBoardId}/cards",
+            new { name = $"RoleGate Card {Guid.NewGuid():N}", laneId }
+        );
+        response.EnsureSuccessStatusCode();
+        var card = await response.Content.ReadFromJsonAsync<JsonElement>();
+        return card.GetProperty("id").GetGuid();
+    }
+
+    // Authors a comment as a fresh HumanUser so the deleter in the test is always
+    // a different user — exercising the own-or-admin branch, not the own branch.
+    private async Task<Guid> CreateCommentAsAuthorAsync()
+    {
+        var cardId = await CreateCardAsAdminAsync();
+        var authorClient = await ClientForRoleAsync(UserRole.HumanUser, "comment-author");
+
+        var response = await authorClient.PostAsJsonAsync
+        (
+            $"/api/v1/cards/{cardId}/comments",
+            new { contentMarkdown = "Comment by another user" }
+        );
+        response.EnsureSuccessStatusCode();
+        var comment = await response.Content.ReadFromJsonAsync<JsonElement>();
+        return comment.GetProperty("id").GetGuid();
+    }
+
+    // Adds an attachment as a fresh HumanUser, for the same own-vs-admin reason.
+    private async Task<Guid> CreateAttachmentAsAuthorAsync()
+    {
+        var cardId = await CreateCardAsAdminAsync();
+        var authorClient = await ClientForRoleAsync(UserRole.HumanUser, "attachment-author");
+
+        var content = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent([1, 2, 3, 4]);
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+        content.Add(fileContent, "file", "rolegate.bin");
+
+        var response = await authorClient.PostAsync($"/api/v1/cards/{cardId}/attachments", content);
+        response.EnsureSuccessStatusCode();
+        var attachment = await response.Content.ReadFromJsonAsync<JsonElement>();
+        return attachment.GetProperty("id").GetGuid();
     }
 }
