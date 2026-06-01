@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { InlineError } from '@/components/ui/inline-error';
 
 type ItemActionsProps = {
   isConfirmingDelete: boolean;
@@ -62,7 +63,11 @@ export function EditableListContainer({ children, error }: EditableListContainer
   return (
     <>
       <div className="flex flex-col divide-y divide-border rounded-lg border">{children}</div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {/* Inline error (card #203, spec §2d) — formalizes the bare
+          text-destructive paragraph this list hand-rolled into the shared,
+          accessible <InlineError> (icon + role=alert, color-not-alone). Every
+          admin tab passing `error` here surfaces uniformly. */}
+      {error && <InlineError message={error} />}
     </>
   );
 }

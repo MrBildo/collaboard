@@ -98,7 +98,11 @@ function BoardsTab() {
     ...QUERY_DEFAULTS.boards,
   });
 
+  // Admin-tab mutations are inline tier (card #203, spec §2d) — failures surface
+  // inline via `list.setDeleteError` → <EditableListContainer>. skipToast keeps
+  // the floor quiet; the call site owns the surface.
   const createMutation = useMutation({
+    meta: { skipToast: true },
     mutationFn: () => createBoard(newName.trim()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.boards.all() });
@@ -110,17 +114,19 @@ function BoardsTab() {
   });
 
   const updateMutation = useMutation({
+    meta: { skipToast: true },
     mutationFn: ({ id, patch }: { id: string; patch: UpdateBoardPatch }) => updateBoard(id, patch),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.boards.all() });
       list.setEditingId(null);
     },
-    onError: (error: unknown) => {
-      console.error('Failed to update board:', error);
+    onError: (err) => {
+      list.setDeleteError(err instanceof Error ? err.message : 'Failed to update board.');
     },
   });
 
   const deleteMutation = useMutation({
+    meta: { skipToast: true },
     mutationFn: (id: string) => deleteBoard(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.boards.all() });
@@ -247,20 +253,27 @@ function UsersTab() {
     ...QUERY_DEFAULTS.userDirectory,
   });
 
+  // Admin-tab mutations are inline tier (card #203, spec §2d) — failures surface
+  // inline via `setEditError` → <EditableListContainer>. skipToast keeps the
+  // floor quiet; the call site owns the surface. (Update was already inline;
+  // create and deactivate previously went silent — now uniform.)
   const createMutation = useMutation({
+    meta: { skipToast: true },
     mutationFn: () => createUser(newName.trim(), parseInt(newRole, 10)),
     onSuccess: (user) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all() });
       setNewName('');
       setNewRole(DEFAULT_NEW_ROLE);
       setCreatedKey(user.authKey);
+      setEditError(null);
     },
     onError: (error: unknown) => {
-      console.error('Failed to create user:', error);
+      setEditError(error instanceof Error ? error.message : 'Failed to create user.');
     },
   });
 
   const updateMutation = useMutation({
+    meta: { skipToast: true },
     mutationFn: ({ id, patch }: { id: string; patch: UpdateUserPatch }) => updateUser(id, patch),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all() });
@@ -274,13 +287,15 @@ function UsersTab() {
   });
 
   const deactivateMutation = useMutation({
+    meta: { skipToast: true },
     mutationFn: (id: string) => deactivateUser(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all() });
       setConfirmDeactivateId(null);
+      setEditError(null);
     },
     onError: (error: unknown) => {
-      console.error('Failed to deactivate user:', error);
+      setEditError(error instanceof Error ? error.message : 'Failed to deactivate user.');
     },
   });
 

@@ -30,6 +30,8 @@ import {
 } from '@/lib/api';
 import { LabelPicker } from '@/components/LabelPicker';
 import { CardAttachments } from '@/components/CardAttachments';
+import { InlineError } from '@/components/ui/inline-error';
+import { toMessage } from '@/lib/mutation-floor';
 import { validateFiles } from '@/lib/attachments';
 import { usePasteAttachment } from '@/hooks/use-paste-attachment';
 import { queryKeys } from '@/lib/query-keys';
@@ -85,6 +87,10 @@ export function CreateCardDialog({
   });
 
   const createMutation = useMutation({
+    // Inline tier (card #203, spec §1): the operator is in this dialog filling
+    // fields, so a create failure stays in the dialog (draft preserved), not a
+    // toast. Opt out of the floor's toast; render <InlineError> in the dialog.
+    meta: { skipToast: true },
     mutationFn: () => {
       const cards = boardDataQuery.data?.cards ?? [];
       const laneCards = cards.filter((c) => c.laneId === laneId);
@@ -113,7 +119,8 @@ export function CreateCardDialog({
       handleClose();
     },
     onError: (error: unknown) => {
-      console.error('Failed to create card:', error);
+      // Inline surface: render the message in the dialog (skipToast above).
+      setCreateError(toMessage(error));
     },
   });
 
@@ -437,10 +444,12 @@ export function CreateCardDialog({
             </div>
           </div>
 
-          {/* Error display */}
+          {/* Inline error (card #203, spec §2a) — stays in the dialog, draft
+              preserved. Covers both the create-card mutation failure and the
+              client-side attachment/finalize validation paths. */}
           {createError && (
-            <div className="mx-4 mb-1 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-              {createError}
+            <div className="mx-4 mb-1">
+              <InlineError message={createError} />
             </div>
           )}
 

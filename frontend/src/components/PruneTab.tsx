@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useClickOutside } from '@/hooks/use-click-outside';
 import { Archive, Search, Trash2, Check, AlertTriangle } from 'lucide-react';
+import { InlineError } from '@/components/ui/inline-error';
+import { toMessage } from '@/lib/mutation-floor';
 import { fetchLabels, fetchLanes, pruneCards, prunePreview } from '@/lib/api';
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
@@ -42,6 +44,9 @@ export function PruneTab({ boardId }: PruneTabProps) {
   const [resultCount, setResultCount] = useState<{ count: number; action: PruneAction } | null>(
     null,
   );
+  // Inline error for the prune preview/execute paths (card #203, spec §2d).
+  // The operator is working in this panel; the error belongs here, not a toast.
+  const [pruneError, setPruneError] = useState<string | null>(null);
 
   const laneDropdownRef = useRef<HTMLDivElement>(null);
   const labelDropdownRef = useRef<HTMLDivElement>(null);
@@ -59,18 +64,23 @@ export function PruneTab({ boardId }: PruneTabProps) {
   });
 
   const previewMutation = useMutation({
+    // Inline tier (spec §2d) — error stays in the prune panel.
+    meta: { skipToast: true },
     mutationFn: (filters: PruneFilters) => prunePreview(boardId, filters),
     onSuccess: (data) => {
       setPreview(data);
       setIsConfirming(false);
       setResultCount(null);
+      setPruneError(null);
     },
     onError: (error: unknown) => {
-      console.error('Failed to preview prune:', error);
+      setPruneError(toMessage(error));
     },
   });
 
   const pruneMutation = useMutation({
+    // Inline tier (spec §2d) — error stays in the prune panel.
+    meta: { skipToast: true },
     mutationFn: (filters: PruneFilters) => pruneCards(boardId, filters),
     onSuccess: (data) => {
       const count = data.archivedCount ?? data.deletedCount ?? 0;
@@ -81,11 +91,12 @@ export function PruneTab({ boardId }: PruneTabProps) {
       setSelectedPreset(null);
       setSelectedLaneIds([]);
       setSelectedLabelIds([]);
+      setPruneError(null);
       queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.boards.cards(boardId) });
     },
     onError: (error: unknown) => {
-      console.error('Failed to prune cards:', error);
+      setPruneError(toMessage(error));
     },
   });
 
@@ -93,6 +104,7 @@ export function PruneTab({ boardId }: PruneTabProps) {
     setPreview(null);
     setIsConfirming(false);
     setResultCount(null);
+    setPruneError(null);
   };
 
   const handlePresetClick = (preset: string, days: number) => {
@@ -342,6 +354,8 @@ export function PruneTab({ boardId }: PruneTabProps) {
         <Search className="mr-2 w-4 h-4" />
         {previewMutation.isPending ? 'Searching...' : 'Preview'}
       </Button>
+
+      {pruneError && <InlineError message={pruneError} />}
 
       {/* Preview results */}
       {preview && (

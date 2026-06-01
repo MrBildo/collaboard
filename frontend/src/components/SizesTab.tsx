@@ -41,7 +41,11 @@ export function SizesTab({ boardId }: SizesTabProps) {
     queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
   };
 
+  // Admin-tab mutations are inline tier (card #203, spec §2d) — failures surface
+  // inline via `list.setDeleteError` → <EditableListContainer>. skipToast keeps
+  // the floor quiet; the call site owns the surface.
   const createMutation = useMutation({
+    meta: { skipToast: true },
     mutationFn: () => {
       const sizes = sizesQuery.data ?? [];
       const ord = newOrdinal
@@ -63,17 +67,19 @@ export function SizesTab({ boardId }: SizesTabProps) {
   });
 
   const updateMutation = useMutation({
+    meta: { skipToast: true },
     mutationFn: ({ id, patch }: { id: string; patch: UpdateSizePatch }) => updateSize(id, patch),
     onSuccess: () => {
       invalidate();
       list.setEditingId(null);
     },
-    onError: (error: unknown) => {
-      console.error('Failed to update size:', error);
+    onError: (err) => {
+      list.setDeleteError(err instanceof Error ? err.message : 'Failed to update size.');
     },
   });
 
   const deleteMutation = useMutation({
+    meta: { skipToast: true },
     mutationFn: (id: string) => deleteSize(id),
     onSuccess: () => {
       invalidate();
