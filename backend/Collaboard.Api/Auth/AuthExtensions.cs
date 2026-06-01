@@ -14,7 +14,7 @@ public static class AuthExtensions
         => builder.AddEndpointFilter(new RequireRoleFilter(roles));
 
     public static RouteHandlerBuilder RequireAuth(this RouteHandlerBuilder builder)
-        => builder.RequireRole(UserRole.Administrator, UserRole.HumanUser, UserRole.AgentUser);
+        => builder.RequireRole(UserRole.Administrator, UserRole.AgentAdministrator, UserRole.HumanUser, UserRole.AgentUser);
 
     public static RouteHandlerBuilder RequireAdmin(this RouteHandlerBuilder builder)
         => builder.RequireRole(UserRole.Administrator);

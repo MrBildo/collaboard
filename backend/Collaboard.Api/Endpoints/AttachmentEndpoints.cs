@@ -1,5 +1,6 @@
 using Collaboard.Api.Auth;
 using Collaboard.Api.Events;
+using Collaboard.Api.Mcp;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -79,7 +80,10 @@ internal static class AttachmentEndpoints
             }
 
             var user = http.CurrentUser();
-            if (attachment.AddedByUserId != user.Id && user.Role != UserRole.Administrator)
+
+            // Own-or-admin-level: Administrator or AgentAdministrator may delete
+            // another user's attachment, matching the MCP delete_attachment tool (#266 / #243).
+            if (attachment.AddedByUserId != user.Id && !McpAuthService.IsAdminLevel(user))
             {
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
