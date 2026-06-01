@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Collaboard.Api.Events;
@@ -67,6 +68,20 @@ public class PruneArchiveParityTests(CollaboardApiFactory factory) : IClassFixtu
         return (boardId, laneId);
     }
 
+    // Deletes the board's auto-seeded archive lane so a prune-archive hits the
+    // no-archive-lane failure path on both surfaces.
+    private async Task RemoveArchiveLaneAsync(Guid boardId)
+    {
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
+        var archiveLanes = await db.Lanes
+            .Where(l => l.BoardId == boardId && l.IsArchiveLane)
+                .ToListAsync();
+
+        db.Lanes.RemoveRange(archiveLanes);
+        await db.SaveChangesAsync();
+    }
+
     private async Task<int> ArchivedCountAsync(Guid boardId)
     {
         await using var scope = _factory.Services.CreateAsyncScope();
@@ -107,5 +122,41 @@ public class PruneArchiveParityTests(CollaboardApiFactory factory) : IClassFixtu
 
         (await ArchivedCountAsync(restBoardId)).ShouldBe(3);
         (await ArchivedCountAsync(mcpBoardId)).ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task PruneArchive_NoArchiveLane_FailsSameWayOnBothSurfaces()
+    {
+        // Arrange — two equivalent boards, archive lane removed from each so the
+        // archive-loop cannot find a destination lane
+        var (restBoardId, restLaneId) = await SeedBoardWithCardsAsync(1);
+        var (mcpBoardId, mcpLaneId) = await SeedBoardWithCardsAsync(1);
+        await RemoveArchiveLaneAsync(restBoardId);
+        await RemoveArchiveLaneAsync(mcpBoardId);
+        var (_, prune) = CreateMcpTools();
+
+        // Act — REST prune-archive by lane
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var restResponse = await _client.PostAsJsonAsync
+        (
+            $"/api/v1/boards/{restBoardId}/prune",
+            new { laneIds = new[] { restLaneId } }
+        );
+
+        // Act — MCP prune by lane
+        var mcpResult = await prune.PruneAsync(_factory.AdminAuthKey, mcpBoardId, laneIds: mcpLaneId.ToString());
+
+        // Assert — both fail with the same diagnosis, each in its own idiom: REST 400
+        // with the bare message, MCP the "Error: ..." string
+        restResponse.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var restBody = await restResponse.Content.ReadAsStringAsync();
+        restBody.ShouldContain("Board has no archive lane");
+        restBody.ShouldNotContain("Error:");
+
+        mcpResult.ShouldContain("Error: Board has no archive lane");
+
+        // Neither surface archived anything
+        (await ArchivedCountAsync(restBoardId)).ShouldBe(0);
+        (await ArchivedCountAsync(mcpBoardId)).ShouldBe(0);
     }
 }
