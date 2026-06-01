@@ -73,28 +73,22 @@ internal static class PruneEndpoints
             }
 
             var query = PruneFilter.BuildFilteredQuery(db, boardId, request);
-            var cards = await query.ToListAsync(ct);
 
             if (action == "archive")
             {
-                var archiveLane = await db.Lanes.FirstOrDefaultAsync(l => l.BoardId == boardId && l.IsArchiveLane, ct);
-                if (archiveLane is null)
+                var (archivedCount, archiveError) = await PruneArchiveHelper.ArchiveMatchedAsync(db, boardId, query, ct);
+                if (archiveError is not null)
                 {
-                    return Results.BadRequest("Board has no archive lane.");
+                    return Results.BadRequest(archiveError);
                 }
 
-                foreach (var card in cards)
-                {
-                    await CardReorderHelper.MoveCardToLaneAsync(db, card, archiveLane.Id, 0, ct);
-                }
-
-                await db.SaveChangesAsync(ct);
                 broadcaster.PublishBoardUpdated(boardId);
 
-                return Results.Ok(new { archivedCount = cards.Count });
+                return Results.Ok(new { archivedCount });
             }
             else
             {
+                var cards = await query.ToListAsync(ct);
                 db.Cards.RemoveRange(cards);
                 await db.SaveChangesAsync(ct);
 

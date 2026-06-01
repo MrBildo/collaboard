@@ -64,10 +64,16 @@ internal static class CardEndpoints
                 return Results.NotFound();
             }
 
-            var (card, error) = await CardCreateHelper.BuildCardAsync(db, boardId, request, http.CurrentUser());
+            var (labelIds, labelError) = await ValidateCreateLabelsAsync(db, request.LabelIds, boardId, ct);
+            if (labelError is not null)
+            {
+                return Results.BadRequest(labelError);
+            }
+
+            var (card, error) = await CardCreateHelper.BuildCardAsync(db, boardId, request, labelIds, http.CurrentUser(), ct);
             if (error is not null)
             {
-                return error;
+                return Results.BadRequest(error);
             }
 
             await CardNumberHelper.InsertCardWithAutoNumberAsync(db, card!, boardId, ct);
@@ -371,10 +377,16 @@ internal static class CardEndpoints
                 return Results.NotFound();
             }
 
-            var (card, error) = await CardCreateHelper.BuildCardAsync(db, boardId, request, http.CurrentUser());
+            var (labelIds, labelError) = await ValidateCreateLabelsAsync(db, request.LabelIds, boardId, ct);
+            if (labelError is not null)
+            {
+                return Results.BadRequest(labelError);
+            }
+
+            var (card, error) = await CardCreateHelper.BuildCardAsync(db, boardId, request, labelIds, http.CurrentUser(), ct);
             if (error is not null)
             {
-                return error;
+                return Results.BadRequest(error);
             }
 
             card!.Number = 0;
@@ -443,107 +455,32 @@ internal static class CardEndpoints
         }).RequireAuth();
 
         return group;
-    }
-}
 
-// Shared card-construction logic for the standard create and temp-create paths.
-// Both paths take the same CreateCardRequest and perform identical validation,
-// size resolution, position calculation, and label staging. They differ only in
-// how the card is persisted (number allocation via CardNumberHelper vs. plain Add
-// with IsTemp = true). BuildCardAsync encapsulates the shared portion; the caller
-// sets Number / IsTemp and saves.
-file static class CardCreateHelper
-{
-    public static async Task<(CardItem? Card, IResult? Error)> BuildCardAsync
-    (
-        BoardDbContext db,
-        Guid boardId,
-        CreateCardRequest request,
-        BoardUser currentUser
-    )
-    {
-        if (string.IsNullOrWhiteSpace(request.Name))
+        // Validates that every requested label belongs to the board, returning the
+        // validated list (empty when none requested) or a REST-worded error. The
+        // REST create paths own their own label-error wording; CardCreateHelper stages
+        // the already-validated list (#267 D2). Shared by the standard and temp create
+        // endpoints so the rule lives in one place.
+        static async Task<(IReadOnlyList<Guid> LabelIds, string? Error)> ValidateCreateLabelsAsync
+        (
+            BoardDbContext db,
+            Guid[]? requestedLabelIds,
+            Guid boardId,
+            CancellationToken ct
+        )
         {
-            return (null, Results.BadRequest("Name is required."));
-        }
-
-        var targetLane = await db.Lanes.FirstOrDefaultAsync(x => x.Id == request.LaneId && x.BoardId == boardId);
-        if (targetLane is null)
-        {
-            return (null, Results.BadRequest("Lane does not belong to this board."));
-        }
-
-        if (targetLane.IsArchiveLane)
-        {
-            return (null, Results.BadRequest("Cards cannot be created in the archive lane."));
-        }
-
-        Guid sizeId;
-        if (request.SizeId is not null)
-        {
-            sizeId = request.SizeId.Value;
-            if (!await db.CardSizes.AnyAsync(s => s.Id == sizeId && s.BoardId == boardId))
+            if (requestedLabelIds is null || requestedLabelIds.Length == 0)
             {
-                return (null, Results.BadRequest("Size does not belong to this board."));
-            }
-        }
-        else
-        {
-            var defaultSize = await db.CardSizes
-                .Where(s => s.BoardId == boardId)
-                .OrderBy(s => s.Ordinal)
-                    .FirstOrDefaultAsync();
-            if (defaultSize is null)
-            {
-                return (null, Results.BadRequest("Board has no sizes configured."));
+                return ([], null);
             }
 
-            sizeId = defaultSize.Id;
-        }
-
-        int position;
-        if (request.Position.HasValue)
-        {
-            position = request.Position.Value;
-        }
-        else
-        {
-            var maxPosition = await db.Cards
-                .Where(c => c.LaneId == request.LaneId)
-                    .MaxAsync(c => (int?)c.Position) ?? -10;
-            position = maxPosition + 10;
-        }
-
-        var now = DateTimeOffset.UtcNow;
-        var card = new CardItem
-        {
-            Id = Guid.NewGuid(),
-            BoardId = boardId,
-            Name = request.Name,
-            DescriptionMarkdown = request.DescriptionMarkdown ?? "",
-            SizeId = sizeId,
-            LaneId = request.LaneId,
-            Position = position,
-            CreatedAtUtc = now,
-            LastUpdatedAtUtc = now,
-            CreatedByUserId = currentUser.Id,
-            LastUpdatedByUserId = currentUser.Id,
-        };
-
-        if (request.LabelIds is not null && request.LabelIds.Length > 0)
-        {
-            var validCount = await db.Labels.CountAsync(l => request.LabelIds.Contains(l.Id) && l.BoardId == boardId);
-            if (validCount != request.LabelIds.Length)
+            var validCount = await db.Labels.CountAsync(l => requestedLabelIds.Contains(l.Id) && l.BoardId == boardId, ct);
+            if (validCount != requestedLabelIds.Length)
             {
-                return (null, Results.BadRequest("One or more labels do not belong to this board."));
+                return ([], "One or more labels do not belong to this board.");
             }
 
-            foreach (var labelId in request.LabelIds)
-            {
-                db.CardLabels.Add(new CardLabel { CardId = card.Id, LabelId = labelId });
-            }
+            return (requestedLabelIds, null);
         }
-
-        return (card, null);
     }
 }

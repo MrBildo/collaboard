@@ -32,58 +32,34 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             return error;
         }
 
+        // MCP create_card takes a laneId and derives the board from it; the shared
+        // helper is board-scoped, so resolve the lane's board up front. Lane-not-found
+        // keeps the MCP wording here; archive-lane / size / name validation lives in
+        // the shared CardCreateHelper both surfaces route through (#267 D2).
         var lane = await db.Lanes.FirstOrDefaultAsync(l => l.Id == laneId, ct);
         if (lane is null)
         {
             return "Error: Lane not found.";
         }
 
-        if (lane.IsArchiveLane)
-        {
-            return "Cards cannot be created in the archive lane.";
-        }
-
-        // Resolve size
-        var (resolvedSizeId, sizeError) = await ResolveSizeAsync(lane.BoardId, sizeId, sizeName, ct);
-        if (sizeError is not null)
-        {
-            return sizeError;
-        }
-
-        // Parse and validate label IDs if provided
+        // Parse and validate label IDs the MCP way — CSV or JSON-array input, MCP error
+        // wording. The shared helper then stages the already-validated list.
         var (parsedLabelIds, labelError) = await McpLabelParsing.ParseAndValidateLabelIdsAsync(db, labelIds, lane.BoardId, ct);
         if (labelError is not null)
         {
             return labelError;
         }
 
-        var maxPosition = await db.Cards.Where(c => c.LaneId == laneId).MaxAsync(c => (int?)c.Position, ct) ?? -10;
-
-        var now = DateTimeOffset.UtcNow;
-        var card = new CardItem
+        var request = new CreateCardRequest(laneId, name, descriptionMarkdown, Position: null, sizeId, sizeName, LabelIds: null);
+        var (card, buildError) = await CardCreateHelper.BuildCardAsync(db, lane.BoardId, request, parsedLabelIds, user!, ct);
+        if (buildError is not null)
         {
-            Id = Guid.NewGuid(),
-            BoardId = lane.BoardId,
-            Name = name,
-            DescriptionMarkdown = descriptionMarkdown ?? string.Empty,
-            SizeId = resolvedSizeId!.Value,
-            LaneId = laneId,
-            Position = maxPosition + 10,
-            CreatedAtUtc = now,
-            LastUpdatedAtUtc = now,
-            CreatedByUserId = user!.Id,
-            LastUpdatedByUserId = user.Id,
-        };
-
-        // Attach labels before saving so they're included in the same transaction
-        foreach (var labelId in parsedLabelIds)
-        {
-            db.CardLabels.Add(new CardLabel { CardId = card.Id, LabelId = labelId });
+            return $"Error: {buildError}";
         }
 
-        await CardNumberHelper.InsertCardWithAutoNumberAsync(db, card, lane.BoardId, ct);
+        await CardNumberHelper.InsertCardWithAutoNumberAsync(db, card!, lane.BoardId, ct);
 
-        await db.PublishForCardAsync(card.Id, broadcaster);
+        await db.PublishForCardAsync(card!.Id, broadcaster);
         var summaries = await CardSummaryBuilder.BuildAsync(db, [card], ct);
         return JsonSerializer.Serialize(summaries[0], JsonSerializerOptions.Web);
     }
@@ -209,10 +185,10 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         if (sizeId.HasValue || sizeName is not null)
         {
             var cardBoardId = await db.Lanes.Where(l => l.Id == card.LaneId).Select(l => l.BoardId).FirstOrDefaultAsync(ct);
-            var (resolvedSizeId, sizeError) = await ResolveSizeAsync(cardBoardId, sizeId, sizeName, ct);
+            var (resolvedSizeId, sizeError) = await SizeResolver.ResolveAsync(db, cardBoardId, sizeId, sizeName, ct);
             if (sizeError is not null)
             {
-                return sizeError;
+                return $"Error: {sizeError}";
             }
 
             card.SizeId = resolvedSizeId!.Value;
@@ -290,15 +266,10 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             return "Error: Board not found.";
         }
 
-        var query = db.Cards.Where(c => c.BoardId == boardId && !c.IsTemp);
-
-        if (includeArchived is not true)
-        {
-            var archiveLaneIds = db.Lanes
-                .Where(l => l.BoardId == boardId && l.IsArchiveLane)
-                    .Select(l => l.Id);
-            query = query.Where(c => !archiveLaneIds.Contains(c.LaneId));
-        }
+        // Board scope + temp exclusion + archive-lane exclusion via the shared helper
+        // REST's GET /cards already uses — the same 3-clause exclusion both surfaces
+        // must keep identical (#267 D3).
+        var query = CardQueryHelper.BoardCards(db.Cards, db.Lanes, boardId, includeArchived is true);
 
         if (laneId.HasValue)
         {
@@ -359,37 +330,5 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
 
         var detail = await CardDetailBuilder.BuildAsync(db, card, ct);
         return JsonSerializer.Serialize(detail, JsonSerializerOptions.Web);
-    }
-
-    private async Task<(Guid? SizeId, string? Error)> ResolveSizeAsync(Guid boardId, Guid? sizeId, string? sizeName, CancellationToken ct)
-    {
-        if (sizeId.HasValue)
-        {
-            if (!await db.CardSizes.AnyAsync(s => s.Id == sizeId.Value && s.BoardId == boardId, ct))
-            {
-                return (null, "Error: Size not found or does not belong to this board.");
-            }
-
-            return (sizeId.Value, null);
-        }
-
-        if (!string.IsNullOrWhiteSpace(sizeName))
-        {
-            var size = await db.CardSizes.FirstOrDefaultAsync(s => s.BoardId == boardId && s.Name == sizeName, ct);
-            if (size is null)
-            {
-                return (null, $"Error: Size '{sizeName}' not found on this board.");
-            }
-
-            return (size.Id, null);
-        }
-
-        var defaultSize = await db.CardSizes.Where(s => s.BoardId == boardId).OrderBy(s => s.Ordinal).FirstOrDefaultAsync(ct);
-        if (defaultSize is null)
-        {
-            return (null, "Error: Board has no sizes configured.");
-        }
-
-        return (defaultSize.Id, null);
     }
 }

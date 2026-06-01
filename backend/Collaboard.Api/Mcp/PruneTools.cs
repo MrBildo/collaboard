@@ -93,24 +93,16 @@ public sealed class PruneTools(BoardDbContext db, McpAuthService auth, BoardEven
             return parseError;
         }
 
-        var archiveLane = await db.Lanes.FirstOrDefaultAsync(l => l.BoardId == boardId && l.IsArchiveLane, ct);
-        if (archiveLane is null)
-        {
-            return "Error: Board has no archive lane.";
-        }
-
         var query = PruneFilter.BuildFilteredQuery(db, boardId, request);
-        var cards = await query.ToListAsync(ct);
-
-        foreach (var card in cards)
+        var (archivedCount, archiveError) = await PruneArchiveHelper.ArchiveMatchedAsync(db, boardId, query, ct);
+        if (archiveError is not null)
         {
-            await CardReorderHelper.MoveCardToLaneAsync(db, card, archiveLane.Id, 0, ct);
+            return $"Error: {archiveError}";
         }
 
-        await db.SaveChangesAsync(ct);
         broadcaster.PublishBoardUpdated(boardId);
 
-        return JsonSerializer.Serialize(new { archivedCount = cards.Count }, JsonSerializerOptions.Web);
+        return JsonSerializer.Serialize(new { archivedCount }, JsonSerializerOptions.Web);
     }
 
     // Validates the board exists, parses the CSV/JSON-array GUID filters into a
@@ -168,9 +160,7 @@ public sealed class PruneTools(BoardDbContext db, McpAuthService auth, BoardEven
             return true;
         }
 
-        var parts = TryParseJsonStringArray(value, out var jsonArrayParts)
-            ? jsonArrayParts
-            : value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var parts = McpGuidCsv.SplitTokens(value);
 
         List<Guid> parsed = [];
         foreach (var part in parts)
@@ -186,33 +176,5 @@ public sealed class PruneTools(BoardDbContext db, McpAuthService auth, BoardEven
 
         result = parsed.Count > 0 ? [.. parsed] : null;
         return true;
-    }
-
-    private static bool TryParseJsonStringArray(string value, out string[] parts)
-    {
-        parts = [];
-        var trimmed = value.AsSpan().Trim();
-        if (trimmed.Length < 2 || trimmed[0] != '[' || trimmed[^1] != ']')
-        {
-            return false;
-        }
-
-        try
-        {
-            var deserialized = JsonSerializer.Deserialize<string[]>(value);
-            if (deserialized is null)
-            {
-                return false;
-            }
-
-            parts = [.. deserialized
-                .Where(static s => !string.IsNullOrWhiteSpace(s))
-                .Select(static s => s.Trim())];
-            return true;
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
     }
 }

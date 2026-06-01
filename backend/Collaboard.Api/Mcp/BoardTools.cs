@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
+using Collaboard.Api.Endpoints;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
 using ModelContextProtocol.Server;
@@ -129,22 +130,7 @@ public sealed class BoardTools(BoardDbContext db, McpAuthService auth)
         };
         db.Boards.Add(board);
 
-        db.Lanes.Add(new Lane
-        {
-            Id = Guid.NewGuid(),
-            BoardId = board.Id,
-            Name = "Archive",
-            Position = int.MaxValue,
-            IsArchiveLane = true,
-        });
-
-        db.CardSizes.AddRange
-        (
-            new CardSize { Id = Guid.NewGuid(), BoardId = board.Id, Name = "S", Ordinal = 0 },
-            new CardSize { Id = Guid.NewGuid(), BoardId = board.Id, Name = "M", Ordinal = 1 },
-            new CardSize { Id = Guid.NewGuid(), BoardId = board.Id, Name = "L", Ordinal = 2 },
-            new CardSize { Id = Guid.NewGuid(), BoardId = board.Id, Name = "XL", Ordinal = 3 }
-        );
+        BoardSeeder.Seed(db, board);
 
         await db.SaveChangesAsync(ct);
         return JsonSerializer.Serialize(board, JsonSerializerOptions.Web);
