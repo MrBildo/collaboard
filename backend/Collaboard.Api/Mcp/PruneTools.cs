@@ -168,9 +168,7 @@ public sealed class PruneTools(BoardDbContext db, McpAuthService auth, BoardEven
             return true;
         }
 
-        var parts = TryParseJsonStringArray(value, out var jsonArrayParts)
-            ? jsonArrayParts
-            : value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var parts = McpGuidCsv.SplitTokens(value);
 
         List<Guid> parsed = [];
         foreach (var part in parts)
@@ -186,33 +184,5 @@ public sealed class PruneTools(BoardDbContext db, McpAuthService auth, BoardEven
 
         result = parsed.Count > 0 ? [.. parsed] : null;
         return true;
-    }
-
-    private static bool TryParseJsonStringArray(string value, out string[] parts)
-    {
-        parts = [];
-        var trimmed = value.AsSpan().Trim();
-        if (trimmed.Length < 2 || trimmed[0] != '[' || trimmed[^1] != ']')
-        {
-            return false;
-        }
-
-        try
-        {
-            var deserialized = JsonSerializer.Deserialize<string[]>(value);
-            if (deserialized is null)
-            {
-                return false;
-            }
-
-            parts = [.. deserialized
-                .Where(static s => !string.IsNullOrWhiteSpace(s))
-                .Select(static s => s.Trim())];
-            return true;
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
     }
 }

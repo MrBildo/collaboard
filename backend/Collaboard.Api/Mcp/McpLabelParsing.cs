@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 
 namespace Collaboard.Api.Mcp;
@@ -6,7 +5,8 @@ namespace Collaboard.Api.Mcp;
 // Shared label-ID parsing and cross-board validation used by CardTools and
 // BulkCardTools. Extracted from the byte-identical private copies that existed
 // in both files (#246). Both callers already pass boardId, so there was never
-// a "divergent call shapes" reason to keep them separate.
+// a "divergent call shapes" reason to keep them separate. The CSV/JSON-array
+// token split is shared further via McpGuidCsv (#267 D5).
 internal static class McpLabelParsing
 {
     // Parses labelIds (comma-separated GUIDs or a JSON array string) and
@@ -34,9 +34,7 @@ internal static class McpLabelParsing
             return (parsedIds, null);
         }
 
-        var parts = TryParseJsonStringArray(labelIds, out var jsonArrayParts)
-            ? jsonArrayParts
-            : labelIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var parts = McpGuidCsv.SplitTokens(labelIds);
 
         foreach (var part in parts)
         {
@@ -60,36 +58,5 @@ internal static class McpLabelParsing
         }
 
         return (parsedIds, null);
-    }
-
-    // Attempts to interpret value as a JSON string array. Returns true and
-    // populates parts on success; returns false (parts = []) if value is not
-    // a well-formed JSON array or fails to deserialize.
-    internal static bool TryParseJsonStringArray(string value, out string[] parts)
-    {
-        parts = [];
-        var trimmed = value.AsSpan().Trim();
-        if (trimmed.Length < 2 || trimmed[0] != '[' || trimmed[^1] != ']')
-        {
-            return false;
-        }
-
-        try
-        {
-            var deserialized = JsonSerializer.Deserialize<string[]>(value);
-            if (deserialized is null)
-            {
-                return false;
-            }
-
-            parts = [.. deserialized
-                .Where(static s => !string.IsNullOrWhiteSpace(s))
-                .Select(static s => s.Trim())];
-            return true;
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
     }
 }
