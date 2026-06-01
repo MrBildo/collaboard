@@ -225,7 +225,7 @@ public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardE
         Guid? resolvedSizeId = null;
         if (hasSize)
         {
-            var (sid, sizeError) = await ResolveSizeAsync(commonBoardId, sizeId, sizeName, ct);
+            var (sid, sizeError) = await SizeResolver.ResolveAsync(db, commonBoardId, sizeId, sizeName, ct);
             if (sizeError is not null)
             {
                 return sizeError;
@@ -291,27 +291,6 @@ public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardE
         {
             db.CardLabels.Add(new CardLabel { CardId = cardId, LabelId = labelId });
         }
-    }
-
-    private async Task<(Guid? SizeId, string? Error)> ResolveSizeAsync(Guid boardId, Guid? sizeId, string? sizeName, CancellationToken ct)
-    {
-        if (sizeId.HasValue)
-        {
-            if (!await db.CardSizes.AnyAsync(s => s.Id == sizeId.Value && s.BoardId == boardId, ct))
-            {
-                return (null, "Error: Size not found or does not belong to this board.");
-            }
-
-            return (sizeId.Value, null);
-        }
-
-        var size = await db.CardSizes.FirstOrDefaultAsync(s => s.BoardId == boardId && s.Name == sizeName, ct);
-        if (size is null)
-        {
-            return (null, $"Error: Size '{sizeName}' not found on this board.");
-        }
-
-        return (size.Id, null);
     }
 }
 
