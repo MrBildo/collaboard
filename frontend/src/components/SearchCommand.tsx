@@ -64,9 +64,12 @@ export function SearchCommand() {
   // Auto-prefix pure numeric queries with # for exact card number lookup
   const effectiveQuery = /^\d+$/.test(debouncedQuery) ? `#${debouncedQuery}` : debouncedQuery;
 
+  // currentBoardId fills two distinct backend params: boardId ranks this board's
+  // non-archived matches first (priority); archiveBoardId keeps this board's archived
+  // cards eligible so they still render under the Archived header (#276).
   const searchQuery = useQuery({
-    queryKey: queryKeys.search.cards(effectiveQuery, currentBoardId),
-    queryFn: () => searchAllCards(effectiveQuery, 20, currentBoardId),
+    queryKey: queryKeys.search.cards(effectiveQuery, currentBoardId, currentBoardId),
+    queryFn: () => searchAllCards(effectiveQuery, 20, currentBoardId, currentBoardId),
     enabled: isSearchable,
     staleTime: 30_000,
   });
