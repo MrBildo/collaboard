@@ -103,8 +103,9 @@ When a board walk with the operator is imminent, individual card-state questions
 When the operator signals board work:
 
 1. **Pull live state** — `get_lanes` + `get_cards` for recent activity. The board is ground truth; HANDOFF/TODO can drift across sessions and must be reconciled against the board, not the other way around.
-2. **Brief the operator** — short summary of board state (what's ready, what's in progress, what's blocking, what's stale). Tables over prose.
-3. **Wait for direction** — don't auto-start work or grab cards.
+2. **Read the comments before briefing.** `get_cards` returns comment *counts*, not bodies — so before briefing or asking the operator about any card with `commentCount > 0`, open it (`get_card`) and read the latest comment. Operator comments are often rulings ("Approved for 3a," "hold this"); briefing a card whose answer is already in a comment reads as not having looked. (`get_cards` also returns `latestComment` where the running instance supports it — that surfaces the freshest comment in the scan itself.)
+3. **Brief the operator** — short summary of board state (what's ready, what's in progress, what's blocking, what's stale), incorporating any rulings found in those comments. Tables over prose.
+4. **Wait for direction** — don't auto-start work or grab cards.
 
 During a session:
 
