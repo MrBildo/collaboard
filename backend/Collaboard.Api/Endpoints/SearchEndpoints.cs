@@ -49,7 +49,6 @@ internal static class SearchEndpoints
                 return Results.Ok(Array.Empty<SearchResult>());
             }
 
-            var cardIds = cards.Select(c => c.Id).ToList();
             var boardIds = cards.Select(c => c.BoardId).Distinct().ToList();
 
             // Batch load boards
@@ -57,62 +56,13 @@ internal static class SearchEndpoints
                 .Where(b => boardIds.Contains(b.Id))
                     .ToDictionaryAsync(b => b.Id, b => b);
 
-            // Batch load sizes
-            var sizeIds = cards.Select(c => c.SizeId).Distinct().ToList();
-            var sizeNames = await db.CardSizes
-                .Where(s => sizeIds.Contains(s.Id))
-                    .ToDictionaryAsync(s => s.Id, s => s.Name);
-
-            // Batch load labels
-            var cardLabels = await db.CardLabels
-                .Where(cl => cardIds.Contains(cl.CardId))
-                    .Join(db.Labels, cl => cl.LabelId, l => l.Id, (cl, l) => new { cl.CardId, Label = new CardLabelSummary(l.Id, l.Name, l.Color) })
-                        .ToListAsync();
-            var labelsByCard = cardLabels
-                .GroupBy(x => x.CardId)
-                    .ToDictionary(g => g.Key, g => g.Select(x => x.Label).ToList());
-
-            // Batch load counts
-            var commentCounts = await db.Comments
-                .Where(cm => cardIds.Contains(cm.CardId))
-                    .GroupBy(cm => cm.CardId)
-                        .Select(g => new { CardId = g.Key, Count = g.Count() })
-                            .ToDictionaryAsync(x => x.CardId, x => x.Count);
-
-            var attachmentCounts = await db.Attachments
-                .Where(a => cardIds.Contains(a.CardId))
-                    .GroupBy(a => a.CardId)
-                        .Select(g => new { CardId = g.Key, Count = g.Count() })
-                            .ToDictionaryAsync(x => x.CardId, x => x.Count);
-
-            // Build a cardId -> boardId lookup
+            // Build a cardId -> boardId lookup (needed for the board grouping below).
             var cardBoardMap = cards.ToDictionary(c => c.Id, c => c.BoardId);
 
-            // All archive lane IDs for isArchived computation
-            var archiveLaneIds = allArchiveLanes.Select(l => l.Id).ToHashSet();
-
-            // Project to summaries
-            var summaries = cards
-                .Select(c => new CardSummary
-                (
-                    c.Id,
-                    c.Number,
-                    c.Name,
-                    c.DescriptionMarkdown,
-                    c.SizeId,
-                    sizeNames.GetValueOrDefault(c.SizeId, "?"),
-                    c.LaneId,
-                    c.Position,
-                    c.CreatedByUserId,
-                    c.CreatedAtUtc,
-                    c.LastUpdatedByUserId,
-                    c.LastUpdatedAtUtc,
-                    labelsByCard.GetValueOrDefault(c.Id, []),
-                    commentCounts.GetValueOrDefault(c.Id, 0),
-                    attachmentCounts.GetValueOrDefault(c.Id, 0),
-                    archiveLaneIds.Contains(c.LaneId)
-                ))
-                    .ToList();
+            // One shared projection across surfaces — the builder owns sizes, labels,
+            // counts, archive flag, and the latest-comment enrichment (#274). Keeping
+            // search on the builder avoids a second CardSummary projection drifting.
+            var summaries = await CardSummaryBuilder.BuildAsync(db, cards);
 
             // Group by board; current board (if specified) ranks first
             var results = summaries
