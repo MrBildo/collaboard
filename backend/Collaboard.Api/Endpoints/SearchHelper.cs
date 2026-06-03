@@ -42,4 +42,84 @@ internal static class SearchHelper
             .Replace("%", "\\%", StringComparison.Ordinal)
             .Replace("_", "\\_", StringComparison.Ordinal)
             .Replace("[", "\\[", StringComparison.Ordinal);
+
+    // Cross-board card search shared by the REST GET /search/cards endpoint and the
+    // MCP search_cards tool (#269). Both surfaces must return the identical
+    // board-grouped CardSummary shape — keeping the logic here is the same
+    // anti-drift discipline that routes both surfaces through CardSummaryBuilder.
+    // The boardId param only affects result ordering (priority board first); it does
+    // not scope the query — that's what makes this search cross-board.
+    public static async Task<List<SearchResult>> SearchCardsAsync
+    (
+        BoardDbContext db,
+        string? q,
+        int limit,
+        Guid? archiveBoardId,
+        Guid? boardId,
+        CancellationToken ct = default
+    )
+    {
+        if (string.IsNullOrWhiteSpace(q))
+        {
+            return [];
+        }
+
+        // Load all archive lane IDs upfront (spans all boards)
+        var allArchiveLanes = await db.Lanes
+            .Where(l => l.IsArchiveLane)
+                .Select(l => new { l.Id, l.BoardId })
+                    .ToListAsync(ct);
+
+        // Exclude archive lanes from all boards except the archiveBoardId
+        var excludeArchiveLaneIds = allArchiveLanes
+            .Where(l => l.BoardId != archiveBoardId)
+                .Select(l => l.Id)
+                    .ToList();
+
+        var query = db.Cards.Where(c => !c.IsTemp);
+        query = ApplySearchFilter(query, q);
+
+        if (excludeArchiveLaneIds.Count > 0)
+        {
+            query = query.Where(c => !excludeArchiveLaneIds.Contains(c.LaneId));
+        }
+
+        var cards = await query
+            .OrderBy(c => c.BoardId)
+            .ThenByDescending(c => c.Number)
+            .Take(limit)
+                .ToListAsync(ct);
+
+        if (cards.Count == 0)
+        {
+            return [];
+        }
+
+        var boardIds = cards.Select(c => c.BoardId).Distinct().ToList();
+
+        var boards = await db.Boards
+            .Where(b => boardIds.Contains(b.Id))
+                .ToDictionaryAsync(b => b.Id, b => b, ct);
+
+        var cardBoardMap = cards.ToDictionary(c => c.Id, c => c.BoardId);
+
+        // One shared projection across surfaces — the builder owns sizes, labels,
+        // counts, archive flag, and the latest-comment enrichment (#274). Keeping
+        // search on the builder avoids a second CardSummary projection drifting.
+        var summaries = await CardSummaryBuilder.BuildAsync(db, cards, ct);
+
+        // Group by board; current board (if specified) ranks first
+        return
+        [
+            .. summaries
+                .GroupBy(s => cardBoardMap[s.Id])
+                .Where(g => boards.ContainsKey(g.Key))
+                    .Select(g =>
+                    {
+                        var board = boards[g.Key];
+                        return new SearchResult(board.Id, board.Name, board.Slug, [.. g]);
+                    })
+                    .OrderBy(r => r.BoardId == boardId ? 0 : 1)
+        ];
+    }
 }

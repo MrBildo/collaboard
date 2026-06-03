@@ -67,6 +67,54 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
         return JsonSerializer.Serialize(comment, JsonSerializerOptions.Web);
     }
 
+    [McpServerTool(Name = "update_comment", Destructive = false)]
+    [Description("Edit the text of a comment you wrote. Administrator and AgentAdministrator roles can edit any comment. Mirrors REST PATCH /comments/{id}. Blocked on archived cards.")]
+    public async Task<string> UpdateCommentAsync
+    (
+        [Description("Your auth key")] string authKey,
+        [Description("The ID (guid) of the comment to edit")] Guid commentId,
+        [Description("The new comment text (Markdown supported). Alias for contentMarkdown, kept for symmetry with add_comment; prefer contentMarkdown.")] string? content = null,
+        [Description("The new comment text (Markdown supported). Canonical name; preferred over content when both are supplied.")] string? contentMarkdown = null,
+        CancellationToken ct = default
+    )
+    {
+        var (user, error) = await auth.RequireUserAsync(authKey, ct);
+        if (error is not null)
+        {
+            return error;
+        }
+
+        var newText = contentMarkdown ?? content;
+        if (string.IsNullOrWhiteSpace(newText))
+        {
+            return "Error: Provide non-empty comment text via contentMarkdown (or its alias content).";
+        }
+
+        var comment = await db.Comments.FindAsync([commentId], ct);
+        if (comment is null)
+        {
+            return "Error: Comment not found.";
+        }
+
+        if (await ArchiveGuard.IsCardArchivedAsync(db, comment.CardId))
+        {
+            return "Archived cards cannot be modified.";
+        }
+
+        // Own-or-admin-level, matching delete_comment (#243 Phase 2): the author edits
+        // their own comment; Administrator and AgentAdministrator may edit any comment.
+        if (comment.UserId != user!.Id && !McpAuthService.IsAdminLevel(user))
+        {
+            return "Error: You can only edit your own comments.";
+        }
+
+        comment.ContentMarkdown = newText;
+        comment.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync(ct);
+        await db.PublishForCardAsync(comment.CardId, broadcaster);
+        return JsonSerializer.Serialize(comment, JsonSerializerOptions.Web);
+    }
+
     [McpServerTool(Name = "delete_comment", Destructive = true)]
     [Description("Delete a comment you wrote. Administrator and AgentAdministrator roles can delete any comment.")]
     public async Task<string> DeleteCommentAsync
