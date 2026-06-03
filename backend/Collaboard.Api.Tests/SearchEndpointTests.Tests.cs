@@ -434,15 +434,24 @@ public class SearchEndpointTests(CollaboardApiFactory factory) : IClassFixture<C
 
         const int limit = 3;
 
+        // Creation order is load-bearing for the red-before property: the live card is
+        // created FIRST so it gets the LOWEST card number, then the archived cards get
+        // higher numbers. Under the pre-fix ordering (OrderBy(BoardId).ThenByDescending(
+        // Number).Take) the higher-numbered archived cards rank ahead of the live card and
+        // the Take(limit) drops it — failing the assertions below. The fix's archived-
+        // exclusion clause (priorityArchiveLaneIds) keeps the archived cards out of the
+        // priority bucket so the live card survives. Create live last and it survives the
+        // pre-fix cut on number alone, and the test no longer guards the clause it names.
+
+        // A single non-archived current-board match — must survive the cut.
+        await CreateCardOnBoardAsync(boardId, laneId, $"{term} live");
+
         // Archived current-board matches — eligible (archiveBoardId), but lower priority.
         for (var i = 0; i < limit; i++)
         {
             var archivedId = await CreateCardOnBoardAsync(boardId, laneId, $"{term} archived {i.ToString(CultureInfo.InvariantCulture)}");
             await _client.PostAsync($"/api/v1/cards/{archivedId}/archive", null);
         }
-
-        // A single non-archived current-board match — must survive the cut.
-        await CreateCardOnBoardAsync(boardId, laneId, $"{term} live");
 
         // Act
         var results = await SearchAsync($"q={term}&limit={limit}&boardId={boardId}&archiveBoardId={boardId}");
