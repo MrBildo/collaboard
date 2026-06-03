@@ -9,11 +9,13 @@ import { toMessage } from '@/lib/mutation-floor';
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { useUserDirectory } from '@/hooks/use-user-directory';
+import { useCardLinkContext } from '@/hooks/use-card-links';
 import { ROLES } from '@/lib/roles';
 import { formatDateTime } from '@/lib/utils';
 
 type CardCommentsProps = {
   cardId: string;
+  boardId?: string;
   currentUserId?: string;
   currentUserRole?: number;
   readOnly?: boolean;
@@ -21,6 +23,7 @@ type CardCommentsProps = {
 
 export function CardComments({
   cardId,
+  boardId,
   currentUserId,
   currentUserRole,
   readOnly,
@@ -28,6 +31,7 @@ export function CardComments({
   const queryClient = useQueryClient();
 
   const { getUserName } = useUserDirectory();
+  const { boardSlug, cardNumbers } = useCardLinkContext(boardId);
   const [newComment, setNewComment] = useState('');
   const [isNewCommentFocused, setIsNewCommentFocused] = useState(false);
   const [isPreviewingNew, setIsPreviewingNew] = useState(false);
@@ -170,7 +174,9 @@ export function CardComments({
           {isPreviewingNew && isExpanded ? (
             <div className="prose prose-sm max-w-none overflow-x-auto rounded-md border bg-muted/30 p-4 text-sm text-foreground">
               {newComment.trim() ? (
-                <MarkdownRenderer>{newComment}</MarkdownRenderer>
+                <MarkdownRenderer boardSlug={boardSlug} cardNumbers={cardNumbers}>
+                  {newComment}
+                </MarkdownRenderer>
               ) : (
                 <p className="italic text-muted-foreground">Nothing to preview.</p>
               )}
@@ -237,7 +243,9 @@ export function CardComments({
                 {isPreviewingEdit ? (
                   <div className="prose prose-sm max-w-none overflow-x-auto rounded-md border bg-muted/30 p-4 text-sm text-foreground">
                     {editText.trim() ? (
-                      <MarkdownRenderer>{editText}</MarkdownRenderer>
+                      <MarkdownRenderer boardSlug={boardSlug} cardNumbers={cardNumbers}>
+                        {editText}
+                      </MarkdownRenderer>
                     ) : (
                       <p className="italic text-muted-foreground">Nothing to preview.</p>
                     )}
@@ -263,7 +271,9 @@ export function CardComments({
             ) : (
               <>
                 <div className="prose prose-sm max-w-none break-words">
-                  <MarkdownRenderer>{comment.contentMarkdown}</MarkdownRenderer>
+                  <MarkdownRenderer boardSlug={boardSlug} cardNumbers={cardNumbers}>
+                    {comment.contentMarkdown}
+                  </MarkdownRenderer>
                 </div>
                 <div className="mt-2 flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">

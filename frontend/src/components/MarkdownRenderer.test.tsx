@@ -1,5 +1,6 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { MarkdownRenderer } from './MarkdownRenderer';
 
 vi.mock('mermaid', () => ({
@@ -124,5 +125,89 @@ describe('MarkdownRenderer', () => {
     const link = screen.getByRole('link', { name: 'example' });
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
+  });
+});
+
+describe('MarkdownRenderer card-link autolinking (#273)', () => {
+  // Card-link autolinking emits relative `/boards/...` hrefs that render as a
+  // React Router <Link>, so these cases mount under a router. Fork 3a: a `#N`
+  // is linkified only when N is in the live (non-archived) card-number set.
+  const slug = 'demo';
+  const liveCards = new Set([28, 273]);
+
+  function renderWithLinks(markdown: string, cardNumbers: Set<number> = liveCards) {
+    return render(
+      <MemoryRouter>
+        <MarkdownRenderer boardSlug={slug} cardNumbers={cardNumbers}>
+          {markdown}
+        </MarkdownRenderer>
+      </MemoryRouter>,
+    );
+  }
+
+  test('linkifies a live card reference to its card route', () => {
+    renderWithLinks('See #28 for context');
+    const link = screen.getByRole('link', { name: '#28' });
+    expect(link).toHaveAttribute('href', '/boards/demo/cards/28');
+  });
+
+  test('renders an internal card link as a router link, not a hard reload anchor', () => {
+    renderWithLinks('See #28');
+    const link = screen.getByRole('link', { name: '#28' });
+    // A relative href left untouched by rehype-external-links — no new tab.
+    expect(link).not.toHaveAttribute('target');
+    expect(link.getAttribute('href')).toBe('/boards/demo/cards/28');
+  });
+
+  test('leaves a reference to a non-live (archived/unknown) card as plain text', () => {
+    renderWithLinks('See #9999 and #28');
+    // #9999 is not in the live set — plain text, no link.
+    expect(screen.queryByRole('link', { name: '#9999' })).toBeNull();
+    expect(screen.getByText(/#9999/)).toBeInTheDocument();
+    // #28 still linkifies alongside it.
+    expect(screen.getByRole('link', { name: '#28' })).toBeInTheDocument();
+  });
+
+  test('does not autolink without board context (props omitted)', () => {
+    render(
+      <MemoryRouter>
+        <MarkdownRenderer>{'See #28'}</MarkdownRenderer>
+      </MemoryRouter>,
+    );
+    expect(screen.queryByRole('link', { name: '#28' })).toBeNull();
+    expect(screen.getByText(/#28/)).toBeInTheDocument();
+  });
+
+  test('does not linkify inside a fenced code block', () => {
+    const md = '```\n#28 in a code fence\n```';
+    const { container } = renderWithLinks(md);
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(container.querySelector('code')?.textContent).toContain('#28');
+  });
+
+  test('does not linkify inside inline code', () => {
+    renderWithLinks('Use `#28` literally');
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.getByText('#28').tagName).toBe('CODE');
+  });
+
+  test('does not re-linkify a reference inside an existing markdown link', () => {
+    renderWithLinks('[go here](https://example.com/issues/28#28)');
+    // Exactly one link — the authored one — and it is not rewritten to a card route.
+    const links = screen.getAllByRole('link');
+    expect(links).toHaveLength(1);
+    expect(links[0].getAttribute('href')).toBe('https://example.com/issues/28#28');
+  });
+
+  test('does not linkify a hex color (digits followed by letters)', () => {
+    renderWithLinks('Background #28a745 looks good');
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.getByText(/#28a745/)).toBeInTheDocument();
+  });
+
+  test('does not linkify a fragment-style ref with a trailing hyphen', () => {
+    renderWithLinks('anchor #28-foo here');
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.getByText(/#28-foo/)).toBeInTheDocument();
   });
 });

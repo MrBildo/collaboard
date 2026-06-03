@@ -34,6 +34,7 @@ import { LabelPicker } from '@/components/LabelPicker';
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { useUserDirectory } from '@/hooks/use-user-directory';
+import { useCardLinkContext } from '@/hooks/use-card-links';
 import { useArchiveCard } from '@/hooks/use-archive-card';
 import { useRestoreCard } from '@/hooks/use-restore-card';
 import { usePasteAttachment } from '@/hooks/use-paste-attachment';
@@ -227,6 +228,7 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
       (currentUserRole === ROLES.Human && card.createdByUserId === currentUserId);
 
     const { getUserName } = useUserDirectory();
+    const { boardSlug, cardNumbers } = useCardLinkContext(boardId);
 
     const labelsQuery = useQuery({
       queryKey: queryKeys.cards.labels(card.id),
@@ -800,7 +802,9 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
               ) : (
                 <div className="prose prose-sm max-w-none overflow-x-auto rounded-md border bg-muted/30 p-4 text-sm text-foreground">
                   {description ? (
-                    <MarkdownRenderer>{description}</MarkdownRenderer>
+                    <MarkdownRenderer boardSlug={boardSlug} cardNumbers={cardNumbers}>
+                      {description}
+                    </MarkdownRenderer>
                   ) : (
                     <p className="italic text-muted-foreground">
                       {isArchived
@@ -856,6 +860,7 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
             <h3 className="mb-3 text-sm font-semibold">Comments</h3>
             <CardComments
               cardId={card.id}
+              boardId={boardId}
               currentUserId={currentUserId}
               currentUserRole={currentUserRole}
               readOnly={isArchived}

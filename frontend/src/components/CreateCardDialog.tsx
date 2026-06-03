@@ -34,6 +34,7 @@ import { InlineError } from '@/components/ui/inline-error';
 import { toMessage } from '@/lib/mutation-floor';
 import { validateFiles } from '@/lib/attachments';
 import { usePasteAttachment } from '@/hooks/use-paste-attachment';
+import { useCardLinkContext } from '@/hooks/use-card-links';
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
 import { Loader2 } from 'lucide-react';
@@ -59,6 +60,7 @@ export function CreateCardDialog({
 }: CreateCardDialogProps) {
   const queryClient = useQueryClient();
   const dialogContentRef = useRef<HTMLDivElement>(null);
+  const { boardSlug, cardNumbers } = useCardLinkContext(boardId);
 
   const defaultSizeId =
     sizes.length > 0 ? [...sizes].sort((a, b) => a.ordinal - b.ordinal)[0].id : '';
@@ -348,7 +350,9 @@ export function CreateCardDialog({
               {isPreviewingDescription ? (
                 <div className="prose prose-sm max-h-64 max-w-none overflow-y-auto overflow-x-auto rounded-md border bg-muted/30 p-4 text-sm text-foreground">
                   {description.trim() ? (
-                    <MarkdownRenderer>{description}</MarkdownRenderer>
+                    <MarkdownRenderer boardSlug={boardSlug} cardNumbers={cardNumbers}>
+                      {description}
+                    </MarkdownRenderer>
                   ) : (
                     <p className="italic text-muted-foreground">Nothing to preview.</p>
                   )}
