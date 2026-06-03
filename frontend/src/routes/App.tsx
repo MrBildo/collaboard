@@ -1,4 +1,11 @@
-import { DndContext, DragOverlay } from '@dnd-kit/core';
+import {
+  DndContext,
+  DragOverlay,
+  type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core';
+import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -9,6 +16,7 @@ import { CardOverlay } from '@/components/CardOverlay';
 import { CreateCardDialog } from '@/components/CreateCardDialog';
 import { GlobalAdminPanel } from '@/components/GlobalAdminPanel';
 import { LaneColumn } from '@/components/LaneColumn';
+import { LaneOverlay } from '@/components/LaneOverlay';
 import { LoginScreen } from '@/components/LoginScreen';
 import { fetchBoards, fetchCards, fetchVersion } from '@/lib/api';
 import { queryKeys } from '@/lib/query-keys';
@@ -16,9 +24,11 @@ import { useAuth } from '@/hooks/use-auth';
 import { useBoardData } from '@/hooks/use-board-data';
 import { useBoardEvents } from '@/hooks/use-board-events';
 import { useBoardDnd } from '@/hooks/use-board-dnd';
+import { useLaneDnd } from '@/hooks/use-lane-dnd';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useLaneCollapse } from '@/hooks/use-lane-collapse';
 import { cn } from '@/lib/utils';
+import { isLaneDragEvent } from '@/lib/dnd-active-type';
 import { useLaneResize } from '@/hooks/use-lane-resize';
 import type { CardItem } from '@/types';
 
@@ -72,10 +82,27 @@ export function App() {
     activeCardId,
     localCards,
     sortedServerCards,
-    onDragStart,
-    onDragOver,
-    onDragEnd,
+    onDragStart: onCardDragStart,
+    onDragOver: onCardDragOver,
+    onDragEnd: onCardDragEnd,
   } = useBoardDnd(boardId, serverCards, laneIds);
+
+  const {
+    activeLaneId,
+    localLanes,
+    onDragStart: onLaneDragStart,
+    onDragOver: onLaneDragOver,
+    onDragEnd: onLaneDragEnd,
+  } = useLaneDnd(boardId, lanes);
+
+  // Two drag concerns share one DndContext (card reorder + lane reorder). Route
+  // each handler to the right hook by the active draggable's data.type (#278).
+  const handleDragStart = (event: DragStartEvent) =>
+    isLaneDragEvent(event) ? onLaneDragStart(event) : onCardDragStart(event);
+  const handleDragOver = (event: DragOverEvent) =>
+    isLaneDragEvent(event) ? onLaneDragOver(event) : onCardDragOver(event);
+  const handleDragEnd = (event: DragEndEvent) =>
+    isLaneDragEvent(event) ? onLaneDragEnd(event) : onCardDragEnd(event);
 
   // Derive selected card from URL — check board data first, fall back to archived card fetch
   const cardNum = cardNumber ? parseInt(cardNumber, 10) : null;
@@ -121,10 +148,10 @@ export function App() {
 
   const byLane = useMemo(() => {
     const map = new Map<string, CardItem[]>();
-    lanes.forEach((lane) => map.set(lane.id, []));
+    localLanes.forEach((lane) => map.set(lane.id, []));
     localCards.forEach((card) => map.get(card.laneId)?.push(card));
     return map;
-  }, [lanes, localCards]);
+  }, [localLanes, localCards]);
 
   const {
     isCollapsed,
@@ -132,7 +159,7 @@ export function App() {
     initDefaults: initCollapseDefaults,
   } = useLaneCollapse(boardId);
 
-  const laneIdList = useMemo(() => lanes.map((l) => l.id), [lanes]);
+  const laneIdList = useMemo(() => localLanes.map((l) => l.id), [localLanes]);
   const {
     sectionRef,
     gridTemplateColumns,
@@ -194,9 +221,9 @@ export function App() {
       <DndContext
         sensors={sensors}
         collisionDetection={collisionDetection}
-        onDragStart={onDragStart}
-        onDragOver={onDragOver}
-        onDragEnd={onDragEnd}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
       >
         <section
           ref={sectionRef}
@@ -206,24 +233,27 @@ export function App() {
           }}
           aria-label="Kanban board"
         >
-          {lanes.map((lane) => (
-            <LaneColumn
-              key={lane.id}
-              lane={lane}
-              cards={byLane.get(lane.id) ?? []}
-              onCardClick={handleCardClick}
-              onAddCard={() => {
-                setCreateLaneId(lane.id);
-                setCreateDialogKey((k) => k + 1);
-                setCreateOpen(true);
-              }}
-              activeCardId={activeCardId}
-              sizeMap={sizeMap}
-              enrichedCardMap={enrichedCardMap}
-              isCollapsed={isCollapsed(lane.id)}
-              onToggleCollapse={() => toggleLaneCollapse(lane.id)}
-            />
-          ))}
+          <SortableContext items={laneIdList} strategy={horizontalListSortingStrategy}>
+            {localLanes.map((lane) => (
+              <LaneColumn
+                key={lane.id}
+                lane={lane}
+                cards={byLane.get(lane.id) ?? []}
+                onCardClick={handleCardClick}
+                onAddCard={() => {
+                  setCreateLaneId(lane.id);
+                  setCreateDialogKey((k) => k + 1);
+                  setCreateOpen(true);
+                }}
+                activeCardId={activeCardId}
+                isLaneDragging={lane.id === activeLaneId}
+                sizeMap={sizeMap}
+                enrichedCardMap={enrichedCardMap}
+                isCollapsed={isCollapsed(lane.id)}
+                onToggleCollapse={() => toggleLaneCollapse(lane.id)}
+              />
+            ))}
+          </SortableContext>
           {/* Overlay resize handles — positioned over column gaps, no layout impact */}
           <div className="pointer-events-none absolute inset-0 hidden md:block">
             {handlePositions.map((left, i) => (
@@ -247,6 +277,10 @@ export function App() {
         </section>
         <DragOverlay>
           {(() => {
+            if (activeLaneId) {
+              const activeLane = localLanes.find((l) => l.id === activeLaneId);
+              return activeLane ? <LaneOverlay lane={activeLane} /> : null;
+            }
             const activeCard = activeCardId
               ? localCards.find((c) => c.id === activeCardId)
               : undefined;
