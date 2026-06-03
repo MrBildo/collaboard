@@ -126,18 +126,30 @@ jobs:
             /p:Version="${VER}" \
             -o "publish/${{ matrix.artifact }}"
 
-      # Explicit archive contract via exclusion-based allow-list.
+      # Explicit archive contract: an exclusion list (strip known-bad patterns)
+      # backed by a top-level allow-list (fail on anything unrecognized).
       #
       # Collaboard ships a directory-layout self-contained publish (~380 files:
       # the apphost binary plus the entire .NET runtime as loose DLLs and native
-      # libs). A per-file allow-list -- the shape Collabhost's single-file publish
+      # libs). A per-FILE allow-list -- the shape Collabhost's single-file publish
       # uses -- is the wrong tool here: enumerating 350+ runtime DLLs is
-      # unmaintainable and self-defeating. Instead the contract is "everything
+      # unmaintainable and self-defeating. So the baseline contract is "everything
       # dotnet publish emits, MINUS a small, named set of dev/debug/SDK-scratch
-      # artifacts that must never reach an operator." The exclusion list IS the
-      # contract boundary; the verify step below fails the leg if any excluded
-      # pattern survives staging (catches future SDK-added-file drift) or any
-      # required item is absent.
+      # artifacts that must never reach an operator." The exclusion list below IS
+      # that contract boundary; the verify step fails the leg if any excluded
+      # pattern survives staging or any required item is absent.
+      #
+      # Exclusion alone has one soft spot: a GENUINELY NOVEL SDK-added file (e.g.
+      # a hypothetical future *.staticwebassets.runtime.json) matches none of the
+      # excluded patterns, so it survives staging and ships. An exclusion list
+      # passes unknown files by default; an allow-list would reject them. The
+      # verify step closes this with a top-level allow-list keyed on the one
+      # observation that makes a per-file list tractable: the runtime DLL/native
+      # set drifts only at the TOP level, and that top level is a small set of
+      # stable CLASSES (managed/native libraries) plus a short named set of
+      # non-library artifacts. Class patterns absorb the ~350 libraries without
+      # enumerating them; anything at the top level outside those classes and the
+      # named set fails the verify -- restoring allow-list-grade drift detection.
       #
       # Excluded (and why):
       #   *.pdb                              debug symbols -- not shipped
@@ -148,6 +160,10 @@ jobs:
       #                                      NOT MapStaticAssets, so this manifest is unused
       #                                      at runtime. This is the exact SDK-drift file the
       #                                      archive contract exists to catch (#221 cite).
+      #
+      # The strip uses recursive `find ... -delete` so it shares one matcher with
+      # the recursive `find .` leaked-file check in the verify step -- the two
+      # halves of the exclusion contract must agree on what they match.
       - name: Stage archive
         env:
           RID: ${{ matrix.rid }}
@@ -163,10 +179,14 @@ jobs:
           # Start from the full publish output, then strip the excluded set.
           cp -R "${PUB}/." "${STAGE}/"
 
-          rm -f "${STAGE}"/*.pdb
-          rm -f "${STAGE}"/*.xml
-          rm -f "${STAGE}/appsettings.Development.json"
-          rm -f "${STAGE}"/*.staticwebassets.endpoints.json
+          # Recursive strip -- mirrors the recursive `find .` matcher in the
+          # verify step so both halves of the exclusion contract agree.
+          find "${STAGE}" -type f \
+            \( -name '*.pdb' \
+            -o -name '*.xml' \
+            -o -name 'appsettings.Development.json' \
+            -o -name '*.staticwebassets.endpoints.json' \) \
+            -delete
 
           # Bundle INSTALL.md alongside the binary (operator-facing setup guide).
           cp INSTALL.md "${STAGE}/"
@@ -204,7 +224,11 @@ jobs:
       # (2) required items present -- binary, appsettings.json, runtimeconfig,
       #     deps.json, INSTALL.md, wwwroot/index.html;
       # (3) NO excluded patterns leaked through -- .pdb, .xml,
-      #     appsettings.Development.json, *.staticwebassets.endpoints.json.
+      #     appsettings.Development.json, *.staticwebassets.endpoints.json;
+      # (4) NO unrecognized top-level entry -- the allow-list drift check. Every
+      #     top-level entry must match a known library CLASS (managed/native libs)
+      #     or the short named set of non-library artifacts. A genuinely novel
+      #     SDK-added file at the top level matches neither and fails the leg.
       # Fails the leg hard on any violation. Cheap safety net for a workflow that
       # cannot be release-run inside a PR.
       - name: Verify archive contents
@@ -272,12 +296,56 @@ jobs:
             FAILED=1
           fi
 
+          # (4) Top-level allow-list drift check. The exclusion list (3) only
+          # rejects KNOWN-bad patterns; an exclusion list passes unknown files by
+          # default. This check restores allow-list-grade detection: every entry
+          # at the archive top level must match a recognized library class or the
+          # short named set of non-library artifacts. A genuinely novel SDK-added
+          # file (e.g. a future *.staticwebassets.runtime.json) matches neither
+          # and is reported. The classes absorb the ~350 runtime libraries so the
+          # list stays tractable without enumerating individual DLL names; only
+          # the top level drifts (the runtime set itself is stable per-RID).
+          #
+          # Recognized top-level CLASSES (patterns):
+          #   *.dll      managed assemblies + Windows native runtime libs
+          #   *.so       Linux native runtime libs
+          #   *.dylib    macOS native runtime libs
+          # Recognized top-level NAMED entries:
+          #   <bin>                            apphost binary (RID-specific name)
+          #   createdump / createdump.exe      .NET crash-dump helper (self-contained)
+          #   appsettings.json                 shipped operator config
+          #   Collaboard.Api.deps.json         dependency manifest (runtime-load-bearing)
+          #   Collaboard.Api.runtimeconfig.json runtime config (runtime-load-bearing)
+          #   INSTALL.md                       bundled operator setup guide
+          #   wwwroot                          SPA static assets (directory)
+          UNRECOGNIZED=$(cd "${VERIFY_DIR}" && \
+            for entry in *; do
+              case "${entry}" in
+                *.dll|*.so|*.dylib) ;;
+                "${{ matrix.bin }}") ;;
+                createdump|createdump.exe) ;;
+                appsettings.json) ;;
+                Collaboard.Api.deps.json) ;;
+                Collaboard.Api.runtimeconfig.json) ;;
+                INSTALL.md) ;;
+                wwwroot) ;;
+                *) echo "${entry}" ;;
+              esac
+            done | sort)
+          if [[ -n "${UNRECOGNIZED}" ]]; then
+            echo "DRIFT (unrecognized top-level entry -- not a known library class or named artifact):" >&2
+            echo "${UNRECOGNIZED}" >&2
+            echo "If this is a legitimate new shipped artifact, add it to the top-level allow-list in this step." >&2
+            echo "If it is SDK scratch that must not ship, add it to the exclusion list in the Stage archive step." >&2
+            FAILED=1
+          fi
+
           if [[ "${FAILED}" -ne 0 ]]; then
             echo "Archive contract verification failed." >&2
             exit 1
           fi
 
-          echo "Archive contract verified: flat layout, required items present, no excluded artifacts."
+          echo "Archive contract verified: flat layout, required items present, no excluded artifacts, no top-level drift."
 
       # Per-archive SHA-256 sidecar. Portable `sha256sum -c`-compatible format
       # (one line: "<hash>  <archive>"). Runners are ubuntu-latest, so sha256sum
