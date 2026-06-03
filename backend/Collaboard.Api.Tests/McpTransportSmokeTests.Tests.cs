@@ -20,7 +20,8 @@ public class McpTransportSmokeTests(CollaboardApiFactory factory) : IClassFixtur
     // Prune/BulkCard/Search). The exact count is the tripwire: an SDK bump that silently drops tools
     // trips it. Adding a tool is expected to bump this by hand — that one-line edit is the intended
     // signal. #269 added update_comment (CommentTools) and search_cards (SearchTools): 35 -> 37.
-    private const int _expectedToolCount = 37;
+    // #277 added reorder_lanes (LaneTools): 37 -> 38.
+    private const int _expectedToolCount = 38;
 
     private readonly CollaboardApiFactory _factory = factory;
 

@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
+using Collaboard.Api.Endpoints;
 using Collaboard.Api.Events;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
@@ -110,6 +111,50 @@ public sealed class LaneTools(BoardDbContext db, McpAuthService auth, BoardEvent
         await db.SaveChangesAsync(ct);
         broadcaster.PublishBoardUpdated(lane.BoardId);
         return JsonSerializer.Serialize(lane, JsonSerializerOptions.Web);
+    }
+
+    [McpServerTool(Name = "reorder_lanes", Destructive = false)]
+    [Description("Reorder all of a board's non-archive lanes in one call. Requires Administrator or AgentAdministrator role. Pass orderedLaneIds as a CSV of lane GUIDs giving the complete desired left-to-right order — it must be exactly the board's current non-archive lane set (no missing, extra, duplicate, or unknown ids), else the call fails loud with no changes. The server assigns dense positions 0,1,2,… in that order; the archive lane is untouched. Returns the reordered lanes.")]
+    public async Task<string> ReorderLanesAsync
+    (
+        [Description("Your auth key")] string authKey,
+        [Description("The board ID whose lanes to reorder")] Guid boardId,
+        [Description("CSV of lane GUIDs in the complete desired left-to-right order")] string orderedLaneIds,
+        CancellationToken ct = default
+    )
+    {
+        var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
+        if (error is not null)
+        {
+            return error;
+        }
+
+        if (!await db.Boards.AnyAsync(b => b.Id == boardId, ct))
+        {
+            return "Error: Board not found.";
+        }
+
+        var parts = (orderedLaneIds ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var ids = new Guid[parts.Length];
+        for (var i = 0; i < parts.Length; i++)
+        {
+            if (!Guid.TryParse(parts[i], out var parsed))
+            {
+                return $"Error: Invalid lane ID format: '{parts[i]}'. Expected a GUID.";
+            }
+
+            ids[i] = parsed;
+        }
+
+        var (lanes, validationError) = await LaneReorderHelper.ValidateAsync(db, boardId, ids, ct);
+        if (validationError is not null)
+        {
+            return $"Error: {validationError}";
+        }
+
+        var ordered = await LaneReorderHelper.ReorderAsync(db, lanes!, ids, ct);
+        broadcaster.PublishBoardUpdated(boardId);
+        return JsonSerializer.Serialize(ordered, JsonSerializerOptions.Web);
     }
 
     [McpServerTool(Name = "delete_lane", Destructive = true)]
