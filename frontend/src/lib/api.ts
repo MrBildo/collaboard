@@ -296,6 +296,15 @@ export async function deleteLane(id: string): Promise<void> {
   await api.delete(`/lanes/${id}`);
 }
 
+// Card #278: whole-board lane reorder. `laneIds` is the complete desired
+// left-to-right order of the board's non-archive lanes; the server owns all
+// position math (two-phase renumber under the unique (BoardId, Position) index,
+// see backend LaneReorderHelper). Returns the lanes in their new dense order.
+export async function reorderLanes(boardId: string, laneIds: string[]): Promise<Lane[]> {
+  const { data } = await api.post(`/boards/${boardId}/lanes/reorder`, { laneIds });
+  return z.array(laneSchema).parse(data);
+}
+
 // Sizes (board-scoped admin)
 export async function fetchSizes(boardId: string): Promise<CardSize[]> {
   const { data } = await api.get(`/boards/${boardId}/sizes`);
