@@ -40,6 +40,28 @@ internal static class LaneEndpoints
             return Results.Created($"/api/v1/lanes/{lane.Id}", lane);
         }).RequireAdminOrAgentAdmin();
 
+        // Card #277: whole-board lane reorder. Client sends the complete desired
+        // left-to-right order of the board's non-archive lanes; server owns all
+        // position math (two-phase renumber under the unique (BoardId, Position)
+        // index — see LaneReorderHelper).
+        group.MapPost("/boards/{boardId:guid}/lanes/reorder", async (BoardDbContext db, Guid boardId, ReorderLanesRequest request, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
+        {
+            if (!await db.Boards.AnyAsync(x => x.Id == boardId, ct))
+            {
+                return Results.NotFound();
+            }
+
+            var (lanes, error) = await LaneReorderHelper.ValidateAsync(db, boardId, request.LaneIds, ct);
+            if (error is not null)
+            {
+                return Results.BadRequest(error);
+            }
+
+            var ordered = await LaneReorderHelper.ReorderAsync(db, lanes!, request.LaneIds!, ct);
+            broadcaster.PublishBoardUpdated(boardId);
+            return Results.Ok(ordered);
+        }).RequireAdminOrAgentAdmin();
+
         // By-ID operations (flat)
         group.MapGet("/lanes/{id:guid}", async (BoardDbContext db, Guid id) =>
         {

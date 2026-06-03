@@ -153,6 +153,7 @@ All endpoints under `/api/v1/`:
 | GET | /boards/{boardId}/board | All | Composite: lanes + cards + sizes for a board |
 | GET | /boards/{boardId}/lanes | All | List lanes for a board |
 | POST | /boards/{boardId}/lanes | Admin | Create lane in a board |
+| POST | /boards/{boardId}/lanes/reorder | Admin | Reorder all non-archive lanes. Body `{ laneIds }` — the complete desired left-to-right order; server assigns dense positions 0..n-1. All-or-nothing: must equal the board's current non-archive lane set, else 400 with no change. One `PublishBoardUpdated` broadcast (#277) |
 | GET | /boards/{boardId}/sizes | All | List card sizes for a board (ordered by ordinal) |
 | POST | /boards/{boardId}/sizes | Admin | Create size in a board (auto-ordinal if omitted) |
 | GET | /boards/{boardId}/cards | All | List cards (enriched: labels, sizeId, sizeName, commentCount, attachmentCount, isArchived). Returns `{ items, totalCount, offset, limit }` paged envelope. Optional query params: `since` (DateTimeOffset), `labelId` (Guid), `laneId` (Guid), `includeArchived` (bool, default false), `offset` (int, default 0), `limit` (int, optional, max 200 — omit for all results) |
@@ -189,7 +190,7 @@ All endpoints under `/api/v1/`:
 
 | Path | Notes |
 |------|-------|
-| /mcp | Streamable HTTP transport — 35 tools across SystemTools, BoardTools, CardTools, ArchiveTools, CommentTools, AttachmentTools, LabelTools, LaneTools, SizeTools, PruneTools, BulkCardTools |
+| /mcp | Streamable HTTP transport — 38 tools across SystemTools, BoardTools, CardTools, ArchiveTools, CommentTools, AttachmentTools, LabelTools, LaneTools, SizeTools, PruneTools, BulkCardTools, SearchTools |
 
 **Tools (35):**
 - **SystemTools:** `get_api_info` (returns base URL and API prefix for direct REST calls)
@@ -199,7 +200,7 @@ All endpoints under `/api/v1/`:
 - **CommentTools:** `add_comment` (comment text via `contentMarkdown` — canonical; `content` is a still-supported alias, `contentMarkdown` wins when both are passed; blocks archived cards), `delete_comment` (blocks archived cards; own-or-admin-level)
 - **AttachmentTools:** `upload_attachment` (5MB base64 cap — larger files up to 50MB go via the REST endpoint `POST /api/v1/cards/{cardId}/attachments`; blocks archived cards), `download_attachment` (returns base64 content), `delete_attachment` (blocks archived cards; own-or-admin-level)
 - **LabelTools:** `get_labels`, `add_label_to_card` (supports labelName; blocks archived cards), `remove_label_from_card` (supports labelName; blocks archived cards), `create_label` (admin-level), `update_label` (admin-level; name/color), `delete_label` (admin-level; cleans up CardLabel rows)
-- **LaneTools:** `create_lane` (admin-level; rejects reserved int.MaxValue position), `update_lane` (admin-level; name/position; rejects archive lane, position collision), `delete_lane` (admin-level; rejects archive lane or non-empty lane)
+- **LaneTools:** `create_lane` (admin-level; rejects reserved int.MaxValue position), `update_lane` (admin-level; name/position; rejects archive lane, position collision), `delete_lane` (admin-level; rejects archive lane or non-empty lane), `reorder_lanes` (admin-level; `orderedLaneIds` CSV = complete desired order of the board's non-archive lanes; server assigns dense 0..n-1 via a two-phase renumber under the unique (BoardId, Position) index; all-or-nothing set-equality pre-validation, archive lane rejected) (#277)
 - **SizeTools:** `create_size` (admin-level; auto-ordinal if omitted), `update_size` (admin-level; name/ordinal; ordinal collision rejected), `delete_size` (admin-level; rejects size in use by cards)
 - **PruneTools:** `prune_preview` (admin-level; read-only; `{ matchCount, cards }`; filters: olderThan, laneIds, labelIds, includeArchived; excludes archived by default), `prune` (admin-level; **archive only** — no delete action and no prune_delete tool, by design per #243's exclusion list; `{ archivedCount }`)
 - **BulkCardTools:** `bulk_archive_cards`, `bulk_restore_cards` (requires targetLaneId; all cards must share the target lane's board), `bulk_update_cards` (uniform laneId/index move, sizeId/sizeName, labelIds replace — folds in bulk-move; per-card name/description not offered). All three are **all-roles** (gate via `RequireUserAsync`, matching the per-card analogs they batch) and accept `cardIds` (CSV of GUIDs) XOR `cardNumbers` (CSV) + `boardId`/`boardSlug`. **Two-phase semantics:** Phase 1 pre-validation fails loud with a single `"Error: ..."` string and performs no mutations (ref-shape/parse, card existence, board-match and target premises); Phase 2 per-card execution is best-effort with a per-item envelope `{ totalRequested, succeeded, failed, results: [{ cardId, number, status, error? }] }` (results align 1:1 with input order), one `SaveChangesAsync` at the end, one broadcast per affected board (deduplicated). No `bulk_delete_cards` — delete is irreversible, excluded by design. (#196)

@@ -36,6 +36,8 @@ public record UpdateUserRequest(string? Name, UserRole? Role);
 // Lane requests
 public record UpdateLaneRequest(string? Name, int? Position);
 
+public record ReorderLanesRequest(Guid[]? LaneIds);
+
 // Size requests
 public record UpdateSizeRequest(string? Name, int? Ordinal);
 
