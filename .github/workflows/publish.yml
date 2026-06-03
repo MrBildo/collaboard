@@ -381,6 +381,7 @@ jobs:
           gh release upload "${TAG}" \
             "${{ matrix.artifact }}.${EXT}" \
             "${{ matrix.artifact }}.${EXT}.sha256" \
+            --repo "${{ github.repository }}" \
             --clobber
 
       # Per-leg checksum artifact for the aggregation job.
@@ -425,4 +426,6 @@ jobs:
           TAG: ${{ github.event.release.tag_name }}
         run: |
           set -euo pipefail
-          gh release upload "${TAG}" checksums.txt --clobber
+          gh release upload "${TAG}" checksums.txt \
+            --repo "${{ github.repository }}" \
+            --clobber
