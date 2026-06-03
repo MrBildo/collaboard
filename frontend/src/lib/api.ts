@@ -354,13 +354,23 @@ export async function pruneCards(boardId: string, filters: PruneFilters): Promis
 }
 
 // Search
+// boardId ranks the current board's matches first (priority); archiveBoardId controls
+// which board's archived cards are eligible to appear. They are distinct params even
+// when both carry the current board id (#276 — the SPA used to conflate them, which
+// left the priority sort dead and leaked the current board's archived cards up).
 export async function searchAllCards(
   q: string,
   limit = 20,
+  boardId?: string,
   archiveBoardId?: string,
 ): Promise<SearchResult[]> {
   const { data } = await api.get('/search/cards', {
-    params: { q, limit, ...(archiveBoardId ? { archiveBoardId } : {}) },
+    params: {
+      q,
+      limit,
+      ...(boardId ? { boardId } : {}),
+      ...(archiveBoardId ? { archiveBoardId } : {}),
+    },
   });
   return z.array(searchResultSchema).parse(data);
 }

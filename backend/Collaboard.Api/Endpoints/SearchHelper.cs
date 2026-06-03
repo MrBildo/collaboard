@@ -76,6 +76,16 @@ internal static class SearchHelper
                 .Select(l => l.Id)
                     .ToList();
 
+        // The priority board's own archive lanes — used to keep archived current-board
+        // cards out of the top priority bucket so they can't consume the limit budget
+        // ahead of non-archived matches (#276 Bug 2).
+        var priorityArchiveLaneIds = boardId is null
+            ? []
+            : allArchiveLanes
+                .Where(l => l.BoardId == boardId)
+                    .Select(l => l.Id)
+                        .ToHashSet();
+
         var query = db.Cards.Where(c => !c.IsTemp);
         query = ApplySearchFilter(query, q);
 
@@ -84,8 +94,14 @@ internal static class SearchHelper
             query = query.Where(c => !excludeArchiveLaneIds.Contains(c.LaneId));
         }
 
+        // Prioritize BEFORE the cut so the limit budget goes to the current board's
+        // non-archived matches first (#276). Without this, the Take ran against a
+        // board-GUID-sorted list and could drop current-board matches before the
+        // priority reorder ever saw them. Bucket 0 = current board, non-archived;
+        // everything else (other boards + current-board archived) = bucket 1.
         var cards = await query
-            .OrderBy(c => c.BoardId)
+            .OrderBy(c => boardId != null && c.BoardId == boardId && !priorityArchiveLaneIds.Contains(c.LaneId) ? 0 : 1)
+            .ThenBy(c => c.BoardId)
             .ThenByDescending(c => c.Number)
             .Take(limit)
                 .ToListAsync(ct);

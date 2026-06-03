@@ -157,3 +157,26 @@ describe('SearchCommand — clear on selection', () => {
     expect(screen.queryByText('Fix the thing')).not.toBeInTheDocument();
   });
 });
+
+describe('SearchCommand — boardId wiring (#276)', () => {
+  test('passes the current board id as the priority boardId arg', async () => {
+    const user = userEvent.setup();
+    renderSearch();
+
+    const input = screen.getByRole('textbox');
+
+    await user.click(input);
+    await user.type(input, 'fix');
+
+    // Wait for the current board id (resolved from the route slug) to reach the call.
+    await waitFor(() => {
+      expect(mockSearchAllCards).toHaveBeenCalledWith('fix', 20, 'board-uuid-1', 'board-uuid-1');
+    });
+
+    // The priority param (3rd arg) must be the current board id — the Bug-1 regression.
+    // The pre-fix code sent the current board id in the archiveBoardId slot and never
+    // populated boardId, so the backend priority sort received null.
+    const lastCall = mockSearchAllCards.mock.calls.at(-1);
+    expect(lastCall?.[2]).toBe('board-uuid-1');
+  });
+});
