@@ -318,6 +318,10 @@ jobs:
           #   Collaboard.Api.runtimeconfig.json runtime config (runtime-load-bearing)
           #   INSTALL.md                       bundled operator setup guide
           #   wwwroot                          SPA static assets (directory)
+          #   web.config                       Windows-only ASP.NET Core hosting config
+          #                                    (IIS / in-process model -- emitted by the
+          #                                    win-x64 self-contained publish only; the
+          #                                    other RIDs do not produce it)
           UNRECOGNIZED=$(cd "${VERIFY_DIR}" && \
             for entry in *; do
               case "${entry}" in
@@ -329,6 +333,7 @@ jobs:
                 Collaboard.Api.runtimeconfig.json) ;;
                 INSTALL.md) ;;
                 wwwroot) ;;
+                web.config) ;;
                 *) echo "${entry}" ;;
               esac
             done | sort)
