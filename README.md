@@ -11,42 +11,42 @@
 <p align="center">
   <a href="https://github.com/MrBildo/collaboard/actions/workflows/ci.yml"><img src="https://github.com/MrBildo/collaboard/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
   <a href="https://github.com/MrBildo/collaboard/releases/latest"><img src="https://img.shields.io/github/v/release/MrBildo/collaboard" alt="Latest Release"></a>
+  <a href="https://dot.net/download"><img src="https://img.shields.io/badge/.NET-10-512BD4" alt=".NET 10"></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/node-22%2B-339933" alt="Node 22+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/MrBildo/collaboard" alt="License"></a>
 </p>
 
 ---
 
 <p align="center">
-  <a href="docs/images/board-overview.png"><img src="docs/images/board-overview.png" alt="Collaboard board view" width="700"></a>
+  <a href="docs/images/board-overview.png"><img src="docs/images/board-overview.png" alt="Collaboard board view" width="800"></a>
 </p>
 
-## Why Collaboard?
+<p align="center"><sub>The board. Drag cards between lanes, reorder on the fly, and watch every change land live for everyone connected.</sub></p>
+
+## What is Collaboard?
 
 Most kanban tools are either too heavy (Jira), too locked-in (Trello), or don't speak the same language as AI agents. Collaboard is purpose-built for small teams where humans and AI agents collaborate side-by-side on a shared board.
 
-- **Zero infrastructure** — single binary, embedded SQLite, no Docker, no cloud
-- **AI-native** — built-in MCP endpoint with 19 tools. Agents create cards, move work, comment, label, and archive — all reflected in real-time
-- **Real-time** — SSE pushes every change to all connected clients instantly
-- **Just works** — download, run, open browser. Under 30 seconds to a working board
+Download a single binary, run it, and open your browser. There's no database server to provision, no container runtime, no cloud account. The data lives in a SQLite file next to the executable, and every change streams to every connected client in real time.
+
+**Two primary audiences.** A person runs Collaboard from the browser — a familiar kanban board with drag-and-drop, markdown, search, and dark mode. An agent runs Collaboard through a built-in MCP server — the same board, exposed as tools over Streamable HTTP. Create a card from the UI or from Claude Code; move work, comment, label, archive. Humans and agents share one board, one auth model, and one source of truth, and they see each other's changes the instant they happen.
+
+If you're building an AI harness, agent framework, or multi-agent system that needs a shared task board, Collaboard is the surface your agents and your humans can both reach. See [For Agents](#for-agents) for MCP setup.
 
 ## Features
 
-<a href="docs/images/card-detail.png"><img src="docs/images/card-detail.png" alt="Card detail view" width="700"></a>
-
-- **First-class AI agent support** — 19 MCP tools for full board management. Agents reference cards by number (`#42`) or ID, labels by name, and get enriched data in single calls
-- **Real-time collaboration** — SSE streams every change to all clients. Agent moves a card? You see it live
-- **Full Markdown** — descriptions and comments render GFM with tables, code blocks, headings, and inline formatting
-- **Search** — cross-board search by card name, description, or number. Keyboard shortcut (`/` or `Ctrl+K`)
-- **Drag-and-drop** — reorder cards and move between lanes
-- **Clipboard paste & drag-drop uploads** — paste screenshots or drag files directly onto cards
-- **Multi-board** — manage multiple boards from a single instance
-- **Board-scoped labels** — color-coded labels with a full color picker (spectrum, hex input, eyedropper)
-- **Deep linking** — direct URLs to boards and cards (`/boards/my-board/cards/42`)
-- **Dark and light themes** — toggle between themes, persisted per browser
-
-<a href="docs/images/dark-mode.png"><img src="docs/images/dark-mode.png" alt="Dark mode" width="700"></a>
-
-<a href="docs/images/drag-drop-demo.gif"><img src="docs/images/drag-drop-demo.gif" alt="Drag and drop demo" width="700"></a>
+- **First-class AI agent support** — a built-in MCP endpoint exposes the full board as tools. Agents create cards, move work, comment, label, archive, search, and manage attachments — see [For Agents](#for-agents).
+- **Real-time collaboration** — Server-Sent Events stream every change to every connected client. An agent moves a card and you see it move; no refresh.
+- **Drag-and-drop** — reorder cards within a lane, move them between lanes, and reorder whole lanes across the board.
+- **Rich Markdown rendering** — descriptions and comments render GitHub-flavored Markdown and then some: **syntax-highlighted code blocks**, **Mermaid diagrams** (flowcharts, sequence, and more, rendered inline), **emoji** shortcodes (`:rocket:` → 🚀), a safe **subset of inline HTML** (`<kbd>`, `<sub>`/`<sup>`, `<details>`, and friends), plus tables, task lists, and `#42` card auto-linking. See the [card tour](#a-tour) for a live example.
+- **Cross-board search** — find cards by name, description, or number (`#42`) across every board. Open it with `/` or `Ctrl+K`.
+- **Attachments** — paste screenshots straight from the clipboard or drag files onto a card (up to 5 MB in the browser; larger files up to 50 MB via the API).
+- **Multi-board** — run as many boards as you like from a single instance.
+- **Board-scoped labels** — color-coded labels with a full color picker (spectrum, hex input, eyedropper).
+- **Archive** — hide finished cards from the board without deleting them; restore any time.
+- **Deep linking** — direct URLs to boards and cards (`/boards/my-board/cards/42`).
+- **Dark and light themes** — toggle and it's remembered per browser.
 
 ## Quick Start
 
@@ -64,17 +64,53 @@ irm https://raw.githubusercontent.com/MrBildo/collaboard/main/install.ps1 | iex
 & "$env:LOCALAPPDATA\Collaboard\Collaboard.Api.exe"
 ```
 
-Open **http://localhost:8080** in your browser. The admin auth key is printed to the console on first run — copy it to log in.
+Open **http://localhost:8080** in your browser. The admin auth key is printed to the console on first run — copy it and paste it on the login screen.
 
-> For detailed installation options including manual download and macOS Gatekeeper, see the [Installation Guide](docs/installation.md).
+```
+[INF] Admin auth key: 01JQXYZ...
+```
+
+> For detailed installation options — manual download, macOS Gatekeeper, upgrades — see the [Installation Guide](docs/installation.md). For day-to-day usage, see the [User Guide](docs/user-guide.md).
+
+## A Tour
+
+<p align="center">
+  <a href="docs/images/card-detail.png"><img src="docs/images/card-detail.png" alt="Card detail view" width="800"></a>
+</p>
+
+<p align="center"><sub>Card detail. Rich Markdown — Mermaid diagrams, syntax-highlighted code, tables, and emoji all render inline — alongside comments, labels, size, and attachments in one panel.</sub></p>
+
+<br>
+
+<p align="center">
+  <a href="docs/images/search.png"><img src="docs/images/search.png" alt="Cross-board search" width="800"></a>
+</p>
+
+<p align="center"><sub>Search. Press <code>/</code> or <code>Ctrl+K</code> to find any card across every board, grouped by board.</sub></p>
+
+<br>
+
+<p align="center">
+  <a href="docs/images/board-settings.png"><img src="docs/images/board-settings.png" alt="Board settings" width="800"></a>
+</p>
+
+<p align="center"><sub>Board settings. Add and reorder lanes, define card sizes, and manage labels with a visual color picker.</sub></p>
+
+<br>
+
+<p align="center">
+  <a href="docs/images/dark-mode.png"><img src="docs/images/dark-mode.png" alt="Dark mode" width="800"></a>
+</p>
+
+<p align="center"><sub>Dark mode. Toggle between light and dark themes; the choice is remembered per browser.</sub></p>
 
 ## Deployment Shapes
 
 Collaboard supports two production deployment shapes. The Quick Start above gives you the first one; the second is for teams that want the API and Portal hosted as separate processes (typically behind a reverse proxy).
 
-- **LAN single-process (default).** One self-contained executable serves both the JSON API and the embedded React Portal from the same origin. SQLite database file lives next to the binary. No reverse proxy, no CORS, no static-site host required — just the one process listening on a port. This is the shape the Quick Start sets up, and it remains the recommended path for small teams on a trusted network.
+- **LAN single-process (default).** One self-contained executable serves both the JSON API and the embedded React Portal from the same origin. The SQLite database file lives next to the binary. No reverse proxy, no CORS, no static-site host required — just the one process listening on a port. This is the shape the Quick Start sets up, and the recommended path for small teams on a trusted network.
 
-- **Portal + API hosted separately.** The headless API (`Collaboard.Api` with `Hosting:ServeSpa=false`) runs as one process; the React Portal is built (`frontend/dist/`) and served by any static-file host on its own origin. The Portal reads a runtime `config.json` from its own origin to learn the API base URL, and the API allows the Portal's origin via `Cors:AllowedOrigins`. [Collabhost](https://github.com/MrBildo/collabhost) is one worked example; any static-site host paired with any process supervisor that can run a self-contained .NET binary works the same way.
+- **Portal + API hosted separately.** The headless API (`Collaboard.Api` with `Hosting:ServeSpa=false`) runs as one process; the React Portal is built (`frontend/dist/`) and served by any static-file host on its own origin. The Portal reads a runtime `config.json` from its own origin to learn the API base URL, and the API allows the Portal's origin via `Cors:AllowedOrigins`. [Collabhost](https://github.com/MrBildo/collabhost) is one worked example; any static-site host paired with a process supervisor that can run a self-contained .NET binary works the same way.
 
 See the [Installation Guide](docs/installation.md) for the LAN walkthrough and [INSTALL.md](INSTALL.md) for the hosted-separately walkthrough.
 
@@ -141,7 +177,7 @@ the next upgrade:
 | `Hosting:ServeSpa` | `true` | When `true`, the API also serves the embedded React Portal from `wwwroot/` (LAN single-process shape). Set to `false` for headless hosted-separately deployments — unmatched routes return 404 instead of the SPA shell. |
 | `Cors:AllowedOrigins` | `[]` (empty) | List of allowed cross-origin Portal hosts. Empty disallows all cross-origin requests; same-origin LAN deployments do not need this. Set to the Portal's origin(s) for hosted-separately deployments (e.g. `["https://collaboard.example.com"]`). |
 | `ConnectionStrings:Board` | *(required — no default)* | SQLite database path. Must be an **absolute** path; the installer writes this into `appsettings.json`. Startup fails loud if unset or unwritable. |
-| `Admin:AuthKey` | *(auto-generated)* | Override the admin auth key |
+| `Admin:AuthKey` | *(auto-generated)* | Override the admin auth key. |
 
 ### Version
 
@@ -154,30 +190,19 @@ the next upgrade:
 ### Fresh Install Defaults
 
 On first run, Collaboard creates:
+
 - An **Admin** user (auth key printed to the console — save this!)
 - A **Default** board with three lanes: Backlog, In Progress, Done
-- Two card sizes: S, M
-
-### Obtaining the Admin Auth Key
-
-The admin key is printed to the console on first startup:
-
-```
-[INF] Admin auth key: 01JQXYZ...
-```
-
-If you set `Admin:AuthKey` in config, that value is used instead. If you lose the key, check your config or the database.
+- Four card sizes: S, M, L, XL
 
 ### Admin Customization
 
 Admins can configure boards via the **Board Settings** panel:
 
-<a href="docs/images/board-settings.png"><img src="docs/images/board-settings.png" alt="Board Settings" width="600"></a>
-
-- **Lanes** — add, rename, reorder, or delete lanes
-- **Sizes** — define card size options (e.g. S, M, L, XL) with custom ordinals
+- **Lanes** — add, rename, reorder (drag-and-drop), or delete lanes
+- **Sizes** — define card size options with custom ordinals
 - **Labels** — create color-coded labels with a visual color picker
-- **Prune** — bulk-delete old cards by age, lane, or label filters
+- **Prune** — bulk-archive old cards by age, lane, or label filters
 
 ### Managing Users
 
@@ -198,91 +223,90 @@ The response includes the new user's `authKey`. Share it — they enter it on th
 | Administrator | 0 | Full access — boards, lanes, users, labels, all cards |
 | HumanUser | 1 | Create/edit/delete own cards, comments, attachments |
 | AgentUser | 2 | Same as Human, but cannot delete cards. Can delete own comments/attachments |
+| AgentAdministrator | 3 | Agent role with administrator-level board management (lanes, sizes, labels, prune, bulk operations) |
 
-## Usage
+## For Agents
 
-### Search
+Collaboard exposes an MCP (Model Context Protocol) server so agents can operate the board directly — no custom HTTP client, no REST adapter. If your agent speaks MCP, it speaks Collaboard.
 
-Press `/` or `Ctrl+K` to open the search bar. Search across all boards by card name, description, or card number (`#42`). Results appear in a dropdown grouped by board.
+### Endpoint
 
-<a href="docs/images/search.png"><img src="docs/images/search.png" alt="Search" width="600"></a>
+| | |
+|---|---|
+| URL | `http://localhost:8080/mcp` |
+| Transport | Streamable HTTP |
+| Auth | `X-User-Key` header with a user's ULID key |
+| Server name | `collaboard` |
 
-### Attachments
+### Configure an agent client
 
-- **Paste** — copy an image to clipboard, open a card, and paste (`Ctrl+V`). The image is uploaded as an attachment automatically.
-- **Drag and drop** — drag files from your desktop onto the card detail view.
-- **File size limit** — 5 MB per attachment.
+Claude Code, and any other client that reads an MCP config, connects with this:
 
-### Working with AI Agents
+```json
+{
+  "mcpServers": {
+    "collaboard": {
+      "type": "streamable-http",
+      "url": "http://localhost:8080/mcp",
+      "headers": { "X-User-Key": "<agent-auth-key>" }
+    }
+  }
+}
+```
 
-Collaboard is designed for agents to be first-class participants. Set up an agent user and connect via MCP:
+For Claude Code, you can also pre-approve the tool surface so the agent isn't prompted per call:
 
-1. **Create an agent user** (as admin):
-   ```bash
-   curl -X POST http://localhost:8080/api/v1/users \
-     -H "X-User-Key: <admin-auth-key>" \
-     -H "Content-Type: application/json" \
-     -d '{"name": "Claude Agent", "role": 2}'
-   ```
+```jsonc
+// .claude/settings.json
+{
+  "permissions": {
+    "allow": ["mcp__collaboard__*"]
+  }
+}
+```
 
-2. **Store the auth key** in a `.agents.env` file (gitignored):
-   ```
-   COLLABOARD_AUTH_KEY=<agent-auth-key>
-   ```
+### Mint an agent key
 
-3. **Connect via MCP** — add to your agent's MCP config:
-   ```json
-   {
-     "mcpServers": {
-       "collaboard": {
-         "type": "streamable-http",
-         "url": "http://localhost:8080/mcp",
-         "headers": { "X-User-Key": "<agent-auth-key>" }
-       }
-     }
-   }
-   ```
+1. Sign in as an administrator.
+2. Open the **Admin** panel and create a user with the **Agent** role.
+3. The response includes the user's `authKey`. Copy it into your MCP config. If you lose it, deactivate the user and mint a new one.
 
-4. **Pre-fill tool permissions** for Claude Code CLI:
-   ```jsonc
-   // .claude/settings.json
-   {
-     "permissions": {
-       "allow": [
-         "mcp__collaboard__*"
-       ]
-     }
-   }
-   ```
+### Tool surface
 
-Agents can then create cards, move work between lanes, add comments, manage labels, and upload attachments — all visible to human users in real-time.
+Tools are grouped by workflow — discover the board, work cards, then manage the board structure (the last group needs an admin-level key).
 
-## MCP Tools
+- **Discover** — `get_api_info`, `get_boards`, `get_lanes`, `get_sizes`, `get_labels`, `get_cards`, `get_card`, `search_cards`. The agent's starting point: what boards exist, what's on them, and where. `get_cards` and `get_card` return enriched data (labels, sizes, comment and attachment counts) so one call answers most questions. `search_cards` is cross-board; prefix the query with `#` for an exact card-number lookup.
+- **Work cards** — `create_card`, `move_card`, `update_card`, `archive_card`, `restore_card`. The core loop. `update_card` is a power tool: change fields, move lanes, and replace labels in a single call.
+- **Comment** — `add_comment`, `update_comment`, `delete_comment`. Markdown supported.
+- **Attachments** — `upload_attachment` (up to 5 MB inline as base64; larger files up to 50 MB go through the REST endpoint), `download_attachment`, `delete_attachment`.
+- **Labels** — `add_label_to_card`, `remove_label_from_card` (both accept a label *name* or ID).
+- **Bulk** — `bulk_update_cards`, `bulk_archive_cards`, `bulk_restore_cards`. Uniform changes across many cards in one round-trip, with a per-card result so you know exactly what succeeded.
+- **Manage the board** *(admin-level)* — `create_board`, `update_board`, `create_lane`, `update_lane`, `delete_lane`, `reorder_lanes`, `create_size`, `update_size`, `delete_size`, `create_label`, `update_label`, `delete_label`, `prune_preview`, `prune`. Board structure and lifecycle.
 
-19 tools for full board management:
+**Agent-friendly throughout:**
 
-| Category | Tools |
-|----------|-------|
-| System | `get_api_info` |
-| Boards | `get_boards`, `get_lanes`, `get_sizes` |
-| Cards | `create_card`, `move_card`, `update_card`, `get_cards`, `get_card` |
-| Archive | `archive_card`, `restore_card` |
-| Comments | `add_comment`, `delete_comment` |
-| Attachments | `upload_attachment` (5MB base64), `download_attachment`, `delete_attachment` |
-| Labels | `get_labels`, `add_label_to_card`, `remove_label_from_card` |
-
-**Agent-friendly design:**
-- Reference cards by **number** (`#42`) or GUID
-- Reference labels by **name** (`"Bug"`) or ID
-- `get_cards` returns enriched data — labels, sizes, comment and attachment counts
-- `get_card` returns the full picture in one call — card, comments with usernames, labels, attachments
-- `update_card` is a power tool — update fields, move lanes, and replace labels in a single operation
+- Reference cards by **number** (`#42`) or GUID; card numbers are scoped per board, so pair a number with its board.
+- Reference labels by **name** (`"Bug"`) or ID, and sizes by name (`"M"`) or ID.
+- Each tool ships a full description, parameter schema, and read-only/destructive annotations, so a freshly connected agent has a usable mental model without reading the source.
 
 > Full REST API documentation: [API Reference](docs/api-reference.md)
 
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Backend | .NET 10, C# Minimal API, EF Core, SQLite |
+| Frontend | React 18, TypeScript, Vite, Tailwind CSS, shadcn/ui |
+| Data fetching | TanStack Query |
+| Drag-and-drop | dnd-kit |
+| Real-time | Server-Sent Events (SSE) |
+| Agent interface | Model Context Protocol (MCP) over Streamable HTTP |
+| Orchestration | .NET Aspire 13.3, OpenTelemetry |
+| Testing | xUnit + Shouldly (backend), Vitest (frontend) |
+
 ## Updating
 
-1. Stop the running process
+1. Stop the running process.
 2. Re-run the one-line installer (recommended) — it preserves your `appsettings.json`
    edits via smart-merge, refreshes untouched shipped defaults, and adds any new
    shipped keys. The `data/` directory is left untouched. A baseline sidecar
@@ -291,7 +315,7 @@ Agents can then create cards, move work between lanes, add comments, manage labe
 3. For a manual install: extract the new release and run
    `./Collaboard.Api --merge-appsettings <new-appsettings.json> ./appsettings.json --baseline ./appsettings.shipped.json`
    from the install directory.
-4. Start the app — migrations run automatically, database is backed up first
+4. Start the app — migrations run automatically, and the database is backed up first.
 
 ## Development
 
@@ -307,7 +331,7 @@ Agents can then create cards, move work between lanes, add comments, manage labe
 dotnet run --project backend/Collaboard.AppHost
 ```
 
-Launches both API and frontend with the Aspire dashboard for structured logs, traces, and metrics.
+Launches both the API and the frontend with the Aspire dashboard for structured logs, traces, and metrics.
 
 ### Run Tests
 
@@ -327,6 +351,30 @@ dotnet publish backend/Collaboard.Api/Collaboard.Api.csproj \
   -o publish/
 ```
 
+## Credits
+
+Collaboard is built by a human-AI collaborative team. The bots are autonomous AI agents on the Collabot platform — they design, write code, review each other's work, and ship features alongside their human teammate.
+
+**Bill Wheelock** — Concept, design, and technical leadership — [mrbildo@mrbildo.net](mailto:mrbildo@mrbildo.net)
+
+**Bot Cora** — Project management, coordination, and release lifecycle — [cora@collabot.dev](mailto:cora@collabot.dev)
+
+**Bot Marcus** — Backend design, architecture, and C# — [marcus@collabot.dev](mailto:marcus@collabot.dev)
+
+**Bot Mira** — Backend engineering and domain modeling, C# — [mira@collabot.dev](mailto:mira@collabot.dev)
+
+**Bot Dana** — Frontend design, TypeScript, and React — [dana@collabot.dev](mailto:dana@collabot.dev)
+
+**Bot Iris** — Frontend engineering and JavaScript craft — [iris@collabot.dev](mailto:iris@collabot.dev)
+
+**Bot Kai** — Code review, simplification, and tooling — [kai@collabot.dev](mailto:kai@collabot.dev)
+
+**Bot Remy** — Deployment and installation infrastructure — [remy@collabot.dev](mailto:remy@collabot.dev)
+
+**Bot Theo** — Infrastructure and operations across the Collabot suite — hosting, tooling, and CI/CD; the Scout web-tooling service; research and ecosystem operations. The team's IT backbone: keeps the pipelines green, the services running, and the shared infrastructure every other bot builds on humming — [theo@collabot.dev](mailto:theo@collabot.dev)
+
 ## License
 
-MIT
+[MIT](LICENSE)
+</content>
+</invoke>
