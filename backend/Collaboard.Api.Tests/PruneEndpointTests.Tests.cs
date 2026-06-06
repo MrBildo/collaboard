@@ -295,9 +295,16 @@ public class PruneEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
         var getCard = await _client.GetAsync($"/api/v1/cards/{cardId}");
         getCard.StatusCode.ShouldBe(HttpStatusCode.NotFound);
 
-        // Verify comment is also gone (cascade delete)
-        var getComment = await _client.GetAsync($"/api/v1/comments/{commentId}");
-        getComment.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        // Verify the comment row cascade-deleted with its card. There is no
+        // GET /comments/{id} endpoint, so assert the row is gone via the DbContext —
+        // same pattern as DeleteLane_CascadesToCardsAndTheirChildren. (An earlier
+        // GET /api/v1/comments/{id} assertion silently fell through to the SPA
+        // fallback, which 404s in CI's frontend-less checkout but 200s locally once
+        // wwwroot/index.html exists — masking the real cascade signal either way.)
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
+        var commentEntity = await db.Comments.FindAsync(commentId);
+        commentEntity.ShouldBeNull();
     }
 
     [Fact]
