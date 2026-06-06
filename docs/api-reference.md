@@ -10,7 +10,7 @@ All endpoints are under `/api/v1/`. Authentication is via the `X-User-Key` heade
 | GET | /boards/{idOrSlug} | All | Get board by ID or slug |
 | POST | /boards | Admin | Create board |
 | PATCH | /boards/{id} | Admin | Update board name |
-| DELETE | /boards/{id} | Admin | Delete board (must have zero lanes) |
+| DELETE | /boards/{id} | Admin | Delete board (must have zero non-archive lanes) |
 
 ## Board-Scoped Resources
 
@@ -19,6 +19,7 @@ All endpoints are under `/api/v1/`. Authentication is via the `X-User-Key` heade
 | GET | /boards/{boardId}/board | All | Composite: lanes + cards + sizes |
 | GET | /boards/{boardId}/lanes | All | List lanes |
 | POST | /boards/{boardId}/lanes | Admin | Create lane |
+| POST | /boards/{boardId}/lanes/reorder | Admin | Reorder all non-archive lanes. Body `{ laneIds }` — complete desired order; all-or-nothing |
 | GET | /boards/{boardId}/cards | All | List cards (enriched: labels, sizes, comment/attachment counts). Filters: `since`, `labelId`, `laneId`, `search` |
 | POST | /boards/{boardId}/cards | All | Create card |
 | GET | /boards/{boardId}/sizes | All | List card sizes (ordered by ordinal) |
@@ -34,7 +35,7 @@ All endpoints are under `/api/v1/`. Authentication is via the `X-User-Key` heade
 |----------|-----------|
 | Lanes | `GET /lanes/{id}`, `PATCH /lanes/{id}`, `DELETE /lanes/{id}` |
 | Sizes | `GET /sizes/{id}`, `PATCH /sizes/{id}` (name/ordinal), `DELETE /sizes/{id}` (blocked if in use) |
-| Cards | `GET /cards/{id}` (enriched detail), `PATCH /cards/{id}`, `DELETE /cards/{id}`, `POST /cards/{id}/reorder` |
+| Cards | `GET /cards/{id}` (enriched detail), `PATCH /cards/{id}`, `DELETE /cards/{id}`, `POST /cards/{id}/reorder`, `POST /cards/{id}/archive`, `POST /cards/{id}/restore` |
 
 ## Users
 
@@ -53,7 +54,7 @@ All endpoints are under `/api/v1/`. Authentication is via the `X-User-Key` heade
 |----------|-----------|
 | Card Labels | `GET /cards/{id}/labels`, `POST /cards/{id}/labels` (validates same board), `DELETE /cards/{id}/labels/{labelId}` |
 | Comments | `GET /cards/{id}/comments`, `POST /cards/{id}/comments`, `PATCH /comments/{id}`, `DELETE /comments/{id}` |
-| Attachments | `GET /cards/{id}/attachments`, `POST /cards/{id}/attachments` (5MB max), `GET /attachments/{id}`, `DELETE /attachments/{id}` |
+| Attachments | `GET /cards/{id}/attachments`, `POST /cards/{id}/attachments` (5 MB via MCP / 50 MB via REST), `GET /attachments/{id}`, `DELETE /attachments/{id}` |
 
 ## Search
 
@@ -76,4 +77,4 @@ Search supports:
 
 | Path | Notes |
 |------|-------|
-| /mcp | Streamable HTTP transport — 16 tools across boards, cards, comments, attachments, labels |
+| /mcp | Streamable HTTP transport — 38 tools (boards, cards, lanes, sizes, labels, comments, attachments, archive, bulk operations, search, prune) |
