@@ -135,9 +135,9 @@ jobs:
       # uses -- is the wrong tool here: enumerating 350+ runtime DLLs is
       # unmaintainable and self-defeating. So the baseline contract is "everything
       # dotnet publish emits, MINUS a small, named set of dev/debug/SDK-scratch
-      # artifacts that must never reach an operator." The exclusion list below IS
-      # that contract boundary; the verify step fails the leg if any excluded
-      # pattern survives staging or any required item is absent.
+      # artifacts that must never reach an operator." The exclusion list IS that
+      # contract boundary; the verify step fails the leg if any excluded pattern
+      # survives staging or any required item is absent.
       #
       # Exclusion alone has one soft spot: a GENUINELY NOVEL SDK-added file (e.g.
       # a hypothetical future *.staticwebassets.runtime.json) matches none of the
@@ -147,57 +147,21 @@ jobs:
       # observation that makes a per-file list tractable: the runtime DLL/native
       # set drifts only at the TOP level, and that top level is a small set of
       # stable CLASSES (managed/native libraries) plus a short named set of
-      # non-library artifacts. Class patterns absorb the ~350 libraries without
-      # enumerating them; anything at the top level outside those classes and the
-      # named set fails the verify -- restoring allow-list-grade drift detection.
+      # non-library artifacts.
       #
-      # Excluded (and why):
-      #   *.pdb                              debug symbols -- not shipped
-      #   *.xml                              XML doc files (Api/ServiceDefaults) -- not shipped
-      #   appsettings.Development.json       dev-only config -- never ships to operators
-      #   *.staticwebassets.endpoints.json   MapStaticAssets manifest. Collaboard serves
-      #                                      wwwroot via UseStaticFiles + MapFallbackToFile,
-      #                                      NOT MapStaticAssets, so this manifest is unused
-      #                                      at runtime. This is the exact SDK-drift file the
-      #                                      archive contract exists to catch (#221 cite).
-      #
-      # The strip uses recursive `find ... -delete` so it shares one matcher with
-      # the recursive `find .` leaked-file check in the verify step -- the two
-      # halves of the exclusion contract must agree on what they match.
+      # The stage + verify logic both live in scripts/ (stage-archive.sh,
+      # verify-archive.sh) so that the PR-CI contract check (ci.yml) runs the
+      # EXACT same logic -- they cannot drift. The blind spot #282 closed: this
+      # workflow runs only on `release: published`, so #280 (win-x64 web.config)
+      # and #281 (gh upload repo-context) both shipped green-in-PR and failed
+      # only at release. The shared scripts are PR-exercisable.
       - name: Stage archive
-        env:
-          RID: ${{ matrix.rid }}
         run: |
-          set -euo pipefail
-
-          PUB="publish/${{ matrix.artifact }}"
-          STAGE="archive-stage/${{ matrix.artifact }}"
-
-          rm -rf "${STAGE}"
-          mkdir -p "${STAGE}"
-
-          # Start from the full publish output, then strip the excluded set.
-          cp -R "${PUB}/." "${STAGE}/"
-
-          # Recursive strip -- mirrors the recursive `find .` matcher in the
-          # verify step so both halves of the exclusion contract agree.
-          find "${STAGE}" -type f \
-            \( -name '*.pdb' \
-            -o -name '*.xml' \
-            -o -name 'appsettings.Development.json' \
-            -o -name '*.staticwebassets.endpoints.json' \) \
-            -delete
-
-          # Bundle INSTALL.md alongside the binary (operator-facing setup guide).
-          cp INSTALL.md "${STAGE}/"
-
-          # Unix archives must carry the execute bit on the apphost binary.
-          if [[ "${RID}" != win-x64 ]]; then
-            chmod +x "${STAGE}/${{ matrix.bin }}"
-          fi
-
-          echo "Staged top-level contents:"
-          ls -la "${STAGE}"
+          bash scripts/stage-archive.sh \
+            "publish/${{ matrix.artifact }}" \
+            "archive-stage/${{ matrix.artifact }}" \
+            "${{ matrix.bin }}" \
+            "${{ matrix.rid }}"
 
       # Platform-appropriate, FLAT-layout archive. The archive root IS the stage
       # directory's contents -- no wrapping "collaboard-<rid>/" directory. The
@@ -219,18 +183,10 @@ jobs:
           STAGE="archive-stage/${{ matrix.artifact }}"
           tar -czf "${{ matrix.artifact }}.tar.gz" -C "${STAGE}" .
 
-      # Contract verification: extract the archive into a temp dir and assert
-      # (1) flat layout -- no wrapping directory at the root;
-      # (2) required items present -- binary, appsettings.json, runtimeconfig,
-      #     deps.json, INSTALL.md, wwwroot/index.html;
-      # (3) NO excluded patterns leaked through -- .pdb, .xml,
-      #     appsettings.Development.json, *.staticwebassets.endpoints.json;
-      # (4) NO unrecognized top-level entry -- the allow-list drift check. Every
-      #     top-level entry must match a known library CLASS (managed/native libs)
-      #     or the short named set of non-library artifacts. A genuinely novel
-      #     SDK-added file at the top level matches neither and fails the leg.
-      # Fails the leg hard on any violation. Cheap safety net for a workflow that
-      # cannot be release-run inside a PR.
+      # Contract verification via the shared scripts/verify-archive.sh — the
+      # SAME script the PR-CI contract check (ci.yml) runs, so the contract
+      # cannot drift between PR and release. Extract the archive into a temp dir,
+      # then hand it to the shared verifier. Fails the leg hard on any violation.
       - name: Verify archive contents
         env:
           EXT: ${{ matrix.ext }}
@@ -248,109 +204,10 @@ jobs:
             *.tar.gz) tar -xzf "${ARCHIVE}" -C "${VERIFY_DIR}" ;;
           esac
 
-          echo "Archive top-level listing:"
-          (cd "${VERIFY_DIR}" && ls -la)
-
-          FAILED=0
-
-          # (1) Flat-layout assertion: the apphost binary must be at the archive
-          # root, not nested under a wrapping "collaboard-<rid>/" directory.
-          if [[ -d "${VERIFY_DIR}/${{ matrix.artifact }}" ]]; then
-            echo "LAYOUT: found wrapping directory ${{ matrix.artifact }}/ at archive root." >&2
-            echo "Archives must be flat (contract items at root). Installers assume flat layout." >&2
-            FAILED=1
-          fi
-
-          # (2) Required items present.
-          for path in \
+          bash scripts/verify-archive.sh \
+            "${VERIFY_DIR}" \
             "${{ matrix.bin }}" \
-            "appsettings.json" \
-            "Collaboard.Api.deps.json" \
-            "Collaboard.Api.runtimeconfig.json" \
-            "INSTALL.md"
-          do
-            if [[ ! -f "${VERIFY_DIR}/${path}" ]]; then
-              echo "MISSING: ${path}" >&2
-              FAILED=1
-            fi
-          done
-
-          if [[ ! -f "${VERIFY_DIR}/wwwroot/index.html" ]]; then
-            echo "MISSING: wwwroot/index.html" >&2
-            FAILED=1
-          fi
-
-          # (3) Excluded patterns must NOT be present anywhere in the archive.
-          # This is the "fails on EXTRA files" half of the contract -- it catches
-          # dev/debug artifacts and future SDK-added-file drift leaking into a
-          # shipped archive.
-          LEAKED=$(cd "${VERIFY_DIR}" && find . \
-            \( -name '*.pdb' \
-            -o -name '*.xml' \
-            -o -name 'appsettings.Development.json' \
-            -o -name '*.staticwebassets.endpoints.json' \) \
-            -type f | sort || true)
-          if [[ -n "${LEAKED}" ]]; then
-            echo "EXTRA (excluded artifact leaked into archive):" >&2
-            echo "${LEAKED}" >&2
-            FAILED=1
-          fi
-
-          # (4) Top-level allow-list drift check. The exclusion list (3) only
-          # rejects KNOWN-bad patterns; an exclusion list passes unknown files by
-          # default. This check restores allow-list-grade detection: every entry
-          # at the archive top level must match a recognized library class or the
-          # short named set of non-library artifacts. A genuinely novel SDK-added
-          # file (e.g. a future *.staticwebassets.runtime.json) matches neither
-          # and is reported. The classes absorb the ~350 runtime libraries so the
-          # list stays tractable without enumerating individual DLL names; only
-          # the top level drifts (the runtime set itself is stable per-RID).
-          #
-          # Recognized top-level CLASSES (patterns):
-          #   *.dll      managed assemblies + Windows native runtime libs
-          #   *.so       Linux native runtime libs
-          #   *.dylib    macOS native runtime libs
-          # Recognized top-level NAMED entries:
-          #   <bin>                            apphost binary (RID-specific name)
-          #   createdump / createdump.exe      .NET crash-dump helper (self-contained)
-          #   appsettings.json                 shipped operator config
-          #   Collaboard.Api.deps.json         dependency manifest (runtime-load-bearing)
-          #   Collaboard.Api.runtimeconfig.json runtime config (runtime-load-bearing)
-          #   INSTALL.md                       bundled operator setup guide
-          #   wwwroot                          SPA static assets (directory)
-          #   web.config                       Windows-only ASP.NET Core hosting config
-          #                                    (IIS / in-process model -- emitted by the
-          #                                    win-x64 self-contained publish only; the
-          #                                    other RIDs do not produce it)
-          UNRECOGNIZED=$(cd "${VERIFY_DIR}" && \
-            for entry in *; do
-              case "${entry}" in
-                *.dll|*.so|*.dylib) ;;
-                "${{ matrix.bin }}") ;;
-                createdump|createdump.exe) ;;
-                appsettings.json) ;;
-                Collaboard.Api.deps.json) ;;
-                Collaboard.Api.runtimeconfig.json) ;;
-                INSTALL.md) ;;
-                wwwroot) ;;
-                web.config) ;;
-                *) echo "${entry}" ;;
-              esac
-            done | sort)
-          if [[ -n "${UNRECOGNIZED}" ]]; then
-            echo "DRIFT (unrecognized top-level entry -- not a known library class or named artifact):" >&2
-            echo "${UNRECOGNIZED}" >&2
-            echo "If this is a legitimate new shipped artifact, add it to the top-level allow-list in this step." >&2
-            echo "If it is SDK scratch that must not ship, add it to the exclusion list in the Stage archive step." >&2
-            FAILED=1
-          fi
-
-          if [[ "${FAILED}" -ne 0 ]]; then
-            echo "Archive contract verification failed." >&2
-            exit 1
-          fi
-
-          echo "Archive contract verified: flat layout, required items present, no excluded artifacts, no top-level drift."
+            "Collaboard.Api"
 
       # Per-archive SHA-256 sidecar. Portable `sha256sum -c`-compatible format
       # (one line: "<hash>  <archive>"). Runners are ubuntu-latest, so sha256sum
