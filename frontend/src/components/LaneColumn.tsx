@@ -1,10 +1,9 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ChevronDown, Inbox, Plus } from 'lucide-react';
+import { ChevronDown, Plus } from 'lucide-react';
 import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { EmptyState } from '@/components/ui/empty-state';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { SortableCard } from '@/components/SortableCard';
 import { cn } from '@/lib/utils';
@@ -117,29 +116,17 @@ export function LaneColumn({
           )}
         >
           <div className="max-md:overflow-hidden">
-            {cards.length === 0 ? (
-              // Teaching empty-state (card #292, spec §3.1): the empty lane body
-              // becomes the affordance where a new user's eye goes, not a blank
-              // <div>. The ghost action reuses the same onAddCard the header `+`
-              // already calls. Self-disposing — vanishes once the first card lands.
-              <EmptyState
-                icon={Inbox}
-                title="No cards yet"
-                action={{ label: '+ Add card', onClick: onAddCard }}
-              />
-            ) : (
-              cards.map((card) => (
-                <div key={card.id} className="mb-2 last:mb-0">
-                  <SortableCard
-                    card={card}
-                    onCardClick={onCardClick}
-                    isDragging={card.id === activeCardId}
-                    sizeMap={sizeMap}
-                    enrichedData={enrichedCardMap.get(card.id)}
-                  />
-                </div>
-              ))
-            )}
+            {cards.map((card) => (
+              <div key={card.id} className="mb-2 last:mb-0">
+                <SortableCard
+                  card={card}
+                  onCardClick={onCardClick}
+                  isDragging={card.id === activeCardId}
+                  sizeMap={sizeMap}
+                  enrichedData={enrichedCardMap.get(card.id)}
+                />
+              </div>
+            ))}
           </div>
         </div>
       </SortableContext>
