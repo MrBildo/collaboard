@@ -32,6 +32,7 @@ describe('useCurrentUser', () => {
   test('returns undefined values when not logged in', () => {
     const { result } = renderHook(() => useCurrentUser(false), { wrapper: createWrapper() });
     expect(result.current.currentUserId).toBeUndefined();
+    expect(result.current.currentUserName).toBeUndefined();
     expect(result.current.currentUserRole).toBeUndefined();
     expect(result.current.isAdmin).toBe(false);
   });
@@ -50,6 +51,7 @@ describe('useCurrentUser', () => {
       expect(result.current.currentUserId).toBe('user-1');
     });
 
+    expect(result.current.currentUserName).toBe('Test User');
     expect(result.current.currentUserRole).toBe(1);
     expect(result.current.isAdmin).toBe(true);
   });
@@ -68,6 +70,7 @@ describe('useCurrentUser', () => {
       expect(result.current.currentUserId).toBe('user-2');
     });
 
+    expect(result.current.currentUserName).toBe('Agent');
     expect(result.current.isAdmin).toBe(false);
   });
 });

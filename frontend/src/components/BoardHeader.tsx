@@ -3,6 +3,7 @@ import { GearMenu } from '@/components/GearMenu';
 import { SearchCommand } from '@/components/SearchCommand';
 import { Button } from '@/components/ui/button';
 import type { Board } from '@/types';
+import type { Role } from '@/lib/roles';
 
 type BoardHeaderProps = {
   boards: Board[];
@@ -10,6 +11,8 @@ type BoardHeaderProps = {
   boardName?: string;
   isAdmin: boolean;
   version?: string;
+  currentUserName?: string;
+  currentUserRole?: Role;
   onNewCard: () => void;
   onBoardSettings: () => void;
   onGlobalAdmin: () => void;
@@ -22,6 +25,8 @@ export function BoardHeader({
   boardName,
   isAdmin,
   version,
+  currentUserName,
+  currentUserRole,
   onNewCard,
   onBoardSettings,
   onGlobalAdmin,
@@ -64,6 +69,8 @@ export function BoardHeader({
         <GearMenu
           isAdmin={isAdmin}
           version={version}
+          currentUserName={currentUserName}
+          currentUserRole={currentUserRole}
           onNewCard={onNewCard}
           onBoardSettings={onBoardSettings}
           onGlobalAdmin={onGlobalAdmin}
