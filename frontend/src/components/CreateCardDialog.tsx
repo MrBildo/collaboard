@@ -60,7 +60,7 @@ export function CreateCardDialog({
 }: CreateCardDialogProps) {
   const queryClient = useQueryClient();
   const dialogContentRef = useRef<HTMLDivElement>(null);
-  const { boardSlug, cardNumbers } = useCardLinkContext(boardId);
+  const { boardSlug, cardNumbers, cardPreviews } = useCardLinkContext(boardId);
 
   const defaultSizeId =
     sizes.length > 0 ? [...sizes].sort((a, b) => a.ordinal - b.ordinal)[0].id : '';
@@ -350,7 +350,11 @@ export function CreateCardDialog({
               {isPreviewingDescription ? (
                 <div className="prose prose-sm max-h-64 max-w-none overflow-y-auto overflow-x-auto rounded-md border bg-muted/30 p-4 text-sm text-foreground">
                   {description.trim() ? (
-                    <MarkdownRenderer boardSlug={boardSlug} cardNumbers={cardNumbers}>
+                    <MarkdownRenderer
+                      boardSlug={boardSlug}
+                      cardNumbers={cardNumbers}
+                      cardPreviews={cardPreviews}
+                    >
                       {description}
                     </MarkdownRenderer>
                   ) : (

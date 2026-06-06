@@ -1,4 +1,11 @@
-import { isValidElement, useMemo, type ComponentPropsWithoutRef, type ReactNode } from 'react';
+import {
+  createContext,
+  isValidElement,
+  useContext,
+  useMemo,
+  type ComponentPropsWithoutRef,
+  type ReactNode,
+} from 'react';
 import ReactMarkdown, { type Components, type Options } from 'react-markdown';
 import { Link } from 'react-router-dom';
 import rehypeExternalLinks from 'rehype-external-links';
@@ -7,7 +14,9 @@ import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
 import remarkEmoji from 'remark-emoji';
 import remarkGfm from 'remark-gfm';
+import { CardLinkPreview, type CardLinkPreviewData } from '@/components/CardLinkPreview';
 import { MermaidBlock } from '@/components/MermaidBlock';
+import { PreviewCard, PreviewCardContent, PreviewCardTrigger } from '@/components/ui/preview-card';
 import { remarkCardLinks } from '@/lib/remark-card-links';
 import '@/styles/highlight.css';
 
@@ -18,7 +27,26 @@ type MarkdownRendererProps = {
   // before (plain markdown, no autolinking — e.g. board-less render contexts).
   boardSlug?: string;
   cardNumbers?: Set<number>;
+  // Per-card preview data for the hover/focus card-link preview (card #283),
+  // keyed by card number. Sourced from the same board-data cache the autolink
+  // gate uses, so no fetch-on-hover. Omit (or omit a given number) and the
+  // `#NNN` link renders with no preview — never a hanging or empty tooltip.
+  cardPreviews?: Map<number, CardLinkPreviewData>;
 };
+
+// The anchor renderer (markdownComponents.a) is fixed at module scope, but it
+// needs the per-render preview map. A context bridges that without rebuilding
+// the components object on every render.
+const CardPreviewsContext = createContext<Map<number, CardLinkPreviewData> | undefined>(undefined);
+
+// An internal card-link href is `/boards/{slug}/cards/{n}`. Pull the trailing
+// card number so the anchor can look up its preview data. Returns null for any
+// other internal href (no preview, link renders normally).
+function cardNumberFromHref(href: string): number | null {
+  const match = /\/cards\/(\d+)$/.exec(href);
+  if (!match) return null;
+  return Number(match[1]);
+}
 
 function findMermaidCode(children: ReactNode): string | null {
   if (!isValidElement(children)) return null;
@@ -38,9 +66,28 @@ function isInternalHref(href: string | undefined): href is string {
 }
 
 function MarkdownAnchor({ href, children, ...props }: ComponentPropsWithoutRef<'a'>) {
+  const cardPreviews = useContext(CardPreviewsContext);
+
   if (isInternalHref(href)) {
-    return <Link to={href}>{children}</Link>;
+    const cardNumber = cardNumberFromHref(href);
+    const preview = cardNumber !== null ? cardPreviews?.get(cardNumber) : undefined;
+
+    // No preview data (board-less render, cache miss, or a non-card internal
+    // link) — render the plain router link, no popup.
+    if (!preview) {
+      return <Link to={href}>{children}</Link>;
+    }
+
+    return (
+      <PreviewCard>
+        <PreviewCardTrigger render={<Link to={href} />}>{children}</PreviewCardTrigger>
+        <PreviewCardContent>
+          <CardLinkPreview data={preview} />
+        </PreviewCardContent>
+      </PreviewCard>
+    );
   }
+
   return (
     <a href={href} {...props}>
       {children}
@@ -61,7 +108,12 @@ const markdownComponents: Components = {
 
 type RemarkPlugins = NonNullable<Options['remarkPlugins']>;
 
-export function MarkdownRenderer({ children, boardSlug, cardNumbers }: MarkdownRendererProps) {
+export function MarkdownRenderer({
+  children,
+  boardSlug,
+  cardNumbers,
+  cardPreviews,
+}: MarkdownRendererProps) {
   const remarkPlugins = useMemo<RemarkPlugins>(() => {
     const plugins: RemarkPlugins = [remarkGfm, remarkEmoji];
     if (boardSlug && cardNumbers) {
@@ -71,17 +123,19 @@ export function MarkdownRenderer({ children, boardSlug, cardNumbers }: MarkdownR
   }, [boardSlug, cardNumbers]);
 
   return (
-    <ReactMarkdown
-      remarkPlugins={remarkPlugins}
-      rehypePlugins={[
-        rehypeRaw,
-        rehypeSanitize,
-        [rehypeHighlight, { plainText: ['mermaid'] }],
-        [rehypeExternalLinks, { target: '_blank', rel: ['noopener', 'noreferrer'] }],
-      ]}
-      components={markdownComponents}
-    >
-      {children}
-    </ReactMarkdown>
+    <CardPreviewsContext.Provider value={cardPreviews}>
+      <ReactMarkdown
+        remarkPlugins={remarkPlugins}
+        rehypePlugins={[
+          rehypeRaw,
+          rehypeSanitize,
+          [rehypeHighlight, { plainText: ['mermaid'] }],
+          [rehypeExternalLinks, { target: '_blank', rel: ['noopener', 'noreferrer'] }],
+        ]}
+        components={markdownComponents}
+      >
+        {children}
+      </ReactMarkdown>
+    </CardPreviewsContext.Provider>
   );
 }
