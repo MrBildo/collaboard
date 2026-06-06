@@ -1,7 +1,10 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import type { CardLinkPreviewData } from './CardLinkPreview';
+import type { CardSummary } from '@/types';
 
 vi.mock('mermaid', () => ({
   default: {
@@ -209,5 +212,91 @@ describe('MarkdownRenderer card-link autolinking (#273)', () => {
     renderWithLinks('anchor #28-foo here');
     expect(screen.queryByRole('link')).toBeNull();
     expect(screen.getByText(/#28-foo/)).toBeInTheDocument();
+  });
+});
+
+describe('MarkdownRenderer card-link hover preview (#283)', () => {
+  // The preview reads from cache (no fetch-on-hover) via a cardPreviews map keyed
+  // by card number. The link still renders as a router <Link>; hovering/focusing
+  // it opens a Base UI PreviewCard with the card summary.
+  const slug = 'demo';
+  const liveCards = new Set([28]);
+
+  function makeCard(overrides: Partial<CardSummary> = {}): CardSummary {
+    return {
+      id: 'card-28',
+      number: 28,
+      name: 'A previewed card',
+      descriptionMarkdown: 'desc',
+      sizeId: 'size-1',
+      sizeName: 'L',
+      laneId: 'lane-1',
+      position: 0,
+      isArchived: false,
+      createdByUserId: 'u1',
+      createdAtUtc: '2026-01-01T00:00:00Z',
+      lastUpdatedByUserId: 'u1',
+      lastUpdatedAtUtc: '2026-01-01T00:00:00Z',
+      labels: [],
+      commentCount: 0,
+      attachmentCount: 0,
+      ...overrides,
+    };
+  }
+
+  function renderWithPreview(
+    markdown: string,
+    previews: Map<number, CardLinkPreviewData> = new Map([
+      [28, { card: makeCard(), laneName: 'Backlog' }],
+    ]),
+  ) {
+    return render(
+      <MemoryRouter>
+        <MarkdownRenderer boardSlug={slug} cardNumbers={liveCards} cardPreviews={previews}>
+          {markdown}
+        </MarkdownRenderer>
+      </MemoryRouter>,
+    );
+  }
+
+  test('still renders the card reference as a navigable router link', () => {
+    renderWithPreview('See #28 for context');
+    const link = screen.getByRole('link', { name: '#28' });
+    expect(link).toHaveAttribute('href', '/boards/demo/cards/28');
+    expect(link).not.toHaveAttribute('target');
+  });
+
+  test('opens a card preview on hover', async () => {
+    const user = userEvent.setup();
+    renderWithPreview('See #28 for context');
+
+    await user.hover(screen.getByRole('link', { name: '#28' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('A previewed card')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Backlog')).toBeInTheDocument();
+    expect(screen.getByText('L')).toBeInTheDocument();
+  });
+
+  test('opens the preview on keyboard focus (accessibility)', async () => {
+    const user = userEvent.setup();
+    renderWithPreview('See #28 for context');
+
+    await user.tab();
+    expect(screen.getByRole('link', { name: '#28' })).toHaveFocus();
+
+    await waitFor(() => {
+      expect(screen.getByText('A previewed card')).toBeInTheDocument();
+    });
+  });
+
+  test('renders a plain link with no preview when preview data is absent', () => {
+    // Empty map — the #28 link still renders, but no PreviewCard wraps it.
+    renderWithPreview('See #28', new Map());
+    const link = screen.getByRole('link', { name: '#28' });
+    expect(link).toHaveAttribute('href', '/boards/demo/cards/28');
+    // No preview content present.
+    expect(screen.queryByText('A previewed card')).toBeNull();
   });
 });

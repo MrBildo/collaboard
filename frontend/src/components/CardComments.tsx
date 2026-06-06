@@ -31,7 +31,7 @@ export function CardComments({
   const queryClient = useQueryClient();
 
   const { getUserName } = useUserDirectory();
-  const { boardSlug, cardNumbers } = useCardLinkContext(boardId);
+  const { boardSlug, cardNumbers, cardPreviews } = useCardLinkContext(boardId);
   const [newComment, setNewComment] = useState('');
   const [isNewCommentFocused, setIsNewCommentFocused] = useState(false);
   const [isPreviewingNew, setIsPreviewingNew] = useState(false);
@@ -174,7 +174,11 @@ export function CardComments({
           {isPreviewingNew && isExpanded ? (
             <div className="prose prose-sm max-w-none overflow-x-auto rounded-md border bg-muted/30 p-4 text-sm text-foreground">
               {newComment.trim() ? (
-                <MarkdownRenderer boardSlug={boardSlug} cardNumbers={cardNumbers}>
+                <MarkdownRenderer
+                  boardSlug={boardSlug}
+                  cardNumbers={cardNumbers}
+                  cardPreviews={cardPreviews}
+                >
                   {newComment}
                 </MarkdownRenderer>
               ) : (
@@ -243,7 +247,11 @@ export function CardComments({
                 {isPreviewingEdit ? (
                   <div className="prose prose-sm max-w-none overflow-x-auto rounded-md border bg-muted/30 p-4 text-sm text-foreground">
                     {editText.trim() ? (
-                      <MarkdownRenderer boardSlug={boardSlug} cardNumbers={cardNumbers}>
+                      <MarkdownRenderer
+                        boardSlug={boardSlug}
+                        cardNumbers={cardNumbers}
+                        cardPreviews={cardPreviews}
+                      >
                         {editText}
                       </MarkdownRenderer>
                     ) : (
@@ -271,7 +279,11 @@ export function CardComments({
             ) : (
               <>
                 <div className="prose prose-sm max-w-none break-words">
-                  <MarkdownRenderer boardSlug={boardSlug} cardNumbers={cardNumbers}>
+                  <MarkdownRenderer
+                    boardSlug={boardSlug}
+                    cardNumbers={cardNumbers}
+                    cardPreviews={cardPreviews}
+                  >
                     {comment.contentMarkdown}
                   </MarkdownRenderer>
                 </div>

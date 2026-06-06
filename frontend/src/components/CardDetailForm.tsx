@@ -228,7 +228,7 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
       (currentUserRole === ROLES.Human && card.createdByUserId === currentUserId);
 
     const { getUserName } = useUserDirectory();
-    const { boardSlug, cardNumbers } = useCardLinkContext(boardId);
+    const { boardSlug, cardNumbers, cardPreviews } = useCardLinkContext(boardId);
 
     const labelsQuery = useQuery({
       queryKey: queryKeys.cards.labels(card.id),
@@ -802,7 +802,11 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
               ) : (
                 <div className="prose prose-sm max-w-none overflow-x-auto rounded-md border bg-muted/30 p-4 text-sm text-foreground">
                   {description ? (
-                    <MarkdownRenderer boardSlug={boardSlug} cardNumbers={cardNumbers}>
+                    <MarkdownRenderer
+                      boardSlug={boardSlug}
+                      cardNumbers={cardNumbers}
+                      cardPreviews={cardPreviews}
+                    >
                       {description}
                     </MarkdownRenderer>
                   ) : (
