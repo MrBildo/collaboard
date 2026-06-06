@@ -62,6 +62,7 @@ describe('GlobalAdminPanel — UsersTab edit flow', () => {
       makeUser({ id: 'u-admin', name: 'Admin User', role: ROLES.Administrator }),
       makeUser({ id: 'u-human', name: 'Human User', role: ROLES.Human }),
       makeUser({ id: 'u-agent', name: 'Agent User', role: ROLES.Agent }),
+      makeUser({ id: 'u-agent-admin', name: 'Agent Admin User', role: ROLES.AgentAdmin }),
     ]);
 
     renderPanel();
@@ -73,15 +74,15 @@ describe('GlobalAdminPanel — UsersTab edit flow', () => {
     });
     expect(screen.getByText('Human User')).toBeInTheDocument();
     expect(screen.getByText('Agent User')).toBeInTheDocument();
-    // Role badges — derived from the ROLES const, so any future addition
-    // (e.g. AgentAdministrator) will also render without code change.
-    // Each role label appears at least twice: once as a user-row badge and once
-    // as a Select option in the "Add User" form (the select renders its items
-    // in the DOM even when closed). Asserting >= 1 occurrence covers both,
-    // and the user-row identity is verified by the user names above.
+    expect(screen.getByText('Agent Admin User')).toBeInTheDocument();
+    // Role badges — derived from the ROLES const. Each role label appears at
+    // least once as a user-row badge and once as a Select option in the
+    // "Add User" form (the select renders its items in the DOM even when
+    // closed). Asserting >= 1 occurrence covers both.
     expect(screen.getAllByText('Administrator').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Human').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Agent').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('AgentAdmin').length).toBeGreaterThanOrEqual(1);
   });
 
   test('clicking edit reveals the name input pre-filled with current name', async () => {
