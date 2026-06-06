@@ -237,13 +237,14 @@ await using (var scope = app.Services.CreateAsyncScope())
         var adminAuthKey = app.Configuration.GetValue<string>("Admin:AuthKey")
             ?? Ulid.NewUlid().ToString();
 
-        db.Users.Add(new BoardUser
+        var adminUser = new BoardUser
         {
             Id = Guid.NewGuid(),
             Name = "Admin",
             AuthKey = adminAuthKey,
             Role = UserRole.Administrator,
-        });
+        };
+        db.Users.Add(adminUser);
 
         var defaultBoard = new Board
         {
@@ -254,21 +255,67 @@ await using (var scope = app.Services.CreateAsyncScope())
         };
         db.Boards.Add(defaultBoard);
 
+        // Shared scaffold every board gets: archive lane, S/M/L/XL sizes, starter
+        // labels (Feature/Bug/Chore). Routed through BoardSeeder so the install seed
+        // and the API/MCP create_board path can't drift on the shared portion —
+        // REST/MCP/install seed drift is the top bug class here, gated by
+        // BoardCreateParityTests. The install-only first-run extras (the three visible
+        // lanes + the welcome sample card) are layered on below.
+        BoardSeeder.Seed(db, defaultBoard);
+
+        var backlogLane = new Lane { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "Backlog", Position = 0 };
+
         db.Lanes.AddRange
         (
-            new Lane { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "Backlog", Position = 0 },
+            backlogLane,
             new Lane { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "In Progress", Position = 1 },
-            new Lane { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "Done", Position = 2 },
-            new Lane { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "Archive", Position = int.MaxValue, IsArchiveLane = true }
+            new Lane { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "Done", Position = 2 }
         );
 
-        db.Set<CardSize>().AddRange
-        (
-            new CardSize { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "S", Ordinal = 0 },
-            new CardSize { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "M", Ordinal = 1 },
-            new CardSize { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "L", Ordinal = 2 },
-            new CardSize { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "XL", Ordinal = 3 }
-        );
+        // Welcome sample card — install-only first-run onboarding (card #294). A real,
+        // openable card in Backlog that teaches how a card works (markdown body + a
+        // label in situ), explicitly a deletable sample. Install-only by design: a
+        // programmatic create_board (used by admins/agents who already know the
+        // product) should not auto-litter a sample card to delete. References the
+        // lowest-ordinal size (S) and the Feature starter label, both seeded above.
+        // Read from the change tracker's Local view — BoardSeeder.Seed added these
+        // but nothing is persisted until the single SaveChangesAsync below, so a DB
+        // query would not yet see them.
+        var smallSize = db.CardSizes.Local
+            .Where(s => s.BoardId == defaultBoard.Id)
+            .OrderBy(s => s.Ordinal)
+                .First();
+
+        var featureLabel = db.Labels.Local
+            .Single(l => l.BoardId == defaultBoard.Id && l.Name == "Feature");
+
+        var welcomeCard = new CardItem
+        {
+            Id = Guid.NewGuid(),
+            Number = 1,
+            BoardId = defaultBoard.Id,
+            Name = "Welcome to Collaboard — here's how a card works",
+            DescriptionMarkdown =
+                "**This is a sample card.** Feel free to delete it once you've had a look around.\n\n" +
+                "A card is the basic unit of work on a board. Here's what you can do with one:\n\n" +
+                "- **Open it** by clicking — you're reading the description right now.\n" +
+                "- **Describe it** in Markdown: lists, **bold**, `code`, and links all render.\n" +
+                "- **Label it** to tag the kind of work — this card carries the green **Feature** label.\n" +
+                "- **Size it** (S / M / L / XL) to capture rough effort.\n" +
+                "- **Drag it** between lanes as the work moves from Backlog toward Done.\n\n" +
+                "When you're ready, delete this card and create your own.",
+            SizeId = smallSize.Id,
+            LaneId = backlogLane.Id,
+            Position = 0,
+            CreatedByUserId = adminUser.Id,
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            LastUpdatedByUserId = adminUser.Id,
+            LastUpdatedAtUtc = DateTimeOffset.UtcNow,
+        };
+        db.Cards.Add(welcomeCard);
+
+        db.CardLabels.Add(new CardLabel { CardId = welcomeCard.Id, LabelId = featureLabel.Id });
+
         await db.SaveChangesAsync();
     }
 

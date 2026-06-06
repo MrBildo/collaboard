@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Tags } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
@@ -115,6 +117,17 @@ export function LabelsTab({ boardId }: LabelsTabProps) {
 
   return (
     <div className="flex flex-col gap-4">
+      {!labelsQuery.isLoading && labels.length === 0 && (
+        // Empty labels (card #292, spec §3.1): teach what labels are before the
+        // Add form below, instead of rendering a blank list area. Self-disposing
+        // — gone the moment the first label exists. Description-only (no action):
+        // the Add form is right below, so the affordance is already in view.
+        <EmptyState
+          icon={Tags}
+          title="No labels yet"
+          description="Labels tag cards by type (Bug, Feature, Chore). Add your first below."
+        />
+      )}
       <EditableListContainer error={list.deleteError}>
         {labels.map((label) => (
           <EditableListRow key={label.id}>
