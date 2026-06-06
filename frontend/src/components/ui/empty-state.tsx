@@ -26,7 +26,7 @@ type EmptyStateProps = {
 // is no persisted "seen" flag and no dismissal state (spec §2). Role-awareness
 // lives at the call site: an admin passes an `action`, a non-admin passes only
 // explanatory `description` text and no dead button.
-export function EmptyState({ icon: Icon, title, description, action, className }: EmptyStateProps) {
+function EmptyState({ icon: Icon, title, description, action, className }: EmptyStateProps) {
   return (
     <div
       className={cn(
@@ -45,3 +45,6 @@ export function EmptyState({ icon: Icon, title, description, action, className }
     </div>
   );
 }
+
+export { EmptyState };
+export type { EmptyStateProps };

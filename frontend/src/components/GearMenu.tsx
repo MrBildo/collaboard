@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Moon, Settings, Sun } from 'lucide-react';
+import { HelpCircle, Moon, Settings, Sun } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -77,6 +77,20 @@ export function GearMenu({
                 <Sun className="h-3.5 w-3.5" /> Light mode
               </>
             )}
+          </span>
+        </DropdownMenuItem>
+        {/* Help / User Guide: all tiers — links to published docs in a new tab */}
+        <DropdownMenuItem
+          onClick={() =>
+            window.open(
+              'https://github.com/MrBildo/collaboard/blob/main/docs/user-guide.md',
+              '_blank',
+              'noopener,noreferrer',
+            )
+          }
+        >
+          <span className="flex items-center gap-2">
+            <HelpCircle className="h-3.5 w-3.5" /> Help / User Guide
           </span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
