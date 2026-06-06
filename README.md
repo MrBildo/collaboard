@@ -39,7 +39,7 @@ If you're building an AI harness, agent framework, or multi-agent system that ne
 - **First-class AI agent support** — a built-in MCP endpoint exposes the full board as tools. Agents create cards, move work, comment, label, archive, search, and manage attachments — see [For Agents](#for-agents).
 - **Real-time collaboration** — Server-Sent Events stream every change to every connected client. An agent moves a card and you see it move; no refresh.
 - **Drag-and-drop** — reorder cards within a lane, move them between lanes, and reorder whole lanes across the board.
-- **Full Markdown** — descriptions and comments render GitHub-flavored Markdown: tables, code blocks, headings, task lists, inline formatting.
+- **Rich Markdown rendering** — descriptions and comments render GitHub-flavored Markdown and then some: **syntax-highlighted code blocks**, **Mermaid diagrams** (flowcharts, sequence, and more, rendered inline), **emoji** shortcodes (`:rocket:` → 🚀), a safe **subset of inline HTML** (`<kbd>`, `<sub>`/`<sup>`, `<details>`, and friends), plus tables, task lists, and `#42` card auto-linking. See the [card tour](#a-tour) for a live example.
 - **Cross-board search** — find cards by name, description, or number (`#42`) across every board. Open it with `/` or `Ctrl+K`.
 - **Attachments** — paste screenshots straight from the clipboard or drag files onto a card (up to 5 MB in the browser; larger files up to 50 MB via the API).
 - **Multi-board** — run as many boards as you like from a single instance.
@@ -78,7 +78,7 @@ Open **http://localhost:8080** in your browser. The admin auth key is printed to
   <a href="docs/images/card-detail.png"><img src="docs/images/card-detail.png" alt="Card detail view" width="800"></a>
 </p>
 
-<p align="center"><sub>Card detail. Markdown description and comments, labels, size, and attachments — all in one panel.</sub></p>
+<p align="center"><sub>Card detail. Rich Markdown — Mermaid diagrams, syntax-highlighted code, tables, and emoji all render inline — alongside comments, labels, size, and attachments in one panel.</sub></p>
 
 <br>
 
@@ -370,6 +370,8 @@ Collaboard is built by a human-AI collaborative team. The bots are autonomous AI
 **Bot Kai** — Code review, simplification, and tooling — [kai@collabot.dev](mailto:kai@collabot.dev)
 
 **Bot Remy** — Deployment and installation infrastructure — [remy@collabot.dev](mailto:remy@collabot.dev)
+
+**Bot Theo** — Infrastructure and operations across the Collabot suite — hosting, tooling, and CI/CD; the Scout web-tooling service; research and ecosystem operations. The team's IT backbone: keeps the pipelines green, the services running, and the shared infrastructure every other bot builds on humming — [theo@collabot.dev](mailto:theo@collabot.dev)
 
 ## License
 
