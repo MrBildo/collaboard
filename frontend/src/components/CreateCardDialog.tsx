@@ -370,8 +370,10 @@ export function CreateCardDialog({
               )}
             </div>
 
-            {/* Size */}
-            {sizes.length > 0 && (
+            {/* Size — explain the absence instead of silently hiding it (card
+                #292 fork 4, spec §3.1a "explain"): a new user comparing against
+                the docs/screenshots shouldn't wonder where the Size field went. */}
+            {sizes.length > 0 ? (
               <div className="flex flex-col gap-1.5">
                 <Label>Size</Label>
                 <Select
@@ -394,6 +396,13 @@ export function CreateCardDialog({
                       ))}
                   </SelectContent>
                 </Select>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                <Label>Size</Label>
+                <p className="text-sm text-muted-foreground">
+                  No sizes on this board yet — add them in Board Settings.
+                </p>
               </div>
             )}
 
@@ -420,8 +429,10 @@ export function CreateCardDialog({
               </Select>
             </div>
 
-            {/* Labels */}
-            {(allLabelsQuery.data ?? []).length > 0 && (
+            {/* Labels — explain the absence instead of silently hiding it (card
+                #292 fork 4, spec §3.1a "explain"). Wait for the labels query to
+                settle so the hint doesn't flash before a populated board loads. */}
+            {(allLabelsQuery.data ?? []).length > 0 ? (
               <div className="flex flex-col gap-1.5">
                 <Label>Labels</Label>
                 <LabelPicker
@@ -433,6 +444,15 @@ export function CreateCardDialog({
                   onRemove={(id) => setSelectedLabelIds((prev) => prev.filter((x) => x !== id))}
                 />
               </div>
+            ) : (
+              !allLabelsQuery.isLoading && (
+                <div className="flex flex-col gap-1.5">
+                  <Label>Labels</Label>
+                  <p className="text-sm text-muted-foreground">
+                    No labels on this board yet — add them in Board Settings.
+                  </p>
+                </div>
+              )
             )}
 
             {/* Attachments */}

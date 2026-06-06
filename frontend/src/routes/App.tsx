@@ -7,6 +7,7 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import { useQuery } from '@tanstack/react-query';
+import { Columns3 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AdminPanel } from '@/components/AdminPanel';
@@ -14,6 +15,7 @@ import { BoardHeader } from '@/components/BoardHeader';
 import { CardDetailSheet } from '@/components/CardDetailSheet';
 import { CardOverlay } from '@/components/CardOverlay';
 import { CreateCardDialog } from '@/components/CreateCardDialog';
+import { EmptyState } from '@/components/ui/empty-state';
 import { GlobalAdminPanel } from '@/components/GlobalAdminPanel';
 import { LaneColumn } from '@/components/LaneColumn';
 import { LaneOverlay } from '@/components/LaneOverlay';
@@ -254,6 +256,29 @@ export function App() {
               />
             ))}
           </SortableContext>
+          {/* Board with no lanes (card #292, spec §3.1): a freshly created board
+              seeds only the hidden Archive lane, so the visible board is blank.
+              Role-aware — an admin gets a real action into Board Settings → Lanes;
+              a non-admin gets explanatory text and no dead button. Gated on the
+              board having loaded so it never flashes during the initial fetch. */}
+          {!boardDataQuery.isLoading &&
+            !boardMetaQuery.isLoading &&
+            !boardDataQuery.isError &&
+            boardId &&
+            localLanes.length === 0 && (
+              <EmptyState
+                icon={Columns3}
+                title="This board has no lanes yet"
+                description={
+                  isAdmin
+                    ? 'Lanes are the columns cards move between. Add one to get started.'
+                    : 'An admin can add lanes in Board Settings.'
+                }
+                action={
+                  isAdmin ? { label: 'Add a lane', onClick: () => setAdminOpen(true) } : undefined
+                }
+              />
+            )}
           {/* Overlay resize handles — positioned over column gaps, no layout impact */}
           <div className="pointer-events-none absolute inset-0 hidden md:block">
             {handlePositions.map((left, i) => (
