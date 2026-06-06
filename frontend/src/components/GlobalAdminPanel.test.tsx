@@ -62,7 +62,7 @@ describe('GlobalAdminPanel — UsersTab edit flow', () => {
       makeUser({ id: 'u-admin', name: 'Admin User', role: ROLES.Administrator }),
       makeUser({ id: 'u-human', name: 'Human User', role: ROLES.Human }),
       makeUser({ id: 'u-agent', name: 'Agent User', role: ROLES.Agent }),
-      makeUser({ id: 'u-agent-admin', name: 'Agent Admin User', role: ROLES.AgentAdmin }),
+      makeUser({ id: 'u-agent-admin', name: 'Agent Admin User', role: ROLES['Agent Admin'] }),
     ]);
 
     renderPanel();
@@ -82,7 +82,7 @@ describe('GlobalAdminPanel — UsersTab edit flow', () => {
     expect(screen.getAllByText('Administrator').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Human').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Agent').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('AgentAdmin').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Agent Admin').length).toBeGreaterThanOrEqual(1);
   });
 
   test('clicking edit reveals the name input pre-filled with current name', async () => {

@@ -49,7 +49,7 @@ type GlobalAdminPanelProps = {
 };
 
 // Role options derived from the ROLES const so adding a new role
-// (e.g. AgentAdministrator) propagates to every selector automatically.
+// (e.g. 'Agent Admin') propagates to every selector automatically.
 const ROLE_OPTIONS = Object.entries(ROLES).map(([label, value]) => ({
   label,
   value,
@@ -393,7 +393,7 @@ function UsersTab() {
                   <Badge
                     variant="secondary"
                     className={
-                      user.role === ROLES.Administrator
+                      user.role === ROLES.Administrator || user.role === ROLES['Agent Admin']
                         ? 'bg-primary/15 text-primary'
                         : user.role === ROLES.Agent
                           ? 'bg-accent/15 text-accent'
