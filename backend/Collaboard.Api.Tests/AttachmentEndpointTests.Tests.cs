@@ -190,6 +190,24 @@ public class AttachmentEndpointTests(CollaboardApiFactory factory) : IClassFixtu
     }
 
     [Fact]
+    public async Task GetAttachment_Unauthenticated_Returns401()
+    {
+        // Arrange — a real attachment exists; the auth gate must fire before it is served.
+        // This locks the documented posture (#296): GET /attachments/{id} requires auth.
+        // The endpoint is consumed only via the authenticated download path, never a
+        // browser-native <img> tag, so the SSE-unauth precedent (#217) does not apply.
+        var cardId = await CreateCardAsync();
+        var attachmentId = await UploadAttachmentAsync(cardId);
+        _client.DefaultRequestHeaders.Remove("X-User-Key");
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/attachments/{attachmentId}");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
     public async Task DeleteAttachment_AsAdmin_Returns204()
     {
         // Arrange
