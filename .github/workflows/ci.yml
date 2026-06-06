@@ -57,3 +57,101 @@ jobs:
       - name: Build
         run: npx vite build
         working-directory: frontend
+
+  # Exercise the publish-archive contract in PR CI. publish.yml runs only on
+  # `release: published`, so its stage/verify/upload logic had no PR-runnable
+  # path -- #280 (win-x64 web.config drift) and #281 (gh upload repo-context)
+  # both shipped through green PR CI and failed only at release. This job builds
+  # ONE representative archive and runs the SAME scripts/{stage,verify}-archive.sh
+  # that publish.yml runs (single source of truth -- they cannot drift), plus a
+  # lint covering the #281 gh-context class. (#282)
+  #
+  # win-x64 specifically: it is the only RID that emits web.config +
+  # aspnetcorev2_inprocess.dll (the Web SDK IIS/in-process hosting payload) --
+  # the exact artifact #280 bit on. Cross-RID publish from ubuntu-latest is fully
+  # supported (the SDK pulls the win-x64 runtime pack). Building one RID, not all
+  # five, is a deliberate cost/coverage tradeoff: win-x64 is both the platform
+  # that bit us and the richest contract surface; the Unix RIDs share the same
+  # contract shape, which the shared script enforces against this archive.
+  publish-contract:
+    name: Publish archive contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      RID: win-x64
+      ARTIFACT: collaboard-win-x64
+      BIN: Collaboard.Api.exe
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      # gh-context lint (#281 class): assert every `gh release upload` in
+      # publish.yml carries --repo. The #281 failure was a checkout-less job
+      # relying on implicit git context (`fatal: not a git repository`); --repo
+      # presence is the invariant that prevents it. A PR-runnable cover for a
+      # class that otherwise only surfaces when the upload steps actually run.
+      - name: Lint gh release upload --repo presence
+        run: bash scripts/lint-gh-upload-repo.sh .github/workflows/publish.yml
+
+      # Build frontend and copy to wwwroot so dotnet publish picks it up --
+      # mirrors the publish.yml leg so the staged archive matches what ships.
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build frontend
+        run: npx vite build
+        working-directory: frontend
+
+      - name: Copy frontend to wwwroot
+        run: |
+          mkdir -p backend/Collaboard.Api/wwwroot
+          cp -r frontend/dist/* backend/Collaboard.Api/wwwroot/
+
+      - name: Publish (win-x64, self-contained)
+        run: |
+          set -euo pipefail
+          dotnet publish backend/Collaboard.Api/Collaboard.Api.csproj \
+            -c Release \
+            -r "${RID}" \
+            --self-contained \
+            -o "publish/${ARTIFACT}"
+
+      - name: Stage archive
+        run: |
+          bash scripts/stage-archive.sh \
+            "publish/${ARTIFACT}" \
+            "archive-stage/${ARTIFACT}" \
+            "${BIN}" \
+            "${RID}"
+
+      # Package + extract so the verify runs against a real round-tripped
+      # archive, exactly as the release path does (catches any packaging-side
+      # surprise, not just the staged tree).
+      - name: Package (zip)
+        shell: pwsh
+        run: |
+          $stage = "archive-stage/${env:ARTIFACT}"
+          Compress-Archive -Path "$stage/*" `
+                           -DestinationPath "${env:ARTIFACT}.zip"
+
+      - name: Verify archive contents
+        run: |
+          set -euo pipefail
+          VERIFY_DIR="verify-${RID}"
+          rm -rf "${VERIFY_DIR}"
+          mkdir -p "${VERIFY_DIR}"
+          unzip -q "${ARTIFACT}.zip" -d "${VERIFY_DIR}"
+          bash scripts/verify-archive.sh \
+            "${VERIFY_DIR}" \
+            "${BIN}" \
+            "Collaboard.Api"

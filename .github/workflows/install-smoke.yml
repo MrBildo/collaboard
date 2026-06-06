@@ -96,12 +96,14 @@ jobs:
           tar -xzf "$RUNNER_TEMP/dl/collaboard-linux-x64.tar.gz" \
             -C "$RUNNER_TEMP/install"
           ls -la "$RUNNER_TEMP/install"
-          # Archive wraps in collaboard-linux-x64/; assert that and pin the
-          # install dir so later steps don't drift if the layout ever changes.
-          test -d "$RUNNER_TEMP/install/collaboard-linux-x64"
-          test -x "$RUNNER_TEMP/install/collaboard-linux-x64/Collaboard.Api"
-          echo "INSTALL_DIR=$RUNNER_TEMP/install/collaboard-linux-x64" \
-            >> "$GITHUB_ENV"
+          # Archives are FLAT (#237): the binary sits at the extract root, no
+          # wrapping collaboard-linux-x64/ directory. Assert the binary at the
+          # root and pin the install dir to the extract root. (Before #282 this
+          # step asserted a wrapping directory the flat-layout flip had removed,
+          # which silently failed every release-time smoke run -- the exact
+          # publish-time-only blind spot #282 closes.)
+          test -x "$RUNNER_TEMP/install/Collaboard.Api"
+          echo "INSTALL_DIR=$RUNNER_TEMP/install" >> "$GITHUB_ENV"
 
       - name: Launch binary (hosted-separately shape)
         env:
