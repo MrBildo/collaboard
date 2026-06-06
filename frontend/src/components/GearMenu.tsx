@@ -7,6 +7,24 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
+import { ROLES, type Role } from '@/lib/roles';
+import { cn } from '@/lib/utils';
+
+const ROLE_LABELS: Record<Role, string> = {
+  [ROLES.Administrator]: 'Administrator',
+  [ROLES.Human]: 'Human',
+  [ROLES.Agent]: 'Agent',
+  [ROLES['Agent Admin']]: 'Agent Admin',
+};
+
+function roleBadgeClassName(role: Role): string {
+  return role === ROLES.Administrator || role === ROLES['Agent Admin']
+    ? 'bg-primary/15 text-primary'
+    : role === ROLES.Agent
+      ? 'bg-accent/15 text-accent'
+      : '';
+}
 
 function getStoredTheme(): 'light' | 'dark' {
   if (typeof window === 'undefined') return 'light';
@@ -21,6 +39,8 @@ function applyTheme(theme: 'light' | 'dark') {
 type GearMenuProps = {
   isAdmin: boolean;
   version?: string;
+  currentUserName?: string;
+  currentUserRole?: Role;
   onNewCard: () => void;
   onBoardSettings: () => void;
   onGlobalAdmin: () => void;
@@ -30,6 +50,8 @@ type GearMenuProps = {
 export function GearMenu({
   isAdmin,
   version,
+  currentUserName,
+  currentUserRole,
   onNewCard,
   onBoardSettings,
   onGlobalAdmin,
@@ -51,6 +73,23 @@ export function GearMenu({
         <Settings className="h-4 w-4" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
+        {/* Current user identity — shown while resolved; hidden during pending */}
+        {currentUserName !== undefined && currentUserRole !== undefined && (
+          <>
+            <div className="flex items-center gap-2 px-2 py-1.5">
+              <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                {currentUserName}
+              </span>
+              <Badge
+                variant="secondary"
+                className={cn('shrink-0 text-xs', roleBadgeClassName(currentUserRole))}
+              >
+                {ROLE_LABELS[currentUserRole] ?? `Role ${currentUserRole}`}
+              </Badge>
+            </div>
+            <DropdownMenuSeparator />
+          </>
+        )}
         {/* + New Card: mobile only (hidden at md+) */}
         <DropdownMenuItem onClick={onNewCard} className="xs:hidden">
           + New Card

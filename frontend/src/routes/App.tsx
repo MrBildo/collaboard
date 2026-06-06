@@ -38,7 +38,7 @@ export function App() {
   const { slug, cardNumber } = useParams<{ slug: string; cardNumber: string }>();
   const navigate = useNavigate();
   const { loggedIn, handleLogin, handleLogout } = useAuth();
-  const { currentUserId, currentUserRole, isAdmin } = useCurrentUser(loggedIn);
+  const { currentUserId, currentUserName, currentUserRole, isAdmin } = useCurrentUser(loggedIn);
 
   const {
     board,
@@ -207,6 +207,8 @@ export function App() {
         boardName={board?.name}
         isAdmin={isAdmin}
         version={versionQuery.data?.version}
+        currentUserName={currentUserName}
+        currentUserRole={currentUserRole}
         onNewCard={handleNewCard}
         onBoardSettings={() => setAdminOpen(true)}
         onGlobalAdmin={() => setGlobalAdminOpen(true)}

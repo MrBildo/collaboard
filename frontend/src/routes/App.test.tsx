@@ -40,7 +40,7 @@ vi.mock('@/lib/api', () => ({
   fetchBoards: vi.fn().mockResolvedValue([]),
   fetchCards: vi.fn().mockResolvedValue({ items: [] }),
   fetchVersion: vi.fn().mockResolvedValue({ version: '1.0.0' }),
-  fetchMe: vi.fn().mockResolvedValue({ id: 'user-1', role: 1 }),
+  fetchMe: vi.fn().mockResolvedValue({ id: 'user-1', name: 'Test User', role: 1 }),
   fetchUsers: vi.fn().mockResolvedValue([]),
 }));
 

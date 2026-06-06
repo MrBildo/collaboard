@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { fetchMe, fetchUsers } from '@/lib/api';
 import { queryKeys } from '@/lib/query-keys';
+import type { Role } from '@/lib/roles';
 
 export function useCurrentUser(loggedIn: boolean) {
   const meQuery = useQuery({
@@ -10,7 +11,10 @@ export function useCurrentUser(loggedIn: boolean) {
     staleTime: Infinity,
   });
   const currentUserId = meQuery.data?.id;
-  const currentUserRole = meQuery.data?.role;
+  const currentUserName = meQuery.data?.name;
+  // The schema validates the role is a number from the backend; Role is the
+  // narrowed type for valid role values.
+  const currentUserRole = meQuery.data?.role as Role | undefined;
 
   const adminCheck = useQuery({
     queryKey: queryKeys.users.adminCheck(),
@@ -23,5 +27,5 @@ export function useCurrentUser(loggedIn: boolean) {
   });
   const isAdmin = adminCheck.data === true;
 
-  return { currentUserId, currentUserRole, isAdmin };
+  return { currentUserId, currentUserName, currentUserRole, isAdmin };
 }
