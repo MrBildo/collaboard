@@ -41,6 +41,28 @@ internal static class SizeEndpoints
             return Results.Created($"/api/v1/sizes/{size.Id}", size);
         }).RequireAdminOrAgentAdmin();
 
+        // Card #306: whole-board size reorder. Client sends the complete desired
+        // order of the board's sizes; server owns all ordinal math (two-phase
+        // renumber under the unique (BoardId, Ordinal) index — see
+        // SizeReorderHelper). Mirrors the lane reorder (#277).
+        group.MapPost("/boards/{boardId:guid}/sizes/reorder", async (BoardDbContext db, Guid boardId, ReorderSizesRequest request, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
+        {
+            if (!await db.Boards.AnyAsync(x => x.Id == boardId, ct))
+            {
+                return Results.NotFound();
+            }
+
+            var (sizes, error) = await SizeReorderHelper.ValidateAsync(db, boardId, request.SizeIds, ct);
+            if (error is not null)
+            {
+                return Results.BadRequest(error);
+            }
+
+            var ordered = await SizeReorderHelper.ReorderAsync(db, sizes!, request.SizeIds!, ct);
+            broadcaster.PublishBoardUpdated(boardId);
+            return Results.Ok(ordered);
+        }).RequireAdminOrAgentAdmin();
+
         // By-ID operations (flat)
         group.MapGet("/sizes/{id:guid}", async (BoardDbContext db, Guid id) =>
         {
