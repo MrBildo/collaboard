@@ -143,16 +143,26 @@ export function useLaneResize(boardId: string, laneIds: string[]) {
     const rightId = laneIds[draggingIndex + 1];
 
     function onMouseMove(e: MouseEvent) {
+      // The left lane can never go below MIN. Dragging left past that is clamped;
+      // dragging right is unbounded (the board scrolls to accommodate).
       const rawDelta = e.clientX - startXRef.current;
-      const maxDelta = startRightRef.current - MIN_LANE_WIDTH;
       const minDelta = -(startLeftRef.current - MIN_LANE_WIDTH);
-      const delta = Math.max(minDelta, Math.min(maxDelta, rawDelta));
+      const delta = Math.max(minDelta, rawDelta);
 
-      // Only store px width for the left lane; rightmost lane stays 1fr
+      // Card #300: the resize is NOT zero-sum-clamped to the neighbor's slack.
+      // On a board with enough lanes to overflow horizontally every lane sits at
+      // MIN, so the neighbor had zero slack and the old `maxDelta` clamp pinned the
+      // drag to zero movement — resize "stopped working". Now the left lane always
+      // gets the full delta; the neighbor donates only down to MIN (so a widen on a
+      // full board scrolls the board instead of dying), and reclaims space on a
+      // shrink. When the board still fits, the neighbor absorbs the whole delta and
+      // the original boundary-follows-cursor feel is preserved.
       const isRightLast = rightId === laneIds[laneIds.length - 1];
+      const neighborWidth = Math.max(MIN_LANE_WIDTH, startRightRef.current - delta);
+
       setWidths((prev) => {
         const next = { ...prev, [leftId]: Math.round(startLeftRef.current + delta) };
-        if (!isRightLast) next[rightId] = Math.round(startRightRef.current - delta);
+        if (!isRightLast) next[rightId] = Math.round(neighborWidth);
         else delete next[rightId]; // rightmost is always 1fr
         return next;
       });
