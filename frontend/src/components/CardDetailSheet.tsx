@@ -186,17 +186,25 @@ export function CardDetailSheet({
           className="flex flex-col p-0 md:max-h-[85vh] md:!w-[80vw] md:!max-w-[80vw]"
           style={{ overflow: 'visible' }}
         >
-          {/* Floating nav buttons — desktop only, positioned outside the dialog */}
+          {/* Floating nav buttons — desktop only, positioned outside the dialog.
+              The hit target is a square <Button> (no border-radius); the round
+              appearance lives on an inner <span>. A circular border-radius clips
+              pointer hit-testing, so a fully-rounded button drops clicks in its
+              four corners — they fall through to the dialog overlay behind and
+              never navigate (card #302). Keeping the button rectangular makes the
+              whole bounding box clickable while preserving the round look. */}
           {prevCard && (
             <Button
               variant="outline"
               size="icon"
               onClick={() => handleNavigate('prev')}
               onPointerDown={(e) => e.stopPropagation()}
-              className="absolute top-1/2 -left-14 z-50 hidden -translate-y-1/2 rounded-full shadow-lg md:flex"
+              className="absolute top-1/2 -left-14 z-50 hidden -translate-y-1/2 rounded-none border-transparent bg-transparent p-0 shadow-none hover:bg-transparent md:flex"
               aria-label="Previous card"
             >
-              <ChevronLeft className="h-5 w-5" />
+              <span className="flex size-8 items-center justify-center rounded-full border border-border bg-background shadow-lg transition-colors group-hover/button:bg-muted">
+                <ChevronLeft className="h-5 w-5" />
+              </span>
             </Button>
           )}
           {nextCard && (
@@ -205,10 +213,12 @@ export function CardDetailSheet({
               size="icon"
               onClick={() => handleNavigate('next')}
               onPointerDown={(e) => e.stopPropagation()}
-              className="absolute top-1/2 -right-14 z-50 hidden -translate-y-1/2 rounded-full shadow-lg md:flex"
+              className="absolute top-1/2 -right-14 z-50 hidden -translate-y-1/2 rounded-none border-transparent bg-transparent p-0 shadow-none hover:bg-transparent md:flex"
               aria-label="Next card"
             >
-              <ChevronRight className="h-5 w-5" />
+              <span className="flex size-8 items-center justify-center rounded-full border border-border bg-background shadow-lg transition-colors group-hover/button:bg-muted">
+                <ChevronRight className="h-5 w-5" />
+              </span>
             </Button>
           )}
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
