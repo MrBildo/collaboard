@@ -94,7 +94,10 @@ internal static class CommentEndpoints
             }
 
             var user = http.CurrentUser();
-            if (comment.UserId != user.Id && user.Role != UserRole.Administrator)
+
+            // Own-or-admin-level: Administrator or AgentAdministrator may edit
+            // another user's comment, matching the MCP update_comment tool (#275 / #243).
+            if (comment.UserId != user.Id && !McpAuthService.IsAdminLevel(user))
             {
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
