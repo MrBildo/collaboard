@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -225,14 +226,12 @@ export function PruneTab({ boardId }: PruneTabProps) {
       <div className="flex flex-col gap-2">
         <span className="text-sm font-medium">Card status</span>
         <label className="flex cursor-pointer items-center gap-2">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={includeArchived}
-            onChange={(e) => {
-              setIncludeArchived(e.target.checked);
+            onCheckedChange={(checked) => {
+              setIncludeArchived(checked);
               clearResults();
             }}
-            className="rounded"
           />
           <span className="text-sm">Include archived cards</span>
         </label>
@@ -285,11 +284,9 @@ export function PruneTab({ boardId }: PruneTabProps) {
                   key={lane.id}
                   className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-muted/50"
                 >
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={selectedLaneIds.includes(lane.id)}
-                    onChange={() => toggleLane(lane.id)}
-                    className="rounded"
+                    onCheckedChange={() => toggleLane(lane.id)}
                   />
                   <span className="text-sm">{lane.name}</span>
                 </label>
@@ -318,11 +315,9 @@ export function PruneTab({ boardId }: PruneTabProps) {
                   key={label.id}
                   className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-muted/50"
                 >
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={selectedLabelIds.includes(label.id)}
-                    onChange={() => toggleLabel(label.id)}
-                    className="rounded"
+                    onCheckedChange={() => toggleLabel(label.id)}
                   />
                   <span
                     className="inline-block h-3 w-3 rounded-full"
