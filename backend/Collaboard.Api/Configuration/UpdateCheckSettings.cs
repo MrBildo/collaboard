@@ -21,7 +21,8 @@ public class UpdateCheckSettings
     // The GitHub repository whose /releases/latest is the source of truth for "latest"
     // (#303 §2A — A1). This is the same repo publish.yml cuts releases against, so there is
     // no new artifact to maintain and no new drift class. "owner/name" form. Overridable via
-    // UpdateCheck__Repository, which is the air-gap operator's seam to point at a mirror that
-    // mimics the GitHub releases shape.
+    // UpdateCheck__Repository. Note: this does NOT enable mirror routing — api.github.com is
+    // fixed (the mirror/Source seam is deferred to spec §4 A2). The real air-gap kill switch
+    // is UpdateCheck__Enabled=false, which prevents all outbound egress.
     public string Repository { get; init; } = "MrBildo/collaboard";
 }

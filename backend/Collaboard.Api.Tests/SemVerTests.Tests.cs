@@ -35,7 +35,7 @@ public class SemVerTests
         var parsed = SemVer.TryParse(input, out var result);
 
         parsed.ShouldBeFalse();
-        result.ShouldBe(default(SemVer));
+        result.ShouldBe(default);
     }
 
     [Fact]

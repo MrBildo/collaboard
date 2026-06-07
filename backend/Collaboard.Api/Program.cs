@@ -189,7 +189,11 @@ builder.Services
         // The unauthenticated GitHub REST API requires a User-Agent and an explicit API
         // version header. The client owns its own short timeout so a slow GitHub never holds
         // up the poll loop (the timer cadence, not retries, governs re-checks).
+        // api.github.com is the fixed egress target; the mirror/Source seam is deferred to
+        // spec §4 A2. S1075 is suppressed here because the URL is deliberate and correct.
+#pragma warning disable S1075 // URIs should not be hardcoded
         client.BaseAddress = new Uri("https://api.github.com/");
+#pragma warning restore S1075
         client.DefaultRequestHeaders.UserAgent.ParseAdd("Collaboard-UpdateCheck");
         client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
         client.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28");
