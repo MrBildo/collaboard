@@ -25,6 +25,7 @@ import type {
   UpdateSizePatch,
   UpdateUserPatch,
   UserDirectoryEntry,
+  VersionStatus,
 } from '@/types';
 import { findUserKey } from '@/lib/auth';
 import { getApiBaseUrl } from '@/lib/runtime-config';
@@ -50,6 +51,7 @@ import {
   uploadAttachmentResponseSchema,
   userDirectoryEntrySchema,
   versionSchema,
+  versionStatusSchema,
 } from '@/lib/schemas';
 
 export const api = axios.create({
@@ -74,6 +76,13 @@ api.interceptors.request.use((config) => {
 export async function fetchVersion(): Promise<{ version: string }> {
   const { data } = await api.get('/version');
   return versionSchema.parse(data);
+}
+
+// #303: current-vs-latest update status. The backend throttles the actual GitHub poll, so the
+// client need not poll hard — the query that consumes this uses a long staleTime.
+export async function fetchVersionStatus(): Promise<VersionStatus> {
+  const { data } = await api.get('/version/status');
+  return versionStatusSchema.parse(data);
 }
 
 // Auth

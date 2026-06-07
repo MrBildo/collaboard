@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { HelpCircle, Moon, Settings, Sun } from 'lucide-react';
+import { ArrowUpCircle, HelpCircle, Moon, Settings, Sun, X } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,8 +8,24 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { ROLES, type Role } from '@/lib/roles';
+import type { VersionStatus } from '@/types';
 import { cn } from '@/lib/utils';
+
+// Per-version dismissal (#303): the operator dismisses a specific available version, not all
+// future updates. The dot reappears when a newer version than the dismissed one is detected,
+// because the dismissed value is an exact string match against the current `latest`.
+const DISMISSED_VERSION_KEY = 'collaboard-dismissed-update';
+
+function getDismissedVersion(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(DISMISSED_VERSION_KEY);
+}
+
+function dismissVersion(version: string) {
+  localStorage.setItem(DISMISSED_VERSION_KEY, version);
+}
 
 const ROLE_LABELS: Record<Role, string> = {
   [ROLES.Administrator]: 'Administrator',
@@ -39,6 +55,7 @@ function applyTheme(theme: 'light' | 'dark') {
 type GearMenuProps = {
   isAdmin: boolean;
   version?: string;
+  versionStatus?: VersionStatus;
   currentUserName?: string;
   currentUserRole?: Role;
   onNewCard: () => void;
@@ -50,6 +67,7 @@ type GearMenuProps = {
 export function GearMenu({
   isAdmin,
   version,
+  versionStatus,
   currentUserName,
   currentUserRole,
   onNewCard,
@@ -58,6 +76,7 @@ export function GearMenu({
   onLogout,
 }: GearMenuProps) {
   const [theme, setTheme] = useState<'light' | 'dark'>(getStoredTheme);
+  const [dismissedVersion, setDismissedVersion] = useState<string | null>(getDismissedVersion);
 
   useEffect(() => {
     applyTheme(theme);
@@ -67,10 +86,37 @@ export function GearMenu({
     setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
   };
 
+  // The current version shown in the footer prefers the status payload (always present once
+  // /version/status responds) and falls back to the plain /version string.
+  const currentVersion = versionStatus?.current ?? version;
+
+  // An update is "showable" only when the backend reports one AND the operator hasn't
+  // dismissed this exact latest version. The dot and the link row share this gate, so a
+  // dismiss clears both at once and a later, newer `latest` re-shows both.
+  const updateShowable =
+    versionStatus?.updateAvailable === true &&
+    versionStatus.latest !== null &&
+    versionStatus.latest !== dismissedVersion;
+
+  const handleDismiss = () => {
+    if (versionStatus?.latest) {
+      dismissVersion(versionStatus.latest);
+      setDismissedVersion(versionStatus.latest);
+    }
+  };
+
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground">
+      <DropdownMenuTrigger className="relative inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground">
         <Settings className="h-4 w-4" />
+        {/* Update-available dot — rides the always-visible gear icon so it shows on every
+            tier (mobile included) without opening the menu. */}
+        {updateShowable && (
+          <span
+            aria-label="Update available"
+            className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-accent ring-2 ring-background"
+          />
+        )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
         {/* Current user identity — shown while resolved; hidden during pending */}
@@ -134,11 +180,42 @@ export function GearMenu({
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={onLogout}>Logout</DropdownMenuItem>
-        {version && (
+        {updateShowable ? (
           <>
             <DropdownMenuSeparator />
-            <div className="px-1.5 py-1 text-xs text-muted-foreground">v{version}</div>
+            <div className="flex items-center gap-1 px-1 py-0.5">
+              <a
+                href={versionStatus?.releaseUrl ?? undefined}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(
+                  buttonVariants({ variant: 'ghost', size: 'sm' }),
+                  'min-w-0 flex-1 justify-start text-xs text-accent hover:text-accent',
+                )}
+              >
+                <ArrowUpCircle className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">
+                  v{currentVersion} &rarr; v{versionStatus?.latest} available
+                </span>
+              </a>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                aria-label="Dismiss update reminder"
+                onClick={handleDismiss}
+                className="shrink-0 text-muted-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
           </>
+        ) : (
+          currentVersion && (
+            <>
+              <DropdownMenuSeparator />
+              <div className="px-1.5 py-1 text-xs text-muted-foreground">v{currentVersion}</div>
+            </>
+          )
         )}
       </DropdownMenuContent>
     </DropdownMenu>

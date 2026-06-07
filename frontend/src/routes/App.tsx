@@ -20,7 +20,7 @@ import { GlobalAdminPanel } from '@/components/GlobalAdminPanel';
 import { LaneColumn } from '@/components/LaneColumn';
 import { LaneOverlay } from '@/components/LaneOverlay';
 import { LoginScreen } from '@/components/LoginScreen';
-import { fetchBoards, fetchCards, fetchVersion } from '@/lib/api';
+import { fetchBoards, fetchCards, fetchVersion, fetchVersionStatus } from '@/lib/api';
 import { queryKeys } from '@/lib/query-keys';
 import { useAuth } from '@/hooks/use-auth';
 import { useBoardData } from '@/hooks/use-board-data';
@@ -67,6 +67,16 @@ export function App() {
     queryKey: queryKeys.version(),
     queryFn: fetchVersion,
     staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: true,
+  });
+
+  // #303: update status. The backend throttles the real GitHub poll, so the client polls
+  // softly — a long staleTime plus refetch-on-focus is plenty to surface a newly-available
+  // version without per-client fan-out.
+  const versionStatusQuery = useQuery({
+    queryKey: queryKeys.versionStatus(),
+    queryFn: fetchVersionStatus,
+    staleTime: 30 * 60 * 1000,
     refetchOnWindowFocus: true,
   });
 
@@ -207,6 +217,7 @@ export function App() {
         boardName={board?.name}
         isAdmin={isAdmin}
         version={versionQuery.data?.version}
+        versionStatus={versionStatusQuery.data}
         currentUserName={currentUserName}
         currentUserRole={currentUserRole}
         onNewCard={handleNewCard}
