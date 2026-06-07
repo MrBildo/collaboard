@@ -121,6 +121,17 @@ export const versionSchema = z.object({
   version: z.string(),
 });
 
+// #303: current-vs-latest update status from GET /version/status. latest/releaseUrl are null
+// until the backend's first successful poll (offline/air-gap/disabled stays null forever, the
+// honest degraded state). lastChecked is the timestamp of the last successful poll.
+export const versionStatusSchema = z.object({
+  current: z.string(),
+  latest: z.string().nullable(),
+  updateAvailable: z.boolean(),
+  releaseUrl: z.string().nullable(),
+  lastChecked: z.string().nullable(),
+});
+
 export const reorderResponseSchema = z.object({
   lanes: z.array(laneSchema),
   cards: z.array(cardItemSchema),

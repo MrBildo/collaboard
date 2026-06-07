@@ -2,7 +2,7 @@ import { BoardSwitcher } from '@/components/BoardSwitcher';
 import { GearMenu } from '@/components/GearMenu';
 import { SearchCommand } from '@/components/SearchCommand';
 import { Button } from '@/components/ui/button';
-import type { Board } from '@/types';
+import type { Board, VersionStatus } from '@/types';
 import type { Role } from '@/lib/roles';
 
 type BoardHeaderProps = {
@@ -11,6 +11,7 @@ type BoardHeaderProps = {
   boardName?: string;
   isAdmin: boolean;
   version?: string;
+  versionStatus?: VersionStatus;
   currentUserName?: string;
   currentUserRole?: Role;
   onNewCard: () => void;
@@ -25,6 +26,7 @@ export function BoardHeader({
   boardName,
   isAdmin,
   version,
+  versionStatus,
   currentUserName,
   currentUserRole,
   onNewCard,
@@ -69,6 +71,7 @@ export function BoardHeader({
         <GearMenu
           isAdmin={isAdmin}
           version={version}
+          versionStatus={versionStatus}
           currentUserName={currentUserName}
           currentUserRole={currentUserRole}
           onNewCard={onNewCard}

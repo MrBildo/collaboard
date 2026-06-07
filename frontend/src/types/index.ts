@@ -19,6 +19,7 @@ import type {
   pruneResponseSchema,
   searchResultSchema,
   runtimeConfigSchema,
+  versionStatusSchema,
 } from '@/lib/schemas';
 
 export type Board = z.infer<typeof boardSchema>;
@@ -35,6 +36,7 @@ export type BoardData = z.infer<typeof boardDataSchema>;
 export type PagedCardSummary = z.infer<typeof pagedCardSummarySchema>;
 export type UserDirectoryEntry = z.infer<typeof userDirectoryEntrySchema>;
 export type AuthMe = z.infer<typeof authMeSchema>;
+export type VersionStatus = z.infer<typeof versionStatusSchema>;
 
 export type UpdateBoardPatch = { name?: string };
 export type UpdateCardPatch = {

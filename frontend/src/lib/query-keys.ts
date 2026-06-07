@@ -32,4 +32,5 @@ export const queryKeys = {
       ['search', 'cards', q, boardId, archiveBoardId] as const,
   },
   version: () => ['version'] as const,
+  versionStatus: () => ['version', 'status'] as const,
 } as const;

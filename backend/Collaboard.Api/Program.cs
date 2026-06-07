@@ -6,6 +6,7 @@ using Collaboard.Api.Configuration;
 using Collaboard.Api.Endpoints;
 using Collaboard.Api.Events;
 using Collaboard.Api.Hosting;
+using Collaboard.Api.Hosting.UpdateCheck;
 using Collaboard.Api.Installation;
 using Collaboard.Api.Mcp;
 using Collaboard.Api.Models;
@@ -173,6 +174,32 @@ builder.Services.AddSingleton<BoardEventBroadcaster>();
 builder.Services.AddScoped<IUserResolver, UserResolver>();
 builder.Services.AddScoped<McpAuthService>();
 builder.Services.AddHostedService<TempCardSweepService>();
+
+// Update check (#303): a single backend poll of the GitHub Releases API per instance feeds a
+// server-side cache that the /version/status endpoint reads. The kill switch
+// (UpdateCheck:Enabled = false) gates the hosted service off entirely so no outbound call is
+// ever made. The cache is a singleton (shared between the writer hosted service and the reader
+// endpoint); the source is a typed HttpClient behind the ILatestVersionSource seam so the
+// GitHub dependency can be swapped without touching the endpoint or the frontend.
+builder.Services.Configure<UpdateCheckSettings>(builder.Configuration.GetSection(UpdateCheckSettings.SectionName));
+builder.Services.AddSingleton<VersionStatusCache>();
+builder.Services
+    .AddHttpClient<ILatestVersionSource, GitHubReleaseVersionSource>(client =>
+    {
+        // The unauthenticated GitHub REST API requires a User-Agent and an explicit API
+        // version header. The client owns its own short timeout so a slow GitHub never holds
+        // up the poll loop (the timer cadence, not retries, governs re-checks).
+        // api.github.com is the fixed egress target; the mirror/Source seam is deferred to
+        // spec §4 A2. S1075 is suppressed here because the URL is deliberate and correct.
+#pragma warning disable S1075 // URIs should not be hardcoded
+        client.BaseAddress = new Uri("https://api.github.com/");
+#pragma warning restore S1075
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("Collaboard-UpdateCheck");
+        client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+        client.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28");
+        client.Timeout = TimeSpan.FromSeconds(10);
+    });
+builder.Services.AddHostedService<UpdateCheckService>();
 
 // The request-body limits must track the configured REST upload cap — Kestrel and
 // FormOptions reject oversize bodies with a 413 before the endpoint's friendlier 400
@@ -362,6 +389,18 @@ api.MapGet("/version", (HttpContext context) =>
         ?? "0.0.0";
     var version = raw.Split('+')[0];
     return Results.Ok(new { version });
+});
+
+// #303: current-vs-latest update status. Served from the server-side cache the
+// UpdateCheckService refreshes out-of-band — never blocks on a live GitHub call. Kept as a
+// separate endpoint from /version so the existing /version contract (consumed by tooling)
+// stays unchanged. Unauthenticated, consistent with /version: the running version is already
+// public in the gear menu and the releases are a public repo, so "an update is available" is
+// non-sensitive. no-store so browsers always reflect fresh server state.
+api.MapGet("/version/status", (HttpContext context, VersionStatusCache cache) =>
+{
+    context.Response.Headers.CacheControl = "no-cache, no-store";
+    return Results.Ok(cache.GetStatus());
 });
 
 api.MapBoardEndpoints();
