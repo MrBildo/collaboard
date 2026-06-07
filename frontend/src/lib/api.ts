@@ -338,6 +338,16 @@ export async function deleteSize(id: string): Promise<void> {
   await api.delete(`/sizes/${id}`);
 }
 
+// Card #306: whole-board size reorder. `sizeIds` is the complete desired
+// ascending-ordinal order of the board's sizes; the server owns all ordinal
+// math (assigns dense ordinals 0..n-1 in the order sent, see backend
+// SizeReorderHelper). Mirrors reorderLanes. Returns the sizes in their new
+// dense order.
+export async function reorderSizes(boardId: string, sizeIds: string[]): Promise<CardSize[]> {
+  const { data } = await api.post(`/boards/${boardId}/sizes/reorder`, { sizeIds });
+  return z.array(cardSizeSchema).parse(data);
+}
+
 // Labels (board-scoped admin)
 export async function createLabel(boardId: string, name: string, color?: string): Promise<Label> {
   const { data } = await api.post(`/boards/${boardId}/labels`, { name, color });

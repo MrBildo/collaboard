@@ -1,33 +1,82 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { DndContext, DragOverlay, closestCenter } from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import {
-  EditableListContainer,
-  EditableListRow,
-  EditFormActions,
-  ItemActions,
-} from '@/components/editable-list';
+import { EditableListContainer, EditFormActions, ItemActions } from '@/components/editable-list';
 import { useEditableList } from '@/hooks/use-editable-list';
+import { useSizesReorder } from '@/hooks/use-sizes-reorder';
 import { createSize, deleteSize, fetchSizes, updateSize } from '@/lib/api';
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
-import type { UpdateSizePatch } from '@/types';
+import { cn } from '@/lib/utils';
+import type { CardSize, UpdateSizePatch } from '@/types';
 
 type SizesTabProps = {
   boardId: string;
 };
 
+// A draggable size row. The drag handle (GripVertical) carries the dnd-kit
+// listeners; the rest of the row keeps its edit/delete affordances. While a row
+// is in edit mode the handle is disabled so a name-edit drag can't fire. The
+// handle sets `touch-action: none` so a touch-press on it yields the gesture to
+// the drag (TouchSensor delay) instead of scrolling the dialog panel (#306).
+type SortableSizeRowProps = {
+  size: CardSize;
+  isEditing: boolean;
+  children: ReactNode;
+};
+
+function SortableSizeRow({ size, isEditing, children }: SortableSizeRowProps) {
+  const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({
+    id: size.id,
+    disabled: isEditing,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'flex items-center gap-1 bg-card px-2 py-3 transition-colors hover:bg-muted/50',
+        isDragging && 'opacity-50',
+      )}
+    >
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        aria-label={`Reorder ${size.name}`}
+        disabled={isEditing}
+        // size-11 (44px) overrides the icon size's 32px so the handle is a
+        // finger-sized touch target (#306 is the mobile path); touch-none yields
+        // the gesture to the TouchSensor drag instead of scrolling the panel.
+        className="size-11 shrink-0 cursor-grab touch-none text-muted-foreground active:cursor-grabbing disabled:opacity-30"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="h-4 w-4" />
+      </Button>
+      <div className="flex flex-1 items-center justify-between gap-2">{children}</div>
+    </div>
+  );
+}
+
 export function SizesTab({ boardId }: SizesTabProps) {
   const queryClient = useQueryClient();
   const nameInputRef = useRef<HTMLInputElement>(null);
   const [newName, setNewName] = useState('');
-  const [newOrdinal, setNewOrdinal] = useState('');
   const [editName, setEditName] = useState('');
-  const [editOrdinal, setEditOrdinal] = useState('');
   const list = useEditableList();
 
   const sizesQuery = useQuery({
@@ -44,21 +93,19 @@ export function SizesTab({ boardId }: SizesTabProps) {
   // Admin-tab mutations are inline tier (card #203, spec §2d) — failures surface
   // inline via `list.setDeleteError` → <EditableListContainer>. skipToast keeps
   // the floor quiet; the call site owns the surface.
+  // Ordinal is server-managed now (drag the grip handle to reorder — #306, F2);
+  // a new size is appended at the end (max ordinal + 1). Drag it into place after
+  // creating.
   const createMutation = useMutation({
     meta: { skipToast: true },
     mutationFn: () => {
       const sizes = sizesQuery.data ?? [];
-      const ord = newOrdinal
-        ? parseInt(newOrdinal, 10)
-        : sizes.length > 0
-          ? Math.max(...sizes.map((s) => s.ordinal)) + 1
-          : 0;
+      const ord = sizes.length > 0 ? Math.max(...sizes.map((s) => s.ordinal)) + 1 : 0;
       return createSize(boardId, newName.trim(), ord);
     },
     onSuccess: () => {
       invalidate();
       setNewName('');
-      setNewOrdinal('');
       setTimeout(() => nameInputRef.current?.focus(), 0);
     },
     onError: (err) => {
@@ -90,25 +137,27 @@ export function SizesTab({ boardId }: SizesTabProps) {
     },
   });
 
+  const sizes = sizesQuery.data ?? [];
+  const reorder = useSizesReorder(boardId, sizes);
+  const orderedSizes = reorder.localSizes;
+  const activeSize = orderedSizes.find((s) => s.id === reorder.activeSizeId) ?? null;
+
   const handleCreate = () => {
     if (!newName.trim()) return;
     createMutation.mutate();
   };
 
-  const startEdit = (id: string, name: string, ordinal: number) => {
+  const startEdit = (id: string, name: string) => {
     list.startEdit(id);
     setEditName(name);
-    setEditOrdinal(String(ordinal));
   };
 
   const saveEdit = () => {
     if (!list.editingId) return;
     const patch: UpdateSizePatch = {};
-    const size = sizesQuery.data?.find((s) => s.id === list.editingId);
+    const size = sizes.find((s) => s.id === list.editingId);
     if (!size) return;
     if (editName.trim() !== size.name) patch.name = editName.trim();
-    const ord = parseInt(editOrdinal, 10);
-    if (!isNaN(ord) && ord !== size.ordinal) patch.ordinal = ord;
     if (Object.keys(patch).length > 0) {
       updateMutation.mutate({ id: list.editingId, patch });
     } else {
@@ -124,61 +173,82 @@ export function SizesTab({ boardId }: SizesTabProps) {
     }
   };
 
-  const sizes = sizesQuery.data ?? [];
+  const renderRowContent = (size: CardSize): ReactNode =>
+    list.editingId === size.id ? (
+      <>
+        <div className="flex flex-1 items-center gap-2">
+          <Input
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            maxLength={20}
+            className="h-7"
+            placeholder="Size name"
+          />
+        </div>
+        <EditFormActions
+          onSave={saveEdit}
+          onCancel={list.cancelEdit}
+          isPending={updateMutation.isPending}
+        />
+      </>
+    ) : (
+      <>
+        <div className="flex items-center gap-3">
+          <span className="font-medium">{size.name}</span>
+        </div>
+        <ItemActions
+          isConfirmingDelete={list.confirmDeleteId === size.id}
+          isDeleting={deleteMutation.isPending}
+          onEdit={() => startEdit(size.id, size.name)}
+          onDelete={() => handleDelete(size.id)}
+        />
+      </>
+    );
 
   return (
     <div className="flex flex-col gap-4">
       <EditableListContainer error={list.deleteError}>
-        {sizes.map((size) => (
-          <EditableListRow key={size.id}>
-            {list.editingId === size.id ? (
-              <>
-                <div className="flex flex-1 items-center gap-2">
-                  <Input
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    maxLength={20}
-                    className="h-7"
-                    placeholder="Size name"
-                  />
-                  <Input
-                    type="number"
-                    value={editOrdinal}
-                    onChange={(e) => setEditOrdinal(e.target.value)}
-                    className="h-7 w-20"
-                    placeholder="Ordinal"
-                  />
-                </div>
-                <EditFormActions
-                  onSave={saveEdit}
-                  onCancel={list.cancelEdit}
-                  isPending={updateMutation.isPending}
-                />
-              </>
-            ) : (
-              <>
-                <div className="flex items-center gap-3">
-                  <span className="font-medium">{size.name}</span>
-                  <Badge variant="secondary">ord {size.ordinal}</Badge>
-                </div>
-                <ItemActions
-                  isConfirmingDelete={list.confirmDeleteId === size.id}
-                  isDeleting={deleteMutation.isPending}
-                  onEdit={() => startEdit(size.id, size.name, size.ordinal)}
-                  onDelete={() => handleDelete(size.id)}
-                />
-              </>
-            )}
-          </EditableListRow>
-        ))}
+        <DndContext
+          sensors={reorder.sensors}
+          collisionDetection={closestCenter}
+          onDragStart={reorder.onDragStart}
+          onDragOver={reorder.onDragOver}
+          onDragEnd={reorder.onDragEnd}
+        >
+          <SortableContext
+            items={orderedSizes.map((s) => s.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="flex flex-col divide-y divide-border">
+              {orderedSizes.map((size) => (
+                <SortableSizeRow key={size.id} size={size} isEditing={list.editingId === size.id}>
+                  {renderRowContent(size)}
+                </SortableSizeRow>
+              ))}
+            </div>
+          </SortableContext>
+          <DragOverlay>
+            {activeSize ? (
+              <div className="flex items-center gap-1 rounded-lg border bg-card px-2 py-3 shadow-lg">
+                <span className="flex size-11 shrink-0 items-center justify-center text-muted-foreground">
+                  <GripVertical className="h-4 w-4" />
+                </span>
+                <span className="font-medium">{activeSize.name}</span>
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       </EditableListContainer>
 
       <Separator />
 
       <div>
-        <h3 className="mb-3 text-sm font-medium">Add Size</h3>
+        <h3 className="mb-1 text-sm font-medium">Add Size</h3>
+        <p className="mb-3 text-xs text-muted-foreground">
+          New sizes are added at the end. Drag the grip handle to reorder.
+        </p>
         <div className="flex items-end gap-2">
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-1 flex-col gap-1.5">
             <Label htmlFor="size-name">Name</Label>
             <Input
               ref={nameInputRef}
@@ -190,20 +260,6 @@ export function SizesTab({ boardId }: SizesTabProps) {
               }}
               maxLength={20}
               placeholder="e.g. XXL"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="size-ordinal">Ordinal</Label>
-            <Input
-              id="size-ordinal"
-              type="number"
-              value={newOrdinal}
-              onChange={(e) => setNewOrdinal(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleCreate();
-              }}
-              placeholder="Auto"
-              className="w-20"
             />
           </div>
           <Button
