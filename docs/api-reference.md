@@ -77,4 +77,4 @@ Search supports:
 
 | Path | Notes |
 |------|-------|
-| /mcp | Streamable HTTP transport — 38 tools (boards, cards, lanes, sizes, labels, comments, attachments, archive, bulk operations, search, prune) |
+| /mcp | Streamable HTTP transport — 39 tools (boards, cards, lanes, sizes, labels, comments, attachments, archive, bulk operations, search, prune) |
