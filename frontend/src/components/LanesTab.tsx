@@ -1,24 +1,76 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { DndContext, DragOverlay, closestCenter } from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import {
-  EditableListContainer,
-  EditableListRow,
-  EditFormActions,
-  ItemActions,
-} from '@/components/editable-list';
+import { EditableListContainer, EditFormActions, ItemActions } from '@/components/editable-list';
 import { useEditableList } from '@/hooks/use-editable-list';
+import { useLanesReorder } from '@/hooks/use-lanes-reorder';
 import { createLane, deleteLane, fetchLanes, updateLane } from '@/lib/api';
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
-import type { UpdateLanePatch } from '@/types';
+import { cn } from '@/lib/utils';
+import type { Lane, UpdateLanePatch } from '@/types';
 
 type LanesTabProps = {
   boardId: string;
 };
+
+// A draggable lane row. The drag handle (GripVertical) carries the dnd-kit
+// listeners; the rest of the row keeps its edit/delete affordances. While a row
+// is in edit mode the handle is disabled so a name-edit drag can't fire. The
+// handle sets `touch-action: none` so a touch-press on it yields the gesture to
+// the drag (TouchSensor delay) instead of scrolling the dialog panel (#305).
+type SortableLaneRowProps = {
+  lane: Lane;
+  isEditing: boolean;
+  children: ReactNode;
+};
+
+function SortableLaneRow({ lane, isEditing, children }: SortableLaneRowProps) {
+  const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({
+    id: lane.id,
+    disabled: isEditing,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'flex items-center gap-1 bg-card px-2 py-3 transition-colors hover:bg-muted/50',
+        isDragging && 'opacity-50',
+      )}
+    >
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        aria-label={`Reorder ${lane.name}`}
+        disabled={isEditing}
+        // size-11 (44px) overrides the icon size's 32px so the handle is a
+        // finger-sized touch target (#305 is the mobile path); touch-none yields
+        // the gesture to the TouchSensor drag instead of scrolling the panel.
+        className="size-11 shrink-0 cursor-grab touch-none text-muted-foreground active:cursor-grabbing disabled:opacity-30"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="h-4 w-4" />
+      </Button>
+      <div className="flex flex-1 items-center justify-between gap-2">{children}</div>
+    </div>
+  );
+}
 
 export function LanesTab({ boardId }: LanesTabProps) {
   const queryClient = useQueryClient();
@@ -42,8 +94,9 @@ export function LanesTab({ boardId }: LanesTabProps) {
   // looking at the list, so create/update/delete failures surface inline via
   // `list.setDeleteError` → <EditableListContainer>. skipToast keeps the floor
   // quiet; the call site owns the surface.
-  // Reordering now lives on the board (drag a lane header — #278); a new lane is
-  // appended at the end (max position + 1). Drag it into place after creating.
+  // Reordering is available here (drag the grip handle — #305) and on the board
+  // (drag a lane header — #278); a new lane is appended at the end (max
+  // position + 1). Drag it into place after creating.
   const createMutation = useMutation({
     meta: { skipToast: true },
     mutationFn: () => {
@@ -85,6 +138,11 @@ export function LanesTab({ boardId }: LanesTabProps) {
     },
   });
 
+  const lanes = lanesQuery.data ?? [];
+  const reorder = useLanesReorder(boardId, lanes);
+  const orderedLanes = reorder.localLanes;
+  const activeLane = orderedLanes.find((l) => l.id === reorder.activeLaneId) ?? null;
+
   const handleCreate = () => {
     if (!newName.trim()) return;
     createMutation.mutate();
@@ -98,7 +156,7 @@ export function LanesTab({ boardId }: LanesTabProps) {
   const saveEdit = () => {
     if (!list.editingId) return;
     const patch: UpdateLanePatch = {};
-    const lane = lanesQuery.data?.find((l) => l.id === list.editingId);
+    const lane = lanes.find((l) => l.id === list.editingId);
     if (!lane) return;
     if (editName.trim() !== lane.name) patch.name = editName.trim();
     if (Object.keys(patch).length > 0) {
@@ -116,45 +174,71 @@ export function LanesTab({ boardId }: LanesTabProps) {
     }
   };
 
-  const lanes = lanesQuery.data ?? [];
+  const renderRowContent = (lane: Lane): ReactNode =>
+    list.editingId === lane.id ? (
+      <>
+        <div className="flex flex-1 items-center gap-2">
+          <Input
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            maxLength={40}
+            className="h-7"
+            placeholder="Lane name"
+          />
+        </div>
+        <EditFormActions
+          onSave={saveEdit}
+          onCancel={list.cancelEdit}
+          isPending={updateMutation.isPending}
+        />
+      </>
+    ) : (
+      <>
+        <div className="flex items-center gap-3">
+          <span className="font-medium">{lane.name}</span>
+        </div>
+        <ItemActions
+          isConfirmingDelete={list.confirmDeleteId === lane.id}
+          isDeleting={deleteMutation.isPending}
+          onEdit={() => startEdit(lane.id, lane.name)}
+          onDelete={() => handleDelete(lane.id)}
+        />
+      </>
+    );
 
   return (
     <div className="flex flex-col gap-4">
       <EditableListContainer error={list.deleteError}>
-        {lanes.map((lane) => (
-          <EditableListRow key={lane.id}>
-            {list.editingId === lane.id ? (
-              <>
-                <div className="flex flex-1 items-center gap-2">
-                  <Input
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    maxLength={40}
-                    className="h-7"
-                    placeholder="Lane name"
-                  />
-                </div>
-                <EditFormActions
-                  onSave={saveEdit}
-                  onCancel={list.cancelEdit}
-                  isPending={updateMutation.isPending}
-                />
-              </>
-            ) : (
-              <>
-                <div className="flex items-center gap-3">
-                  <span className="font-medium">{lane.name}</span>
-                </div>
-                <ItemActions
-                  isConfirmingDelete={list.confirmDeleteId === lane.id}
-                  isDeleting={deleteMutation.isPending}
-                  onEdit={() => startEdit(lane.id, lane.name)}
-                  onDelete={() => handleDelete(lane.id)}
-                />
-              </>
-            )}
-          </EditableListRow>
-        ))}
+        <DndContext
+          sensors={reorder.sensors}
+          collisionDetection={closestCenter}
+          onDragStart={reorder.onDragStart}
+          onDragOver={reorder.onDragOver}
+          onDragEnd={reorder.onDragEnd}
+        >
+          <SortableContext
+            items={orderedLanes.map((l) => l.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="flex flex-col divide-y divide-border">
+              {orderedLanes.map((lane) => (
+                <SortableLaneRow key={lane.id} lane={lane} isEditing={list.editingId === lane.id}>
+                  {renderRowContent(lane)}
+                </SortableLaneRow>
+              ))}
+            </div>
+          </SortableContext>
+          <DragOverlay>
+            {activeLane ? (
+              <div className="flex items-center gap-1 rounded-lg border bg-card px-2 py-3 shadow-lg">
+                <span className="flex size-11 shrink-0 items-center justify-center text-muted-foreground">
+                  <GripVertical className="h-4 w-4" />
+                </span>
+                <span className="font-medium">{activeLane.name}</span>
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       </EditableListContainer>
 
       <Separator />
@@ -162,7 +246,7 @@ export function LanesTab({ boardId }: LanesTabProps) {
       <div>
         <h3 className="mb-1 text-sm font-medium">Add Lane</h3>
         <p className="mb-3 text-xs text-muted-foreground">
-          New lanes are added at the end. Drag a lane header on the board to reorder.
+          New lanes are added at the end. Drag the grip handle to reorder.
         </p>
         <div className="flex items-end gap-2">
           <div className="flex flex-1 flex-col gap-1.5">
