@@ -20,7 +20,7 @@ type AdminPanelProps = {
 export function AdminPanel({ boardId, open, onOpenChange }: AdminPanelProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col overflow-hidden p-6">
+      <DialogContent className="sm:max-w-3xl h-[85vh] flex flex-col overflow-hidden p-6">
         <DialogHeader>
           <DialogTitle>Board Configuration</DialogTitle>
           <DialogDescription>
@@ -36,16 +36,16 @@ export function AdminPanel({ boardId, open, onOpenChange }: AdminPanelProps) {
             <TabsTrigger value="prune">Prune</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="lanes" className="overflow-y-auto p-1">
+          <TabsContent value="lanes" keepMounted className="overflow-y-auto p-1">
             <LanesTab boardId={boardId} />
           </TabsContent>
-          <TabsContent value="sizes" className="overflow-y-auto p-1">
+          <TabsContent value="sizes" keepMounted className="overflow-y-auto p-1">
             <SizesTab boardId={boardId} />
           </TabsContent>
-          <TabsContent value="labels" className="overflow-y-auto p-1">
+          <TabsContent value="labels" keepMounted className="overflow-y-auto p-1">
             <LabelsTab boardId={boardId} />
           </TabsContent>
-          <TabsContent value="prune" className="overflow-y-auto p-1">
+          <TabsContent value="prune" keepMounted className="overflow-y-auto p-1">
             <PruneTab boardId={boardId} />
           </TabsContent>
         </Tabs>
