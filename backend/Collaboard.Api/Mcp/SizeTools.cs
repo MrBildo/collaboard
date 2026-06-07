@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
+using Collaboard.Api.Endpoints;
 using Collaboard.Api.Events;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +11,7 @@ namespace Collaboard.Api.Mcp;
 // Card #243 Phase 3: admin-level MCP tools for card-size CRUD. Mirrors the REST
 // surface in SizeEndpoints.cs (POST /boards/{boardId}/sizes, PATCH /sizes/{id},
 // DELETE /sizes/{id}). All three gate via RequireAdminLevelAsync.
+// Card #308: reorder_sizes added, mirroring reorder_lanes (#277).
 [McpServerToolType]
 public sealed class SizeTools(BoardDbContext db, McpAuthService auth, BoardEventBroadcaster broadcaster)
 {
@@ -133,5 +135,49 @@ public sealed class SizeTools(BoardDbContext db, McpAuthService auth, BoardEvent
         await db.SaveChangesAsync(ct);
         broadcaster.PublishBoardUpdated(boardId);
         return "Size deleted.";
+    }
+
+    [McpServerTool(Name = "reorder_sizes", Destructive = false)]
+    [Description("Reorder all of a board's sizes in one call. Requires Administrator or AgentAdministrator role. Pass orderedSizeIds as a CSV of size GUIDs giving the complete desired order — it must be exactly the board's current size set (no missing, extra, duplicate, or unknown ids), else the call fails loud with no changes. The server assigns dense ordinals 0,1,2,… in that order. Returns the reordered sizes.")]
+    public async Task<string> ReorderSizesAsync
+    (
+        [Description("Your auth key")] string authKey,
+        [Description("The board ID whose sizes to reorder")] Guid boardId,
+        [Description("CSV of size GUIDs in the complete desired order")] string orderedSizeIds,
+        CancellationToken ct = default
+    )
+    {
+        var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
+        if (error is not null)
+        {
+            return error;
+        }
+
+        if (!await db.Boards.AnyAsync(b => b.Id == boardId, ct))
+        {
+            return "Error: Board not found.";
+        }
+
+        var parts = (orderedSizeIds ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var ids = new Guid[parts.Length];
+        for (var i = 0; i < parts.Length; i++)
+        {
+            if (!Guid.TryParse(parts[i], out var parsed))
+            {
+                return $"Error: Invalid size ID format: '{parts[i]}'. Expected a GUID.";
+            }
+
+            ids[i] = parsed;
+        }
+
+        var (sizes, validationError) = await SizeReorderHelper.ValidateAsync(db, boardId, ids, ct);
+        if (validationError is not null)
+        {
+            return $"Error: {validationError}";
+        }
+
+        var ordered = await SizeReorderHelper.ReorderAsync(db, sizes!, ids, ct);
+        broadcaster.PublishBoardUpdated(boardId);
+        return JsonSerializer.Serialize(ordered, JsonSerializerOptions.Web);
     }
 }

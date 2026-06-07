@@ -21,7 +21,8 @@ public class McpTransportSmokeTests(CollaboardApiFactory factory) : IClassFixtur
     // trips it. Adding a tool is expected to bump this by hand — that one-line edit is the intended
     // signal. #269 added update_comment (CommentTools) and search_cards (SearchTools): 35 -> 37.
     // #277 added reorder_lanes (LaneTools): 37 -> 38.
-    private const int _expectedToolCount = 38;
+    // #308 added reorder_sizes (SizeTools): 38 -> 39.
+    private const int _expectedToolCount = 39;
 
     private readonly CollaboardApiFactory _factory = factory;
 
