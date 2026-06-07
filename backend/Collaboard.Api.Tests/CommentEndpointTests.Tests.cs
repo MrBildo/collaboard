@@ -115,6 +115,34 @@ public class CommentEndpointTests(CollaboardApiFactory factory) : IClassFixture<
     }
 
     [Fact]
+    public async Task PatchComment_OtherUser_AsAgentAdministrator_Returns200()
+    {
+        // Arrange — proves card #275: AgentAdministrator can edit another user's comment
+        // over REST (previously only Administrator was admitted; MCP update_comment was
+        // already own-or-admin-level via McpAuthService.IsAdminLevel).
+        var cardId = await CreateCardAsync();
+        var author = await TestAuthHelper.CreateUserAsync(_client, _factory, "Patch Comment Author AA", UserRole.HumanUser);
+        TestAuthHelper.SetAuth(_client, author.AuthKey);
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "Author's comment" });
+        createResponse.EnsureSuccessStatusCode();
+        var comment = await createResponse.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
+        var commentId = comment.GetProperty("id").GetGuid();
+
+        var agentAdmin = await TestAuthHelper.CreateUserAsync(_client, _factory, "AgentAdmin Patch User", UserRole.AgentAdministrator);
+        TestAuthHelper.SetAuth(_client, agentAdmin.AuthKey);
+
+        // Act
+        var response = await _client.PatchAsJsonAsync($"/api/v1/comments/{commentId}", new { contentMarkdown = "Agent admin edited" });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var updated = await response.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
+        updated.GetProperty("contentMarkdown").GetString().ShouldBe("Agent admin edited");
+    }
+
+    [Fact]
     public async Task PatchComment_OtherUser_AsNonAdmin_Returns403()
     {
         // Arrange
