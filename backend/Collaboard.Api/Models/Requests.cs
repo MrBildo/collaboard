@@ -41,6 +41,8 @@ public record ReorderLanesRequest(Guid[]? LaneIds);
 // Size requests
 public record UpdateSizeRequest(string? Name, int? Ordinal);
 
+public record ReorderSizesRequest(Guid[]? SizeIds);
+
 // Archive requests
 public record RestoreCardRequest(Guid LaneId);
 
