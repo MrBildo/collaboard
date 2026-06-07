@@ -187,39 +187,57 @@ export function CardDetailSheet({
           style={{ overflow: 'visible' }}
         >
           {/* Floating nav buttons — desktop only, positioned outside the dialog.
-              The hit target is a square <Button> (no border-radius); the round
-              appearance lives on an inner <span>. A circular border-radius clips
-              pointer hit-testing, so a fully-rounded button drops clicks in its
-              four corners — they fall through to the dialog overlay behind and
-              never navigate (card #302). Keeping the button rectangular makes the
-              whole bounding box clickable while preserving the round look. */}
+              Two distinct pointer-hit hazards are guarded here (card #302):
+
+              1. Press-feedback transform clobber (the operative bug). The base
+                 Button carries `active:translate-y-px`, which sets the WHOLE CSS
+                 `transform` property on press — clobbering, not composing with, any
+                 positioning transform on the same element. When the button itself
+                 owned `-translate-y-1/2` for vertical centering, pressing it
+                 replaced `translateY(-16px)` with `translateY(1px)` and the button
+                 leapt ~17px downward mid-press. The pointer-up then landed on the
+                 dialog overlay behind, so the `click` (and the navigation) never
+                 fired — the press animation played but the card never changed. Fix:
+                 the centering lives on the wrapper; the Button is an in-flow child
+                 whose transform is free for `active:translate-y-px` to use without
+                 moving the button out from under the pointer.
+
+              2. Rounded-corner hit fall-through. The hit target is a square
+                 <Button> (`rounded-none`); the round appearance lives on an inner
+                 <span>. A circular border-radius clips pointer hit-testing, so a
+                 fully-rounded button drops clicks in its four corners. Keeping the
+                 button rectangular makes the whole bounding box clickable. */}
           {prevCard && (
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => handleNavigate('prev')}
-              onPointerDown={(e) => e.stopPropagation()}
-              className="absolute top-1/2 -left-14 z-50 hidden -translate-y-1/2 rounded-none border-transparent bg-transparent p-0 shadow-none hover:bg-transparent md:flex"
-              aria-label="Previous card"
-            >
-              <span className="flex size-8 items-center justify-center rounded-full border border-border bg-background shadow-lg transition-colors group-hover/button:bg-muted">
-                <ChevronLeft className="h-5 w-5" />
-              </span>
-            </Button>
+            <div className="absolute top-1/2 -left-14 z-50 hidden -translate-y-1/2 md:block">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleNavigate('prev')}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="flex rounded-none border-transparent bg-transparent p-0 shadow-none hover:bg-transparent"
+                aria-label="Previous card"
+              >
+                <span className="flex size-8 items-center justify-center rounded-full border border-border bg-background shadow-lg transition-colors group-hover/button:bg-muted">
+                  <ChevronLeft className="h-5 w-5" />
+                </span>
+              </Button>
+            </div>
           )}
           {nextCard && (
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => handleNavigate('next')}
-              onPointerDown={(e) => e.stopPropagation()}
-              className="absolute top-1/2 -right-14 z-50 hidden -translate-y-1/2 rounded-none border-transparent bg-transparent p-0 shadow-none hover:bg-transparent md:flex"
-              aria-label="Next card"
-            >
-              <span className="flex size-8 items-center justify-center rounded-full border border-border bg-background shadow-lg transition-colors group-hover/button:bg-muted">
-                <ChevronRight className="h-5 w-5" />
-              </span>
-            </Button>
+            <div className="absolute top-1/2 -right-14 z-50 hidden -translate-y-1/2 md:block">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleNavigate('next')}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="flex rounded-none border-transparent bg-transparent p-0 shadow-none hover:bg-transparent"
+                aria-label="Next card"
+              >
+                <span className="flex size-8 items-center justify-center rounded-full border border-border bg-background shadow-lg transition-colors group-hover/button:bg-muted">
+                  <ChevronRight className="h-5 w-5" />
+                </span>
+              </Button>
+            </div>
           )}
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <CardDetailForm
