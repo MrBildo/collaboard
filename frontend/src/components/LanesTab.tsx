@@ -207,43 +207,46 @@ export function LanesTab({ boardId }: LanesTabProps) {
     );
 
   return (
-    <div className="flex flex-col gap-4">
-      <EditableListContainer error={list.deleteError}>
-        <DndContext
-          sensors={reorder.sensors}
-          collisionDetection={closestCenter}
-          onDragStart={reorder.onDragStart}
-          onDragOver={reorder.onDragOver}
-          onDragEnd={reorder.onDragEnd}
-        >
-          <SortableContext
-            items={orderedLanes.map((l) => l.id)}
-            strategy={verticalListSortingStrategy}
+    <div className="flex h-full min-h-0 flex-col gap-4">
+      {/* Scroll zone — fills remaining height, scrolls internally on long lists. */}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <EditableListContainer error={list.deleteError}>
+          <DndContext
+            sensors={reorder.sensors}
+            collisionDetection={closestCenter}
+            onDragStart={reorder.onDragStart}
+            onDragOver={reorder.onDragOver}
+            onDragEnd={reorder.onDragEnd}
           >
-            <div className="flex flex-col divide-y divide-border">
-              {orderedLanes.map((lane) => (
-                <SortableLaneRow key={lane.id} lane={lane} isEditing={list.editingId === lane.id}>
-                  {renderRowContent(lane)}
-                </SortableLaneRow>
-              ))}
-            </div>
-          </SortableContext>
-          <DragOverlay>
-            {activeLane ? (
-              <div className="flex items-center gap-1 rounded-lg border bg-card px-2 py-3 shadow-lg">
-                <span className="flex size-11 shrink-0 items-center justify-center text-muted-foreground">
-                  <GripVertical className="h-4 w-4" />
-                </span>
-                <span className="font-medium">{activeLane.name}</span>
+            <SortableContext
+              items={orderedLanes.map((l) => l.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="flex flex-col divide-y divide-border">
+                {orderedLanes.map((lane) => (
+                  <SortableLaneRow key={lane.id} lane={lane} isEditing={list.editingId === lane.id}>
+                    {renderRowContent(lane)}
+                  </SortableLaneRow>
+                ))}
               </div>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
-      </EditableListContainer>
+            </SortableContext>
+            <DragOverlay>
+              {activeLane ? (
+                <div className="flex items-center gap-1 rounded-lg border bg-card px-2 py-3 shadow-lg">
+                  <span className="flex size-11 shrink-0 items-center justify-center text-muted-foreground">
+                    <GripVertical className="h-4 w-4" />
+                  </span>
+                  <span className="font-medium">{activeLane.name}</span>
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        </EditableListContainer>
+      </div>
 
-      <Separator />
-
-      <div>
+      {/* Pinned footer — never scrolls; the Add form stays reachable (#310). */}
+      <div className="shrink-0">
+        <Separator className="mb-4" />
         <h3 className="mb-1 text-sm font-medium">Add Lane</h3>
         <p className="mb-3 text-xs text-muted-foreground">
           New lanes are added at the end. Drag the grip handle to reorder.

@@ -118,12 +118,18 @@ export function GearMenu({
           />
         )}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
+      <DropdownMenuContent
+        align="end"
+        className="min-w-[16.25rem] max-w-[min(20rem,calc(100vw-1.5rem))]"
+      >
         {/* Current user identity — shown while resolved; hidden during pending */}
         {currentUserName !== undefined && currentUserRole !== undefined && (
           <>
             <div className="flex items-center gap-2 px-2 py-1.5">
-              <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+              <span
+                className="min-w-0 flex-1 truncate text-sm font-medium text-foreground"
+                title={currentUserName}
+              >
                 {currentUserName}
               </span>
               <Badge

@@ -116,67 +116,70 @@ export function LabelsTab({ boardId }: LabelsTabProps) {
   const labels = labelsQuery.data ?? [];
 
   return (
-    <div className="flex flex-col gap-4">
-      {!labelsQuery.isLoading && labels.length === 0 && (
-        // Empty labels (card #292, spec §3.1): teach what labels are before the
-        // Add form below, instead of rendering a blank list area. Self-disposing
-        // — gone the moment the first label exists. Description-only (no action):
-        // the Add form is right below, so the affordance is already in view.
-        <EmptyState
-          icon={Tags}
-          title="No labels yet"
-          description="Labels tag cards by type (Bug, Feature, Chore). Add your first below."
-        />
-      )}
-      <EditableListContainer error={list.deleteError}>
-        {labels.map((label) => (
-          <EditableListRow key={label.id}>
-            {list.editingId === label.id ? (
-              <>
-                <div className="flex flex-1 items-center gap-2">
-                  <LabelColorPicker
-                    value={editColor}
-                    onValueChange={setEditColor}
-                    className="h-7 w-7"
+    <div className="flex h-full min-h-0 flex-col gap-4">
+      {/* Scroll zone — fills remaining height, scrolls internally on long lists. */}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {!labelsQuery.isLoading && labels.length === 0 && (
+          // Empty labels (card #292, spec §3.1): teach what labels are before the
+          // Add form below, instead of rendering a blank list area. Self-disposing
+          // — gone the moment the first label exists. Description-only (no action):
+          // the Add form is right below, so the affordance is already in view.
+          <EmptyState
+            icon={Tags}
+            title="No labels yet"
+            description="Labels tag cards by type (Bug, Feature, Chore). Add your first below."
+          />
+        )}
+        <EditableListContainer error={list.deleteError}>
+          {labels.map((label) => (
+            <EditableListRow key={label.id}>
+              {list.editingId === label.id ? (
+                <>
+                  <div className="flex flex-1 items-center gap-2">
+                    <LabelColorPicker
+                      value={editColor}
+                      onValueChange={setEditColor}
+                      className="h-7 w-7"
+                    />
+                    <Input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      maxLength={30}
+                      className="h-7"
+                      placeholder="Label name"
+                    />
+                  </div>
+                  <EditFormActions
+                    onSave={saveEdit}
+                    onCancel={list.cancelEdit}
+                    isPending={updateMutation.isPending}
                   />
-                  <Input
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    maxLength={30}
-                    className="h-7"
-                    placeholder="Label name"
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="inline-block h-4 w-4 shrink-0 rounded-full"
+                      style={{ backgroundColor: label.color ?? '#6b7280' }}
+                    />
+                    <span className="font-medium">{label.name}</span>
+                  </div>
+                  <ItemActions
+                    isConfirmingDelete={list.confirmDeleteId === label.id}
+                    isDeleting={deleteMutation.isPending}
+                    onEdit={() => startEdit(label.id, label.name, label.color)}
+                    onDelete={() => handleDelete(label.id)}
                   />
-                </div>
-                <EditFormActions
-                  onSave={saveEdit}
-                  onCancel={list.cancelEdit}
-                  isPending={updateMutation.isPending}
-                />
-              </>
-            ) : (
-              <>
-                <div className="flex items-center gap-3">
-                  <span
-                    className="inline-block h-4 w-4 shrink-0 rounded-full"
-                    style={{ backgroundColor: label.color ?? '#6b7280' }}
-                  />
-                  <span className="font-medium">{label.name}</span>
-                </div>
-                <ItemActions
-                  isConfirmingDelete={list.confirmDeleteId === label.id}
-                  isDeleting={deleteMutation.isPending}
-                  onEdit={() => startEdit(label.id, label.name, label.color)}
-                  onDelete={() => handleDelete(label.id)}
-                />
-              </>
-            )}
-          </EditableListRow>
-        ))}
-      </EditableListContainer>
+                </>
+              )}
+            </EditableListRow>
+          ))}
+        </EditableListContainer>
+      </div>
 
-      <Separator />
-
-      <div>
+      {/* Pinned footer — never scrolls; the Add form stays reachable (#310). */}
+      <div className="shrink-0">
+        <Separator className="mb-4" />
         <h3 className="mb-3 text-sm font-medium">Add Label</h3>
         <div className="flex items-end gap-2">
           <div className="flex flex-col gap-1.5">
