@@ -36,16 +36,36 @@ export function AdminPanel({ boardId, open, onOpenChange }: AdminPanelProps) {
             <TabsTrigger value="prune">Prune</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="lanes" keepMounted className="overflow-y-auto p-1">
+          {/* `data-[hidden]:hidden` lets the inactive (keepMounted) panels'
+              `display:none` win over `flex` — without it every mounted panel
+              flex-grows and the active panel collapses to a fraction of its
+              height, breaking the inner scroll (#310). */}
+          <TabsContent
+            value="lanes"
+            keepMounted
+            className="flex min-h-0 flex-col p-1 data-[hidden]:hidden"
+          >
             <LanesTab boardId={boardId} />
           </TabsContent>
-          <TabsContent value="sizes" keepMounted className="overflow-y-auto p-1">
+          <TabsContent
+            value="sizes"
+            keepMounted
+            className="flex min-h-0 flex-col p-1 data-[hidden]:hidden"
+          >
             <SizesTab boardId={boardId} />
           </TabsContent>
-          <TabsContent value="labels" keepMounted className="overflow-y-auto p-1">
+          <TabsContent
+            value="labels"
+            keepMounted
+            className="flex min-h-0 flex-col p-1 data-[hidden]:hidden"
+          >
             <LabelsTab boardId={boardId} />
           </TabsContent>
-          <TabsContent value="prune" keepMounted className="overflow-y-auto p-1">
+          <TabsContent
+            value="prune"
+            keepMounted
+            className="flex min-h-0 flex-col p-1 data-[hidden]:hidden"
+          >
             <PruneTab boardId={boardId} />
           </TabsContent>
         </Tabs>
