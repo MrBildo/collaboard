@@ -84,6 +84,11 @@ Across the top is the header:
 > On a narrow window or a phone, the **+ New Card** button, **Board Settings**, and
 > search collapse into the gear menu to save space. Everything is still reachable
 > from there.
+>
+> Drag-and-drop is a **desktop feature**. On a phone or narrow window, dragging is
+> turned off — moving cards, reordering lanes, and reordering sizes by dragging are
+> not available. Use the dropdowns in the card detail panel to move a card instead
+> (lane reordering and size reordering are desktop-only).
 
 Each lane shows its name, a count of the cards in it, and a small **+** to add a card
 directly to that lane. Each card shows its number (like `#42`), its title, any
@@ -139,13 +144,15 @@ card without closing it — handy for reviewing a lane card by card.
 
 ### Moving cards around
 
-Cards move by **drag-and-drop**:
+On a desktop, cards move by **drag-and-drop**:
 
 - **Within a lane** — drag a card up or down to reorder it.
 - **Between lanes** — drag a card into a different lane to change its status.
 
 You can also change a card's lane from inside its detail panel using the lane
-dropdown. Either way, everyone connected to the board sees the move happen live.
+dropdown. On a phone or narrow window, drag is turned off, so the lane dropdown is
+**the** way to move a card. Either way, everyone connected to the board sees the move
+happen live.
 
 ### Comments
 
@@ -318,9 +325,13 @@ or under the gear menu on smaller screens). It has four tabs:
 ![Board settings](images/board-settings.png)
 
 - **Lanes** — add a lane (new lanes appear at the end), rename it, or delete it. To
-  **reorder** lanes, drag a lane's header directly on the board. A lane must be empty
+  **reorder** lanes, drag a lane's header directly on the board, or drag the grip
+  handle in this tab. Reordering is a **desktop feature** — on a phone or narrow
+  window, dragging is turned off and lanes can't be reordered. A lane must be empty
   before it can be deleted.
-- **Sizes** — define the size options cards can use and control their order.
+- **Sizes** — define the size options cards can use and control their order. To
+  reorder sizes, drag the grip handle in this tab — also a **desktop feature**, so
+  reordering isn't available on a phone or narrow window.
 - **Labels** — create color-coded labels with a visual **color picker** (pick from a
   spectrum, type a hex value, or use the eyedropper to sample a color on screen),
   rename them, recolor them, or delete them. Deleting a label simply un-tags it from

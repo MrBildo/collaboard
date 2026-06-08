@@ -11,3 +11,22 @@ class ResizeObserverStub {
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (globalThis as any).ResizeObserver = ResizeObserverStub;
+
+// jsdom does not implement matchMedia. useIsMobile (#312, gates all drag-drop)
+// subscribes to a media query via useSyncExternalStore, so any component that
+// mounts a drag surface needs this. Default `matches: false` = desktop, which is
+// the default drag-enabled state — tests that need to assert the mobile path
+// override window.matchMedia per-test.
+if (!window.matchMedia) {
+  window.matchMedia = (query: string): MediaQueryList =>
+    ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }) as MediaQueryList;
+}
