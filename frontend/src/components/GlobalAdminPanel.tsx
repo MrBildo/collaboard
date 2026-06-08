@@ -68,7 +68,13 @@ export function GlobalAdminPanel({ open, onOpenChange }: GlobalAdminPanelProps) 
           <DialogDescription>Manage boards and users.</DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="boards" className="mt-2 flex min-h-0 flex-col gap-4">
+        {/* `flex-1` makes the Tabs fill the DialogContent flex column so the
+            pinned `shrink-0` Add footer reaches the dialog's true bottom. Without
+            it the Tabs are only as tall as their content — on a short boards/users
+            list the footer floats mid-dialog with dead space below it instead of
+            pinning (#310 UAT-4). `min-h-0` keeps the inner list's `overflow-y-auto`
+            engaging when the list is long. */}
+        <Tabs defaultValue="boards" className="mt-2 flex min-h-0 flex-1 flex-col gap-4">
           <TabsList variant="line" className="w-full justify-start gap-2 border-b pb-2">
             <TabsTrigger value="boards">Boards</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
