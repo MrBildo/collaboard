@@ -62,7 +62,7 @@ const DEFAULT_NEW_ROLE = String(ROLES.Human);
 export function GlobalAdminPanel({ open, onOpenChange }: GlobalAdminPanelProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col overflow-hidden p-6">
+      <DialogContent className="sm:max-w-3xl h-[85vh] flex flex-col overflow-hidden p-6">
         <DialogHeader>
           <DialogTitle>Admin Panel</DialogTitle>
           <DialogDescription>Manage boards and users.</DialogDescription>
@@ -74,10 +74,22 @@ export function GlobalAdminPanel({ open, onOpenChange }: GlobalAdminPanelProps) 
             <TabsTrigger value="users">Users</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="boards" className="overflow-y-auto p-1">
+          {/* `data-[hidden]:hidden` lets the inactive (keepMounted) panel's
+              `display:none` win over `flex` — without it both mounted panels
+              flex-grow and the active panel collapses, breaking the inner
+              scroll (#310). */}
+          <TabsContent
+            value="boards"
+            keepMounted
+            className="flex min-h-0 flex-col p-1 data-[hidden]:hidden"
+          >
             <BoardsTab />
           </TabsContent>
-          <TabsContent value="users" className="overflow-y-auto p-1">
+          <TabsContent
+            value="users"
+            keepMounted
+            className="flex min-h-0 flex-col p-1 data-[hidden]:hidden"
+          >
             <UsersTab />
           </TabsContent>
         </Tabs>
@@ -169,48 +181,51 @@ function BoardsTab() {
   const boards = boardsQuery.data ?? [];
 
   return (
-    <div className="flex flex-col gap-4">
-      <EditableListContainer error={list.deleteError}>
-        {boards.map((board) => (
-          <EditableListRow key={board.id}>
-            {list.editingId === board.id ? (
-              <>
-                <div className="flex flex-1 items-center gap-2">
-                  <Input
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    maxLength={80}
-                    className="h-7"
-                    placeholder="Board name"
+    <div className="flex h-full min-h-0 flex-col gap-4">
+      {/* Scroll zone — fills remaining height, scrolls internally on long lists. */}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <EditableListContainer error={list.deleteError}>
+          {boards.map((board) => (
+            <EditableListRow key={board.id}>
+              {list.editingId === board.id ? (
+                <>
+                  <div className="flex flex-1 items-center gap-2">
+                    <Input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      maxLength={80}
+                      className="h-7"
+                      placeholder="Board name"
+                    />
+                  </div>
+                  <EditFormActions
+                    onSave={saveEdit}
+                    onCancel={list.cancelEdit}
+                    isPending={updateMutation.isPending}
                   />
-                </div>
-                <EditFormActions
-                  onSave={saveEdit}
-                  onCancel={list.cancelEdit}
-                  isPending={updateMutation.isPending}
-                />
-              </>
-            ) : (
-              <>
-                <div className="flex items-center gap-3">
-                  <span className="font-medium">{board.name}</span>
-                  <Badge variant="secondary">/{board.slug}</Badge>
-                </div>
-                <ItemActions
-                  isConfirmingDelete={list.confirmDeleteId === board.id}
-                  isDeleting={deleteMutation.isPending}
-                  onEdit={() => startEdit(board.id, board.name)}
-                  onDelete={() => handleDelete(board.id)}
-                />
-              </>
-            )}
-          </EditableListRow>
-        ))}
-      </EditableListContainer>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3">
+                    <span className="font-medium">{board.name}</span>
+                    <Badge variant="secondary">/{board.slug}</Badge>
+                  </div>
+                  <ItemActions
+                    isConfirmingDelete={list.confirmDeleteId === board.id}
+                    isDeleting={deleteMutation.isPending}
+                    onEdit={() => startEdit(board.id, board.name)}
+                    onDelete={() => handleDelete(board.id)}
+                  />
+                </>
+              )}
+            </EditableListRow>
+          ))}
+        </EditableListContainer>
+      </div>
 
-      <Separator />
-
-      <div>
+      {/* Pinned footer — never scrolls; the Add form stays reachable (#310). */}
+      <div className="shrink-0">
+        <Separator className="mb-4" />
         <h3 className="mb-3 text-sm font-medium">Add Board</h3>
         <div className="flex items-end gap-2">
           <div className="flex flex-col gap-1.5">
@@ -352,108 +367,114 @@ function UsersTab() {
   const users = usersQuery.data ?? [];
 
   return (
-    <div className="flex flex-col gap-4">
-      <EditableListContainer error={editError}>
-        {users.map((user) => (
-          <EditableListRow key={user.id}>
-            {list.editingId === user.id ? (
-              <>
-                <div className="flex flex-1 items-center gap-2">
-                  <Input
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    maxLength={80}
-                    className="h-7"
-                    placeholder="Name"
-                    aria-label="User name"
+    <div className="flex h-full min-h-0 flex-col gap-4">
+      {/* Scroll zone — fills remaining height, scrolls internally on long lists. */}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <EditableListContainer error={editError}>
+          {users.map((user) => (
+            <EditableListRow key={user.id}>
+              {list.editingId === user.id ? (
+                <>
+                  <div className="flex flex-1 items-center gap-2">
+                    <Input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      maxLength={80}
+                      className="h-7"
+                      placeholder="Name"
+                      aria-label="User name"
+                    />
+                    <Select value={editRole} onValueChange={(v) => v && setEditRole(v)}>
+                      <SelectTrigger className="h-7 w-40" aria-label="User role">
+                        <SelectValue>{ROLE_MAP[parseInt(editRole, 10)] ?? editRole}</SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ROLE_OPTIONS.map(({ label, value }) => (
+                          <SelectItem key={value} value={String(value)}>
+                            {label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <EditFormActions
+                    onSave={saveEdit}
+                    onCancel={cancelEdit}
+                    isPending={updateMutation.isPending}
                   />
-                  <Select value={editRole} onValueChange={(v) => v && setEditRole(v)}>
-                    <SelectTrigger className="h-7 w-40" aria-label="User role">
-                      <SelectValue>{ROLE_MAP[parseInt(editRole, 10)] ?? editRole}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ROLE_OPTIONS.map(({ label, value }) => (
-                        <SelectItem key={value} value={String(value)}>
-                          {label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <EditFormActions
-                  onSave={saveEdit}
-                  onCancel={cancelEdit}
-                  isPending={updateMutation.isPending}
-                />
-              </>
-            ) : (
-              <>
-                <div className="flex items-center gap-3">
-                  <span className="font-medium">{user.name}</span>
-                  <Badge
-                    variant="secondary"
-                    className={
-                      user.role === ROLES.Administrator || user.role === ROLES['Agent Admin']
-                        ? 'bg-primary/15 text-primary'
-                        : user.role === ROLES.Agent
-                          ? 'bg-accent/15 text-accent'
-                          : ''
-                    }
-                  >
-                    {ROLE_MAP[user.role] ?? `Role ${user.role}`}
-                  </Badge>
-                  <Badge variant={user.isActive ? 'outline' : 'destructive'}>
-                    {user.isActive ? 'Active' : 'Inactive'}
-                  </Badge>
-                </div>
-                <div className="flex gap-1">
-                  <Button
-                    size="xs"
-                    variant="ghost"
-                    onClick={() => startEdit(user.id, user.name, user.role)}
-                    title="Edit user"
-                    aria-label={`Edit ${user.name}`}
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                  {user.isActive && (
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3">
+                    <span className="font-medium">{user.name}</span>
+                    <Badge
+                      variant="secondary"
+                      className={
+                        user.role === ROLES.Administrator || user.role === ROLES['Agent Admin']
+                          ? 'bg-primary/15 text-primary'
+                          : user.role === ROLES.Agent
+                            ? 'bg-accent/15 text-accent'
+                            : ''
+                      }
+                    >
+                      {ROLE_MAP[user.role] ?? `Role ${user.role}`}
+                    </Badge>
+                    <Badge variant={user.isActive ? 'outline' : 'destructive'}>
+                      {user.isActive ? 'Active' : 'Inactive'}
+                    </Badge>
+                  </div>
+                  <div className="flex gap-1">
                     <Button
                       size="xs"
                       variant="ghost"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => handleDeactivate(user.id)}
-                      disabled={deactivateMutation.isPending}
+                      onClick={() => startEdit(user.id, user.name, user.role)}
+                      title="Edit user"
+                      aria-label={`Edit ${user.name}`}
                     >
-                      {confirmDeactivateId === user.id ? 'Confirm' : 'Deactivate'}
+                      <Pencil className="h-3.5 w-3.5" />
                     </Button>
-                  )}
-                </div>
-              </>
-            )}
-          </EditableListRow>
-        ))}
-      </EditableListContainer>
+                    {user.isActive && (
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => handleDeactivate(user.id)}
+                        disabled={deactivateMutation.isPending}
+                      >
+                        {confirmDeactivateId === user.id ? 'Confirm' : 'Deactivate'}
+                      </Button>
+                    )}
+                  </div>
+                </>
+              )}
+            </EditableListRow>
+          ))}
+        </EditableListContainer>
+      </div>
 
-      {createdKey && (
-        <div className="rounded-lg border bg-muted/30 p-3">
-          <p className="mb-1 text-sm font-medium">New user auth key:</p>
-          <div className="flex items-center gap-2">
-            <code className="flex-1 rounded bg-muted px-2 py-1 text-xs break-all">
-              {createdKey}
-            </code>
-            <Button size="xs" variant="outline" onClick={() => copyKey(createdKey)}>
-              Copy
-            </Button>
-            <Button size="xs" variant="ghost" onClick={() => setCreatedKey(null)}>
-              Dismiss
-            </Button>
+      {/* Pinned footer — never scrolls; the created-key callout and the Add form
+          stay reachable (#310). The callout is pinned with Add so a freshly
+          created auth key isn't scrolled off when the user list is long. */}
+      <div className="shrink-0">
+        <Separator className="mb-4" />
+
+        {createdKey && (
+          <div className="mb-4 rounded-lg border bg-muted/30 p-3">
+            <p className="mb-1 text-sm font-medium">New user auth key:</p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 rounded bg-muted px-2 py-1 text-xs break-all">
+                {createdKey}
+              </code>
+              <Button size="xs" variant="outline" onClick={() => copyKey(createdKey)}>
+                Copy
+              </Button>
+              <Button size="xs" variant="ghost" onClick={() => setCreatedKey(null)}>
+                Dismiss
+              </Button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <Separator />
-
-      <div>
         <h3 className="mb-3 text-sm font-medium">Add User</h3>
         <div className="flex items-end gap-2">
           <div className="flex flex-col gap-1.5">

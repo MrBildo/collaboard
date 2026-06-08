@@ -1,11 +1,11 @@
-import { useCallback, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { useClickOutside } from '@/hooks/use-click-outside';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Archive, Search, Trash2, Check, AlertTriangle } from 'lucide-react';
 import { InlineError } from '@/components/ui/inline-error';
 import { toMessage } from '@/lib/mutation-floor';
@@ -48,9 +48,6 @@ export function PruneTab({ boardId }: PruneTabProps) {
   // Inline error for the prune preview/execute paths (card #203, spec §2d).
   // The operator is working in this panel; the error belongs here, not a toast.
   const [pruneError, setPruneError] = useState<string | null>(null);
-
-  const laneDropdownRef = useRef<HTMLDivElement>(null);
-  const labelDropdownRef = useRef<HTMLDivElement>(null);
 
   const lanesQuery = useQuery({
     queryKey: queryKeys.lanes.all(boardId),
@@ -141,11 +138,6 @@ export function PruneTab({ boardId }: PruneTabProps) {
     clearResults();
   };
 
-  const closeLaneDropdown = useCallback(() => setIsLaneDropdownOpen(false), []);
-  const closeLabelDropdown = useCallback(() => setIsLabelDropdownOpen(false), []);
-  useClickOutside(laneDropdownRef, closeLaneDropdown);
-  useClickOutside(labelDropdownRef, closeLabelDropdown);
-
   const hasActiveFilter =
     olderThan !== null || selectedLaneIds.length > 0 || selectedLabelIds.length > 0;
 
@@ -186,7 +178,11 @@ export function PruneTab({ boardId }: PruneTabProps) {
   const isDelete = action === 'delete';
 
   return (
-    <div className="flex flex-col gap-4">
+    // Scroll-contained body (#310 / UAT-2): the filter stack scrolls within the
+    // panel rather than growing the dialog. Prune has no Add form, so this is a
+    // two-zone tab (scroll body, no pinned footer). The lane/label Popovers
+    // portal out, so they float above the dialog edge unaffected by this overflow.
+    <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto p-1">
       {/* Action toggle */}
       <div className="flex flex-col gap-2">
         <span className="text-sm font-medium">Action</span>
@@ -265,70 +261,72 @@ export function PruneTab({ boardId }: PruneTabProps) {
         )}
       </div>
 
-      {/* In lanes */}
+      {/* In lanes — Popover portals out of the dialog overflow so the checkbox
+          list floats above the dialog edge and collision-flips near the viewport
+          bottom instead of clipping (#310 / UAT-1). */}
       <div className="flex flex-col gap-2">
         <span className="text-sm font-medium">In lanes</span>
-        <div ref={laneDropdownRef} className="relative">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsLaneDropdownOpen((o) => !o)}
-            className="w-full justify-start"
+        <Popover open={isLaneDropdownOpen} onOpenChange={setIsLaneDropdownOpen}>
+          <PopoverTrigger
+            render={
+              <Button variant="outline" size="sm" className="w-full justify-start">
+                {selectedLaneNames.length > 0 ? selectedLaneNames.join(', ') : 'Any lane'}
+              </Button>
+            }
+          />
+          <PopoverContent
+            align="start"
+            className="max-h-[var(--available-height)] w-[var(--anchor-width)] overflow-y-auto p-2"
           >
-            {selectedLaneNames.length > 0 ? selectedLaneNames.join(', ') : 'Any lane'}
-          </Button>
-          {isLaneDropdownOpen && (
-            <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-card p-2 shadow-md">
-              {lanes.map((lane) => (
-                <label
-                  key={lane.id}
-                  className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-muted/50"
-                >
-                  <Checkbox
-                    checked={selectedLaneIds.includes(lane.id)}
-                    onCheckedChange={() => toggleLane(lane.id)}
-                  />
-                  <span className="text-sm">{lane.name}</span>
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
+            {lanes.map((lane) => (
+              <label
+                key={lane.id}
+                className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-muted/50"
+              >
+                <Checkbox
+                  checked={selectedLaneIds.includes(lane.id)}
+                  onCheckedChange={() => toggleLane(lane.id)}
+                />
+                <span className="text-sm">{lane.name}</span>
+              </label>
+            ))}
+          </PopoverContent>
+        </Popover>
       </div>
 
-      {/* With labels */}
+      {/* With labels — same portaled Popover as In lanes (#310 / UAT-1). */}
       <div className="flex flex-col gap-2">
         <span className="text-sm font-medium">With labels</span>
-        <div ref={labelDropdownRef} className="relative">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsLabelDropdownOpen((o) => !o)}
-            className="w-full justify-start"
+        <Popover open={isLabelDropdownOpen} onOpenChange={setIsLabelDropdownOpen}>
+          <PopoverTrigger
+            render={
+              <Button variant="outline" size="sm" className="w-full justify-start">
+                {selectedLabelNames.length > 0 ? selectedLabelNames.join(', ') : 'Any label'}
+              </Button>
+            }
+          />
+          <PopoverContent
+            align="start"
+            className="max-h-[var(--available-height)] w-[var(--anchor-width)] overflow-y-auto p-2"
           >
-            {selectedLabelNames.length > 0 ? selectedLabelNames.join(', ') : 'Any label'}
-          </Button>
-          {isLabelDropdownOpen && (
-            <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-card p-2 shadow-md">
-              {labels.map((label) => (
-                <label
-                  key={label.id}
-                  className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-muted/50"
-                >
-                  <Checkbox
-                    checked={selectedLabelIds.includes(label.id)}
-                    onCheckedChange={() => toggleLabel(label.id)}
-                  />
-                  <span
-                    className="inline-block h-3 w-3 rounded-full"
-                    style={{ backgroundColor: label.color ?? '#6b7280' }}
-                  />
-                  <span className="text-sm">{label.name}</span>
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
+            {labels.map((label) => (
+              <label
+                key={label.id}
+                className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-muted/50"
+              >
+                <Checkbox
+                  checked={selectedLabelIds.includes(label.id)}
+                  onCheckedChange={() => toggleLabel(label.id)}
+                />
+                <span
+                  className="inline-block h-3 w-3 rounded-full"
+                  style={{ backgroundColor: label.color ?? '#6b7280' }}
+                />
+                <span className="text-sm">{label.name}</span>
+              </label>
+            ))}
+          </PopoverContent>
+        </Popover>
       </div>
 
       <p className="text-xs text-muted-foreground">
