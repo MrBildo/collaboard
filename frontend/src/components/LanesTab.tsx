@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { EditableListContainer, EditFormActions, ItemActions } from '@/components/editable-list';
 import { useEditableList } from '@/hooks/use-editable-list';
+import { useIsMobile } from '@/hooks/use-is-mobile';
 import { useLanesReorder } from '@/hooks/use-lanes-reorder';
 import { createLane, deleteLane, fetchLanes, updateLane } from '@/lib/api';
 import { queryKeys } from '@/lib/query-keys';
@@ -20,6 +21,22 @@ import type { Lane, UpdateLanePatch } from '@/types';
 type LanesTabProps = {
   boardId: string;
 };
+
+// A static (non-draggable) lane row for mobile view. Drag-and-drop is desktop-only
+// (#312), so on mobile the row has no grip handle at all — no dead affordance that
+// invites a drag it won't honor. The edit/delete actions stay; only reordering is
+// gone (it has no non-drag alternative, the accepted trade per #312).
+type StaticLaneRowProps = {
+  children: ReactNode;
+};
+
+function StaticLaneRow({ children }: StaticLaneRowProps) {
+  return (
+    <div className="flex items-center gap-1 bg-card px-2 py-3 transition-colors hover:bg-muted/50">
+      <div className="flex flex-1 items-center justify-between gap-2">{children}</div>
+    </div>
+  );
+}
 
 // A draggable lane row. The drag handle (GripVertical) carries the dnd-kit
 // listeners; the rest of the row keeps its edit/delete affordances. While a row
@@ -78,6 +95,7 @@ export function LanesTab({ boardId }: LanesTabProps) {
   const [newName, setNewName] = useState('');
   const [editName, setEditName] = useState('');
   const list = useEditableList();
+  const isMobile = useIsMobile();
 
   const lanesQuery = useQuery({
     queryKey: queryKeys.lanes.all(boardId),
@@ -211,36 +229,51 @@ export function LanesTab({ boardId }: LanesTabProps) {
       {/* Scroll zone — fills remaining height, scrolls internally on long lists. */}
       <div className="min-h-0 flex-1 overflow-y-auto">
         <EditableListContainer error={list.deleteError}>
-          <DndContext
-            sensors={reorder.sensors}
-            collisionDetection={closestCenter}
-            onDragStart={reorder.onDragStart}
-            onDragOver={reorder.onDragOver}
-            onDragEnd={reorder.onDragEnd}
-          >
-            <SortableContext
-              items={orderedLanes.map((l) => l.id)}
-              strategy={verticalListSortingStrategy}
+          {isMobile ? (
+            // Mobile: drag-drop is desktop-only (#312). Render a static list — no
+            // DndContext, no sensors, no grip handle. Reordering is unavailable
+            // here; edit/delete stay.
+            <div className="flex flex-col divide-y divide-border">
+              {orderedLanes.map((lane) => (
+                <StaticLaneRow key={lane.id}>{renderRowContent(lane)}</StaticLaneRow>
+              ))}
+            </div>
+          ) : (
+            <DndContext
+              sensors={reorder.sensors}
+              collisionDetection={closestCenter}
+              onDragStart={reorder.onDragStart}
+              onDragOver={reorder.onDragOver}
+              onDragEnd={reorder.onDragEnd}
             >
-              <div className="flex flex-col divide-y divide-border">
-                {orderedLanes.map((lane) => (
-                  <SortableLaneRow key={lane.id} lane={lane} isEditing={list.editingId === lane.id}>
-                    {renderRowContent(lane)}
-                  </SortableLaneRow>
-                ))}
-              </div>
-            </SortableContext>
-            <DragOverlay>
-              {activeLane ? (
-                <div className="flex items-center gap-1 rounded-lg border bg-card px-2 py-3 shadow-lg">
-                  <span className="flex size-11 shrink-0 items-center justify-center text-muted-foreground">
-                    <GripVertical className="h-4 w-4" />
-                  </span>
-                  <span className="font-medium">{activeLane.name}</span>
+              <SortableContext
+                items={orderedLanes.map((l) => l.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="flex flex-col divide-y divide-border">
+                  {orderedLanes.map((lane) => (
+                    <SortableLaneRow
+                      key={lane.id}
+                      lane={lane}
+                      isEditing={list.editingId === lane.id}
+                    >
+                      {renderRowContent(lane)}
+                    </SortableLaneRow>
+                  ))}
                 </div>
-              ) : null}
-            </DragOverlay>
-          </DndContext>
+              </SortableContext>
+              <DragOverlay>
+                {activeLane ? (
+                  <div className="flex items-center gap-1 rounded-lg border bg-card px-2 py-3 shadow-lg">
+                    <span className="flex size-11 shrink-0 items-center justify-center text-muted-foreground">
+                      <GripVertical className="h-4 w-4" />
+                    </span>
+                    <span className="font-medium">{activeLane.name}</span>
+                  </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+          )}
         </EditableListContainer>
       </div>
 
@@ -249,7 +282,9 @@ export function LanesTab({ boardId }: LanesTabProps) {
         <Separator className="mb-4" />
         <h3 className="mb-1 text-sm font-medium">Add Lane</h3>
         <p className="mb-3 text-xs text-muted-foreground">
-          New lanes are added at the end. Drag the grip handle to reorder.
+          {isMobile
+            ? 'New lanes are added at the end. Reordering lanes is available on desktop.'
+            : 'New lanes are added at the end. Drag the grip handle to reorder.'}
         </p>
         <div className="flex items-end gap-2">
           <div className="flex flex-1 flex-col gap-1.5">

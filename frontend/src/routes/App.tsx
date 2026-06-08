@@ -28,6 +28,7 @@ import { useBoardEvents } from '@/hooks/use-board-events';
 import { useBoardDnd } from '@/hooks/use-board-dnd';
 import { useLaneDnd } from '@/hooks/use-lane-dnd';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { useIsMobile } from '@/hooks/use-is-mobile';
 import { useLaneCollapse } from '@/hooks/use-lane-collapse';
 import { cn } from '@/lib/utils';
 import { isLaneDragEvent } from '@/lib/dnd-active-type';
@@ -88,6 +89,11 @@ export function App() {
 
   const laneIds = useMemo(() => new Set(lanes.map((l) => l.id)), [lanes]);
 
+  // Drag-and-drop is a desktop-only feature (#312). One breakpoint hook gates
+  // every drag surface; on the board page it drives the shared <DndContext>'s
+  // sensor set (empty on mobile → cards and lanes are both inert).
+  const isMobile = useIsMobile();
+
   const {
     sensors,
     collisionDetection,
@@ -97,7 +103,7 @@ export function App() {
     onDragStart: onCardDragStart,
     onDragOver: onCardDragOver,
     onDragEnd: onCardDragEnd,
-  } = useBoardDnd(boardId, serverCards, laneIds);
+  } = useBoardDnd(boardId, serverCards, laneIds, isMobile);
 
   const {
     activeLaneId,
