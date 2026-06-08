@@ -69,7 +69,7 @@ function setupClient(initialData: BoardData) {
   return queryClient;
 }
 
-function renderDnd(queryClient: QueryClient) {
+function renderDnd(queryClient: QueryClient, isMobile = false) {
   const wrapper = ({ children }: { children: React.ReactNode }) =>
     createElement(QueryClientProvider, { client: queryClient }, children);
   return renderHook(
@@ -78,6 +78,7 @@ function renderDnd(queryClient: QueryClient) {
         BOARD_ID,
         [makeCardItem('c1', LANE_BACKLOG, 0)],
         new Set([LANE_BACKLOG, LANE_DONE]),
+        isMobile,
       ),
     { wrapper },
   );
@@ -170,5 +171,31 @@ describe('useBoardDnd reorder cache merge', () => {
     expect(cached?.cards[0].labels).toEqual([{ id: 'lbl-1', name: 'Bug', color: '#ff0000' }]);
     expect(cached?.cards[0].commentCount).toBe(3);
     expect(cached?.cards[0].attachmentCount).toBe(1);
+  });
+});
+
+describe('useBoardDnd sensor gating (#312, drag is desktop-only)', () => {
+  test('registers drag sensors on desktop', () => {
+    const queryClient = setupClient({
+      lanes: [makeLane(LANE_BACKLOG, 'Backlog', 0)],
+      cards: [],
+      sizes: [],
+    });
+    const { result } = renderDnd(queryClient, false);
+    // MouseSensor + TouchSensor — the board <DndContext> can start a drag.
+    expect(result.current.sensors.length).toBe(2);
+  });
+
+  test('registers NO drag sensors on mobile so no drag (card or lane) can start', () => {
+    const queryClient = setupClient({
+      lanes: [makeLane(LANE_BACKLOG, 'Backlog', 0)],
+      cards: [],
+      sizes: [],
+    });
+    const { result } = renderDnd(queryClient, true);
+    // Empty sensor set — the shared board <DndContext> has nothing to activate, so
+    // both card reorder and lane reorder are inert. Card moves stay available via
+    // the card-detail lane dropdown.
+    expect(result.current.sensors.length).toBe(0);
   });
 });

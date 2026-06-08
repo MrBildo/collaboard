@@ -27,14 +27,27 @@ export function useBoardDnd(
   boardId: string | undefined,
   serverCards: CardItem[],
   laneIds: Set<string>,
+  isMobile: boolean,
 ) {
   const queryClient = useQueryClient();
 
+  // Drag-and-drop is desktop-only (#312). On mobile we register NO sensors, so
+  // the shared board <DndContext> can never start a drag — neither cards nor
+  // lanes (both concerns ride this one sensor set). Hooks must run unconditionally,
+  // so the sensors are always created; `useSensors` is given an empty list on
+  // mobile rather than gating the `useSensor` calls themselves. With no sensor to
+  // satisfy an activation constraint, the SortableContexts/useSortables stay inert
+  // — there is no half-working drag and no dead affordance (cards have no grab
+  // handle; the lane header's `cursor-grab` is a `md:` style that doesn't apply
+  // below the breakpoint). Card moves remain available via the card-detail lane
+  // dropdown, so no capability is lost.
   const mouseSensor = useSensor(MouseSensor, { activationConstraint: { distance: 8 } });
   const touchSensor = useSensor(TouchSensor, {
     activationConstraint: { delay: 200, tolerance: 5 },
   });
-  const sensors = useSensors(mouseSensor, touchSensor);
+  const desktopSensors = useSensors(mouseSensor, touchSensor);
+  const noSensors = useSensors();
+  const sensors = isMobile ? noSensors : desktopSensors;
 
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [dragPhase, setDragPhase] = useState<'idle' | 'dragging' | 'settling'>('idle');
