@@ -474,11 +474,10 @@ Bots sign commits with `Co-Authored-By: <Name> <name>@collabot.dev>`. Cora's fir
 | Project | Path | Relationship |
 |---|---|---|
 | **Collabhost** | `../collabhost` | Peer project. Hosts the production deployment of Collaboard (and itself). Its own work is tracked on the `collabhost` Collaboard board. |
-| **Collabot** | `../collabot` | Primary external consumer — connects via MCP for kanban operations. |
-| **Collabot TUI** | `../collabot-tui` | Indirect consumer via Collabot harness. |
-| **Ecosystem** | `../ecosystem` | Cross-project tooling and shared scripts. Its own work is tracked on the `ecosystem` Collaboard board. |
-| **Research Lab** | `../lab` | Investigation workspace. Its own work is tracked on the `research-lab` Collaboard board. |
-| **Knowledge Base** | `../kb` | Conventions and reference material. Its own work is tracked on the `knowledge-base` Collaboard board. |
+| **Ecosystem** | `../ecosystem` | Cross-project tooling, shared skills/conventions, and suite-wide scripts. Its own work is tracked on the `ecosystem` Collaboard board. |
+| **Scout** | `../scout` | Peer Collabhost-hosted app — the suite's web-tooling MCP (`fetch_*` / `search_*`); Collaboard bots use it for web research. Its own work is tracked on the `scout` Collaboard board. |
+
+> **Retired (2026-06):** Collabot, Collabot TUI, Knowledge Base, and Research Lab were sunset in the suite consolidation — their repos are archived under `collab/archived/`, so the `../collabot`, `../collabot-tui`, `../kb`, and `../lab` paths no longer resolve. (Collabot was Collaboard's original external MCP consumer.)
 
 Cross-project work that spans Collaboard + a peer (e.g., Collabhost) coordinates between named operations coordinators on each side (Cora here, Nolan on Collabhost). Externally-gated cards stay in Backlog with an explicit gate-and-trigger comment; the `Blocked` label is reserved for in-Triage gating.
 
