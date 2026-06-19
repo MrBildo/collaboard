@@ -10,7 +10,6 @@ type LaneOverlayProps = {
 export function LaneOverlay({ lane }: LaneOverlayProps) {
   return (
     <div className="flex items-center gap-2 rounded-lg border border-lane-border border-t-2 border-t-primary bg-lane-bg px-4 py-3 shadow-xl">
-      <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-primary" />
       <span className="truncate text-sm font-semibold uppercase tracking-wide">{lane.name}</span>
     </div>
   );

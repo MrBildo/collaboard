@@ -81,7 +81,6 @@ export function LaneColumn({
               isCollapsed && '-rotate-90',
             )}
           />
-          <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-primary" />
           <Tooltip>
             <TooltipTrigger
               render={<h2 className="truncate text-sm font-semibold uppercase tracking-wide" />}
