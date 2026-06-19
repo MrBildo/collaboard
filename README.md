@@ -291,6 +291,14 @@ Tools are grouped by workflow — discover the board, work cards, then manage th
 
 > Full REST API documentation: [API Reference](docs/api-reference.md)
 
+## Where We're Headed
+
+Collaboard is built for a small team — human and agent — to share one board they can both fully operate, then get out of the way. Here's what we built; use it the way that works for you.
+
+The board already streams every change live over a built-in event bus. The direction we're most excited about builds on that: **a surface for automation** — letting the board kick off outside work when something happens on it, so routine follow-through can run without anyone watching the lane.
+
+The guiding principle: flexibility in how you *use* Collaboard, deliberate restraint in what it *includes*. A focused set of things done well, not a configuration surface for every workflow.
+
 ## Tech Stack
 
 | Layer | Technology |
