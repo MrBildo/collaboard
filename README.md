@@ -178,6 +178,48 @@ the next upgrade:
 | `Cors:AllowedOrigins` | `[]` (empty) | List of allowed cross-origin Portal hosts. Empty disallows all cross-origin requests; same-origin LAN deployments do not need this. Set to the Portal's origin(s) for hosted-separately deployments (e.g. `["https://collaboard.example.com"]`). |
 | `ConnectionStrings:Board` | *(required — no default)* | SQLite database path. Must be an **absolute** path; the installer writes this into `appsettings.json`. Startup fails loud if unset or unwritable. |
 | `Admin:AuthKey` | *(auto-generated)* | Override the admin auth key. |
+| `Webhooks:Endpoint` | *(unset)* | URL Collaboard POSTs board events to. Unset (or empty) means webhooks are off — no outbound calls. See [Webhooks](#webhooks) below. |
+| `Webhooks:Secret` | *(unset)* | Optional shared secret. When set, every delivery is signed with `X-Collaboard-Signature: sha256=...` (HMAC-SHA256). Unset means unsigned. |
+| `Webhooks:Enabled` | `true` | Master switch. Set to `false` to pause delivery while keeping `Webhooks:Endpoint` configured. |
+| `Webhooks:DeliveryTimeout` | `00:00:05` | Per-POST timeout. A slow endpoint is treated as a failed attempt, not waited on. |
+| `Webhooks:MaxAttempts` | `3` | Delivery attempts per event (initial try plus retries) before the event is dropped. |
+| `Webhooks:RetryBackoffBase` | `00:00:02` | Wait before the first retry. Later retries grow it (roughly 4× per step) with a little jitter. |
+
+### Webhooks
+
+Collaboard can POST a structured event to a URL of your choice whenever a card is
+created or moved — a callback-free way to drive automation (a workflow tool, a
+script, an agent) off board activity. Webhooks are **off by default**; nothing is
+sent until you configure an endpoint.
+
+To turn them on, set `Webhooks:Endpoint` to the URL that should receive the events
+— via the environment variable `Webhooks__Endpoint` (note the double underscore) or
+in `appsettings.json`:
+
+```jsonc
+// appsettings.json
+{
+  "Webhooks": {
+    "Endpoint": "https://automation.example.com/collaboard-hook",
+    "Secret": "a-long-random-shared-secret"
+  }
+}
+```
+
+On startup the API logs which state it resolved, so you can confirm your config took
+effect without needing a working consumer wired up yet:
+
+- `Webhooks enabled → automation.example.com (signed: true).` — configured and live (the log shows the host only, never the full URL or the secret).
+- `Webhooks disabled (Webhooks:Enabled = false).` — endpoint kept, delivery paused.
+- `Webhooks dark (no Webhooks:Endpoint configured).` — no endpoint set; fully off.
+
+There are two ways to be "off," and they differ: leave `Webhooks:Endpoint` unset to
+turn the feature off entirely, or set `Webhooks:Enabled` to `false` to pause delivery
+while keeping the endpoint (and secret) configured for later.
+
+For the full event contract, the recursion-guard you'll want before pointing this at
+anything that creates cards, and a step-by-step walkthrough, see the
+[Webhooks Integration Guide](docs/integrating-webhooks.md).
 
 ### Version
 
