@@ -217,6 +217,14 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
                 return "Error: Lane not found.";
             }
 
+            // Block moving TO an archive lane — archiving must go through archive_card.
+            // Mirrors move_card and REST PATCH /cards/{id}; without it update_card was a
+            // back-door archive that also emitted a wrong card.moved webhook event (#322).
+            if (targetLane.IsArchiveLane)
+            {
+                return "Use archive_card to archive cards.";
+            }
+
             if (laneId.Value != card.LaneId)
             {
                 moveFromLane = await db.Lanes.FindAsync([card.LaneId], ct);

@@ -152,6 +152,52 @@ public class McpArchiveToolTests(CollaboardApiFactory factory) : IClassFixture<C
         result.ShouldContain("Use archive_card to archive cards.");
     }
 
+    // ── update_card to archive lane → error (REST/MCP parity, #322) ───────────
+
+    [Fact]
+    public async Task UpdateCard_ToArchiveLane_ReturnsErrorAndDoesNotMove()
+    {
+        // Arrange — update_card must reject an archive-lane target just like move_card
+        // and REST PATCH /cards/{id} do; otherwise it's a back-door archive that also
+        // emits a wrong card.moved webhook event (#322).
+        var (db, _, cardTools, _, _, _, _, authKey) = CreateAllTools();
+        var laneId = await GetFirstLaneIdAsync(db);
+        var archiveLaneId = await GetArchiveLaneIdAsync(db);
+        var cardId = await CreateCardInLaneAsync(cardTools, authKey, laneId, "Block Update To Archive");
+
+        // Act
+        var result = await cardTools.UpdateCardAsync(authKey, cardId, laneId: archiveLaneId);
+
+        // Assert — rejected, and the card stayed put (no back-door archive)
+        result.ShouldContain("Use archive_card to archive cards.");
+        var card = await db.Cards.FindAsync(cardId);
+        card!.LaneId.ShouldBe(laneId);
+    }
+
+    [Fact]
+    public async Task UpdateCard_ToNonArchiveLane_StillMoves()
+    {
+        // Arrange — the guard rejects only archive-lane targets; a legitimate lane move
+        // must still succeed.
+        var (db, _, cardTools, _, _, _, _, authKey) = CreateAllTools();
+        var laneId = await GetFirstLaneIdAsync(db);
+        var targetLaneId = await db.Lanes
+            .Where(l => l.BoardId == _factory.DefaultBoardId && !l.IsArchiveLane && l.Id != laneId)
+            .OrderBy(l => l.Position)
+                .Select(l => l.Id)
+                    .FirstAsync();
+        var cardId = await CreateCardInLaneAsync(cardTools, authKey, laneId, "Legit Move");
+
+        // Act
+        var result = await cardTools.UpdateCardAsync(authKey, cardId, laneId: targetLaneId);
+
+        // Assert
+        result.ShouldNotContain("Error");
+        result.ShouldNotContain("Use archive_card");
+        var card = await db.Cards.FindAsync(cardId);
+        card!.LaneId.ShouldBe(targetLaneId);
+    }
+
     // ── move_card from archive lane → error ──────────────────────────────────
 
     [Fact]
