@@ -59,8 +59,11 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
 
         await CardNumberHelper.InsertCardWithAutoNumberAsync(db, card!, lane.BoardId, ct);
 
-        await db.PublishForCardAsync(card!.Id, broadcaster);
-        var summaries = await CardSummaryBuilder.BuildAsync(db, [card], ct);
+        // Webhook fan-out subsumes PublishForCardAsync's board lookup (we already have the
+        // card → its board); raising the typed event downsamples to the same SSE bell, so
+        // calling both would double-broadcast to SSE. (#320 — don't double-broadcast.)
+        await WebhookEventFactory.PublishCardCreatedAsync(db, broadcaster, card!, user!, ct);
+        var summaries = await CardSummaryBuilder.BuildAsync(db, [card!], ct);
         return JsonSerializer.Serialize(summaries[0], JsonSerializerOptions.Web);
     }
 
@@ -115,12 +118,16 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             return "Use archive_card to archive cards.";
         }
 
+        // Snapshot source lane/position BEFORE MoveCardToLaneAsync mutates + renumbers
+        // both lanes (#320). sourceLane is resolved above (the archive-lane guard).
+        var fromPosition = card.Position;
+
         var resolvedIndex = await CardReorderHelper.MoveCardToLaneAsync(db, card, laneId, index, ct);
 
         card.LastUpdatedByUserId = user!.Id;
         card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
-        await db.PublishForCardAsync(card.Id, broadcaster);
+        await WebhookEventFactory.PublishCardMovedAsync(db, broadcaster, card, sourceLane!, fromPosition, targetLane, user, ct);
         return $"Card '{card.Name}' moved to lane at index {resolvedIndex.ToString(CultureInfo.InvariantCulture)}.";
     }
 
@@ -194,12 +201,27 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             card.SizeId = resolvedSizeId!.Value;
         }
 
-        // Lane move: if laneId provided, move card to that lane with optional index
+        // Lane move: if laneId provided, move card to that lane with optional index.
+        // card.moved fires only on a real lane change (#320 — the coverage rule: a
+        // size/label/name-only update raises no move event). Snapshot source lane/position
+        // before MoveCardToLaneAsync mutates + renumbers both lanes.
+        Lane? moveFromLane = null;
+        Lane? moveToLane = null;
+        var moveFromPosition = 0;
+
         if (laneId is not null)
         {
-            if (!await db.Lanes.AnyAsync(l => l.Id == laneId.Value, ct))
+            var targetLane = await db.Lanes.FindAsync([laneId.Value], ct);
+            if (targetLane is null)
             {
                 return "Error: Lane not found.";
+            }
+
+            if (laneId.Value != card.LaneId)
+            {
+                moveFromLane = await db.Lanes.FindAsync([card.LaneId], ct);
+                moveToLane = targetLane;
+                moveFromPosition = card.Position;
             }
 
             await CardReorderHelper.MoveCardToLaneAsync(db, card, laneId.Value, index, ct);
@@ -233,7 +255,18 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         card.LastUpdatedByUserId = user!.Id;
         card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
-        await db.PublishForCardAsync(card.Id, broadcaster);
+
+        if (moveToLane is not null)
+        {
+            // Real lane change → card.moved (which downsamples to the same SSE bell);
+            // subsumes PublishForCardAsync's broadcast — don't call both (#320).
+            await WebhookEventFactory.PublishCardMovedAsync(db, broadcaster, card, moveFromLane!, moveFromPosition, moveToLane, user, ct);
+        }
+        else
+        {
+            // Size/label/name-only update — the SSE bell still rings, but no webhook.
+            await db.PublishForCardAsync(card.Id, broadcaster);
+        }
 
         var summaries = await CardSummaryBuilder.BuildAsync(db, [card], ct);
         return JsonSerializer.Serialize(summaries[0], JsonSerializerOptions.Web);

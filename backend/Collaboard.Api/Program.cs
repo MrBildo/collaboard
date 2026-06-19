@@ -170,6 +170,13 @@ builder.Services.AddDbContext<BoardDbContext>(options => options.UseSqlite(conne
 builder.Services.Configure<AttachmentSettings>(builder.Configuration.GetSection(AttachmentSettings.SectionName));
 builder.Services.Configure<TempCardSweepSettings>(builder.Configuration.GetSection(TempCardSweepSettings.SectionName));
 builder.Services.AddHttpContextAccessor();
+
+// Webhooks (#320) — the in-memory sink the broadcaster's typed Publish path enqueues to;
+// the Phase 2 dispatcher drains it. Registered as IWebhookSink (the durable-outbox
+// swap-point) AND as the concrete WebhookQueue so the dispatcher can drain via
+// TryDequeue. Both resolve the same singleton instance.
+builder.Services.AddSingleton<WebhookQueue>();
+builder.Services.AddSingleton<IWebhookSink>(sp => sp.GetRequiredService<WebhookQueue>());
 builder.Services.AddSingleton<BoardEventBroadcaster>();
 builder.Services.AddScoped<IUserResolver, UserResolver>();
 builder.Services.AddScoped<McpAuthService>();

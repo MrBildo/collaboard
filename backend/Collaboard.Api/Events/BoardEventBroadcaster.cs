@@ -2,10 +2,12 @@ using System.Threading.Channels;
 
 namespace Collaboard.Api.Events;
 
-public class BoardEventBroadcaster
+public class BoardEventBroadcaster(IWebhookSink webhookSink)
 {
     private readonly Dictionary<Guid, List<Channel<string>>> _boardSubscribers = [];
     private readonly Lock _lock = new();
+    private readonly IWebhookSink _webhookSink = webhookSink
+        ?? throw new ArgumentNullException(nameof(webhookSink));
 
     public ChannelReader<string> Subscribe(Guid boardId)
     {
@@ -45,6 +47,24 @@ public class BoardEventBroadcaster
     }
 
     public void PublishBoardUpdated(Guid boardId) => PublishToBoard(boardId, "board-updated");
+
+    // The typed fan-out path (#320). Raised by the eight converted card-mutation
+    // call-sites through the shared WebhookEventFactory. Two projections:
+    //   1. SSE — DOWNSAMPLE to the existing thin signal. The wire stays byte-for-byte
+    //      `event: board-updated\ndata: {}` (PublishToBoard writes the identical string
+    //      the unconverted sites emit). The browser consumer sees no change — the
+    //      safety property that protects the working SSE consumer.
+    //   2. Webhook — full fidelity. Hand the enriched event to the sink, which the
+    //      Phase 2 dispatcher drains. Dark deployments still enqueue; the dispatcher
+    //      no-ops when no endpoint is configured.
+    public void Publish(BoardEvent boardEvent)
+    {
+        ArgumentNullException.ThrowIfNull(boardEvent);
+
+        PublishToBoard(boardEvent.BoardId, "board-updated");
+
+        _webhookSink.Enqueue(boardEvent);
+    }
 
     // Broadcasts to all board-scoped subscribers (every connected client regardless of board)
     public void PublishGlobal(string eventType)

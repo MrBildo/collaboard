@@ -46,7 +46,8 @@ public class McpBulkCardToolTests(CollaboardApiFactory factory) : IClassFixture<
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
         var auth = new McpAuthService(new UserResolver(db));
         var broadcaster = scope.ServiceProvider.GetRequiredService<BoardEventBroadcaster>();
-        return (db, new BulkCardTools(db, auth, broadcaster), new ArchiveTools(db, auth, broadcaster), broadcaster);
+        var webhookSink = scope.ServiceProvider.GetRequiredService<IWebhookSink>();
+        return (db, new BulkCardTools(db, auth, broadcaster, webhookSink), new ArchiveTools(db, auth, broadcaster), broadcaster);
     }
 
     private static int _nextLanePosition = 70_000;

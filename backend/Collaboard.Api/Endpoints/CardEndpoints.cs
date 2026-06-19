@@ -77,7 +77,7 @@ internal static class CardEndpoints
             }
 
             await CardNumberHelper.InsertCardWithAutoNumberAsync(db, card!, boardId, ct);
-            broadcaster.PublishBoardUpdated(boardId);
+            await WebhookEventFactory.PublishCardCreatedAsync(db, broadcaster, card!, http.CurrentUser(), ct);
 
             var summaries = await CardSummaryBuilder.BuildAsync(db, [card!], ct);
             return Results.Created($"/api/v1/cards/{card!.Id}", summaries[0]);
@@ -141,6 +141,15 @@ internal static class CardEndpoints
                 card.SizeId = newSizeId;
             }
 
+            // card.moved fires only when the PATCH actually changes the lane (#320 — the
+            // coverage rule: a name/size/label-only update raises no move event). This
+            // site mutates LaneId/Position INLINE (it does not route through
+            // MoveCardToLaneAsync), so the source lane/position must be snapshotted before
+            // the mutation below. Resolved only on a real lane change.
+            Lane? moveFromLane = null;
+            Lane? moveToLane = null;
+            var moveFromPosition = 0;
+
             if (request.LaneId is not null)
             {
                 var newLaneId = request.LaneId.Value;
@@ -158,6 +167,13 @@ internal static class CardEndpoints
                 if (targetLane.IsArchiveLane)
                 {
                     return Results.BadRequest("Use the archive endpoint to archive cards.");
+                }
+
+                if (newLaneId != card.LaneId)
+                {
+                    moveFromLane = await db.Lanes.FindAsync([card.LaneId], ct);
+                    moveToLane = targetLane;
+                    moveFromPosition = card.Position;
                 }
 
                 card.LaneId = newLaneId;
@@ -196,7 +212,17 @@ internal static class CardEndpoints
             card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
             card.LastUpdatedByUserId = http.CurrentUser().Id;
             await db.SaveChangesAsync(ct);
-            broadcaster.PublishBoardUpdated(card.BoardId);
+
+            if (moveToLane is not null)
+            {
+                // Real lane change → card.moved (which downsamples to the same SSE bell).
+                await WebhookEventFactory.PublishCardMovedAsync(db, broadcaster, card, moveFromLane!, moveFromPosition, moveToLane, http.CurrentUser(), ct);
+            }
+            else
+            {
+                // Name/size/label-only update — the SSE bell still rings, but no webhook.
+                broadcaster.PublishBoardUpdated(card.BoardId);
+            }
 
             var summaries = await CardSummaryBuilder.BuildAsync(db, [card], ct);
             return Results.Ok(summaries[0]);
@@ -251,13 +277,17 @@ internal static class CardEndpoints
                 return Results.BadRequest("Cannot move cards between boards.");
             }
 
+            // Snapshot source lane/position BEFORE MoveCardToLaneAsync mutates + renumbers
+            // both lanes — once it runs, the card's source position is gone (#320).
+            var fromPosition = card.Position;
+
             await CardReorderHelper.MoveCardToLaneAsync(db, card, targetLaneId, targetIndex, ct);
 
             card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
             card.LastUpdatedByUserId = http.CurrentUser().Id;
 
             await db.SaveChangesAsync(ct);
-            broadcaster.PublishBoardUpdated(targetLane.BoardId);
+            await WebhookEventFactory.PublishCardMovedAsync(db, broadcaster, card, sourceLane, fromPosition, targetLane, http.CurrentUser(), ct);
 
             var boardLaneIds = await db.Lanes.Where(x => x.BoardId == targetLane.BoardId).Select(x => x.Id).ToListAsync(ct);
             var lanes = await db.Lanes.Where(x => x.BoardId == targetLane.BoardId).OrderBy(l => l.Position).ToListAsync(ct);
@@ -426,7 +456,10 @@ internal static class CardEndpoints
                 return Results.StatusCode(500);
             }
 
-            broadcaster.PublishBoardUpdated(card.BoardId);
+            // card.created fires here, on finalize — never at temp-insert (a temp card is
+            // invisible pre-creation limbo and may be cancelled). The cancel site emits
+            // nothing. (#320 — the temp-card create wrinkle.)
+            await WebhookEventFactory.PublishCardCreatedAsync(db, broadcaster, card, http.CurrentUser(), ct);
             return Results.Ok(new { card.Id, card.Number });
         }).RequireAuth();
 
