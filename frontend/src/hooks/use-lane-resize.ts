@@ -45,11 +45,16 @@ export function useLaneResize(boardId: string, laneIds: string[]) {
     const children = el.querySelectorAll<HTMLElement>(':scope > [data-lane]');
     const positions: number[] = [];
     children.forEach((child, i) => {
-      if (i < children.length - 1) {
-        // offsetLeft + offsetWidth gives position relative to the section's padding box
-        // Add half the gap (8px) to center the handle in the gap
-        positions.push(child.offsetLeft + child.offsetWidth + 8);
-      }
+      // One handle per lane, sitting at that lane's right edge. Handle `i` resizes
+      // lane `i`. Card #319 (v2): the LAST lane gets a handle too — without it the
+      // right-most lane had no resize affordance and was stuck (every interior lane
+      // could be widened by grabbing the boundary on its right; the last lane's
+      // right edge had no handle). For interior handles the right edge is the gap
+      // between lane `i` and `i+1`, so center the handle in the 8px gap; for the
+      // last lane there is no following gap, so the handle sits on the lane's own
+      // right edge.
+      const isLast = i === children.length - 1;
+      positions.push(child.offsetLeft + child.offsetWidth + (isLast ? 0 : 8));
     });
     setHandlePositions(positions);
   }, []);
@@ -111,8 +116,10 @@ export function useLaneResize(boardId: string, laneIds: string[]) {
       if (!section) return;
 
       const leftId = laneIds[handleIndex];
+      // The last handle resizes the last lane with no right neighbor to donate to;
+      // rightId is intentionally undefined there. Only bail if there's no left lane.
       const rightId = laneIds[handleIndex + 1];
-      if (!leftId || !rightId) return;
+      if (!leftId) return;
 
       // Snapshot ALL lanes to their current rendered px widths so the first
       // drag frame has a concrete px baseline for every lane (default lanes
@@ -158,15 +165,19 @@ export function useLaneResize(boardId: string, laneIds: string[]) {
       // full board scrolls the board instead of dying), and reclaims space on a
       // shrink. When the board still fits, the neighbor absorbs the whole delta and
       // the original boundary-follows-cursor feel is preserved.
-      // Card #319: every lane (including the last) is now a fixed-width track, so
-      // the neighbor always takes a concrete width — no rightmost-`1fr` special case.
-      const neighborWidth = Math.max(MIN_LANE_WIDTH, startRightRef.current - delta);
+      setWidths((prev) => {
+        const next = { ...prev, [leftId]: Math.round(startLeftRef.current + delta) };
 
-      setWidths((prev) => ({
-        ...prev,
-        [leftId]: Math.round(startLeftRef.current + delta),
-        [rightId]: Math.round(neighborWidth),
-      }));
+        // Card #319 (v2): the last lane's handle has no right neighbor. The lane
+        // simply grows or shrinks against the board background — exactly the
+        // missing affordance that left the right-most lane stuck. Interior handles
+        // keep the #300 neighbor-donation feel (the neighbor donates down to MIN).
+        if (rightId) {
+          next[rightId] = Math.round(Math.max(MIN_LANE_WIDTH, startRightRef.current - delta));
+        }
+
+        return next;
+      });
     }
 
     function onMouseUp() {
