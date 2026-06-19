@@ -7,6 +7,7 @@ using Collaboard.Api.Endpoints;
 using Collaboard.Api.Events;
 using Collaboard.Api.Hosting;
 using Collaboard.Api.Hosting.UpdateCheck;
+using Collaboard.Api.Hosting.Webhooks;
 using Collaboard.Api.Installation;
 using Collaboard.Api.Mcp;
 using Collaboard.Api.Models;
@@ -170,7 +171,36 @@ builder.Services.AddDbContext<BoardDbContext>(options => options.UseSqlite(conne
 builder.Services.Configure<AttachmentSettings>(builder.Configuration.GetSection(AttachmentSettings.SectionName));
 builder.Services.Configure<TempCardSweepSettings>(builder.Configuration.GetSection(TempCardSweepSettings.SectionName));
 builder.Services.AddHttpContextAccessor();
+
+// Webhooks (#320) — the in-memory sink the broadcaster's typed Publish path enqueues to;
+// the dispatcher drains it. Registered as IWebhookSink (the durable-outbox swap-point) AND
+// as the concrete WebhookQueue so the dispatcher can drain via TryDequeue. Both resolve the
+// same singleton instance.
+builder.Services.AddSingleton<WebhookQueue>();
+builder.Services.AddSingleton<IWebhookSink>(sp => sp.GetRequiredService<WebhookQueue>());
 builder.Services.AddSingleton<BoardEventBroadcaster>();
+
+// Webhook delivery (#320): the dispatcher (a singleton BackgroundService) drains the queue and
+// hands each enriched event to IWebhookSender — a typed HttpClient behind a seam (mirroring the
+// UpdateCheck ILatestVersionSource shape) so the HTTP send is stubbable in tests and the slow-
+// GitHub timeout pattern carries over. The sender serializes once, signs (HMAC) when a secret is
+// set, and POSTs; the dispatcher owns bounded retry, the persisted delivery-attempt log, and the
+// loud drop. Dark-by-default — no Webhooks:Endpoint (or Webhooks:Enabled=false) means no outbound
+// calls (the kill switch). The per-POST timeout is the typed client's Timeout so a slow endpoint
+// is a failed attempt, not a wait.
+builder.Services.Configure<WebhookSettings>(builder.Configuration.GetSection(WebhookSettings.SectionName));
+
+var webhookSettings = builder.Configuration
+    .GetSection(WebhookSettings.SectionName)
+    .Get<WebhookSettings>() ?? new WebhookSettings();
+
+builder.Services
+    .AddHttpClient<IWebhookSender, HttpWebhookSender>(client =>
+    {
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("Collaboard-Webhooks");
+        client.Timeout = webhookSettings.DeliveryTimeout;
+    });
+builder.Services.AddHostedService<WebhookDispatcherService>();
 builder.Services.AddScoped<IUserResolver, UserResolver>();
 builder.Services.AddScoped<McpAuthService>();
 builder.Services.AddHostedService<TempCardSweepService>();
@@ -413,6 +443,7 @@ api.MapCommentEndpoints();
 api.MapAttachmentEndpoints();
 api.MapPruneEndpoints();
 api.MapSearchEndpoints();
+api.MapWebhookEndpoints();
 
 app.MapEventEndpoints();
 

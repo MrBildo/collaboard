@@ -30,7 +30,7 @@ namespace Collaboard.Api.Mcp;
 // These are all-roles tools — they gate via RequireUserAsync (the per-card analogs
 // they batch are all-roles today), NOT RequireAdminLevelAsync.
 [McpServerToolType]
-public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardEventBroadcaster broadcaster)
+public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardEventBroadcaster broadcaster, IWebhookSink webhookSink)
 {
     [McpServerTool(Name = "bulk_archive_cards", Destructive = false)]
     [Description("Archive multiple cards in a single call (move them to their boards' archive lanes). Provide cardIds (CSV of card GUIDs) OR cardNumbers (CSV) + boardId/boardSlug, not both. Pre-validates all refs (fails loud with no mutations if any is invalid or missing), then archives best-effort. Returns a per-card result envelope: { totalRequested, succeeded, failed, results: [{ cardId, number, status, error? }] } aligned 1:1 with the input order.")]
@@ -247,6 +247,21 @@ public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardE
             desiredLabelIds = parsed;
         }
 
+        // card.moved fires per actually-moved card (#320). The bulk SSE side coalesces to
+        // ONE board-bell per board (BulkExecution's existing contract — the safety
+        // property), but the webhook projection must see N distinct card.moved events. So
+        // the move snapshots are captured per-card here (before MoveCardToLaneAsync
+        // renumbers the lanes), and the events are built + enqueued in the after-save hook
+        // for the cards that actually succeeded — never via broadcaster.Publish, which
+        // would ring N SSE bells and break the one-bell coalesce. Only on a real lane
+        // change (laneId resolves to a different lane than the card's current).
+        var moveSnapshots = new Dictionary<Guid, CardMoveSnapshot>();
+        Lane? targetLaneForMove = null;
+        if (laneId.HasValue)
+        {
+            targetLaneForMove = await db.Lanes.FindAsync([laneId.Value], ct);
+        }
+
         var now = DateTimeOffset.UtcNow;
         var execution = new BulkExecution(db, broadcaster, user!.Id, now);
 
@@ -264,6 +279,15 @@ public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardE
 
             if (laneId.HasValue)
             {
+                if (laneId.Value != card.LaneId && targetLaneForMove is not null)
+                {
+                    var fromLane = await db.Lanes.FindAsync([card.LaneId], ct);
+                    if (fromLane is not null)
+                    {
+                        moveSnapshots[card.Id] = new CardMoveSnapshot(fromLane, card.Position, targetLaneForMove);
+                    }
+                }
+
                 await CardReorderHelper.MoveCardToLaneAsync(db, card, laneId.Value, index, ct);
             }
 
@@ -275,8 +299,29 @@ public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardE
             return null;
         });
 
-        return await execution.SaveAndSerializeAsync(ct);
+        return await execution.SaveAndSerializeAsync(ct, async succeededCards =>
+        {
+            foreach (var card in succeededCards)
+            {
+                if (moveSnapshots.TryGetValue(card.Id, out var snapshot))
+                {
+                    var moved = await WebhookEventFactory.BuildCardMovedAsync
+                    (
+                        db,
+                        card,
+                        snapshot.FromLane,
+                        snapshot.FromPosition,
+                        snapshot.ToLane,
+                        user,
+                        ct
+                    );
+                    webhookSink.Enqueue(moved);
+                }
+            }
+        });
     }
+
+    private readonly record struct CardMoveSnapshot(Lane FromLane, int FromPosition, Lane ToLane);
 
     private async Task ApplyLabelSetAsync(Guid cardId, List<Guid> desiredLabelIds, CancellationToken ct)
     {
@@ -304,6 +349,7 @@ file sealed class BulkExecution(BoardDbContext db, BoardEventBroadcaster broadca
 {
     private readonly List<BulkCardResult> _results = [];
     private readonly HashSet<Guid> _affectedBoardIds = [];
+    private readonly List<CardItem> _succeededCards = [];
 
     public async Task RunAsync(List<CardItem> cards, Func<CardItem, Task<string?>> operation)
     {
@@ -321,6 +367,7 @@ file sealed class BulkExecution(BoardDbContext db, BoardEventBroadcaster broadca
                 card.LastUpdatedAtUtc = now;
                 card.LastUpdatedByUserId = userId;
                 _affectedBoardIds.Add(card.BoardId);
+                _succeededCards.Add(card);
                 _results.Add(new BulkCardResult(card.Id, card.Number, "ok", null));
             }
 #pragma warning disable CA1031 // Per-card best-effort: one card's failure must not abort the batch; the error is captured in the envelope.
@@ -332,7 +379,11 @@ file sealed class BulkExecution(BoardDbContext db, BoardEventBroadcaster broadca
         }
     }
 
-    public async Task<string> SaveAndSerializeAsync(CancellationToken ct)
+    // afterSave (optional) runs only after a successful save, with the cards that
+    // succeeded — the hook bulk_update_cards uses to enqueue one card.moved per
+    // actually-moved card to the webhook sink, without disturbing the single
+    // SSE-bell-per-board coalesce above (#320). It is not reached on a save failure.
+    public async Task<string> SaveAndSerializeAsync(CancellationToken ct, Func<IReadOnlyList<CardItem>, Task>? afterSave = null)
     {
         try
         {
@@ -348,6 +399,11 @@ file sealed class BulkExecution(BoardDbContext db, BoardEventBroadcaster broadca
         foreach (var boardId in _affectedBoardIds)
         {
             broadcaster.PublishBoardUpdated(boardId);
+        }
+
+        if (afterSave is not null)
+        {
+            await afterSave(_succeededCards);
         }
 
         var succeeded = _results.Count(r => r.Status == "ok");
