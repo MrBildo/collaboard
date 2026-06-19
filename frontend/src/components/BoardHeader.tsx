@@ -36,27 +36,33 @@ export function BoardHeader({
 }: BoardHeaderProps) {
   return (
     <header className="flex h-14 shrink-0 items-center gap-x-3 border-b border-border px-4">
-      {/* Logo — shrink-0 so it never clips */}
-      <img src="/collaboard-logo.svg" alt="Collaboard" className="w-32 shrink-0 xs:w-48" />
-      {/* Board switcher — always inline */}
-      {boards.length > 1 && (
-        <div className="shrink min-w-0">
-          <BoardSwitcher boards={boards} currentSlug={currentSlug} />
-        </div>
-      )}
-      {boards.length === 1 && boardName && (
-        <span className="hidden max-w-[10rem] truncate text-sm font-medium text-muted-foreground xs:inline">
-          {boardName}
-        </span>
-      )}
-      {/* Search — hidden on mobile, visible at xs+. Also acts as flex spacer. */}
-      <div className="flex flex-1 justify-center xs:px-4">
+      {/* Left region — logo + board switcher. Equal-basis third so the center
+          region stays page-symmetric regardless of side-content width (#176). */}
+      <div className="flex min-w-0 flex-1 basis-0 items-center gap-x-3">
+        {/* Logo — shrink-0 so it never clips */}
+        <img src="/collaboard-logo.svg" alt="Collaboard" className="w-32 shrink-0 xs:w-48" />
+        {/* Board switcher — always inline */}
+        {boards.length > 1 && (
+          <div className="shrink min-w-0">
+            <BoardSwitcher boards={boards} currentSlug={currentSlug} />
+          </div>
+        )}
+        {boards.length === 1 && boardName && (
+          <span className="hidden max-w-[10rem] truncate text-sm font-medium text-muted-foreground xs:inline">
+            {boardName}
+          </span>
+        )}
+      </div>
+      {/* Center region — search, hidden on mobile, visible at xs+. Equal-basis
+          third with justify-center makes the search genuinely page-centered;
+          SearchCommand keeps its own w-full max-w-md cap (#176). */}
+      <div className="flex min-w-0 flex-1 basis-0 justify-center xs:px-4">
         <div className="hidden xs:block xs:w-full">
           <SearchCommand />
         </div>
       </div>
-      {/* Right actions */}
-      <div className="flex shrink-0 items-center gap-2">
+      {/* Right region — actions. Equal-basis third, justified to the end. */}
+      <div className="flex min-w-0 flex-1 basis-0 items-center justify-end gap-2">
         {/* + New Card: xs+ only */}
         <Button onClick={onNewCard} className="hidden xs:inline-flex">
           + New Card
