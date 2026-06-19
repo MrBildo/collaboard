@@ -16,6 +16,7 @@ public class BoardDbContext(DbContextOptions<BoardDbContext> options) : DbContex
     public DbSet<CardAttachment> Attachments => Set<CardAttachment>();
     public DbSet<Label> Labels => Set<Label>();
     public DbSet<CardLabel> CardLabels => Set<CardLabel>();
+    public DbSet<WebhookDeliveryAttempt> WebhookDeliveryAttempts => Set<WebhookDeliveryAttempt>();
 
     // #234: SQLite's default DateTimeOffset mapping cannot be translated when
     // the comparison appears in a nested query position (correlated sub-query,
@@ -44,6 +45,11 @@ public class BoardDbContext(DbContextOptions<BoardDbContext> options) : DbContex
         builder.Entity<CardAttachment>().HasIndex(x => x.CardId);
         builder.Entity<Label>().HasIndex(x => new { x.BoardId, x.Name }).IsUnique();
         builder.Entity<CardLabel>().HasKey(x => new { x.CardId, x.LabelId });
+
+        // #320 — webhook delivery-attempt log indexes: the "deliveries for this board,
+        // newest first" read, and "all attempts for one event".
+        builder.Entity<WebhookDeliveryAttempt>().HasIndex(x => new { x.BoardId, x.AttemptedAtUtc });
+        builder.Entity<WebhookDeliveryAttempt>().HasIndex(x => x.EventId);
 
         // FK relationships
         builder.Entity<Lane>()
@@ -127,5 +133,6 @@ public class BoardDbContext(DbContextOptions<BoardDbContext> options) : DbContex
         builder.Entity<CardItem>().Property(x => x.LastUpdatedAtUtc).HasConversion(_sortableUtcConverter);
         builder.Entity<CardComment>().Property(x => x.LastUpdatedAtUtc).HasConversion(_sortableUtcConverter);
         builder.Entity<CardAttachment>().Property(x => x.AddedAtUtc).HasConversion(_sortableUtcConverter);
+        builder.Entity<WebhookDeliveryAttempt>().Property(x => x.AttemptedAtUtc).HasConversion(_sortableUtcConverter);
     }
 }

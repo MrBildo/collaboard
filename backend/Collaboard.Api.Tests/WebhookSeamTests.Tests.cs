@@ -386,16 +386,37 @@ public sealed class WebhookSeamTests(WebhookTestFactory factory) : IClassFixture
             var updateResult = await tools.UpdateCardAsync(CollaboardApiFactory.TestAdminAuthKey, cardId: updateCardId, laneId: laneB);
             updateResult.ShouldNotContain("Error");
 
-            var bulkCardId = await CreateCardViaMcpAsync(tools, laneA, "SSE Bulk");
-            var bulk = CreateBulkTools();
-            var bulkResult = await bulk.BulkUpdateCardsAsync(CollaboardApiFactory.TestAdminAuthKey, cardIds: bulkCardId.ToString(), laneId: laneB);
-            bulkResult.ShouldNotContain("\"failed\":1");
+            // The single-site signals so far are byte-identical "board-updated" — no payload
+            // leak, no new event type, no double-emit on the MCP sites.
+            var singleSiteSignals = DrainChannel(reader);
+            singleSiteSignals.ShouldNotBeEmpty();
+            singleSiteSignals.ShouldAllBe(s => s == "board-updated");
 
-            // Every signal on the SSE channel is exactly the byte-identical "board-updated"
-            // string — no payload leak, no new event type, no double-emit.
-            var received = DrainChannel(reader);
-            received.ShouldNotBeEmpty();
-            received.ShouldAllBe(s => s == "board-updated");
+            // T1 (Mira's gate fold): the bulk arm uses ≥2 cards so the SSE CARDINALITY is
+            // load-bearing. A 1-card bulk move cannot distinguish the correct one-bell-per-board
+            // coalesce from the naive per-card broadcaster.Publish (which rings N bells) — one
+            // over-ring is indistinguishable from one correct bell. With 2 cards, the naive break
+            // rings 2+ bells; the correct coalesce rings exactly 1. Drain right before the bulk op
+            // so the count is the bulk op's bells alone.
+            var bulkCard1 = await CreateCardViaMcpAsync(tools, laneA, "SSE Bulk 1");
+            var bulkCard2 = await CreateCardViaMcpAsync(tools, laneA, "SSE Bulk 2");
+            DrainChannel(reader); // discard the creates' bells — measure the bulk op in isolation.
+
+            var bulk = CreateBulkTools();
+            var bulkResult = await bulk.BulkUpdateCardsAsync
+            (
+                CollaboardApiFactory.TestAdminAuthKey,
+                cardIds: $"{bulkCard1},{bulkCard2}",
+                laneId: laneB
+            );
+            bulkResult.ShouldNotContain("\"failed\":2");
+
+            // Exactly ONE SSE bell for the 2-card bulk move (the BulkExecution per-board coalesce),
+            // and it is the byte-identical "board-updated" string. The naive per-card publish would
+            // ring 2 here — this is the assertion that would go red on that regression.
+            var bulkSignals = DrainChannel(reader);
+            bulkSignals.Count.ShouldBe(1);
+            bulkSignals[0].ShouldBe("board-updated");
         }
         finally
         {
