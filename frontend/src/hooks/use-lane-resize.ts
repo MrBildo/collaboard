@@ -81,28 +81,28 @@ export function useLaneResize(boardId: string, laneIds: string[]) {
     saveWidths(boardId, widths);
   }, [boardId, widths]);
 
-  // Pre-computed grid string
-  // During drag: all lanes are px (prevents rebalancing).
-  // At rest: rightmost lane is 1fr (anchored to right edge).
-  const isDragging = draggingIndex !== null;
+  // Pre-computed grid string.
+  // Every lane is a fixed-width track (its resized px, or MIN_LANE_WIDTH at
+  // default) — no track is `1fr`. Card #319: the old rightmost-lane `1fr`
+  // anchored the last lane to the viewport, so widening the window inflated it.
+  // With every track fixed, the grid is exactly as wide as its lanes; the
+  // section's `justify-start` (App.tsx) parks any leftover viewport width to the
+  // right of the last lane as plain board background instead of growing a lane.
   const gridTemplateColumns = useMemo(() => {
     if (laneIds.length === 0) return undefined;
 
     const hasCustom = laneIds.some((id) => widths[id] && widths[id] >= MIN_LANE_WIDTH);
     if (!hasCustom) {
-      return `repeat(${laneIds.length}, minmax(${MIN_LANE_WIDTH}px, 1fr))`;
+      return `repeat(${laneIds.length}, ${MIN_LANE_WIDTH}px)`;
     }
 
     return laneIds
-      .map((id, i) => {
+      .map((id) => {
         const w = widths[id];
-        // During drag: all lanes are px to prevent rebalancing
-        // At rest: rightmost lane fills remaining space
-        if (i === laneIds.length - 1 && !isDragging) return 'minmax(280px, 1fr)';
-        return w && w >= MIN_LANE_WIDTH ? `${Math.round(w)}px` : `minmax(${MIN_LANE_WIDTH}px, 1fr)`;
+        return w && w >= MIN_LANE_WIDTH ? `${Math.round(w)}px` : `${MIN_LANE_WIDTH}px`;
       })
       .join(' ');
-  }, [laneIds, widths, isDragging]);
+  }, [laneIds, widths]);
 
   const onHandleMouseDown = useCallback(
     (handleIndex: number, e: React.MouseEvent) => {
@@ -114,8 +114,9 @@ export function useLaneResize(boardId: string, laneIds: string[]) {
       const rightId = laneIds[handleIndex + 1];
       if (!leftId || !rightId) return;
 
-      // Snapshot ALL lanes to their current rendered px widths so the grid
-      // doesn't rebalance 1fr lanes during the drag
+      // Snapshot ALL lanes to their current rendered px widths so the first
+      // drag frame has a concrete px baseline for every lane (default lanes
+      // render at MIN_LANE_WIDTH; this captures any that the browser rounded).
       const children = section.querySelectorAll<HTMLElement>(':scope > [data-lane]');
       const snapshot: LaneWidths = {};
       children.forEach((child, i) => {
@@ -157,15 +158,15 @@ export function useLaneResize(boardId: string, laneIds: string[]) {
       // full board scrolls the board instead of dying), and reclaims space on a
       // shrink. When the board still fits, the neighbor absorbs the whole delta and
       // the original boundary-follows-cursor feel is preserved.
-      const isRightLast = rightId === laneIds[laneIds.length - 1];
+      // Card #319: every lane (including the last) is now a fixed-width track, so
+      // the neighbor always takes a concrete width — no rightmost-`1fr` special case.
       const neighborWidth = Math.max(MIN_LANE_WIDTH, startRightRef.current - delta);
 
-      setWidths((prev) => {
-        const next = { ...prev, [leftId]: Math.round(startLeftRef.current + delta) };
-        if (!isRightLast) next[rightId] = Math.round(neighborWidth);
-        else delete next[rightId]; // rightmost is always 1fr
-        return next;
-      });
+      setWidths((prev) => ({
+        ...prev,
+        [leftId]: Math.round(startLeftRef.current + delta),
+        [rightId]: Math.round(neighborWidth),
+      }));
     }
 
     function onMouseUp() {
