@@ -243,23 +243,21 @@ a black hole.
 
 ---
 
-## A worked example (n8n)
+## A worked example
 
-[n8n](https://n8n.io/) is a self-hostable workflow automation tool, and a webhook is
-the natural way to drive an n8n workflow from board activity. It's a concrete
-illustration — nothing here is n8n-specific; any tool that can receive an HTTP POST
-works the same way.
+This is the shape any HTTP-receiving receiver follows — a workflow automation tool,
+a small server, a script, an AI agent — nothing here is specific to one product.
 
-1. In n8n, add a **Webhook** trigger node. It gives you a URL.
+1. Register a URL with your automation tool or receiver that accepts HTTP POST requests.
 2. Set that URL as `Webhooks:Endpoint` in Collaboard and restart. Confirm the boot log
    says `Webhooks enabled → ...`.
-3. Add an **IF** node right after the trigger that drops non-human events — the
-   [recursion guard](#read-this-first-the-recursion-guard). Forward only when
-   `actor.role` is in `["Administrator", "HumanUser"]`.
+3. In your receiver, apply the [recursion guard](#read-this-first-the-recursion-guard)
+   immediately — drop the event when `actor.role` is not in
+   `["Administrator", "HumanUser"]`.
 4. Branch on what you care about — e.g. `event === "card.moved"` and
-   `data.to.laneName === "Ready"` — and wire the rest of your workflow off that.
-5. Test against a scratch board (create or move a card), watch the execution land in
-   n8n, then point it at the boards you actually mean.
+   `data.to.laneName === "Ready"` — and wire the rest of your automation off that.
+5. Test against a scratch board (create or move a card), confirm your receiver sees the
+   POST, then point it at the boards you actually mean.
 
 That's the whole shape: Collaboard emits the fact, your tool decides what to do with
 it, and the recursion guard keeps an automation that creates cards from chasing its
