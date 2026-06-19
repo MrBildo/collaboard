@@ -17,7 +17,7 @@ namespace Collaboard.Api.Events;
 // The [JsonPropertyName] attributes ARE the wire contract — the dispatcher (Phase 2)
 // just serializes this record with the project's camelCase options and POSTs it, so the
 // envelope field names live here, not in delivery code. The dotted past-tense `event`
-// name is the GitHub/Stripe/n8n idiom an integrator recognizes cold.
+// name is the GitHub/Stripe idiom an integrator recognizes cold.
 public sealed record BoardEvent
 (
     [property: JsonPropertyName("event")] string EventType,
