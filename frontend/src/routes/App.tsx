@@ -248,7 +248,15 @@ export function App() {
       >
         <section
           ref={sectionRef}
-          className="relative grid min-h-0 flex-1 gap-4 overflow-x-auto p-4 pb-2"
+          // Card #319: when lanes exist, justify-start packs the fixed-width lane
+          // tracks from the left so leftover viewport width sits to the right of
+          // the last lane as plain board background, instead of an `1fr` last lane
+          // inflating to fill it. With no lanes the grid keeps its default stretch
+          // so the centered EmptyState fills the board width.
+          className={cn(
+            'relative grid min-h-0 flex-1 gap-4 overflow-x-auto p-4 pb-2',
+            gridTemplateColumns && 'justify-start',
+          )}
           style={{
             gridTemplateColumns,
           }}
