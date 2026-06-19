@@ -178,249 +178,266 @@ export function PruneTab({ boardId }: PruneTabProps) {
   const isDelete = action === 'delete';
 
   return (
-    // Scroll-contained body (#310 / UAT-2): the filter stack scrolls within the
-    // panel rather than growing the dialog. Prune has no Add form, so this is a
-    // two-zone tab (scroll body, no pinned footer). The lane/label Popovers
-    // portal out, so they float above the dialog edge unaffected by this overflow.
-    <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto p-1">
-      {/* Action toggle */}
-      <div className="flex flex-col gap-2">
-        <span className="text-sm font-medium">Action</span>
-        <div className="flex gap-1">
-          <Button
-            variant={!isDelete ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => {
-              setAction('archive');
-              clearResults();
-            }}
-          >
-            <Archive className="mr-1.5 h-3.5 w-3.5" />
-            Archive
-          </Button>
-          <Button
-            variant={isDelete ? 'destructive' : 'outline'}
-            size="sm"
-            onClick={() => {
-              setAction('delete');
-              clearResults();
-            }}
-          >
-            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-            Delete
-          </Button>
-        </div>
-        {isDelete && (
-          <p className="flex items-center gap-1.5 text-xs text-destructive">
-            <AlertTriangle className="h-3 w-3" />
-            Cards will be permanently deleted.
-          </p>
-        )}
-      </div>
-
-      {/* Card status filter */}
-      <div className="flex flex-col gap-2">
-        <span className="text-sm font-medium">Card status</span>
-        <label className="flex cursor-pointer items-center gap-2">
-          <Checkbox
-            checked={includeArchived}
-            onCheckedChange={(checked) => {
-              setIncludeArchived(checked);
-              clearResults();
-            }}
-          />
-          <span className="text-sm">Include archived cards</span>
-        </label>
-      </div>
-
-      {/* No activity since */}
-      <div className="flex flex-col gap-2">
-        <span className="text-sm font-medium">No activity since</span>
-        <div className="flex flex-wrap items-center gap-2">
-          {PRESETS.map((p) => (
+    // Two-zone tab (#313): the filter stack + preview list scroll within the
+    // panel, while the action zone (Preview / execute) is pinned to a `shrink-0`
+    // footer so the archive/delete button stays reachable regardless of how tall
+    // the filters or the preview list grow. Matches the Lanes/Sizes/Labels tabs.
+    // The lane/label Popovers portal out, so they float above the dialog edge
+    // unaffected by this overflow (#310 / UAT-1).
+    <div className="flex h-full min-h-0 flex-col gap-4 p-1">
+      {/* Scroll zone — fills remaining height, scrolls internally on long
+          filter stacks / preview lists (#313). */}
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
+        {/* Action toggle */}
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium">Action</span>
+          <div className="flex gap-1">
             <Button
-              key={p.label}
-              variant={selectedPreset === p.label ? 'default' : 'outline'}
+              variant={!isDelete ? 'default' : 'outline'}
               size="sm"
-              onClick={() => handlePresetClick(p.label, p.days)}
+              onClick={() => {
+                setAction('archive');
+                // The "Include archived cards" filter is delete-only (#314); reset it
+                // when switching to Archive so a hidden filter can't silently apply.
+                setIncludeArchived(false);
+                clearResults();
+              }}
             >
-              {p.label}
+              <Archive className="mr-1.5 h-3.5 w-3.5" />
+              Archive
             </Button>
-          ))}
-          <Input
-            type="date"
-            value={customDateValue}
-            onChange={(e) => handleCustomDate(e.target.value)}
-            className="h-8 w-40"
-          />
+            <Button
+              variant={isDelete ? 'destructive' : 'outline'}
+              size="sm"
+              onClick={() => {
+                setAction('delete');
+                clearResults();
+              }}
+            >
+              <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+              Delete
+            </Button>
+          </div>
+          {isDelete && (
+            <p className="flex items-center gap-1.5 text-xs text-destructive">
+              <AlertTriangle className="h-3 w-3" />
+              Cards will be permanently deleted.
+            </p>
+          )}
         </div>
-        {olderThan && (
-          <p className="text-xs text-muted-foreground">
-            Cards not updated since {formatDate(olderThan)}
-          </p>
-        )}
-      </div>
 
-      {/* In lanes — Popover portals out of the dialog overflow so the checkbox
+        {/* Card status filter — only meaningful for Delete. Archiving an already
+          archived card is a no-op, so the filter renders only when Delete is the
+          selected action (#314). */}
+        {isDelete && (
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-medium">Card status</span>
+            <label className="flex cursor-pointer items-center gap-2">
+              <Checkbox
+                checked={includeArchived}
+                onCheckedChange={(checked) => {
+                  setIncludeArchived(checked);
+                  clearResults();
+                }}
+              />
+              <span className="text-sm">Include archived cards</span>
+            </label>
+          </div>
+        )}
+
+        {/* No activity since */}
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium">No activity since</span>
+          <div className="flex flex-wrap items-center gap-2">
+            {PRESETS.map((p) => (
+              <Button
+                key={p.label}
+                variant={selectedPreset === p.label ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => handlePresetClick(p.label, p.days)}
+              >
+                {p.label}
+              </Button>
+            ))}
+            <Input
+              type="date"
+              value={customDateValue}
+              onChange={(e) => handleCustomDate(e.target.value)}
+              className="h-8 w-40"
+            />
+          </div>
+          {olderThan && (
+            <p className="text-xs text-muted-foreground">
+              Cards not updated since {formatDate(olderThan)}
+            </p>
+          )}
+        </div>
+
+        {/* In lanes — Popover portals out of the dialog overflow so the checkbox
           list floats above the dialog edge and collision-flips near the viewport
           bottom instead of clipping (#310 / UAT-1). */}
-      <div className="flex flex-col gap-2">
-        <span className="text-sm font-medium">In lanes</span>
-        <Popover open={isLaneDropdownOpen} onOpenChange={setIsLaneDropdownOpen}>
-          <PopoverTrigger
-            render={
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                {selectedLaneNames.length > 0 ? selectedLaneNames.join(', ') : 'Any lane'}
-              </Button>
-            }
-          />
-          <PopoverContent
-            align="start"
-            className="max-h-[var(--available-height)] w-[var(--anchor-width)] overflow-y-auto p-2"
-          >
-            {lanes.map((lane) => (
-              <label
-                key={lane.id}
-                className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-muted/50"
-              >
-                <Checkbox
-                  checked={selectedLaneIds.includes(lane.id)}
-                  onCheckedChange={() => toggleLane(lane.id)}
-                />
-                <span className="text-sm">{lane.name}</span>
-              </label>
-            ))}
-          </PopoverContent>
-        </Popover>
-      </div>
-
-      {/* With labels — same portaled Popover as In lanes (#310 / UAT-1). */}
-      <div className="flex flex-col gap-2">
-        <span className="text-sm font-medium">With labels</span>
-        <Popover open={isLabelDropdownOpen} onOpenChange={setIsLabelDropdownOpen}>
-          <PopoverTrigger
-            render={
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                {selectedLabelNames.length > 0 ? selectedLabelNames.join(', ') : 'Any label'}
-              </Button>
-            }
-          />
-          <PopoverContent
-            align="start"
-            className="max-h-[var(--available-height)] w-[var(--anchor-width)] overflow-y-auto p-2"
-          >
-            {labels.map((label) => (
-              <label
-                key={label.id}
-                className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-muted/50"
-              >
-                <Checkbox
-                  checked={selectedLabelIds.includes(label.id)}
-                  onCheckedChange={() => toggleLabel(label.id)}
-                />
-                <span
-                  className="inline-block h-3 w-3 rounded-full"
-                  style={{ backgroundColor: label.color ?? '#6b7280' }}
-                />
-                <span className="text-sm">{label.name}</span>
-              </label>
-            ))}
-          </PopoverContent>
-        </Popover>
-      </div>
-
-      <p className="text-xs text-muted-foreground">
-        {isDelete ? (
-          <>
-            Permanently delete cards matching <strong>all</strong> selected filters.
-          </>
-        ) : (
-          <>
-            Archive cards matching <strong>all</strong> selected filters.
-          </>
-        )}
-      </p>
-
-      <Separator />
-
-      <Button onClick={handlePreview} disabled={!hasActiveFilter || previewMutation.isPending}>
-        <Search className="mr-2 w-4 h-4" />
-        {previewMutation.isPending ? 'Searching...' : 'Preview'}
-      </Button>
-
-      {pruneError && <InlineError message={pruneError} />}
-
-      {/* Preview results */}
-      {preview && (
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">
-              {preview.matchCount} cards will be {isDelete ? 'permanently deleted' : 'archived'}
-            </span>
-            <Badge variant="secondary">preview</Badge>
-          </div>
-
-          {preview.cards.length > 0 ? (
-            <div className="max-h-60 overflow-y-auto rounded-lg border border-border">
-              {preview.cards.map((card) => (
-                <div
-                  key={card.id}
-                  className="flex items-center gap-3 border-b border-border px-3 py-2 last:border-b-0 hover:bg-muted/50"
-                >
-                  <span className="text-sm font-medium text-muted-foreground">#{card.number}</span>
-                  <span className="flex-1 truncate text-sm">{card.name}</span>
-                  <span className="text-xs text-muted-foreground">{card.laneName}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {formatDate(card.lastUpdatedAtUtc)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">No cards match the current filters.</p>
-          )}
-
-          {preview.matchCount > 0 && (
-            <Button
-              variant="outline"
-              onClick={handleExecute}
-              disabled={pruneMutation.isPending}
-              className={cn(
-                isDelete
-                  ? 'border-destructive text-destructive hover:bg-destructive/10'
-                  : 'border-primary text-primary hover:bg-primary/10',
-              )}
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium">In lanes</span>
+          <Popover open={isLaneDropdownOpen} onOpenChange={setIsLaneDropdownOpen}>
+            <PopoverTrigger
+              render={
+                <Button variant="outline" size="sm" className="w-full justify-start">
+                  {selectedLaneNames.length > 0 ? selectedLaneNames.join(', ') : 'Any lane'}
+                </Button>
+              }
+            />
+            <PopoverContent
+              align="start"
+              className="max-h-[var(--available-height)] w-[var(--anchor-width)] overflow-y-auto p-2"
             >
-              {isDelete ? (
-                <Trash2 className="mr-2 w-4 h-4" />
-              ) : (
-                <Archive className="mr-2 w-4 h-4" />
-              )}
-              {pruneMutation.isPending
-                ? isDelete
-                  ? 'Deleting...'
-                  : 'Archiving...'
-                : isConfirming
-                  ? isDelete
-                    ? `Permanently delete ${preview.matchCount} cards? This cannot be undone.`
-                    : `Archive ${preview.matchCount} cards?`
-                  : isDelete
-                    ? `Delete ${preview.matchCount} cards`
-                    : `Archive ${preview.matchCount} cards`}
-            </Button>
-          )}
+              {lanes.map((lane) => (
+                <label
+                  key={lane.id}
+                  className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-muted/50"
+                >
+                  <Checkbox
+                    checked={selectedLaneIds.includes(lane.id)}
+                    onCheckedChange={() => toggleLane(lane.id)}
+                  />
+                  <span className="text-sm">{lane.name}</span>
+                </label>
+              ))}
+            </PopoverContent>
+          </Popover>
         </div>
-      )}
 
-      {/* Success state */}
-      {resultCount !== null && (
-        <div className="flex items-center gap-2 text-sm font-medium text-chart-3">
-          <Check className="w-4 h-4" />
-          {resultCount.action === 'delete'
-            ? `Deleted ${resultCount.count} cards`
-            : `Archived ${resultCount.count} cards`}
+        {/* With labels — same portaled Popover as In lanes (#310 / UAT-1). */}
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium">With labels</span>
+          <Popover open={isLabelDropdownOpen} onOpenChange={setIsLabelDropdownOpen}>
+            <PopoverTrigger
+              render={
+                <Button variant="outline" size="sm" className="w-full justify-start">
+                  {selectedLabelNames.length > 0 ? selectedLabelNames.join(', ') : 'Any label'}
+                </Button>
+              }
+            />
+            <PopoverContent
+              align="start"
+              className="max-h-[var(--available-height)] w-[var(--anchor-width)] overflow-y-auto p-2"
+            >
+              {labels.map((label) => (
+                <label
+                  key={label.id}
+                  className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-muted/50"
+                >
+                  <Checkbox
+                    checked={selectedLabelIds.includes(label.id)}
+                    onCheckedChange={() => toggleLabel(label.id)}
+                  />
+                  <span
+                    className="inline-block h-3 w-3 rounded-full"
+                    style={{ backgroundColor: label.color ?? '#6b7280' }}
+                  />
+                  <span className="text-sm">{label.name}</span>
+                </label>
+              ))}
+            </PopoverContent>
+          </Popover>
         </div>
-      )}
+
+        <p className="text-xs text-muted-foreground">
+          {isDelete ? (
+            <>
+              Permanently delete cards matching <strong>all</strong> selected filters.
+            </>
+          ) : (
+            <>
+              Archive cards matching <strong>all</strong> selected filters.
+            </>
+          )}
+        </p>
+
+        {/* Preview results — count + matched-card list stay in the scroll zone;
+            the execute button is pinned in the footer below (#313). */}
+        {preview && (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">
+                {preview.matchCount} cards will be {isDelete ? 'permanently deleted' : 'archived'}
+              </span>
+              <Badge variant="secondary">preview</Badge>
+            </div>
+
+            {preview.cards.length > 0 ? (
+              <div className="max-h-60 overflow-y-auto rounded-lg border border-border">
+                {preview.cards.map((card) => (
+                  <div
+                    key={card.id}
+                    className="flex items-center gap-3 border-b border-border px-3 py-2 last:border-b-0 hover:bg-muted/50"
+                  >
+                    <span className="text-sm font-medium text-muted-foreground">
+                      #{card.number}
+                    </span>
+                    <span className="flex-1 truncate text-sm">{card.name}</span>
+                    <span className="text-xs text-muted-foreground">{card.laneName}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {formatDate(card.lastUpdatedAtUtc)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No cards match the current filters.</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Pinned action footer — never scrolls; the Preview and archive/delete
+          buttons stay reachable regardless of filter-stack or preview-list
+          length (#313). Matches the Lanes/Sizes/Labels pinned footers. */}
+      <div className="flex shrink-0 flex-col gap-3">
+        <Separator />
+
+        <Button onClick={handlePreview} disabled={!hasActiveFilter || previewMutation.isPending}>
+          <Search className="mr-2 w-4 h-4" />
+          {previewMutation.isPending ? 'Searching...' : 'Preview'}
+        </Button>
+
+        {pruneError && <InlineError message={pruneError} />}
+
+        {preview && preview.matchCount > 0 && (
+          <Button
+            variant="outline"
+            onClick={handleExecute}
+            disabled={pruneMutation.isPending}
+            className={cn(
+              isDelete
+                ? 'border-destructive text-destructive hover:bg-destructive/10'
+                : 'border-primary text-primary hover:bg-primary/10',
+            )}
+          >
+            {isDelete ? <Trash2 className="mr-2 w-4 h-4" /> : <Archive className="mr-2 w-4 h-4" />}
+            {pruneMutation.isPending
+              ? isDelete
+                ? 'Deleting...'
+                : 'Archiving...'
+              : isConfirming
+                ? isDelete
+                  ? `Permanently delete ${preview.matchCount} cards? This cannot be undone.`
+                  : `Archive ${preview.matchCount} cards?`
+                : isDelete
+                  ? `Delete ${preview.matchCount} cards`
+                  : `Archive ${preview.matchCount} cards`}
+          </Button>
+        )}
+
+        {/* Success state */}
+        {resultCount !== null && (
+          <div className="flex items-center gap-2 text-sm font-medium text-chart-3">
+            <Check className="w-4 h-4" />
+            {resultCount.action === 'delete'
+              ? `Deleted ${resultCount.count} cards`
+              : `Archived ${resultCount.count} cards`}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
