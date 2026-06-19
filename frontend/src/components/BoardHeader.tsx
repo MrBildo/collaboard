@@ -36,9 +36,11 @@ export function BoardHeader({
 }: BoardHeaderProps) {
   return (
     <header className="flex h-14 shrink-0 items-center gap-x-3 border-b border-border px-4">
-      {/* Left region — logo + board switcher. Equal-basis third so the center
-          region stays page-symmetric regardless of side-content width (#176). */}
-      <div className="flex min-w-0 flex-1 basis-0 items-center gap-x-3">
+      {/* Left region — logo + board switcher. Grows equally with the right
+          region but never shrinks below its own content, so the center region
+          is the genuine free space between the two side clusters and the search
+          can page-center without overlapping the logo/switcher (#176). */}
+      <div className="flex flex-1 items-center gap-x-3">
         {/* Logo — shrink-0 so it never clips */}
         <img src="/collaboard-logo.svg" alt="Collaboard" className="w-32 shrink-0 xs:w-48" />
         {/* Board switcher — always inline */}
@@ -53,16 +55,18 @@ export function BoardHeader({
           </span>
         )}
       </div>
-      {/* Center region — search, hidden on mobile, visible at xs+. Equal-basis
-          third with justify-center makes the search genuinely page-centered;
-          SearchCommand keeps its own w-full max-w-md cap (#176). */}
+      {/* Center region — search, hidden on mobile, visible at xs+. Takes the
+          free space between the side clusters and centers the search within it;
+          SearchCommand keeps its own w-full max-w-md cap, so it shrinks (never
+          overlaps) when the free space is tighter than its cap (#176). */}
       <div className="flex min-w-0 flex-1 basis-0 justify-center xs:px-4">
-        <div className="hidden xs:block xs:w-full">
+        <div className="hidden w-full xs:flex xs:justify-center">
           <SearchCommand />
         </div>
       </div>
-      {/* Right region — actions. Equal-basis third, justified to the end. */}
-      <div className="flex min-w-0 flex-1 basis-0 items-center justify-end gap-2">
+      {/* Right region — actions. Mirrors the left region: grows equally but
+          never shrinks below its content, justified to the end (#176). */}
+      <div className="flex flex-1 items-center justify-end gap-2">
         {/* + New Card: xs+ only */}
         <Button onClick={onNewCard} className="hidden xs:inline-flex">
           + New Card
