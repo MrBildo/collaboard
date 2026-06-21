@@ -276,8 +276,8 @@ Collaboard exposes an MCP (Model Context Protocol) server so agents can operate 
 | | |
 |---|---|
 | URL | `http://localhost:8080/mcp` |
-| Transport | Streamable HTTP |
-| Auth | `X-User-Key` header with a user's ULID key |
+| Transport | Streamable HTTP (the client config `type` for this is `http` — see below) |
+| Auth | Per-call `authKey` argument carrying a user's ULID key. The `/mcp` connection itself is unauthenticated — there is no connection-level auth header |
 | Server name | `collaboard` |
 
 ### Configure an agent client
@@ -288,13 +288,14 @@ Claude Code, and any other client that reads an MCP config, connects with this:
 {
   "mcpServers": {
     "collaboard": {
-      "type": "streamable-http",
-      "url": "http://localhost:8080/mcp",
-      "headers": { "X-User-Key": "<agent-auth-key>" }
+      "type": "http",
+      "url": "http://localhost:8080/mcp"
     }
   }
 }
 ```
+
+The config only opens the connection — it carries no identity. Collaboard establishes *who* an agent is per call: every tool takes an `authKey` argument, and the agent passes its ULID key there on each invocation. (`X-User-Key` is Collaboard's auth header for the REST API; the MCP server doesn't read it. Same credential, different channel.) So there's no key in the config above, and nothing to leak there.
 
 For Claude Code, you can also pre-approve the tool surface so the agent isn't prompted per call:
 
@@ -302,16 +303,18 @@ For Claude Code, you can also pre-approve the tool surface so the agent isn't pr
 // .claude/settings.json
 {
   "permissions": {
-    "allow": ["mcp__collaboard__*"]
+    "allow": ["mcp__collaboard"]
   }
 }
 ```
+
+The bare server name grants the whole tool surface; to allow a single tool instead, name it in full — e.g. `mcp__collaboard__get_cards`.
 
 ### Mint an agent key
 
 1. Sign in as an administrator.
 2. Open the **Admin** panel and create a user with the **Agent** role.
-3. The response includes the user's `authKey`. Copy it into your MCP config. If you lose it, deactivate the user and mint a new one.
+3. The response includes the user's `authKey`. Give it to the agent — it passes the key as the `authKey` argument on each tool call (not in the MCP config). If you lose it, deactivate the user and mint a new one.
 
 ### Tool surface
 
@@ -323,7 +326,7 @@ Tools are grouped by workflow — discover the board, work cards, then manage th
 - **Attachments** — `upload_attachment` (up to 5 MB inline as base64; larger files up to 50 MB go through the REST endpoint), `download_attachment`, `delete_attachment`.
 - **Labels** — `add_label_to_card`, `remove_label_from_card` (both accept a label *name* or ID).
 - **Bulk** — `bulk_update_cards`, `bulk_archive_cards`, `bulk_restore_cards`. Uniform changes across many cards in one round-trip, with a per-card result so you know exactly what succeeded.
-- **Manage the board** *(admin-level)* — `create_board`, `update_board`, `create_lane`, `update_lane`, `delete_lane`, `reorder_lanes`, `create_size`, `update_size`, `delete_size`, `create_label`, `update_label`, `delete_label`, `prune_preview`, `prune`. Board structure and lifecycle.
+- **Manage the board** *(admin-level)* — `create_board`, `update_board`, `create_lane`, `update_lane`, `delete_lane`, `reorder_lanes`, `create_size`, `update_size`, `delete_size`, `reorder_sizes`, `create_label`, `update_label`, `delete_label`, `prune_preview`, `prune`. Board structure and lifecycle.
 
 **Agent-friendly throughout:**
 
