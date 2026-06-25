@@ -1,6 +1,8 @@
 using System.Globalization;
+using System.Text.Json;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Collaboard.Api;
@@ -17,6 +19,7 @@ public class BoardDbContext(DbContextOptions<BoardDbContext> options) : DbContex
     public DbSet<Label> Labels => Set<Label>();
     public DbSet<CardLabel> CardLabels => Set<CardLabel>();
     public DbSet<WebhookDeliveryAttempt> WebhookDeliveryAttempts => Set<WebhookDeliveryAttempt>();
+    public DbSet<WebhookSubscription> WebhookSubscriptions => Set<WebhookSubscription>();
 
     // #234: SQLite's default DateTimeOffset mapping cannot be translated when
     // the comparison appears in a nested query position (correlated sub-query,
@@ -30,6 +33,30 @@ public class BoardDbContext(DbContextOptions<BoardDbContext> options) : DbContex
     (
         v => v.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture),
         v => DateTimeOffset.Parse(v, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind)
+    );
+
+    // #326 — the webhook subscription event-selection is a small List<string> stored as a JSON TEXT
+    // column (no child table; the set is tiny and read whole per drain). Replace-only at the store
+    // (a fresh list is assigned on update, never mutated in place), so EF's reference-equality
+    // change detection persists edits without a ValueComparer. NOTE: a value-converted column
+    // defeats SQL translation of relational predicates — the dispatcher loads enabled rows and
+    // matches the selection in CLR memory, never Where(s => s.EventTypes.Contains(...)).
+    private static readonly ValueConverter<IList<string>, string> _eventTypesConverter = new
+    (
+        v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+        v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>()
+    );
+
+    // A value-converted mutable collection needs a comparer so EF compares by VALUE (not by
+    // reference) for change detection — without it EF logs a model-validation warning and would
+    // miss an in-place edit. The store treats the selection as replace-only anyway, but the comparer
+    // makes the model correct regardless and silences the warning.
+    private static readonly ValueComparer<IList<string>> _eventTypesComparer = new
+    (
+        (left, right) => (left == null && right == null)
+            || (left != null && right != null && left.SequenceEqual(right, StringComparer.Ordinal)),
+        value => value.Aggregate(0, (hash, item) => HashCode.Combine(hash, StringComparer.Ordinal.GetHashCode(item))),
+        value => value.ToList()
     );
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -50,6 +77,25 @@ public class BoardDbContext(DbContextOptions<BoardDbContext> options) : DbContex
         // newest first" read, and "all attempts for one event".
         builder.Entity<WebhookDeliveryAttempt>().HasIndex(x => new { x.BoardId, x.AttemptedAtUtc });
         builder.Entity<WebhookDeliveryAttempt>().HasIndex(x => x.EventId);
+
+        // #326 — serves the per-subscription "deliveries newest first" read and the on-read metrics
+        // aggregation (success/failure counts + last-delivery per subscription).
+        builder.Entity<WebhookDeliveryAttempt>().HasIndex(x => new { x.SubscriptionId, x.AttemptedAtUtc });
+
+        // #326 — the subscription event-selection persists as a JSON TEXT column via the converter,
+        // compared by value for change detection.
+        builder.Entity<WebhookSubscription>()
+            .Property(x => x.EventTypes)
+            .HasConversion(_eventTypesConverter, _eventTypesComparer);
+
+        // #326 — the delivery-attempt log's nullable SubscriptionId FK. SetNull (not Cascade):
+        // deleting a subscription must NOT delete its delivery history — the audit log outlives the
+        // subscription (an admin removing a flaky webhook still wants to see why it failed). A
+        // deliberate divergence from the board-scoped Cascade relationships.
+        builder.Entity<WebhookDeliveryAttempt>()
+            .HasOne<WebhookSubscription>().WithMany()
+            .HasForeignKey(x => x.SubscriptionId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         // FK relationships
         builder.Entity<Lane>()

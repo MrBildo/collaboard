@@ -1,6 +1,7 @@
 using Collaboard.Api.Configuration;
 using Collaboard.Api.Events;
 using Collaboard.Api.Models;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace Collaboard.Api.Hosting.Webhooks;
@@ -50,7 +51,11 @@ internal sealed class WebhookDispatcherService
     private readonly ILogger<WebhookDispatcherService> _logger = logger
         ?? throw new ArgumentNullException(nameof(logger));
 
-    private bool IsConfigured => _settings.Enabled && !string.IsNullOrWhiteSpace(_settings.Endpoint);
+    // #326 — delivery now routes to the subscription registry, not a single configured endpoint, so
+    // "configured" collapses to the global master kill-switch. Endpoint is no longer read for
+    // delivery (it survives only as the one-time config-migration seed input). Each per-subscription
+    // Enabled is ANDed with this at fan-out.
+    private bool IsConfigured => _settings.Enabled;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -66,31 +71,21 @@ internal sealed class WebhookDispatcherService
         }
     }
 
-    // The startup-confirmation log line (operator on-ramp — Dana H2). Without it, the only
-    // positive feedback that config took effect is a successful delivery in the log table, which
-    // requires a working consumer already wired. Host only — NEVER the full URL (it may carry an
-    // embedded credential) and NEVER the secret.
+    // The startup-confirmation log line (operator on-ramp). #326: the registry replaced the single
+    // configured endpoint, so this reports the master-switch posture only — NEVER a URL or secret,
+    // and deliberately NO subscription-count DB read at startup (a startup-time query on the WAF's
+    // shared in-memory connection races the test thread; the registry's contents surface through the
+    // management endpoints, not this log line).
     private void LogStartupState()
     {
-        if (!_settings.Enabled)
+        if (_settings.Enabled)
+        {
+            _logger.LogInformation("Webhooks enabled — delivery routes to the subscription registry.");
+        }
+        else
         {
             _logger.LogInformation("Webhooks disabled (Webhooks:Enabled = false).");
-            return;
         }
-
-        if (string.IsNullOrWhiteSpace(_settings.Endpoint))
-        {
-            _logger.LogInformation("Webhooks dark (no Webhooks:Endpoint configured).");
-            return;
-        }
-
-        var signed = !string.IsNullOrWhiteSpace(_settings.Secret);
-        _logger.LogInformation
-        (
-            "Webhooks enabled → {EndpointHost} (signed: {Signed}).",
-            EndpointHostOrRaw(_settings.Endpoint),
-            signed
-        );
     }
 
     private async Task DrainSafelyAsync(CancellationToken ct)
@@ -124,14 +119,48 @@ internal sealed class WebhookDispatcherService
         }
     }
 
-    // Delivers ONE event with bounded retry, persisting every attempt and logging a loud drop on
-    // final failure. The deterministic seam tests drive directly (mirrors TempCardSweepService.
-    // SweepAsync): given a BoardDbContext + an IWebhookSender, it runs the full attempt loop and
-    // SaveChangesAsync's the attempt rows. The caller (the drain loop) supplies one scope's db per
-    // event; the endpoint must be configured (the loop's IsConfigured guard runs first).
+    // Delivers ONE event to EVERY enabled subscription whose selection matches its type (#326 — v1
+    // dialed a single configured endpoint, v2 fans out to the registry). A deterministic static
+    // seam the tests drive directly, the same shape as the temp-card sweep: it loads the matching
+    // subscriptions and runs the full per-subscription attempt loop. The caller supplies one
+    // DbContext scope per event, and the master switch runs ahead of it.
     public static async Task DeliverEventAsync
     (
         BoardEvent boardEvent,
+        IWebhookSender sender,
+        BoardDbContext db,
+        WebhookSettings settings,
+        ILogger logger,
+        CancellationToken ct
+    )
+    {
+        // Load the enabled rows with a translatable predicate, then match the selection in CLR
+        // memory. A relational predicate over the value-converted EventTypes column does not
+        // translate to SQL, so the selection match must happen in memory after loading (#326).
+        var enabled = await db.WebhookSubscriptions
+            .Where(s => s.Enabled)
+                .ToListAsync(ct);
+
+        var matches = enabled
+            .Where(s => WebhookEventTypes.Matches(s.EventTypes, boardEvent.EventType))
+            .ToList();
+
+        foreach (var subscription in matches)
+        {
+            // One subscription's failure must not block the next — each fans out independently.
+            var target = new WebhookTarget(subscription.Url, subscription.Secret);
+            await DeliverToSubscriptionAsync(boardEvent, target, subscription.Id, sender, db, settings, logger, ct);
+        }
+    }
+
+    // Delivers one event to ONE subscription with bounded retry, persisting every attempt (tagged
+    // with the SubscriptionId) and logging a loud drop on final failure. This is v1's per-event
+    // attempt loop, now per-subscription.
+    private static async Task DeliverToSubscriptionAsync
+    (
+        BoardEvent boardEvent,
+        WebhookTarget target,
+        Guid subscriptionId,
         IWebhookSender sender,
         BoardDbContext db,
         WebhookSettings settings,
@@ -150,11 +179,12 @@ internal sealed class WebhookDispatcherService
                 await DelayBeforeRetryAsync(settings, attempt, ct);
             }
 
-            var result = await sender.SendAsync(boardEvent, ct);
+            var result = await sender.SendAsync(boardEvent, target, ct);
 
             db.WebhookDeliveryAttempts.Add(new WebhookDeliveryAttempt
             {
                 Id = Guid.NewGuid(),
+                SubscriptionId = subscriptionId,
                 EventId = boardEvent.EventId,
                 EventType = boardEvent.EventType,
                 BoardId = boardEvent.BoardId,
@@ -178,11 +208,12 @@ internal sealed class WebhookDispatcherService
                 // rows are already written above; this is the operator-visible log entry.
                 logger.LogWarning
                 (
-                    "Webhook delivery failed after {Attempts} attempt(s) for event {EventId} ({EventType}) on board {BoardId}: {Error}",
+                    "Webhook delivery failed after {Attempts} attempt(s) for event {EventId} ({EventType}) on board {BoardId} to subscription {SubscriptionId}: {Error}",
                     maxAttempts,
                     boardEvent.EventId,
                     boardEvent.EventType,
                     boardEvent.BoardId,
+                    subscriptionId,
                     result.Error
                 );
             }
@@ -205,10 +236,4 @@ internal sealed class WebhookDispatcherService
     // column.
     private static string? TruncateHead(string? error) =>
         error is { Length: > 500 } ? error[..500] : error;
-
-    // Host only — the operator-facing log must never leak a full URL with an embedded credential.
-    // Falls back to the raw value only if it does not parse as an absolute URI (a misconfiguration
-    // the operator needs to see verbatim to fix).
-    private static string EndpointHostOrRaw(string endpoint) =>
-        Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) ? uri.Host : endpoint;
 }

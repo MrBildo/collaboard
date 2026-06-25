@@ -7,12 +7,16 @@ namespace Collaboard.Api.Models;
 // round-table would not cut: a fire-and-forget webhook that silently stops triggering is
 // the zero-operator nightmare, and you cannot reconstruct delivery history you did not
 // record. Logs scroll away and are not queryable by board/event after the fact; the row is
-// the difference between "webhooks work" and "webhooks are debuggable". When the
-// subscription-registry upgrade lands this grows a SubscriptionId FK; until then it stands
-// alone.
+// the difference between "webhooks work" and "webhooks are debuggable". The
+// subscription-registry upgrade (#326) added the SubscriptionId FK below.
 public class WebhookDeliveryAttempt
 {
     public Guid Id { get; set; }
+
+    // #326 — which subscription this delivery targeted. Nullable: v1/seed rows and rows whose
+    // subscription was later deleted carry null (FK OnDelete = SetNull — the audit log outlives the
+    // subscription). Not backfilled.
+    public Guid? SubscriptionId { get; set; }
 
     [MaxLength(60)]
     public string EventId { get; set; } = string.Empty;     // the envelope eventId (dedup correlation; ULID is 26 chars)

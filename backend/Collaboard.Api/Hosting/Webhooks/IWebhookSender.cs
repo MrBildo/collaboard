@@ -7,12 +7,14 @@ namespace Collaboard.Api.Hosting.Webhooks;
 // (the Test Plan wants a stub HttpMessageHandler capturing exact bytes/headers without a real
 // socket) and the dispatcher's drain/retry/persist logic stays separable from the wire send.
 //
-// One attempt = one POST. The sender serializes the event ONCE (D3 — sign the exact bytes sent),
-// signs when a secret is configured, attaches the delivery headers, and reports the outcome. The
-// dispatcher owns the retry loop, the persisted attempt log, and the loud final-failure drop.
+// One attempt = one POST to a per-subscription target (#326 — v1 read the URL/secret from
+// Webhooks:Endpoint/:Secret; v2 carries them in WebhookTarget). The sender serializes the event
+// ONCE (D3 — sign the exact bytes sent), signs with the target's secret when present, attaches the
+// delivery headers, and reports the outcome. The dispatcher owns the retry loop, the persisted
+// attempt log, and the loud final-failure drop.
 public interface IWebhookSender
 {
-    Task<WebhookDeliveryResult> SendAsync(BoardEvent boardEvent, CancellationToken ct);
+    Task<WebhookDeliveryResult> SendAsync(BoardEvent boardEvent, WebhookTarget target, CancellationToken ct);
 }
 
 // The outcome of one delivery attempt. StatusCode is null when no response was received
