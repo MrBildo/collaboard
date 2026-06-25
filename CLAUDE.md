@@ -27,7 +27,7 @@ These rules are non-negotiable. They apply to every agent, every dispatch, every
 - React 18 + TypeScript
 - Vite (dev server + build)
 - React Router v6 — routes: `/`, `/boards/:slug`, `/boards/:slug/cards/:cardNumber`
-- Tailwind CSS v3 + shadcn/ui
+- Tailwind CSS v4 + shadcn/ui
 - TanStack Query (data fetching)
 - dnd-kit (drag-and-drop)
 - react-markdown (markdown rendering)
@@ -337,7 +337,7 @@ Always use shadcn/ui primitives from `@/components/ui/`. Never build raw HTML bu
 
 ### Cards
 
-Kanban cards use: `rounded-lg shadow-sm border border-border bg-card p-3 hover:shadow-md transition-shadow`
+Kanban cards use: `rounded-lg shadow-xs border border-border bg-card p-3 hover:shadow-md transition-shadow`
 
 ### Icons
 
