@@ -199,7 +199,20 @@ builder.Services
     {
         client.DefaultRequestHeaders.UserAgent.ParseAdd("Collaboard-Webhooks");
         client.Timeout = webhookSettings.DeliveryTimeout;
+    })
+    .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+    {
+        // #326 SSRF floor controls 3-4: refuse redirects (a 302-to-internal would walk around the
+        // IP checks) and pin every connection to a validated IP (the DNS-rebind defense). The
+        // allowPrivate flag is read from the startup-bound settings so it agrees with the store's
+        // registration validator (S2).
+        AllowAutoRedirect = false,
+        ConnectCallback = SsrfGuard.CreateConnectCallback(webhookSettings.AllowPrivateNetworkTargets),
     });
+
+// #326 — the shared CRUD/validation core both the REST endpoints and MCP tools (later slices)
+// delegate to, so the SSRF validation and the write-only-secret projection are un-bypassable.
+builder.Services.AddScoped<WebhookSubscriptionStore>();
 builder.Services.AddHostedService<WebhookDispatcherService>();
 builder.Services.AddScoped<IUserResolver, UserResolver>();
 builder.Services.AddScoped<McpAuthService>();
@@ -382,6 +395,18 @@ await using (var scope = app.Services.CreateAsyncScope())
     {
         app.Logger.LogInformation("Admin auth key: {AuthKey}", admin.AuthKey);
     }
+
+    // #326 — migrate the v1 single configured webhook endpoint into the subscription registry on
+    // first v2 boot. DELIBERATELY independent of the !Users.AnyAsync() fresh-install block above:
+    // production already has users, so reusing that gate would never fire on upgrade and would
+    // silently drop the working prod webhook. Gated instead on an empty subscription table.
+    await WebhookConfigSeeder.SeedAsync
+    (
+        db,
+        app.Configuration.GetValue<string>("Webhooks:Endpoint"),
+        app.Configuration.GetValue<string>("Webhooks:Secret"),
+        CancellationToken.None
+    );
 }
 
 if (app.Environment.IsDevelopment())

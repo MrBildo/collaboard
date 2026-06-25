@@ -71,7 +71,7 @@ public sealed class WebhookDeliveryTests
             Timeout = settings.Value.DeliveryTimeout,
         };
         httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Collaboard-Webhooks");
-        var sender = new HttpWebhookSender(httpClient, settings);
+        var sender = new HttpWebhookSender(httpClient);
 
         var delivered = 0;
         while (queue.TryDequeue(out var boardEvent) && boardEvent is not null)

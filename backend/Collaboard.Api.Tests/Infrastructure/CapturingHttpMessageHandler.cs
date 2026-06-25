@@ -18,6 +18,10 @@ public sealed class CapturingHttpMessageHandler : HttpMessageHandler
     // (e.g. scenario 8: 500 until exhausted, then 200 on a fresh create).
     public HttpStatusCode ResponseStatusCode { get; set; } = HttpStatusCode.OK;
 
+    // Optional per-request-URI status selector (#326 fan-out isolation tests — one subscription's
+    // URL returns 500 while another returns 200). When set it overrides ResponseStatusCode.
+    public Func<Uri?, HttpStatusCode>? ResponseSelector { get; set; }
+
     // Optional artificial delay before responding — simulates a slow endpoint for the
     // never-blocks-the-mutation and timeout edge cases.
     public TimeSpan ResponseDelay { get; set; } = TimeSpan.Zero;
@@ -56,7 +60,8 @@ public sealed class CapturingHttpMessageHandler : HttpMessageHandler
             await Task.Delay(ResponseDelay, cancellationToken);
         }
 
-        return new HttpResponseMessage(ResponseStatusCode);
+        var status = ResponseSelector?.Invoke(request.RequestUri) ?? ResponseStatusCode;
+        return new HttpResponseMessage(status);
     }
 }
 
