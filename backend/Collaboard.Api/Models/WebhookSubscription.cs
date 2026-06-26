@@ -1,5 +1,3 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace Collaboard.Api.Models;
 
 // A registered webhook subscription (#326 — webhooks v2 registry). v1 delivered to a single
@@ -15,12 +13,10 @@ public class WebhookSubscription
     public Guid Id { get; set; }
 
     // Operator label for the management UI ("n8n prod"). Optional.
-    [MaxLength(200)]
     public string? Name { get; set; }
 
     // The dial-out target. RETURNED in the management read projection — it is operator-trust
     // config, not a secret. Every delivery to this URL passes the uniform SSRF connect guard.
-    [MaxLength(2048)]   // a conventional maximum-URL-length cap
     public string Url { get; set; } = string.Empty;
 
     // HMAC-SHA256 signing key. WRITE-ONLY at the API surface (never projected to a read response —

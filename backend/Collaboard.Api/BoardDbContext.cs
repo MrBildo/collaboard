@@ -82,6 +82,26 @@ public class BoardDbContext(DbContextOptions<BoardDbContext> options) : DbContex
         // aggregation (success/failure counts + last-delivery per subscription).
         builder.Entity<WebhookDeliveryAttempt>().HasIndex(x => new { x.SubscriptionId, x.AttemptedAtUtc });
 
+        // String max-length column constraints. Configured here in the model builder, not via entity
+        // [MaxLength] attributes — keys, indexes, column types, relationships, and length constraints
+        // all live in OnModelCreating so the persistence shape has a single source of truth.
+        builder.Entity<Board>().Property(x => x.Name).HasMaxLength(80);
+        builder.Entity<Board>().Property(x => x.Slug).HasMaxLength(80);
+        builder.Entity<BoardUser>().Property(x => x.AuthKey).HasMaxLength(26);   // ULID is 26 chars
+        builder.Entity<BoardUser>().Property(x => x.Name).HasMaxLength(80);
+        builder.Entity<Lane>().Property(x => x.Name).HasMaxLength(40);
+        builder.Entity<CardSize>().Property(x => x.Name).HasMaxLength(20);
+        builder.Entity<CardItem>().Property(x => x.Name).HasMaxLength(120);
+        builder.Entity<Label>().Property(x => x.Name).HasMaxLength(30);
+        builder.Entity<Label>().Property(x => x.Color).HasMaxLength(20);
+        builder.Entity<CardAttachment>().Property(x => x.FileName).HasMaxLength(240);
+        builder.Entity<CardAttachment>().Property(x => x.ContentType).HasMaxLength(100);
+        builder.Entity<WebhookDeliveryAttempt>().Property(x => x.EventId).HasMaxLength(60);
+        builder.Entity<WebhookDeliveryAttempt>().Property(x => x.EventType).HasMaxLength(40);
+        builder.Entity<WebhookDeliveryAttempt>().Property(x => x.Error).HasMaxLength(500);
+        builder.Entity<WebhookSubscription>().Property(x => x.Name).HasMaxLength(200);
+        builder.Entity<WebhookSubscription>().Property(x => x.Url).HasMaxLength(2048);   // conventional maximum-URL-length cap
+
         // #326 — the subscription event-selection persists as a JSON TEXT column via the converter,
         // compared by value for change detection.
         builder.Entity<WebhookSubscription>()
