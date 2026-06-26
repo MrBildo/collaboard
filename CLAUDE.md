@@ -180,6 +180,21 @@ All endpoints under `/api/v1/`:
 | Comments | `GET /cards/{id}/comments`, `POST /cards/{id}/comments` (400 if archived), `PATCH /comments/{id}` (400 if archived), `DELETE /comments/{id}` (400 if archived) |
 | Attachments | `GET /cards/{id}/attachments`, `POST /cards/{id}/attachments` (400 if archived), `GET /attachments/{id}` (auth required — downloads attachment content via `X-User-Key`; no browser-native `<img>` consumer), `DELETE /attachments/{id}` (400 if archived) |
 
+### Webhooks (admin-level — `Administrator` / `AgentAdministrator`; D1 uniform — #326)
+
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | /webhooks/subscriptions | List subscriptions, each enriched with on-read metrics (success/failure counts, last-delivery status+time); **secret-free** (`signed: bool`, never the value) |
+| GET | /webhooks/subscriptions/{id} | One subscription (secret-free) |
+| POST | /webhooks/subscriptions | Create (`{ url, events[], secret?, enabled?=true, name? }`); SSRF registration check; `events` non-empty (or `"*"` wildcard); returns the created subscription (secret-free) |
+| PATCH | /webhooks/subscriptions/{id} | Update; secret **set/keep/clear** (omit=keep, value=replace, `clearSecret`=clear); URL-changing edits re-validate SSRF; secret-free return |
+| DELETE | /webhooks/subscriptions/{id} | Delete (`{ deleted: true }`); delivery-log history kept (`SubscriptionId` SetNull) |
+| POST | /webhooks/subscriptions/{id}/test | Synchronous `webhook.ping` through the same SSRF-guarded + signing pipe; one attempt row; `{ success, statusCode, error? }` inline |
+| GET | /webhooks/deliveries | Persisted delivery attempts (newest first); filters `boardId`, `subscriptionId`; `PagedResult`; item carries `subscriptionId` |
+| GET | /webhooks/status | Global posture + counts: `{ enabled, allowPrivateNetworkTargets, subscriptionCount, enabledSubscriptionCount }` (booleans/counts only) |
+
+Delivery: per-subscription fan-out; uniform SSRF guard (4-control floor incl. connect-time DNS-rebind pin; **no grandfather — D3 deliberate breaking change**; `Webhooks:AllowPrivateNetworkTargets` override, default false; the webhook delivery client opts out of the standard resilience handler so the blocked-error isn't masked). Shared `WebhookSubscriptionStore` is the un-bypassable REST/MCP seam. Secret write-only at the API, plaintext at rest (symmetric HMAC key). Config-migration seeds v1 `Webhooks:Endpoint`/`Secret` into a subscription on first v2 boot (gated on an empty subscription table, v1-parity selection). Retention sweep ages out the delivery log (`Webhooks:DeliveryLogRetentionDays`, default 30, 0 = keep). M1 selectable events = `card.created`/`card.moved`; the full ~18-event catalog is M2 (#329). (#326)
+
 ### SSE Events
 
 | Path | Notes |
@@ -190,9 +205,9 @@ All endpoints under `/api/v1/`:
 
 | Path | Notes |
 |------|-------|
-| /mcp | Streamable HTTP transport — 39 tools across SystemTools, BoardTools, CardTools, ArchiveTools, CommentTools, AttachmentTools, LabelTools, LaneTools, SizeTools, PruneTools, BulkCardTools, SearchTools |
+| /mcp | Streamable HTTP transport — 44 tools across SystemTools, BoardTools, CardTools, ArchiveTools, CommentTools, AttachmentTools, LabelTools, LaneTools, SizeTools, PruneTools, BulkCardTools, SearchTools, WebhookTools |
 
-**Tools (39):**
+**Tools (44):**
 - **SystemTools:** `get_api_info` (returns base URL and API prefix for direct REST calls)
 - **BoardTools:** `get_boards`, `get_lanes` (boardId required, includes cardCount per lane; excludes archive lanes), `get_sizes` (boardId required, ordered by ordinal), `create_board` (admin-level; slug auto-derived, seeds archive lane + default sizes), `update_board` (admin-level; rename only)
 - **CardTools:** `create_card` (supports labelIds, sizeId/sizeName — defaults to lowest-ordinal size; positions at top of lane; blocks archive lane), `move_card` (index optional; blocks to/from archive lane), `update_card` (supports laneId/index move, sizeId/sizeName, labelIds replace, no-op guard; blocks archived cards; returns enriched card summary with labels, sizeName, commentCount, attachmentCount, isArchived), `get_cards` (enriched: labels, sizeId, sizeName, commentCount, attachmentCount, isArchived; returns `{ items, totalCount, offset, limit }` paged envelope; `offset` param default 0, `limit` param default 200, max 500; `includeArchived` param default false), `get_card` (enriched: sizeName, attachments, user names, isArchived; supports cardNumber lookup)
@@ -205,6 +220,7 @@ All endpoints under `/api/v1/`:
 - **PruneTools:** `prune_preview` (admin-level; read-only; `{ matchCount, cards }`; filters: olderThan, laneIds, labelIds, includeArchived; excludes archived by default), `prune` (admin-level; **archive only** — no delete action and no prune_delete tool, by design per #243's exclusion list; `{ archivedCount }`)
 - **BulkCardTools:** `bulk_archive_cards`, `bulk_restore_cards` (requires targetLaneId; all cards must share the target lane's board), `bulk_update_cards` (uniform laneId/index move, sizeId/sizeName, labelIds replace — folds in bulk-move; per-card name/description not offered). All three are **all-roles** (gate via `RequireUserAsync`, matching the per-card analogs they batch) and accept `cardIds` (CSV of GUIDs) XOR `cardNumbers` (CSV) + `boardId`/`boardSlug`. **Two-phase semantics:** Phase 1 pre-validation fails loud with a single `"Error: ..."` string and performs no mutations (ref-shape/parse, card existence, board-match and target premises); Phase 2 per-card execution is best-effort with a per-item envelope `{ totalRequested, succeeded, failed, results: [{ cardId, number, status, error? }] }` (results align 1:1 with input order), one `SaveChangesAsync` at the end, one broadcast per affected board (deduplicated). No `bulk_delete_cards` — delete is irreversible, excluded by design. (#196)
 - **SearchTools:** `search_cards` (cross-board free-text search; query `q` — prefix `#` for exact card-number lookup; results grouped by board, each card carries enriched `CardSummary` shape; default limit 20, max 50; optional `boardId` ranks one board first without scoping; optional `archiveBoardId` includes archived cards from that board only; mirrors REST `GET /search/cards`)
+- **WebhookTools:** `create_webhook` (admin-level; `url`, `events` CSV, `secret?`, `enabled?`, `name?`; SSRF registration check; secret-free `signed: bool` return), `list_webhooks` (admin-level; all subscriptions, global, secret-free + on-read metrics), `update_webhook` (admin-level; secret set/keep/clear via `clearSecret`; URL-changing edits re-validate SSRF), `delete_webhook` (admin-level; delivery-log history kept), `test_webhook` (admin-level; synchronous `webhook.ping` through the same SSRF-guarded + signing pipe). All delegate to the shared `WebhookSubscriptionStore` — the SSRF check is **un-bypassable** from MCP (no `get_webhook` single-get; `list_webhooks` returns everything at registry scale). (#326)
 
 **Admin-level tools** require the `Administrator` or `AgentAdministrator` role (gated via `McpAuthService.RequireAdminLevelAsync`). Strict-admin-only operations (delete board, prune-delete, user CRUD) are deliberately absent from the MCP surface entirely.
 
