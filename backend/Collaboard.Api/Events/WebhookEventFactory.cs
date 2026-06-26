@@ -99,6 +99,242 @@ internal static class WebhookEventFactory
         return BuildEvent(WebhookEventTypes.CardMoved, card.BoardId, boardSlug, actor, data);
     }
 
+    // ── Card-family M2 emit helpers (#329) ──────────────────────────────────────────
+    //
+    // Build* methods produce a BoardEvent WITHOUT publishing — the co-fire sites
+    // (PATCH /cards, update_card) collect several into one list and ring a single SSE
+    // bell via broadcaster.PublishCoalesced; the bulk/prune sites enqueue them directly
+    // to the sink. Publish* convenience wrappers cover the single-axis sites (archive,
+    // restore, one label add/remove) where exactly one event fans out to one SSE bell.
+
+    public static Task<BoardEvent> BuildCardUpdatedAsync
+    (
+        BoardDbContext db,
+        CardItem card,
+        BoardUser actor,
+        CancellationToken ct
+    ) =>
+        BuildCardSummaryEventAsync(db, WebhookEventTypes.CardUpdated, card, actor, (summary, laneName) => new WebhookCardUpdatedData(summary, laneName), ct);
+
+    public static Task<BoardEvent> BuildCardLabeledAsync
+    (
+        BoardDbContext db,
+        CardItem card,
+        Label label,
+        BoardUser actor,
+        CancellationToken ct
+    ) =>
+        BuildCardSummaryEventAsync(db, WebhookEventTypes.CardLabeled, card, actor, (summary, laneName) => new WebhookCardLabeledData(summary, laneName, new WebhookLabelRef(label.Id, label.Name, label.Color)), ct);
+
+    public static Task<BoardEvent> BuildCardUnlabeledAsync
+    (
+        BoardDbContext db,
+        CardItem card,
+        Label label,
+        BoardUser actor,
+        CancellationToken ct
+    ) =>
+        BuildCardSummaryEventAsync(db, WebhookEventTypes.CardUnlabeled, card, actor, (summary, laneName) => new WebhookCardUnlabeledData(summary, laneName, new WebhookLabelRef(label.Id, label.Name, label.Color)), ct);
+
+    public static async Task PublishCardArchivedAsync
+    (
+        BoardDbContext db,
+        BoardEventBroadcaster broadcaster,
+        CardItem card,
+        BoardUser actor,
+        CancellationToken ct
+    )
+    {
+        var boardEvent = await BuildCardSummaryEventAsync(db, WebhookEventTypes.CardArchived, card, actor, (summary, laneName) => new WebhookCardArchivedData(summary, laneName), ct);
+        broadcaster.Publish(boardEvent);
+    }
+
+    public static async Task PublishCardRestoredAsync
+    (
+        BoardDbContext db,
+        BoardEventBroadcaster broadcaster,
+        CardItem card,
+        BoardUser actor,
+        CancellationToken ct
+    )
+    {
+        var boardEvent = await BuildCardSummaryEventAsync(db, WebhookEventTypes.CardRestored, card, actor, (summary, laneName) => new WebhookCardRestoredData(summary, laneName), ct);
+        broadcaster.Publish(boardEvent);
+    }
+
+    public static async Task PublishCardLabeledAsync
+    (
+        BoardDbContext db,
+        BoardEventBroadcaster broadcaster,
+        CardItem card,
+        Label label,
+        BoardUser actor,
+        CancellationToken ct
+    )
+    {
+        var boardEvent = await BuildCardLabeledAsync(db, card, label, actor, ct);
+        broadcaster.Publish(boardEvent);
+    }
+
+    public static async Task PublishCardUnlabeledAsync
+    (
+        BoardDbContext db,
+        BoardEventBroadcaster broadcaster,
+        CardItem card,
+        Label label,
+        BoardUser actor,
+        CancellationToken ct
+    )
+    {
+        var boardEvent = await BuildCardUnlabeledAsync(db, card, label, actor, ct);
+        broadcaster.Publish(boardEvent);
+    }
+
+    // Batch builders for the bulk (bulk_archive_cards / bulk_restore_cards) and prune-archive
+    // paths: one CardSummaryBuilder pass + one slug query + one lane-name query for the whole
+    // set, so an N-card archive does not fan out into N×(summary queries) on a concurrent
+    // board. Cards may span boards/lanes (bulk_archive accepts a cross-board set), so slug and
+    // lane name are resolved by id. The caller enqueues the events to the sink and rings one
+    // bell per affected board (the BulkExecution coalesce contract).
+    public static Task<List<BoardEvent>> BuildCardArchivedBatchAsync
+    (
+        BoardDbContext db,
+        IReadOnlyList<CardItem> cards,
+        BoardUser actor,
+        CancellationToken ct
+    ) =>
+        BuildCardSummaryEventBatchAsync(db, WebhookEventTypes.CardArchived, cards, actor, (summary, laneName) => new WebhookCardArchivedData(summary, laneName), ct);
+
+    public static Task<List<BoardEvent>> BuildCardRestoredBatchAsync
+    (
+        BoardDbContext db,
+        IReadOnlyList<CardItem> cards,
+        BoardUser actor,
+        CancellationToken ct
+    ) =>
+        BuildCardSummaryEventBatchAsync(db, WebhookEventTypes.CardRestored, cards, actor, (summary, laneName) => new WebhookCardRestoredData(summary, laneName), ct);
+
+    // The multi-axis co-fire assembly (#329) — the shared REST/MCP seam so PATCH /cards and
+    // update_card emit the IDENTICAL event set for the same change by construction (the
+    // anti-drift discipline; this must NOT be re-implemented per surface). One event per
+    // CHANGED axis: content → card.updated, lane → card.moved, each added/removed label →
+    // card.labeled / card.unlabeled. The caller rings exactly one SSE bell via
+    // PublishCoalesced. Build* (no publish) so the events ride one coalesced bell, not N.
+    public static async Task<List<BoardEvent>> BuildCardUpdateEventsAsync
+    (
+        BoardDbContext db,
+        CardItem card,
+        BoardUser actor,
+        bool contentChanged,
+        Lane? moveToLane,
+        Lane? moveFromLane,
+        int moveFromPosition,
+        IReadOnlyList<Guid> addedLabelIds,
+        IReadOnlyList<Guid> removedLabelIds,
+        CancellationToken ct
+    )
+    {
+        List<BoardEvent> events = [];
+
+        if (contentChanged)
+        {
+            events.Add(await BuildCardUpdatedAsync(db, card, actor, ct));
+        }
+
+        if (moveToLane is not null)
+        {
+            events.Add(await BuildCardMovedAsync(db, card, moveFromLane!, moveFromPosition, moveToLane, actor, ct));
+        }
+
+        if (addedLabelIds.Count == 0 && removedLabelIds.Count == 0)
+        {
+            return events;
+        }
+
+        var changedLabelIds = addedLabelIds.Concat(removedLabelIds).ToList();
+        var labelsById = await db.Labels
+            .Where(l => changedLabelIds.Contains(l.Id))
+                .ToDictionaryAsync(l => l.Id, ct);
+
+        foreach (var labelId in addedLabelIds)
+        {
+            if (labelsById.TryGetValue(labelId, out var label))
+            {
+                events.Add(await BuildCardLabeledAsync(db, card, label, actor, ct));
+            }
+        }
+
+        foreach (var labelId in removedLabelIds)
+        {
+            if (labelsById.TryGetValue(labelId, out var label))
+            {
+                events.Add(await BuildCardUnlabeledAsync(db, card, label, actor, ct));
+            }
+        }
+
+        return events;
+    }
+
+    // The fat-CardSummary single-event core (#329). Resolves the summary + board slug +
+    // current lane name, then stamps the envelope. dataFactory shapes the per-event-type
+    // `data` block from the resolved summary and lane name.
+    private static async Task<BoardEvent> BuildCardSummaryEventAsync
+    (
+        BoardDbContext db,
+        string eventType,
+        CardItem card,
+        BoardUser actor,
+        Func<CardSummary, string, object> dataFactory,
+        CancellationToken ct
+    )
+    {
+        var summary = await BuildSummaryAsync(db, card, ct);
+        var (boardSlug, laneName) = await ResolveBoardSlugAndLaneNameAsync(db, card.BoardId, card.LaneId, ct);
+
+        return BuildEvent(eventType, card.BoardId, boardSlug, actor, dataFactory(summary, laneName));
+    }
+
+    private static async Task<List<BoardEvent>> BuildCardSummaryEventBatchAsync
+    (
+        BoardDbContext db,
+        string eventType,
+        IReadOnlyList<CardItem> cards,
+        BoardUser actor,
+        Func<CardSummary, string, object> dataFactory,
+        CancellationToken ct
+    )
+    {
+        if (cards.Count == 0)
+        {
+            return [];
+        }
+
+        var summariesById = (await CardSummaryBuilder.BuildAsync(db, [.. cards], ct))
+            .ToDictionary(summary => summary.Id);
+
+        var boardIds = cards.Select(c => c.BoardId).Distinct().ToList();
+        var slugByBoard = await db.Boards
+            .Where(b => boardIds.Contains(b.Id))
+                .ToDictionaryAsync(b => b.Id, b => b.Slug, ct);
+
+        var laneIds = cards.Select(c => c.LaneId).Distinct().ToList();
+        var laneNameById = await db.Lanes
+            .Where(l => laneIds.Contains(l.Id))
+                .ToDictionaryAsync(l => l.Id, l => l.Name, ct);
+
+        List<BoardEvent> events = [];
+        foreach (var card in cards)
+        {
+            var summary = summariesById[card.Id];
+            var boardSlug = slugByBoard.GetValueOrDefault(card.BoardId, string.Empty);
+            var laneName = laneNameById.GetValueOrDefault(card.LaneId, string.Empty);
+
+            events.Add(BuildEvent(eventType, card.BoardId, boardSlug, actor, dataFactory(summary, laneName)));
+        }
+
+        return events;
+    }
+
     private static BoardEvent BuildEvent
     (
         string eventType,

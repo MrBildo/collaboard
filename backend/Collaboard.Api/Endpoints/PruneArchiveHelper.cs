@@ -13,7 +13,10 @@ namespace Collaboard.Api.Endpoints;
 // stays inline at its call site. The caller owns the post-save broadcast.
 internal static class PruneArchiveHelper
 {
-    public static async Task<(int ArchivedCount, string? Error)> ArchiveMatchedAsync
+    // Returns the cards it archived (not just a count) so the caller can emit one
+    // card.archived webhook event per card while ringing a single SSE bell (#329 — prune
+    // is a card.archived emit surface). The count is the list's Count.
+    public static async Task<(IReadOnlyList<CardItem> ArchivedCards, string? Error)> ArchiveMatchedAsync
     (
         BoardDbContext db,
         Guid boardId,
@@ -24,7 +27,7 @@ internal static class PruneArchiveHelper
         var archiveLane = await db.Lanes.FirstOrDefaultAsync(l => l.BoardId == boardId && l.IsArchiveLane, ct);
         if (archiveLane is null)
         {
-            return (0, "Board has no archive lane.");
+            return ([], "Board has no archive lane.");
         }
 
         var cards = await filtered.ToListAsync(ct);
@@ -35,6 +38,6 @@ internal static class PruneArchiveHelper
         }
 
         await db.SaveChangesAsync(ct);
-        return (cards.Count, null);
+        return (cards, null);
     }
 }

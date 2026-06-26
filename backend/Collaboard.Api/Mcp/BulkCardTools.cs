@@ -83,7 +83,15 @@ public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardE
             return null;
         });
 
-        return await execution.SaveAndSerializeAsync(ct);
+        // card.archived per succeeded card — one webhook event each, one SSE bell per board
+        // (the BulkExecution coalesce); built in one batch pass off the after-save hook. (#329.)
+        return await execution.SaveAndSerializeAsync(ct, async succeededCards =>
+        {
+            foreach (var archived in await WebhookEventFactory.BuildCardArchivedBatchAsync(db, succeededCards, user!, ct))
+            {
+                webhookSink.Enqueue(archived);
+            }
+        });
     }
 
     [McpServerTool(Name = "bulk_restore_cards", Destructive = false)]
@@ -150,7 +158,14 @@ public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardE
             return null;
         });
 
-        return await execution.SaveAndSerializeAsync(ct);
+        // card.restored per succeeded card — NOT card.moved (#329). One SSE bell per board.
+        return await execution.SaveAndSerializeAsync(ct, async succeededCards =>
+        {
+            foreach (var restored in await WebhookEventFactory.BuildCardRestoredBatchAsync(db, succeededCards, user!, ct))
+            {
+                webhookSink.Enqueue(restored);
+            }
+        });
     }
 
     [McpServerTool(Name = "bulk_update_cards", Destructive = false)]
@@ -256,6 +271,13 @@ public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardE
         // would ring N SSE bells and break the one-bell coalesce. Only on a real lane
         // change (laneId resolves to a different lane than the card's current).
         var moveSnapshots = new Dictionary<Guid, CardMoveSnapshot>();
+
+        // card.updated fires per card whose SIZE actually changed (size is a content axis,
+        // #329); card.labeled / card.unlabeled fire per actual add/remove. Both captured
+        // per-card here and emitted in the after-save hook, mirroring the move coalesce — N
+        // webhook events, one SSE bell per board.
+        var sizeChangedCardIds = new HashSet<Guid>();
+        var labelChangesByCard = new Dictionary<Guid, (List<Guid> Added, List<Guid> Removed)>();
         Lane? targetLaneForMove = null;
         if (laneId.HasValue)
         {
@@ -274,6 +296,11 @@ public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardE
 
             if (resolvedSizeId.HasValue)
             {
+                if (card.SizeId != resolvedSizeId.Value)
+                {
+                    sizeChangedCardIds.Add(card.Id);
+                }
+
                 card.SizeId = resolvedSizeId.Value;
             }
 
@@ -293,7 +320,11 @@ public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardE
 
             if (desiredLabelIds is not null)
             {
-                await ApplyLabelSetAsync(card.Id, desiredLabelIds, ct);
+                var (added, removed) = await ApplyLabelSetAsync(card.Id, desiredLabelIds, ct);
+                if (added.Count > 0 || removed.Count > 0)
+                {
+                    labelChangesByCard[card.Id] = (added, removed);
+                }
             }
 
             return null;
@@ -301,21 +332,51 @@ public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardE
 
         return await execution.SaveAndSerializeAsync(ct, async succeededCards =>
         {
+            // Resolve every label changed across the batch in one query for the
+            // card.labeled / card.unlabeled payloads.
+            var changedLabelIds = labelChangesByCard.Values
+                .SelectMany(change => change.Added.Concat(change.Removed))
+                .Distinct()
+                    .ToList();
+            Dictionary<Guid, Label> labelsById = [];
+            if (changedLabelIds.Count > 0)
+            {
+                labelsById = await db.Labels
+                    .Where(l => changedLabelIds.Contains(l.Id))
+                        .ToDictionaryAsync(l => l.Id, ct);
+            }
+
             foreach (var card in succeededCards)
             {
                 if (moveSnapshots.TryGetValue(card.Id, out var snapshot))
                 {
-                    var moved = await WebhookEventFactory.BuildCardMovedAsync
-                    (
-                        db,
-                        card,
-                        snapshot.FromLane,
-                        snapshot.FromPosition,
-                        snapshot.ToLane,
-                        user,
-                        ct
-                    );
-                    webhookSink.Enqueue(moved);
+                    webhookSink.Enqueue(await WebhookEventFactory.BuildCardMovedAsync(db, card, snapshot.FromLane, snapshot.FromPosition, snapshot.ToLane, user, ct));
+                }
+
+                if (sizeChangedCardIds.Contains(card.Id))
+                {
+                    webhookSink.Enqueue(await WebhookEventFactory.BuildCardUpdatedAsync(db, card, user, ct));
+                }
+
+                if (!labelChangesByCard.TryGetValue(card.Id, out var labelChange))
+                {
+                    continue;
+                }
+
+                foreach (var labelId in labelChange.Added)
+                {
+                    if (labelsById.TryGetValue(labelId, out var label))
+                    {
+                        webhookSink.Enqueue(await WebhookEventFactory.BuildCardLabeledAsync(db, card, label, user, ct));
+                    }
+                }
+
+                foreach (var labelId in labelChange.Removed)
+                {
+                    if (labelsById.TryGetValue(labelId, out var label))
+                    {
+                        webhookSink.Enqueue(await WebhookEventFactory.BuildCardUnlabeledAsync(db, card, label, user, ct));
+                    }
                 }
             }
         });
@@ -323,7 +384,9 @@ public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardE
 
     private readonly record struct CardMoveSnapshot(Lane FromLane, int FromPosition, Lane ToLane);
 
-    private async Task ApplyLabelSetAsync(Guid cardId, List<Guid> desiredLabelIds, CancellationToken ct)
+    // Returns the actually-added and actually-removed label ids so the after-save hook can
+    // emit card.labeled / card.unlabeled per change (#329).
+    private async Task<(List<Guid> Added, List<Guid> Removed)> ApplyLabelSetAsync(Guid cardId, List<Guid> desiredLabelIds, CancellationToken ct)
     {
         var desired = desiredLabelIds.ToHashSet();
         var current = await db.CardLabels.Where(cl => cl.CardId == cardId).ToListAsync(ct);
@@ -332,10 +395,13 @@ public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardE
         var toRemove = current.Where(cl => !desired.Contains(cl.LabelId)).ToList();
         db.CardLabels.RemoveRange(toRemove);
 
-        foreach (var labelId in desired.Where(id => !currentIds.Contains(id)))
+        var added = desired.Where(id => !currentIds.Contains(id)).ToList();
+        foreach (var labelId in added)
         {
             db.CardLabels.Add(new CardLabel { CardId = cardId, LabelId = labelId });
         }
+
+        return (added, [.. toRemove.Select(cl => cl.LabelId)]);
     }
 }
 

@@ -56,7 +56,10 @@ public sealed class ArchiveTools(BoardDbContext db, McpAuthService auth, BoardEv
         card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
         card.LastUpdatedByUserId = user.Id;
         await db.SaveChangesAsync(ct);
-        broadcaster.PublishBoardUpdated(card.BoardId);
+
+        // card.archived — emitted at the call-site, NOT card.moved (the shared move helper
+        // stays emission-free). Fans out to one webhook event + the same SSE bell. (#329.)
+        await WebhookEventFactory.PublishCardArchivedAsync(db, broadcaster, card, user, ct);
 
         return $"Card #{card.Number.ToString(CultureInfo.InvariantCulture)} archived.";
     }
@@ -118,7 +121,9 @@ public sealed class ArchiveTools(BoardDbContext db, McpAuthService auth, BoardEv
         card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
         card.LastUpdatedByUserId = user.Id;
         await db.SaveChangesAsync(ct);
-        broadcaster.PublishBoardUpdated(card.BoardId);
+
+        // card.restored — emitted at the call-site, NOT card.moved. (#329.)
+        await WebhookEventFactory.PublishCardRestoredAsync(db, broadcaster, card, user, ct);
 
         return $"Card #{card.Number.ToString(CultureInfo.InvariantCulture)} restored to lane '{targetLane.Name}'.";
     }

@@ -66,6 +66,26 @@ public class BoardEventBroadcaster(IWebhookSink webhookSink)
         _webhookSink.Enqueue(boardEvent);
     }
 
+    // The multi-axis co-fire path (#329). A single user action (PATCH /cards, update_card)
+    // can change several axes at once — content, lane, labels — and must raise a webhook
+    // event PER changed axis while ringing EXACTLY ONE SSE bell. Calling Publish per event
+    // would ring N bells and break the browser-safety coalesce property (the SSE wire must
+    // stay byte-for-byte the single `board-updated` signal these sites emit today). So: ring
+    // the board bell once (identical string), then enqueue every event to the webhook sink.
+    // The bell rings even when `events` is empty — preserving the prior "every such mutation
+    // rings one bell" SSE behaviour for an all-no-op edit.
+    public void PublishCoalesced(Guid boardId, IReadOnlyList<BoardEvent> events)
+    {
+        ArgumentNullException.ThrowIfNull(events);
+
+        PublishToBoard(boardId, "board-updated");
+
+        foreach (var boardEvent in events)
+        {
+            _webhookSink.Enqueue(boardEvent);
+        }
+    }
+
     // Broadcasts to all board-scoped subscribers (every connected client regardless of board)
     public void PublishGlobal(string eventType)
     {

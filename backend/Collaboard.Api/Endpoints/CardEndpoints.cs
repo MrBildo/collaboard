@@ -114,6 +114,13 @@ internal static class CardEndpoints
                 return Results.BadRequest("Temp cards cannot be modified via this endpoint.");
             }
 
+            // Snapshot the content axes BEFORE mutating, so card.updated fires only on a real
+            // change (#329 — the per-axis no-op guard). Name/description/size are the content
+            // axes; lane → card.moved, labels → card.labeled/unlabeled, each guarded separately.
+            var oldName = card.Name;
+            var oldDescription = card.DescriptionMarkdown;
+            var oldSizeId = card.SizeId;
+
             if (request.Name is not null)
             {
                 if (string.IsNullOrWhiteSpace(request.Name))
@@ -190,6 +197,11 @@ internal static class CardEndpoints
                 card.Position = request.Position.Value;
             }
 
+            // Label diff captured for card.labeled / card.unlabeled (#329 — one event per
+            // add/remove). Computed against the current assignments before the replace.
+            List<Guid> addedLabelIds = [];
+            List<Guid> removedLabelIds = [];
+
             if (request.LabelIds is not null)
             {
                 if (request.LabelIds.Length > 0)
@@ -202,6 +214,11 @@ internal static class CardEndpoints
                 }
 
                 var existingLabels = await db.CardLabels.Where(x => x.CardId == id).ToListAsync(ct);
+                var oldLabelIds = existingLabels.Select(x => x.LabelId).ToHashSet();
+                var newLabelIds = request.LabelIds.ToHashSet();
+                addedLabelIds = [.. newLabelIds.Where(labelId => !oldLabelIds.Contains(labelId))];
+                removedLabelIds = [.. oldLabelIds.Where(labelId => !newLabelIds.Contains(labelId))];
+
                 db.CardLabels.RemoveRange(existingLabels);
                 foreach (var labelId in request.LabelIds)
                 {
@@ -209,20 +226,22 @@ internal static class CardEndpoints
                 }
             }
 
+            var actor = http.CurrentUser();
             card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
-            card.LastUpdatedByUserId = http.CurrentUser().Id;
+            card.LastUpdatedByUserId = actor.Id;
             await db.SaveChangesAsync(ct);
 
-            if (moveToLane is not null)
-            {
-                // Real lane change → card.moved (which downsamples to the same SSE bell).
-                await WebhookEventFactory.PublishCardMovedAsync(db, broadcaster, card, moveFromLane!, moveFromPosition, moveToLane, http.CurrentUser(), ct);
-            }
-            else
-            {
-                // Name/size/label-only update — the SSE bell still rings, but no webhook.
-                broadcaster.PublishBoardUpdated(card.BoardId);
-            }
+            // Multi-axis co-fire (#329): a single PATCH can change content + lane + labels and
+            // emits one webhook event per CHANGED axis, while ringing EXACTLY ONE SSE bell via
+            // PublishCoalesced (the byte-for-byte-unchanged safety property). Unchanged axes emit
+            // nothing; an all-no-op PATCH still rings the one bell (empty event list).
+            var contentChanged =
+                (request.Name is not null && request.Name != oldName)
+                || (request.DescriptionMarkdown is not null && request.DescriptionMarkdown != oldDescription)
+                || (request.SizeId is not null && request.SizeId.Value != oldSizeId);
+
+            var events = await WebhookEventFactory.BuildCardUpdateEventsAsync(db, card, actor, contentChanged, moveToLane, moveFromLane, moveFromPosition, addedLabelIds, removedLabelIds, ct);
+            broadcaster.PublishCoalesced(card.BoardId, events);
 
             var summaries = await CardSummaryBuilder.BuildAsync(db, [card], ct);
             return Results.Ok(summaries[0]);
@@ -353,7 +372,10 @@ internal static class CardEndpoints
             card.LastUpdatedByUserId = http.CurrentUser().Id;
 
             await db.SaveChangesAsync(ct);
-            broadcaster.PublishBoardUpdated(card.BoardId);
+
+            // card.archived — emitted at the call-site, NOT card.moved (the shared move
+            // helper stays emission-free). One webhook event + the same SSE bell. (#329.)
+            await WebhookEventFactory.PublishCardArchivedAsync(db, broadcaster, card, http.CurrentUser(), ct);
 
             return Results.NoContent();
         }).RequireAuth();
@@ -394,7 +416,9 @@ internal static class CardEndpoints
             card.LastUpdatedByUserId = http.CurrentUser().Id;
 
             await db.SaveChangesAsync(ct);
-            broadcaster.PublishBoardUpdated(card.BoardId);
+
+            // card.restored — emitted at the call-site, NOT card.moved. (#329.)
+            await WebhookEventFactory.PublishCardRestoredAsync(db, broadcaster, card, http.CurrentUser(), ct);
 
             return Results.NoContent();
         }).RequireAuth();

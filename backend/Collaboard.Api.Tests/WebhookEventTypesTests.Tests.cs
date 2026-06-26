@@ -33,10 +33,22 @@ public sealed class WebhookEventTypesTests
         }
     }
 
-    // B1 — M1's selectable set is the live events only; M2 widens it per family.
+    // M2 (#329) widens All per family as emit-sites are wired. The card family is live; the
+    // comment / lane / board / label / attachment families add their members in follow-on slices,
+    // so they are deliberately absent here (selectable ≡ deliverable at every slice boundary).
     [Fact]
-    public void M1_All_ContainsExactlyTheLiveEvents() =>
-        WebhookEventTypes.All.ShouldBe([WebhookEventTypes.CardCreated, WebhookEventTypes.CardMoved], ignoreOrder: true);
+    public void M2_All_ContainsExactlyTheCardFamily() =>
+        WebhookEventTypes.All.ShouldBe(
+            [
+                WebhookEventTypes.CardCreated,
+                WebhookEventTypes.CardMoved,
+                WebhookEventTypes.CardUpdated,
+                WebhookEventTypes.CardArchived,
+                WebhookEventTypes.CardRestored,
+                WebhookEventTypes.CardLabeled,
+                WebhookEventTypes.CardUnlabeled,
+            ],
+            ignoreOrder: true);
 
     [Fact]
     public void IsValidSelection_AcceptsKnownTypesAndWildcard_RejectsUnknown()
