@@ -20,6 +20,11 @@ import type {
   searchResultSchema,
   runtimeConfigSchema,
   versionStatusSchema,
+  webhookSubscriptionSchema,
+  webhookDeliverySchema,
+  webhookDeliveriesPageSchema,
+  webhookStatusSchema,
+  webhookTestResultSchema,
 } from '@/lib/schemas';
 
 export type Board = z.infer<typeof boardSchema>;
@@ -67,3 +72,32 @@ export type PruneFilters = {
 export type SearchResult = z.infer<typeof searchResultSchema>;
 
 export type RuntimeConfig = z.infer<typeof runtimeConfigSchema>;
+
+// Webhooks (#326)
+export type WebhookSubscription = z.infer<typeof webhookSubscriptionSchema>;
+export type WebhookDelivery = z.infer<typeof webhookDeliverySchema>;
+export type WebhookDeliveriesPage = z.infer<typeof webhookDeliveriesPageSchema>;
+export type WebhookStatus = z.infer<typeof webhookStatusSchema>;
+export type WebhookTestResult = z.infer<typeof webhookTestResultSchema>;
+
+// Create payload — `events` is required and non-empty (or `["*"]`). An omitted
+// `secret` creates an unsigned subscription. `enabled` defaults to true server-side.
+export type CreateWebhookInput = {
+  url: string;
+  events: string[];
+  secret?: string;
+  enabled?: boolean;
+  name?: string;
+};
+
+// Update payload — every field optional; an omitted field is left unchanged.
+// The secret follows set / keep / clear: omit `secret` → keep; a `secret` value
+// → replace; `clearSecret: true` → remove (go unsigned). Never send both.
+export type UpdateWebhookPatch = {
+  url?: string;
+  events?: string[];
+  secret?: string;
+  clearSecret?: boolean;
+  enabled?: boolean;
+  name?: string;
+};

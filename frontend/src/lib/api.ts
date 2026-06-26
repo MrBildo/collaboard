@@ -26,6 +26,12 @@ import type {
   UpdateUserPatch,
   UserDirectoryEntry,
   VersionStatus,
+  CreateWebhookInput,
+  UpdateWebhookPatch,
+  WebhookDeliveriesPage,
+  WebhookStatus,
+  WebhookSubscription,
+  WebhookTestResult,
 } from '@/types';
 import { findUserKey } from '@/lib/auth';
 import { getApiBaseUrl } from '@/lib/runtime-config';
@@ -52,6 +58,10 @@ import {
   userDirectoryEntrySchema,
   versionSchema,
   versionStatusSchema,
+  webhookDeliveriesPageSchema,
+  webhookStatusSchema,
+  webhookSubscriptionSchema,
+  webhookTestResultSchema,
 } from '@/lib/schemas';
 
 export const api = axios.create({
@@ -401,4 +411,56 @@ export async function searchAllCards(
     },
   });
   return z.array(searchResultSchema).parse(data);
+}
+
+// Webhooks (#326) — admin-level subscription registry + delivery observability.
+// The list endpoint returns secret-free rows with on-read metrics; the secret is
+// never returned by any read (only the `signed` boolean).
+export async function fetchWebhookSubscriptions(): Promise<WebhookSubscription[]> {
+  const { data } = await api.get('/webhooks/subscriptions');
+  return z.array(webhookSubscriptionSchema).parse(data);
+}
+
+export async function createWebhookSubscription(
+  input: CreateWebhookInput,
+): Promise<WebhookSubscription> {
+  const { data } = await api.post('/webhooks/subscriptions', input);
+  return webhookSubscriptionSchema.parse(data);
+}
+
+export async function updateWebhookSubscription(
+  id: string,
+  patch: UpdateWebhookPatch,
+): Promise<WebhookSubscription> {
+  const { data } = await api.patch(`/webhooks/subscriptions/${id}`, patch);
+  return webhookSubscriptionSchema.parse(data);
+}
+
+export async function deleteWebhookSubscription(id: string): Promise<void> {
+  await api.delete(`/webhooks/subscriptions/${id}`);
+}
+
+// Synchronous test delivery (one webhook.ping). The HTTP call succeeds even when
+// the target is blocked/unreachable — the outcome is in the returned body.
+export async function testWebhookSubscription(id: string): Promise<WebhookTestResult> {
+  const { data } = await api.post(`/webhooks/subscriptions/${id}/test`);
+  return webhookTestResultSchema.parse(data);
+}
+
+// Recent delivery attempts, newest first. Filterable to one subscription; the
+// admin UI fetches a recent window once and joins per-subscription client-side
+// (no N+1) to surface each row's last-attempt error and the expanded log.
+export async function fetchWebhookDeliveries(params?: {
+  subscriptionId?: string;
+  boardId?: string;
+  offset?: number;
+  limit?: number;
+}): Promise<WebhookDeliveriesPage> {
+  const { data } = await api.get('/webhooks/deliveries', { params });
+  return webhookDeliveriesPageSchema.parse(data);
+}
+
+export async function fetchWebhookStatus(): Promise<WebhookStatus> {
+  const { data } = await api.get('/webhooks/status');
+  return webhookStatusSchema.parse(data);
 }

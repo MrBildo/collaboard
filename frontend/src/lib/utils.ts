@@ -59,6 +59,24 @@ export function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('en-US', DATE_FORMAT);
 }
 
+// Compact relative time ("just now", "2m ago", "3h ago", "5d ago") for delivery
+// timestamps. Falls back to an absolute date past a week, where "Nd ago" stops
+// being useful. The frontend owns display formatting (the API sends ISO UTC).
+export function formatRelativeTime(iso: string, now: Date = new Date()): string {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return '';
+  const seconds = Math.round((now.getTime() - then) / 1000);
+  if (seconds < 0) return 'just now';
+  if (seconds < 45) return 'just now';
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  if (days <= 7) return `${days}d ago`;
+  return formatDateTime(iso);
+}
+
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) return '0 B';
   const units = ['B', 'KB', 'MB'];

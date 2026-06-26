@@ -183,3 +183,64 @@ export const finalizeCardResponseSchema = z.object({
 export const runtimeConfigSchema = z.object({
   apiBaseUrl: z.string().min(1),
 });
+
+// Webhooks (#326) — subscription registry + delivery observability.
+// The signing secret is WRITE-ONLY: it never appears in any read shape, only as
+// the `signed` boolean. `events` carries the exact event-type strings or the
+// single `"*"` wildcard. The metric fields are computed on-read from the
+// delivery log (a brand-new subscription reports zeros and nulls).
+export const webhookSubscriptionSchema = z.object({
+  id: z.string(),
+  name: z.string().nullable(),
+  url: z.string(),
+  enabled: z.boolean(),
+  events: z.array(z.string()),
+  signed: z.boolean(),
+  successCount: z.number(),
+  failureCount: z.number(),
+  lastDeliveryStatus: z.string().nullable(),
+  lastDeliveryAtUtc: z.string().nullable(),
+});
+
+// One persisted delivery attempt (GET /webhooks/deliveries). `status` is the
+// enum NAME ("Succeeded" | "Failed"); `httpStatusCode` and `error` populate on
+// a failed attempt. An SSRF-blocked delivery surfaces here as Failed with a
+// null `httpStatusCode` (the request never left) and a blocked-address `error`.
+export const webhookDeliverySchema = z.object({
+  id: z.string(),
+  subscriptionId: z.string().nullable(),
+  eventId: z.string(),
+  eventType: z.string(),
+  boardId: z.string(),
+  attempt: z.number(),
+  status: z.string(),
+  httpStatusCode: z.number().nullable(),
+  error: z.string().nullable(),
+  attemptedAtUtc: z.string(),
+});
+
+export const webhookDeliveriesPageSchema = z.object({
+  items: z.array(webhookDeliverySchema),
+  totalCount: z.number(),
+  offset: z.number(),
+  limit: z.number().nullable(),
+});
+
+// Global delivery posture (GET /webhooks/status). Booleans + counts only — no
+// secret, no URL. `enabled` is the master kill-switch; `allowPrivateNetworkTargets`
+// is the SSRF override that decides whether private/internal targets deliver.
+export const webhookStatusSchema = z.object({
+  enabled: z.boolean(),
+  allowPrivateNetworkTargets: z.boolean(),
+  subscriptionCount: z.number(),
+  enabledSubscriptionCount: z.number(),
+});
+
+// The synchronous outcome of POST /webhooks/subscriptions/{id}/test. A blocked
+// or unreachable target returns success:false with the reason in `error` — the
+// HTTP call itself still succeeds (200), so this is a normal result, not an error.
+export const webhookTestResultSchema = z.object({
+  success: z.boolean(),
+  statusCode: z.number().nullable(),
+  error: z.string().nullable(),
+});
