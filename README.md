@@ -178,46 +178,59 @@ the next upgrade:
 | `Cors:AllowedOrigins` | `[]` (empty) | List of allowed cross-origin Portal hosts. Empty disallows all cross-origin requests; same-origin LAN deployments do not need this. Set to the Portal's origin(s) for hosted-separately deployments (e.g. `["https://collaboard.example.com"]`). |
 | `ConnectionStrings:Board` | *(required — no default)* | SQLite database path. Must be an **absolute** path; the installer writes this into `appsettings.json`. Startup fails loud if unset or unwritable. |
 | `Admin:AuthKey` | *(auto-generated)* | Override the admin auth key. |
-| `Webhooks:Endpoint` | *(unset)* | URL Collaboard POSTs board events to. Unset (or empty) means webhooks are off — no outbound calls. See [Webhooks](#webhooks) below. |
-| `Webhooks:Secret` | *(unset)* | Optional shared secret. When set, every delivery is signed with `X-Collaboard-Signature: sha256=...` (HMAC-SHA256). Unset means unsigned. |
-| `Webhooks:Enabled` | `true` | Master switch. Set to `false` to pause delivery while keeping `Webhooks:Endpoint` configured. |
+| `Webhooks:Endpoint` | *(unset)* | **Deprecated — migration seed only.** The single delivery URL from earlier versions. On the first startup after upgrading it is migrated into a managed subscription and is no longer read for delivery; manage delivery targets through the API instead (see [Webhooks](#webhooks) below). Unset it once the upgrade is done so it can't seed again. |
+| `Webhooks:Secret` | *(unset)* | **Deprecated — migration seed only.** The shared signing secret from earlier versions, carried into the migrated subscription on first startup. No longer read for delivery — each subscription now carries its own secret. |
+| `Webhooks:Enabled` | `true` | Global master switch for **all** webhook delivery. Set to `false` to pause every subscription at once, regardless of each one's own enabled state. |
 | `Webhooks:DeliveryTimeout` | `00:00:05` | Per-POST timeout. A slow endpoint is treated as a failed attempt, not waited on. |
 | `Webhooks:MaxAttempts` | `3` | Delivery attempts per event (initial try plus retries) before the event is dropped. |
 | `Webhooks:RetryBackoffBase` | `00:00:02` | Wait before the first retry. Later retries grow it (roughly 4× per step) with a little jitter. |
+| `Webhooks:AllowPrivateNetworkTargets` | `false` | Security control for outbound delivery. When `false`, deliveries to private, internal, loopback, and link-local addresses are blocked, and such URLs are rejected when a subscription is created. Set `true` only if your consumer is legitimately on a private network (a LAN or Tailscale address). Takes effect on restart. **This is a breaking change when upgrading — see [Webhooks](#webhooks) below.** |
+| `Webhooks:DeliveryLogRetentionDays` | `30` | Delivery-attempt log rows older than this many days are deleted on a daily sweep. Set to `0` to keep the log forever. |
 
 ### Webhooks
 
 Collaboard can POST a structured event to a URL of your choice whenever a card is
 created or moved — a callback-free way to drive automation (a workflow tool, a
-script, an agent) off board activity. Webhooks are **off by default**; nothing is
-sent until you configure an endpoint.
+script, an agent) off board activity.
 
-To turn them on, set `Webhooks:Endpoint` to the URL that should receive the events
-— via the environment variable `Webhooks__Endpoint` (note the double underscore) or
-in `appsettings.json`:
+Delivery targets are managed as **subscriptions**. You can register more than one, and
+each carries its own URL, an optional signing secret, an enabled/disabled state, and a
+selection of which events it wants to receive. Subscriptions are created and managed
+through the API — and, for agents, through the MCP tools. A built-in admin screen is
+on the way; until then, manage subscriptions through the API. See the
+[Webhooks Integration Guide](docs/integrating-webhooks.md) for the walkthrough and the
+[API Reference](docs/api-reference.md#webhooks) for the exact endpoints.
 
-```jsonc
-// appsettings.json
-{
-  "Webhooks": {
-    "Endpoint": "https://automation.example.com/collaboard-hook",
-    "Secret": "a-long-random-shared-secret"
-  }
-}
-```
+The `Webhooks:Enabled` setting in the table above is the global master switch — set it
+to `false` to pause every subscription at once. The other `Webhooks:*` settings are
+global delivery policy (per-POST timeout, retries, and how long the delivery log is
+kept) and apply to all subscriptions.
 
-On startup the API logs which state it resolved, so you can confirm your config took
-effect without needing a working consumer wired up yet:
+> **Upgrading from an earlier version?** If you previously configured a single endpoint
+> with `Webhooks:Endpoint` (and optionally `Webhooks:Secret`), it is migrated
+> automatically into a subscription the first time this version starts — you don't lose
+> your webhook. After the upgrade, unset `Webhooks:Endpoint` so it isn't seeded again if
+> you later delete that subscription. From then on, manage delivery targets through the
+> API rather than these settings.
 
-- `Webhooks enabled → automation.example.com (signed: true).` — configured and live (the log shows the host only, never the full URL or the secret).
-- `Webhooks disabled (Webhooks:Enabled = false).` — endpoint kept, delivery paused.
-- `Webhooks dark (no Webhooks:Endpoint configured).` — no endpoint set; fully off.
+> **Breaking change on upgrade — private-network targets are blocked by default.**
+> This version adds a security control, `Webhooks:AllowPrivateNetworkTargets` (default
+> `false`), that blocks webhook deliveries to private and internal addresses. **If your
+> webhook endpoint resolves to one of the blocked ranges, its deliveries stop after the
+> upgrade until you set `Webhooks__AllowPrivateNetworkTargets=true` and restart.** The
+> migrated subscription still exists and is visible through the API; only its deliveries
+> are paused.
+>
+> The blocked ranges are loopback (`127.0.0.0/8`, `::1`), the private ranges
+> (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), link-local (`169.254.0.0/16`,
+> `fe80::/10`), IPv6 unique-local (`fc00::/7`), and the unspecified and multicast
+> ranges. Ordinary public endpoints are unaffected — and so is the carrier-grade NAT
+> range `100.64.0.0/10`, which includes **Tailscale `100.x` addresses**: a webhook
+> pointed at a Tailscale `100.x` host keeps delivering without the flag. Set
+> `AllowPrivateNetworkTargets=true` only when you genuinely need a target on a LAN or
+> another private range.
 
-There are two ways to be "off," and they differ: leave `Webhooks:Endpoint` unset to
-turn the feature off entirely, or set `Webhooks:Enabled` to `false` to pause delivery
-while keeping the endpoint (and secret) configured for later.
-
-For the full event contract, the recursion-guard you'll want before pointing this at
+For the full event contract, the recursion guard you'll want before pointing this at
 anything that creates cards, and a step-by-step walkthrough, see the
 [Webhooks Integration Guide](docs/integrating-webhooks.md).
 
@@ -327,6 +340,7 @@ Tools are grouped by workflow — discover the board, work cards, then manage th
 - **Labels** — `add_label_to_card`, `remove_label_from_card` (both accept a label *name* or ID).
 - **Bulk** — `bulk_update_cards`, `bulk_archive_cards`, `bulk_restore_cards`. Uniform changes across many cards in one round-trip, with a per-card result so you know exactly what succeeded.
 - **Manage the board** *(admin-level)* — `create_board`, `update_board`, `create_lane`, `update_lane`, `delete_lane`, `reorder_lanes`, `create_size`, `update_size`, `delete_size`, `reorder_sizes`, `create_label`, `update_label`, `delete_label`, `prune_preview`, `prune`. Board structure and lifecycle.
+- **Manage webhooks** *(admin-level)* — `create_webhook`, `list_webhooks`, `update_webhook`, `delete_webhook`, `test_webhook`. Register and manage outbound webhook subscriptions (see [Webhooks](#webhooks)).
 
 **Agent-friendly throughout:**
 
@@ -369,6 +383,13 @@ The guiding principle: flexibility in how you *use* Collaboard, deliberate restr
    `./Collaboard.Api --merge-appsettings <new-appsettings.json> ./appsettings.json --baseline ./appsettings.shipped.json`
    from the install directory.
 4. Start the app — migrations run automatically, and the database is backed up first.
+
+> **Using webhooks?** This version manages delivery targets as subscriptions and blocks
+> deliveries to private and internal network addresses by default. If your existing
+> webhook endpoint is on a private or internal address (a LAN or Tailscale host, for
+> example), review the [private-network-targets breaking change](#webhooks) before
+> upgrading — its deliveries are paused until you opt in. Endpoints on ordinary public
+> addresses are unaffected.
 
 ## Development
 
