@@ -62,7 +62,7 @@ internal sealed class WebhookSubscriptionStore
 
         var ids = subscriptions
             .Select(s => s.Id)
-            .ToList();
+                .ToList();
 
         // Metrics computed on-read (never persisted — no denormalized counters that would couple
         // every delivery write to a subscription update on a heavily-concurrent board). "Reject
@@ -233,9 +233,9 @@ internal sealed class WebhookSubscriptionStore
     {
         var normalized = (events ?? [])
             .Where(e => !string.IsNullOrWhiteSpace(e))
-            .Select(e => e.Trim())
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
+                .Select(e => e.Trim())
+                .Distinct(StringComparer.Ordinal)
+                    .ToList();
 
         if (normalized.Count == 0)
         {
@@ -252,7 +252,7 @@ internal sealed class WebhookSubscriptionStore
 
         var unknown = normalized
             .Where(e => !WebhookEventTypes.All.Contains(e))
-            .ToList();
+                .ToList();
 
         return unknown.Count > 0
             ? throw new WebhookValidationException
