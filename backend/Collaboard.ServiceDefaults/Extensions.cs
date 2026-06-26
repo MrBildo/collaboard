@@ -49,8 +49,8 @@ public static class Extensions
                 tracing.AddSource(builder.Environment.ApplicationName)
                     .AddAspNetCoreInstrumentation(options =>
                         options.Filter = context =>
-                            !context.Request.Path.StartsWithSegments(_healthEndpointPath)
-                            && !context.Request.Path.StartsWithSegments(_alivenessEndpointPath))
+                            !context.Request.Path.StartsWithSegments(_healthEndpointPath, StringComparison.OrdinalIgnoreCase)
+                            && !context.Request.Path.StartsWithSegments(_alivenessEndpointPath, StringComparison.OrdinalIgnoreCase))
                     .AddHttpClientInstrumentation();
             });
 
