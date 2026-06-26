@@ -31,6 +31,11 @@ export const queryKeys = {
     cards: (q: string, boardId?: string, archiveBoardId?: string) =>
       ['search', 'cards', q, boardId, archiveBoardId] as const,
   },
+  webhooks: {
+    subscriptions: () => ['webhooks', 'subscriptions'] as const,
+    deliveries: () => ['webhooks', 'deliveries'] as const,
+    status: () => ['webhooks', 'status'] as const,
+  },
   version: () => ['version'] as const,
   versionStatus: () => ['version', 'status'] as const,
 } as const;

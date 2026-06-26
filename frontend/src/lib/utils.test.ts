@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { cn, getContrastColor, getReadableColor } from './utils';
+import { cn, formatRelativeTime, getContrastColor, getReadableColor } from './utils';
 
 describe('cn', () => {
   test('merges class names', () => {
@@ -90,5 +90,39 @@ describe('getReadableColor', () => {
     const result = getReadableColor('#ffff00');
     expect(result).not.toBe('#ffff00');
     expect(result).toMatch(/^#[0-9a-f]{6}$/);
+  });
+});
+
+describe('formatRelativeTime', () => {
+  const now = new Date('2026-06-26T12:00:00Z');
+
+  test('returns "just now" for very recent timestamps', () => {
+    expect(formatRelativeTime('2026-06-26T11:59:50Z', now)).toBe('just now');
+  });
+
+  test('returns "just now" for a future timestamp (clock skew)', () => {
+    expect(formatRelativeTime('2026-06-26T12:00:30Z', now)).toBe('just now');
+  });
+
+  test('formats minutes', () => {
+    expect(formatRelativeTime('2026-06-26T11:58:00Z', now)).toBe('2m ago');
+  });
+
+  test('formats hours', () => {
+    expect(formatRelativeTime('2026-06-26T09:00:00Z', now)).toBe('3h ago');
+  });
+
+  test('formats days up to a week', () => {
+    expect(formatRelativeTime('2026-06-23T12:00:00Z', now)).toBe('3d ago');
+  });
+
+  test('falls back to an absolute date past a week', () => {
+    const result = formatRelativeTime('2026-06-01T12:00:00Z', now);
+    expect(result).not.toMatch(/ago/);
+    expect(result).toMatch(/2026/);
+  });
+
+  test('returns empty string for an unparseable input', () => {
+    expect(formatRelativeTime('not-a-date', now)).toBe('');
   });
 });

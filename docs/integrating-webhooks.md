@@ -5,14 +5,22 @@ Collaboard can POST a structured event to a URL you choose whenever a card is
 system can act on — a workflow automation tool, a small script, an AI agent —
 without polling the API or holding a connection open.
 
-This guide is the practical walkthrough: turn it on, point it somewhere, confirm a
-delivery arrived, and read the delivery log when something looks wrong. It also
-covers the one rule you should read **before** you point a webhook at anything that
-creates cards — the recursion guard.
+Delivery targets are managed as **subscriptions**. You can register more than one,
+and each one carries its own URL, an optional signing secret, an enabled/disabled
+state, and a selection of which events it wants. You manage subscriptions through the
+API (the examples below) — and, if you're an agent, through the matching MCP tools. A
+built-in admin screen is on the way; until then, the API is how you create and manage
+them.
+
+This guide is the practical walkthrough: register a subscription, point it somewhere,
+send a test delivery to confirm it arrived, and read the delivery log when something
+looks wrong. It also covers the one rule you should read **before** you point a webhook
+at anything that creates cards — the recursion guard.
 
 For the exact field-by-field contract (the envelope, both payload shapes, the
-headers, the signing scheme), see the [API Reference](api-reference.md#webhooks).
-For the host settings, see [Host Configuration](../README.md#webhooks).
+headers, the signing scheme) and the full list of management endpoints, see the
+[API Reference](api-reference.md#webhooks). For the host settings, see
+[Host Configuration](../README.md#webhooks).
 
 ---
 
@@ -57,59 +65,154 @@ wire the create side of anything.
 
 ---
 
-## Turn it on
+## Create a subscription
 
-Webhooks are off until you configure an endpoint. Set `Webhooks:Endpoint` to the URL
-that should receive the POSTs — either as an environment variable (note the double
-underscore) or in `appsettings.json`:
+Register a delivery target by POSTing to `/api/v1/webhooks/subscriptions`. This is an
+administrator-level endpoint — send it with an **Administrator** or
+**AgentAdministrator** key in the `X-User-Key` header:
 
 ```bash
-export Webhooks__Endpoint="https://automation.example.com/collaboard-hook"
+curl -X POST http://localhost:8080/api/v1/webhooks/subscriptions \
+  -H "X-User-Key: <admin-auth-key>" \
+  -H "Content-Type: application/json" \
+  -d '{
+        "url": "https://automation.example.com/collaboard-hook",
+        "events": ["card.created", "card.moved"],
+        "name": "automation prod"
+      }'
 ```
 
-```jsonc
-// appsettings.json
-{
-  "Webhooks": {
-    "Endpoint": "https://automation.example.com/collaboard-hook"
-  }
-}
-```
+The response is the created subscription, including its `id` — you'll need that to
+update, test, or delete it later — and a `signed` flag. To sign deliveries, include a
+`secret` in the body: it's the HMAC key your receiver verifies against (see
+[Verifying the signature](#verifying-the-signature-optional)). The secret is
+write-only — accepted on create or update, never read back.
 
-Restart the API. On boot it logs the state it resolved, so you can confirm the config
-took effect before you have any consumer working:
+> **Already using `Webhooks:Endpoint`?** If an earlier version was configured with a
+> single `Webhooks:Endpoint` (and an optional `Webhooks:Secret`), that endpoint is
+> migrated into a subscription automatically the first time this version starts — you
+> don't need to recreate it and you won't lose it. After upgrading, manage it like any
+> other subscription, and unset `Webhooks:Endpoint` so it isn't seeded again if you later
+> delete it. See the [upgrade note](../README.md#webhooks) for one important caveat about
+> private-network targets.
 
-- `Webhooks enabled → automation.example.com (signed: false).` — live (the log shows the host only, never the full URL or the secret).
-- `Webhooks dark (no Webhooks:Endpoint configured).` — no endpoint set.
-- `Webhooks disabled (Webhooks:Enabled = false).` — endpoint kept, delivery paused.
+### Private and internal targets are blocked by default
 
-If you can't read the logs, an admin can query the same answer at any time:
+For safety, Collaboard blocks webhook deliveries to private and internal network
+addresses — loopback, LAN ranges, link-local, and the like. A URL that resolves to one
+of those is rejected when you create the subscription; and a target that resolves
+publicly at create time but to an internal address at delivery time is blocked at the
+moment of connection. If your receiver is legitimately on a private network — a
+self-hosted tool on your LAN, or a Tailscale address — set
+`Webhooks__AllowPrivateNetworkTargets=true` and restart. See
+[Host Configuration](../README.md#webhooks) for the exact ranges and the upgrade impact.
+
+### Confirm it's on
+
+The boot log shows the global webhook state:
+
+- `Webhooks enabled — delivery routes to the subscription registry.` — delivery is on.
+- `Webhooks disabled (Webhooks:Enabled = false).` — the master switch is off; no
+  subscription delivers.
+
+An admin can query the same global posture at any time:
 
 ```
 GET /api/v1/webhooks/status
-→ { "enabled": true, "endpointConfigured": true, "signed": false }
+→ {
+    "enabled": true,
+    "allowPrivateNetworkTargets": false,
+    "subscriptionCount": 1,
+    "enabledSubscriptionCount": 1
+  }
 ```
 
-This returns booleans only — never the secret or the URL — so it's safe to expose to
-a setup tool.
+This returns booleans and counts only — never a secret or a URL — so it's safe to expose
+to a setup tool. To see the subscriptions themselves, `GET /api/v1/webhooks/subscriptions`.
 
 ---
 
-## Test your endpoint
+## Choosing which events
 
-There is no "send me a test event" button in v1. To confirm your endpoint actually
-receives a payload, do the thing that produces one:
+Each subscription names the events it wants in its `events` list. Today there are two
+event types:
 
-1. Open a **scratch board** (not a live one — see the warning below).
-2. Create a card on it, or move a card between lanes.
-3. Within a moment your endpoint should receive a POST. If it doesn't, an admin can
-   check `GET /api/v1/webhooks/deliveries` (see [When it breaks](#when-it-breaks)) to
-   see whether Collaboard tried to deliver at all.
+- `card.created` — a card came into existence.
+- `card.moved` — a card's lane changed.
 
-> **Use a scratch board for testing, not a live one.** A webhook fires for *every*
-> matching card event on the board, so creating or moving cards on a real board to
-> "test" the wiring will trigger your real automation against real cards. Make a
-> throwaway board, test there, then point the automation at the boards you mean.
+List the exact types you want (`["card.created"]`, or both), or use the single wildcard
+`"*"` to receive **every** event type — including any added in future versions:
+
+```json
+{ "url": "https://...", "events": ["*"] }
+```
+
+The wildcard is the "subscribe to everything, now and later" option: a subscription set
+to `"*"` automatically picks up new event types as they're added, with no edit on your
+part. A subscription with an explicit list receives only the types it names and ignores
+the rest. The list can't be empty — a subscription must select at least one event type
+(an empty selection is *not* treated as "all"; it's rejected). An unknown event type is
+rejected too, with the list of valid ones in the error.
+
+---
+
+## Managing subscriptions
+
+You can register as many subscriptions as you need — say, one pointed at a production
+automation and another at a staging receiver, each with its own event selection. They're
+managed through the same administrator-level endpoints:
+
+- **List** — `GET /api/v1/webhooks/subscriptions` returns every subscription with its
+  current state plus delivery metrics (success and failure counts, and the last
+  delivery's status and time). Secrets are never included.
+- **Update** — `PATCH /api/v1/webhooks/subscriptions/{id}` changes any field; anything
+  you omit is left as-is. To pause a subscription without deleting it, set
+  `{ "enabled": false }`; re-enable it with `{ "enabled": true }`.
+- **Delete** — `DELETE /api/v1/webhooks/subscriptions/{id}` removes it. Its delivery-log
+  history is kept, so you can still see why a now-deleted webhook had been failing.
+
+**Changing the secret** follows a set / keep / clear rule, so you can edit other fields
+without disturbing it:
+
+- omit `secret` → the existing secret is **kept**;
+- send `"secret": "new-value"` → it's **replaced**;
+- send `"clearSecret": true` → it's **removed**, and the subscription goes unsigned.
+
+Pausing one subscription (`enabled: false`) affects only that one. The global
+`Webhooks:Enabled` setting is the master switch above all of them — set it to `false` and
+nothing delivers, whatever each subscription's own state is.
+
+---
+
+## Send a test delivery
+
+To confirm a subscription's endpoint actually receives a payload, send it a test
+delivery — you don't have to create real cards to exercise the wiring:
+
+```
+POST /api/v1/webhooks/subscriptions/{id}/test
+```
+
+This sends one `webhook.ping` event to that subscription through the exact same path a
+real event takes — the same private-network guard, the same signing — and returns the
+outcome right away:
+
+```json
+{ "success": true, "statusCode": 200, "error": null }
+```
+
+A `success: false` comes back with the reason in `error` (a connection refused, a TLS or
+DNS failure, a non-2xx response, or a blocked private-network target). The test also
+shows up in the delivery log like any other attempt. Agents have the same affordance as
+the `test_webhook` MCP tool.
+
+The `webhook.ping` event is delivery-only — board activity never produces it and a
+subscription can't select it; it exists purely so you can prove an endpoint is reachable.
+
+> If you'd rather see a real event end to end, create or move a card on a **scratch
+> board** — not a live one. A webhook fires for *every* matching event on every board it
+> selects, so exercising the wiring on a real board triggers your real automation against
+> real cards. The test delivery above avoids that entirely.
 
 ---
 
@@ -171,8 +274,8 @@ A few things worth knowing so you don't misread a payload:
 
 ## Verifying the signature (optional)
 
-If you set a `Webhooks:Secret`, every delivery is signed so your endpoint can confirm
-it really came from Collaboard. The signature rides in a header:
+If a subscription has a `secret`, every delivery to it is signed so your endpoint can
+confirm it really came from Collaboard. The signature rides in a header:
 
 ```
 X-Collaboard-Signature: sha256=<hex-lowercase-digest>
@@ -216,12 +319,13 @@ read it:
 GET /api/v1/webhooks/deliveries?boardId={id}
 ```
 
-Each row carries the event id and type, the attempt number, the status
+Filter to one board with `boardId`, or to a single webhook with `subscriptionId={id}`
+(handy when several subscriptions are firing and you want to isolate one). Each row
+carries the subscription id, the event id and type, the attempt number, the status
 (`Succeeded` / `Failed`), the HTTP status code (when there was a response), and a
 truncated error (for timeouts, TLS/DNS failures, connection refused, or a non-2xx
-body). A webhook that's configured but silently failing shows up here as a run of
-`Failed` rows — which is exactly the thing a fire-and-forget integration otherwise
-hides.
+body). A subscription that's silently failing shows up here as a run of `Failed` rows —
+which is exactly the thing a fire-and-forget integration otherwise hides.
 
 **The retry behavior.** A failed delivery is retried up to `Webhooks:MaxAttempts`
 times (default 3): the first try is immediate, then a short backoff before each
@@ -238,7 +342,7 @@ a black hole.
 > happened; treat it as the record of everything Collaboard *attempted to deliver*.
 > In practice a dropped-across-restart event is rare and recoverable while you're at a
 > small scale (the card it was about is sitting right there on the board), so this is
-> an acceptable v1 trade-off — but it's worth knowing before you build something that
+> an acceptable trade-off — but it's worth knowing before you build something that
 > assumes the log is exhaustive.
 
 ---
@@ -249,15 +353,16 @@ This is the shape any HTTP-receiving receiver follows — a workflow automation 
 a small server, a script, an AI agent — nothing here is specific to one product.
 
 1. Register a URL with your automation tool or receiver that accepts HTTP POST requests.
-2. Set that URL as `Webhooks:Endpoint` in Collaboard and restart. Confirm the boot log
-   says `Webhooks enabled → ...`.
+2. Create a subscription pointing at that URL (`POST /api/v1/webhooks/subscriptions`)
+   with the events you want. Send it a [test delivery](#send-a-test-delivery) and confirm
+   your receiver sees the `webhook.ping`.
 3. In your receiver, apply the [recursion guard](#read-this-first-the-recursion-guard)
    immediately — drop the event when `actor.role` is not in
    `["Administrator", "HumanUser"]`.
 4. Branch on what you care about — e.g. `event === "card.moved"` and
    `data.to.laneName === "Ready"` — and wire the rest of your automation off that.
-5. Test against a scratch board (create or move a card), confirm your receiver sees the
-   POST, then point it at the boards you actually mean.
+5. Create or move a card to see a real event land, then point the subscription at the
+   work you actually mean.
 
 That's the whole shape: Collaboard emits the fact, your tool decides what to do with
 it, and the recursion guard keeps an automation that creates cards from chasing its

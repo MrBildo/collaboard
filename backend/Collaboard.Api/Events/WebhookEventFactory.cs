@@ -17,12 +17,11 @@ namespace Collaboard.Api.Events;
 // then needs no DB.
 internal static class WebhookEventFactory
 {
-    // Centralized so a site can't emit "card.moved" while a test asserts "card_moved".
-    // At two events these are fine as consts on the factory; the catalog-expansion PR
-    // promotes them to a shared WebhookEventTypes class (#320 Promised Upgrade Path).
+    // The event-type identifiers now live in WebhookEventTypes (the catalog SoT — #326 promoted
+    // them per v1's Promised Upgrade Path), referenced below so a site can't emit "card.moved"
+    // while a test asserts "card_moved". EventVersion is a wire-envelope version, not an event
+    // type, so it stays here.
     public const string EventVersion = "1";
-    public const string CardCreated = "card.created";
-    public const string CardMoved = "card.moved";
 
     public static async Task PublishCardCreatedAsync
     (
@@ -38,7 +37,7 @@ internal static class WebhookEventFactory
 
         var boardEvent = BuildEvent
         (
-            CardCreated,
+            WebhookEventTypes.CardCreated,
             card.BoardId,
             boardSlug,
             actor,
@@ -97,7 +96,7 @@ internal static class WebhookEventFactory
             new WebhookLaneRef(toLane.Id, toLane.Name, card.Position)
         );
 
-        return BuildEvent(CardMoved, card.BoardId, boardSlug, actor, data);
+        return BuildEvent(WebhookEventTypes.CardMoved, card.BoardId, boardSlug, actor, data);
     }
 
     private static BoardEvent BuildEvent

@@ -340,13 +340,48 @@ namespace Collaboard.Api.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("INTEGER");
 
+                    b.Property<Guid?>("SubscriptionId")
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
                     b.HasIndex("EventId");
 
                     b.HasIndex("BoardId", "AttemptedAtUtc");
 
+                    b.HasIndex("SubscriptionId", "AttemptedAtUtc");
+
                     b.ToTable("WebhookDeliveryAttempts");
+                });
+
+            modelBuilder.Entity("Collaboard.Api.Models.WebhookSubscription", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("EventTypes")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Secret")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("WebhookSubscriptions");
                 });
 
             modelBuilder.Entity("Collaboard.Api.Models.CardAttachment", b =>
@@ -446,6 +481,14 @@ namespace Collaboard.Api.Migrations
                         .HasForeignKey("BoardId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Collaboard.Api.Models.WebhookDeliveryAttempt", b =>
+                {
+                    b.HasOne("Collaboard.Api.Models.WebhookSubscription", null)
+                        .WithMany()
+                        .HasForeignKey("SubscriptionId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 #pragma warning restore 612, 618
         }

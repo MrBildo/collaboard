@@ -92,5 +92,5 @@ internal sealed class TempCardSweepService
     public static async Task<int> SweepAsync(BoardDbContext db, DateTimeOffset cutoff, CancellationToken ct = default) =>
         await db.Cards
             .Where(c => c.IsTemp && c.CreatedAtUtc < cutoff)
-            .ExecuteDeleteAsync(ct);
+                .ExecuteDeleteAsync(ct);
 }

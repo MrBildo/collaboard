@@ -194,13 +194,51 @@ var webhookSettings = builder.Configuration
     .GetSection(WebhookSettings.SectionName)
     .Get<WebhookSettings>() ?? new WebhookSettings();
 
+// EXTEXP0001: RemoveAllResilienceHandlers is marked [Experimental]; it is the documented Aspire
+// mechanism to opt a single client out of the standard resilience handler, and the diagnostic's own
+// guidance is to suppress to proceed. Pinned at Microsoft.Extensions.Http.Resilience 10.4.0; a future
+// rename surfaces as a loud compile error, not a silent runtime regression. Scoped to this one
+// registration so no other accidental experimental-API use is silenced.
+#pragma warning disable EXTEXP0001
 builder.Services
     .AddHttpClient<IWebhookSender, HttpWebhookSender>(client =>
     {
         client.DefaultRequestHeaders.UserAgent.ParseAdd("Collaboard-Webhooks");
         client.Timeout = webhookSettings.DeliveryTimeout;
-    });
+    })
+    .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+    {
+        // #326 SSRF floor controls 3-4: refuse redirects (a 302-to-internal would walk around the
+        // IP checks) and pin every connection to a validated IP (the DNS-rebind defense). The
+        // allowPrivate flag is read from the startup-bound settings so it agrees with the store's
+        // registration validator (S2).
+        AllowAutoRedirect = false,
+        ConnectCallback = SsrfGuard.CreateConnectCallback(webhookSettings.AllowPrivateNetworkTargets),
+    })
+    // #326 — opt this client OUT of ServiceDefaults' standard resilience handler. AddServiceDefaults
+    // wires AddStandardResilienceHandler onto EVERY typed client via ConfigureHttpClientDefaults; for
+    // webhook delivery that handler is both redundant and harmful. Redundant: WebhookDispatcherService
+    // already owns the bounded retry loop (its MaxAttempts loop is the single retry authority), so the
+    // standard handler retries on top of it — a double-retry. Harmful: the SSRF connect guard throws
+    // WebhookSsrfBlockedException, SocketsHttpHandler wraps it in HttpRequestException, and the standard
+    // handler reads that as a transient fault and retries it until HttpClient.Timeout (DeliveryTimeout)
+    // elapses — so the recorded WebhookDeliveryAttempt carries a generic timeout instead of the guard's
+    // authentic "resolves to a blocked address" error (the delivery-time blocked-target signal the
+    // delivery log and the admin UI's blocked-state read). Removing it restores one connect attempt per
+    // send and records the authentic error.
+    .RemoveAllResilienceHandlers();
+#pragma warning restore EXTEXP0001
+
+// #326 — the shared CRUD/validation core both the REST endpoints and MCP tools delegate to, so the
+// SSRF validation and the write-only-secret projection are un-bypassable. WebhookTester is the
+// shared test-delivery (ping) seam both surfaces delegate to — it dials through the same
+// SSRF-guarded IWebhookSender, so a ping cannot bypass the delivery guard.
+builder.Services.AddScoped<WebhookSubscriptionStore>();
+builder.Services.AddScoped<WebhookTester>();
 builder.Services.AddHostedService<WebhookDispatcherService>();
+// #326 D4 — ages out old WebhookDeliveryAttempt rows (Webhooks:DeliveryLogRetentionDays; dormant
+// when 0). The catalog × subscription fan-out makes the log grow faster than v1's single endpoint.
+builder.Services.AddHostedService<WebhookDeliveryLogSweepService>();
 builder.Services.AddScoped<IUserResolver, UserResolver>();
 builder.Services.AddScoped<McpAuthService>();
 builder.Services.AddHostedService<TempCardSweepService>();
@@ -382,6 +420,18 @@ await using (var scope = app.Services.CreateAsyncScope())
     {
         app.Logger.LogInformation("Admin auth key: {AuthKey}", admin.AuthKey);
     }
+
+    // #326 — migrate the v1 single configured webhook endpoint into the subscription registry on
+    // first v2 boot. DELIBERATELY independent of the !Users.AnyAsync() fresh-install block above:
+    // production already has users, so reusing that gate would never fire on upgrade and would
+    // silently drop the working prod webhook. Gated instead on an empty subscription table.
+    await WebhookConfigSeeder.SeedAsync
+    (
+        db,
+        app.Configuration.GetValue<string>("Webhooks:Endpoint"),
+        app.Configuration.GetValue<string>("Webhooks:Secret"),
+        CancellationToken.None
+    );
 }
 
 if (app.Environment.IsDevelopment())
@@ -444,6 +494,7 @@ api.MapAttachmentEndpoints();
 api.MapPruneEndpoints();
 api.MapSearchEndpoints();
 api.MapWebhookEndpoints();
+api.MapWebhookSubscriptionEndpoints();
 
 app.MapEventEndpoints();
 

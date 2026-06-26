@@ -1,26 +1,27 @@
 namespace Collaboard.Api.Configuration;
 
-// Outbound webhook delivery configuration (#320). One operator-configured endpoint per
-// deployment, resolved through the standard config stack (env Section__Key >
-// appsettings.json > hardcoded default). Dark-by-default: unset/empty Endpoint (or
-// Enabled=false) means no dispatcher work and no outbound calls — the same kill-switch
-// shape TempCardSweepSettings / UpdateCheckSettings use.
+// Outbound webhook delivery configuration (#320, #326). v2 moved delivery from a single
+// configured endpoint to the subscription registry (WebhookSubscription rows); Endpoint/Secret
+// now feed only the one-time config-migration seed. The remaining knobs are global delivery
+// policy. Resolved through the standard config stack (env Section__Key > appsettings.json >
+// hardcoded default).
 public class WebhookSettings
 {
     public const string SectionName = "Webhooks";
 
-    // The single outbound endpoint. Unset/empty = webhooks dark (no dispatcher work, no
-    // outbound calls). Overridable via Webhooks__Endpoint.
+    // SEED-ONLY (#326). The v1 single outbound endpoint. On the first v2 boot it is migrated into a
+    // subscription row (gated on an empty subscription table) and is NO LONGER read for delivery —
+    // the registry is the source of truth. Overridable via Webhooks__Endpoint. Unset after the
+    // cutover to avoid re-seeding if all subscriptions are later deleted.
     public string? Endpoint { get; init; }
 
-    // Optional shared secret. Set => HMAC-SHA256 sign the raw body and send the
-    // X-Collaboard-Signature header (sha256=...). Unset => unsigned. Overridable via
-    // Webhooks__Secret. (Secret — never logged, never echoed in any response or event
-    // payload.)
+    // SEED-ONLY (#326). The v1 shared secret, carried verbatim into the migrated subscription. No
+    // longer read for delivery (each subscription carries its own secret). Overridable via
+    // Webhooks__Secret. (Secret — never logged, never echoed in any response or event payload.)
     public string? Secret { get; init; }
 
-    // Master switch. Independent of Endpoint so a deployment can keep the endpoint
-    // configured but pause delivery. Overridable via Webhooks__Enabled.
+    // Global master switch for all webhook delivery (#326). Overridable via Webhooks__Enabled. A
+    // subscription delivers only when the master switch and its own Enabled flag are both on.
     public bool Enabled { get; init; } = true;
 
     // Per-POST timeout (the typed HttpClient.Timeout). A slow endpoint is treated as a
@@ -35,4 +36,19 @@ public class WebhookSettings
     // tunable" knob the delivery-semantics contract names; a test can set it near-zero to exercise
     // the retry loop without real wall-clock waits. Overridable via Webhooks__RetryBackoffBase.
     public TimeSpan RetryBackoffBase { get; init; } = TimeSpan.FromSeconds(2);
+
+    // #326 D3 — SSRF override. When false (default), webhook deliveries to private/internal/
+    // loopback/link-local targets are blocked at connect-time (the IP-pin guard) and such URLs are
+    // rejected at subscription registration. Set true for a legitimately-private target (e.g. a
+    // self-hosted consumer on a LAN/Tailscale address). Startup-bound (IOptions): the registration
+    // validator and the connect callback read the same value, so toggling requires a restart.
+    // Overridable via Webhooks__AllowPrivateNetworkTargets.
+    public bool AllowPrivateNetworkTargets { get; init; }
+
+    // #326 D4 — delivery-attempt log retention. The WebhookDeliveryLogSweepService deletes
+    // WebhookDeliveryAttempt rows older than this many days on a daily tick. 0 (or negative) keeps
+    // the log forever (the sweep stays dormant). The catalog × subscription fan-out makes the log
+    // grow faster than v1's single endpoint, so a default cap keeps it bounded. Overridable via
+    // Webhooks__DeliveryLogRetentionDays.
+    public int DeliveryLogRetentionDays { get; init; } = 30;
 }

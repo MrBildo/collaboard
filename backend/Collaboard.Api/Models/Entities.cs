@@ -1,4 +1,3 @@
-using System.ComponentModel.DataAnnotations;
 using System.Text.RegularExpressions;
 
 namespace Collaboard.Api.Models;
@@ -14,8 +13,8 @@ public enum UserRole
 public class Board
 {
     public Guid Id { get; set; }
-    [MaxLength(80)] public string Name { get; set; } = string.Empty;
-    [MaxLength(80)] public string Slug { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Slug { get; set; } = string.Empty;
     public DateTimeOffset CreatedAtUtc { get; set; }
 
     public static string GenerateSlug(string name) =>
@@ -25,8 +24,8 @@ public class Board
 public class BoardUser
 {
     public Guid Id { get; set; }
-    [MaxLength(26)] public string AuthKey { get; set; } = string.Empty;
-    [MaxLength(80)] public string Name { get; set; } = string.Empty;
+    public string AuthKey { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
     public UserRole Role { get; set; }
     public bool IsActive { get; set; } = true;
 }
@@ -35,7 +34,7 @@ public class Lane
 {
     public Guid Id { get; set; }
     public Guid BoardId { get; set; }
-    [MaxLength(40)] public string Name { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
     public int Position { get; set; }
     public bool IsArchiveLane { get; set; }
 }
@@ -44,7 +43,7 @@ public class CardSize
 {
     public Guid Id { get; set; }
     public Guid BoardId { get; set; }
-    [MaxLength(20)] public string Name { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
     public int Ordinal { get; set; }
 }
 
@@ -53,7 +52,7 @@ public class CardItem
     public Guid Id { get; set; }
     public long Number { get; set; }
     public Guid BoardId { get; set; }
-    [MaxLength(120)] public string Name { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
     public string DescriptionMarkdown { get; set; } = string.Empty;
     public Guid SizeId { get; set; }
     public Guid LaneId { get; set; }
@@ -78,8 +77,8 @@ public class Label
 {
     public Guid Id { get; set; }
     public Guid BoardId { get; set; }
-    [MaxLength(30)] public string Name { get; set; } = string.Empty;
-    [MaxLength(20)] public string? Color { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Color { get; set; }
 }
 
 public class CardLabel
@@ -92,8 +91,8 @@ public class CardAttachment
 {
     public Guid Id { get; set; }
     public Guid CardId { get; set; }
-    [MaxLength(240)] public string FileName { get; set; } = string.Empty;
-    [MaxLength(100)] public string ContentType { get; set; } = "application/octet-stream";
+    public string FileName { get; set; } = string.Empty;
+    public string ContentType { get; set; } = "application/octet-stream";
     public byte[] Payload { get; set; } = [];
     public Guid AddedByUserId { get; set; }
     public DateTimeOffset AddedAtUtc { get; set; }

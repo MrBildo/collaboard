@@ -86,7 +86,7 @@ public sealed class BoardTools(BoardDbContext db, McpAuthService auth)
         var sizes = await db.CardSizes
             .Where(s => s.BoardId == boardId)
             .OrderBy(s => s.Ordinal)
-            .ToListAsync(ct);
+                .ToListAsync(ct);
 
         return JsonSerializer.Serialize(sizes, JsonSerializerOptions.Web);
     }

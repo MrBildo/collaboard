@@ -1,0 +1,178 @@
+import type {
+  CreateWebhookInput,
+  UpdateWebhookPatch,
+  WebhookDelivery,
+  WebhookSubscription,
+} from '@/types';
+import { arraysEqual } from '@/lib/utils';
+
+// Webhook presentation + classification logic (#326). Pure functions over the
+// API contract — kept out of the components so the load-bearing rules (which
+// events are selectable, what counts as "blocked", the secret set/keep/clear
+// payload) are unit-tested in isolation. The frontend owns all display naming;
+// the API sends machine event-type strings.
+
+// --- Event catalog --------------------------------------------------------
+// M1 fires ONLY card.created + card.moved. We surface exactly those — an
+// operator must not be able to subscribe to an event that never arrives (the
+// ratified lean on card #326). The grouped shape is M2-ready: a new event
+// family is a new entry here and the form renders groups generically, so the
+// catalog grows without touching the form.
+
+export const WEBHOOK_WILDCARD = '*';
+
+export type WebhookEventOption = {
+  type: string;
+  label: string;
+  description: string;
+};
+
+export type WebhookEventGroup = {
+  label: string;
+  events: WebhookEventOption[];
+};
+
+export const WEBHOOK_EVENT_GROUPS: WebhookEventGroup[] = [
+  {
+    label: 'Cards',
+    events: [
+      {
+        type: 'card.created',
+        label: 'card.created',
+        description: 'A card first comes into existence.',
+      },
+      {
+        type: 'card.moved',
+        label: 'card.moved',
+        description: "A card's lane changes.",
+      },
+    ],
+  },
+];
+
+// The flat set of selectable event types — the valid universe the form and any
+// validation check against.
+export const WEBHOOK_EVENT_TYPES: string[] = WEBHOOK_EVENT_GROUPS.flatMap((group) =>
+  group.events.map((event) => event.type),
+);
+
+export function isWildcard(events: readonly string[]): boolean {
+  return events.includes(WEBHOOK_WILDCARD);
+}
+
+// The events array the API expects, from the form's "send all events" toggle +
+// the per-event selection. The wildcard wins — it collapses to ["*"], which the
+// server reads as "every event type, now and future".
+export function buildEventsPayload(sendAll: boolean, selected: readonly string[]): string[] {
+  if (sendAll) return [WEBHOOK_WILDCARD];
+  return [...selected];
+}
+
+// --- Delivery health classification --------------------------------------
+
+export type WebhookHealth = 'ok' | 'failing' | 'blocked' | 'disabled' | 'idle';
+
+// A delivery whose target resolved to a private/internal address is recorded as
+// Failed with a null httpStatusCode (the request never left the host) and a
+// blocked-address error. We match the server's own phrasing so the "delivery
+// blocked — private target" state is identifiable and self-explaining rather
+// than lumped in with ordinary connection failures.
+const BLOCKED_ERROR_PATTERN =
+  /blocked address|private (?:or|network|\/)|AllowPrivateNetworkTargets/i;
+
+export function isBlockedDelivery(delivery: WebhookDelivery | undefined): boolean {
+  if (!delivery) return false;
+  if (delivery.status !== 'Failed') return false;
+  if (delivery.httpStatusCode !== null) return false;
+  return BLOCKED_ERROR_PATTERN.test(delivery.error ?? '');
+}
+
+// The single per-row health verdict, in priority order: a disabled subscription
+// is paused (no delivery regardless of history); a blocked one needs the SSRF
+// remediation; a never-delivered one is idle; otherwise the last delivery's
+// status decides. `lastAttempt` is the subscription's most-recent delivery from
+// the deliveries log (joined client-side), used only to refine Failed → blocked.
+export function classifyWebhookHealth(
+  subscription: WebhookSubscription,
+  lastAttempt: WebhookDelivery | undefined,
+): WebhookHealth {
+  if (!subscription.enabled) return 'disabled';
+  if (isBlockedDelivery(lastAttempt)) return 'blocked';
+  if (subscription.lastDeliveryStatus === null) return 'idle';
+  if (subscription.lastDeliveryStatus === 'Failed') return 'failing';
+  return 'ok';
+}
+
+// Success ratio over the subscription's full delivery history (the metrics are
+// computed server-side over the whole log, not the recent window). Null when
+// there have been no deliveries — there is no rate to show yet.
+export function successRate(metrics: {
+  successCount: number;
+  failureCount: number;
+}): number | null {
+  const total = metrics.successCount + metrics.failureCount;
+  if (total === 0) return null;
+  return metrics.successCount / total;
+}
+
+export function formatSuccessRate(rate: number | null): string {
+  if (rate === null) return '—';
+  // One decimal, but show a clean "100%" / "0%" rather than "100.0%".
+  const pct = rate * 100;
+  const rounded = Math.round(pct * 10) / 10;
+  return Number.isInteger(rounded) ? `${rounded}%` : `${rounded.toFixed(1)}%`;
+}
+
+// --- Form payload builders ------------------------------------------------
+// Extracted from the form (load-bearing correctness: a wrong patch could leak,
+// keep, or silently clear a secret). `secret` is the NEW value the operator
+// typed (empty = none typed); `clearSecret` is the edit-only "go unsigned".
+
+export type WebhookFormState = {
+  url: string;
+  name: string;
+  enabled: boolean;
+  sendAll: boolean;
+  selected: string[];
+  secret: string;
+  clearSecret: boolean;
+};
+
+export function buildWebhookCreateInput(state: WebhookFormState): CreateWebhookInput {
+  const input: CreateWebhookInput = {
+    url: state.url.trim(),
+    events: buildEventsPayload(state.sendAll, state.selected),
+    enabled: state.enabled,
+  };
+  const name = state.name.trim();
+  if (name) input.name = name;
+  if (state.secret.length > 0) input.secret = state.secret;
+  return input;
+}
+
+// A minimal diff against the current subscription — only changed fields are
+// sent (an empty patch means "no change", and the caller skips the request).
+// The secret follows set / keep / clear: clear wins; else a typed value
+// replaces; else the secret key is omitted entirely (kept unchanged).
+export function buildWebhookUpdatePatch(
+  subscription: WebhookSubscription,
+  state: WebhookFormState,
+): UpdateWebhookPatch {
+  const patch: UpdateWebhookPatch = {};
+  const url = state.url.trim();
+  const name = state.name.trim();
+  const events = buildEventsPayload(state.sendAll, state.selected);
+
+  if (url !== subscription.url) patch.url = url;
+  if ((name || null) !== (subscription.name ?? null)) patch.name = name;
+  if (state.enabled !== subscription.enabled) patch.enabled = state.enabled;
+  if (!arraysEqual(events, subscription.events)) patch.events = events;
+
+  if (state.clearSecret) {
+    patch.clearSecret = true;
+  } else if (state.secret.length > 0) {
+    patch.secret = state.secret;
+  }
+
+  return patch;
+}
