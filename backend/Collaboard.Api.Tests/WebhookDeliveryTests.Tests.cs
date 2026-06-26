@@ -284,10 +284,10 @@ public sealed class WebhookDeliveryTests
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
-    // ── Status endpoint (D4→(b)) — booleans only, admin/403, never the secret/URL ──
+    // ── Status endpoint (#326 — posture + counts) — admin-level/403, never the secret/URL ──
 
     [Fact]
-    public async Task StatusEndpoint_ReturnsBooleans_ForAdmin_NeverSecretOrUrl()
+    public async Task StatusEndpoint_ReturnsPostureAndCounts_ForAdmin_NeverSecretOrUrl()
     {
         await using var factory = await CreateFactoryAsync(BaseConfig(_testEndpoint, secret: "shh"));
         var client = factory.CreateClient();
@@ -299,18 +299,21 @@ public sealed class WebhookDeliveryTests
         var raw = await response.Content.ReadAsStringAsync();
         var status = JsonDocument.Parse(raw).RootElement;
 
+        // #326 — the evolved posture+counts shape. The v1 endpointConfigured/signed booleans read
+        // the retiring config keys and would lie in the registry world, so they are gone.
         status.GetProperty("enabled").GetBoolean().ShouldBeTrue();
-        status.GetProperty("endpointConfigured").GetBoolean().ShouldBeTrue();
-        status.GetProperty("signed").GetBoolean().ShouldBeTrue();
+        status.GetProperty("allowPrivateNetworkTargets").GetBoolean().ShouldBeFalse();
+        status.GetProperty("subscriptionCount").GetInt32().ShouldBe(1);            // the config-migrated seed
+        status.GetProperty("enabledSubscriptionCount").GetInt32().ShouldBe(1);
 
-        // Booleans ONLY — never the secret, never the URL.
+        // Counts + booleans ONLY — never the secret, never the URL.
         raw.ShouldNotContain("shh");
         raw.ShouldNotContain(_testEndpoint);
         raw.ShouldNotContain("sink.test");
     }
 
     [Fact]
-    public async Task StatusEndpoint_ReportsDark_WhenUnconfigured()
+    public async Task StatusEndpoint_ReportsEmptyRegistry_WhenUnconfigured()
     {
         await using var factory = await CreateFactoryAsync(BaseConfig(endpoint: null));
         var client = factory.CreateClient();
@@ -320,8 +323,10 @@ public sealed class WebhookDeliveryTests
         response.EnsureSuccessStatusCode();
         var status = await response.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
 
-        status.GetProperty("endpointConfigured").GetBoolean().ShouldBeFalse();
-        status.GetProperty("signed").GetBoolean().ShouldBeFalse();
+        // No Webhooks:Endpoint → no migration seed → an empty registry.
+        status.GetProperty("subscriptionCount").GetInt32().ShouldBe(0);
+        status.GetProperty("enabledSubscriptionCount").GetInt32().ShouldBe(0);
+        status.GetProperty("enabled").GetBoolean().ShouldBeTrue();   // the master switch defaults on
     }
 
     [Fact]
@@ -334,6 +339,65 @@ public sealed class WebhookDeliveryTests
         TestAuthHelper.SetAuth(client, agent.AuthKey);
         var response = await client.GetAsync("/api/v1/webhooks/status");
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    // ── #326 D1 — the diagnostics are now admin-level (AgentAdministrator admitted) ──
+
+    [Fact]
+    public async Task StatusEndpoint_AgentAdministrator_Succeeds()
+    {
+        await using var factory = await CreateFactoryAsync(BaseConfig(_testEndpoint));
+        var client = factory.CreateClient();
+        var agentAdmin = await TestAuthHelper.CreateUserAsync(client, factory, "AgentAdmin", UserRole.AgentAdministrator);
+
+        TestAuthHelper.SetAuth(client, agentAdmin.AuthKey);
+        var response = await client.GetAsync("/api/v1/webhooks/status");
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task DeliveriesEndpoint_AgentAdministrator_Succeeds()
+    {
+        await using var factory = await CreateFactoryAsync(BaseConfig(_testEndpoint));
+        var client = factory.CreateClient();
+        var agentAdmin = await TestAuthHelper.CreateUserAsync(client, factory, "AgentAdmin2", UserRole.AgentAdministrator);
+
+        TestAuthHelper.SetAuth(client, agentAdmin.AuthKey);
+        var response = await client.GetAsync("/api/v1/webhooks/deliveries");
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task DeliveriesEndpoint_FilteredBySubscriptionId_ReturnsOnlyThatSubscription()
+    {
+        await using var factory = await CreateFactoryAsync(BaseConfig(_testEndpoint, maxAttempts: 1), runDispatcher: false);
+        var client = factory.CreateClient();
+        TestAuthHelper.SetAdminAuth(client, factory);
+
+        // The config-migrated seed is the one subscription; a card.created delivers to it.
+        var laneId = await TestDataHelper.GetFirstLaneIdAsync(client, factory.DefaultBoardId);
+        var create = await client.PostAsJsonAsync($"/api/v1/boards/{factory.DefaultBoardId}/cards", new { name = "Filtered", laneId });
+        create.EnsureSuccessStatusCode();
+        await DrainQueueViaSeamAsync(factory);
+
+        Guid seededId;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
+            seededId = (await db.WebhookSubscriptions.SingleAsync()).Id;
+        }
+
+        // Filter to the seeded subscription → its attempt(s); filter to a random id → none.
+        var matched = await client.GetAsync($"/api/v1/webhooks/deliveries?subscriptionId={seededId}");
+        matched.EnsureSuccessStatusCode();
+        var matchedPaged = await matched.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
+        matchedPaged.GetProperty("totalCount").GetInt32().ShouldBeGreaterThan(0);
+        matchedPaged.GetProperty("items")[0].GetProperty("subscriptionId").GetGuid().ShouldBe(seededId);
+
+        var unmatched = await client.GetAsync($"/api/v1/webhooks/deliveries?subscriptionId={Guid.NewGuid()}");
+        unmatched.EnsureSuccessStatusCode();
+        var unmatchedPaged = await unmatched.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
+        unmatchedPaged.GetProperty("totalCount").GetInt32().ShouldBe(0);
     }
 
     // ── Edge cases ────────────────────────────────────────────────────────────────

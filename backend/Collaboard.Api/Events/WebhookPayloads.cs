@@ -30,3 +30,8 @@ public sealed record WebhookCardMovedData
 // intra-lane ordinal, retained because the snapshot-before-mutate discipline keeps it
 // cheap. `from` is captured BEFORE the move mutates the card.
 public sealed record WebhookLaneRef(Guid LaneId, string LaneName, int Position);
+
+// The webhook.ping test-delivery payload (#326). A minimal body so an integrator can confirm the
+// endpoint is reachable, signs, and parses — carries the subscription id and a human-readable
+// message, nothing board-scoped (a ping is not a board mutation).
+public sealed record WebhookPingData(Guid SubscriptionId, string Message);

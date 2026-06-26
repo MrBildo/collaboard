@@ -44,4 +44,11 @@ public class WebhookSettings
     // validator and the connect callback read the same value, so toggling requires a restart.
     // Overridable via Webhooks__AllowPrivateNetworkTargets.
     public bool AllowPrivateNetworkTargets { get; init; }
+
+    // #326 D4 — delivery-attempt log retention. The WebhookDeliveryLogSweepService deletes
+    // WebhookDeliveryAttempt rows older than this many days on a daily tick. 0 (or negative) keeps
+    // the log forever (the sweep stays dormant). The catalog × subscription fan-out makes the log
+    // grow faster than v1's single endpoint, so a default cap keeps it bounded. Overridable via
+    // Webhooks__DeliveryLogRetentionDays.
+    public int DeliveryLogRetentionDays { get; init; } = 30;
 }

@@ -36,11 +36,11 @@ public class BoardDbContext(DbContextOptions<BoardDbContext> options) : DbContex
     );
 
     // #326 — the webhook subscription event-selection is a small List<string> stored as a JSON TEXT
-    // column (no child table; the set is tiny and read whole per drain). Replace-only at the store
-    // (a fresh list is assigned on update, never mutated in place), so EF's reference-equality
-    // change detection persists edits without a ValueComparer. NOTE: a value-converted column
-    // defeats SQL translation of relational predicates — the dispatcher loads enabled rows and
-    // matches the selection in CLR memory, never Where(s => s.EventTypes.Contains(...)).
+    // column (no child table; the set is tiny and read whole per drain). A value comparer is
+    // configured below so EF detects changes by value; the store also assigns a fresh list on update
+    // (replace-only), so edits persist correctly either way. NOTE: a value-converted column defeats
+    // SQL translation of relational predicates — the dispatcher loads enabled rows and matches the
+    // selection in CLR memory, never Where(s => s.EventTypes.Contains(...)).
     private static readonly ValueConverter<IList<string>, string> _eventTypesConverter = new
     (
         v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
