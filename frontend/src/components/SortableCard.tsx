@@ -42,7 +42,7 @@ export function SortableCard({
       {...attributes}
       onClick={() => onCardClick(card)}
       className={cn(
-        'cursor-pointer overflow-hidden rounded-lg border border-border bg-card p-3 shadow-sm transition-shadow hover:shadow-md hover:border-primary/30',
+        'cursor-pointer overflow-hidden rounded-lg border border-border bg-card p-3 shadow-xs transition-shadow hover:shadow-md hover:border-primary/30',
         isDragging && 'opacity-0',
       )}
     >
