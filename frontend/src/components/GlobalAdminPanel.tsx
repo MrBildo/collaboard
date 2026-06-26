@@ -28,6 +28,7 @@ import {
   ItemActions,
 } from '@/components/editable-list';
 import { useEditableList } from '@/hooks/use-editable-list';
+import { WebhooksTab } from '@/components/WebhooksTab';
 import {
   createBoard,
   createUser,
@@ -65,7 +66,7 @@ export function GlobalAdminPanel({ open, onOpenChange }: GlobalAdminPanelProps) 
       <DialogContent className="sm:max-w-3xl h-[85vh] flex flex-col overflow-hidden p-6">
         <DialogHeader>
           <DialogTitle>Admin Panel</DialogTitle>
-          <DialogDescription>Manage boards and users.</DialogDescription>
+          <DialogDescription>Manage boards, users, and webhooks.</DialogDescription>
         </DialogHeader>
 
         {/* `flex-1` makes the Tabs fill the DialogContent flex column so the
@@ -78,6 +79,7 @@ export function GlobalAdminPanel({ open, onOpenChange }: GlobalAdminPanelProps) 
           <TabsList variant="line" className="w-full justify-start gap-2 border-b pb-2">
             <TabsTrigger value="boards">Boards</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
           </TabsList>
 
           {/* `data-[hidden]:hidden` lets the inactive (keepMounted) panel's
@@ -97,6 +99,13 @@ export function GlobalAdminPanel({ open, onOpenChange }: GlobalAdminPanelProps) 
             className="flex min-h-0 flex-col p-1 data-[hidden]:hidden"
           >
             <UsersTab />
+          </TabsContent>
+          <TabsContent
+            value="webhooks"
+            keepMounted
+            className="flex min-h-0 flex-1 flex-col p-1 data-[hidden]:hidden"
+          >
+            <WebhooksTab />
           </TabsContent>
         </Tabs>
       </DialogContent>

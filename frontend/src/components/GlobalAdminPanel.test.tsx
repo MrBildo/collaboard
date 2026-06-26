@@ -15,6 +15,22 @@ vi.mock('@/lib/api', () => ({
   createUser: vi.fn(),
   updateUser: vi.fn(),
   deactivateUser: vi.fn(),
+  // The Webhooks tab is keepMounted, so its data hooks fire when the panel
+  // mounts — stub the fetchers so the queries resolve cleanly.
+  fetchWebhookSubscriptions: vi.fn().mockResolvedValue([]),
+  fetchWebhookDeliveries: vi
+    .fn()
+    .mockResolvedValue({ items: [], totalCount: 0, offset: 0, limit: 200 }),
+  fetchWebhookStatus: vi.fn().mockResolvedValue({
+    enabled: true,
+    allowPrivateNetworkTargets: false,
+    subscriptionCount: 0,
+    enabledSubscriptionCount: 0,
+  }),
+  createWebhookSubscription: vi.fn(),
+  updateWebhookSubscription: vi.fn(),
+  deleteWebhookSubscription: vi.fn(),
+  testWebhookSubscription: vi.fn(),
 }));
 
 import { fetchUsers, updateUser } from '@/lib/api';

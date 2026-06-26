@@ -5,4 +5,5 @@ export const QUERY_DEFAULTS = {
   comments: { staleTime: 30_000, retry: 1 },
   attachments: { staleTime: 30_000, retry: 1 },
   boards: { staleTime: 30_000, retry: 2 },
+  webhooks: { staleTime: 15_000, retry: 1 },
 } as const;
