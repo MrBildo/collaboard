@@ -77,30 +77,121 @@ Search supports:
 
 | Path | Notes |
 |------|-------|
-| /mcp | Streamable HTTP transport — 39 tools (boards, cards, lanes, sizes, labels, comments, attachments, archive, bulk operations, search, prune) |
+| /mcp | Streamable HTTP transport — 44 tools (boards, cards, lanes, sizes, labels, comments, attachments, archive, bulk operations, search, prune, webhooks) |
 
 ## Webhooks
 
-Collaboard can POST a structured event to an operator-configured endpoint whenever a card is created or moved, so an external consumer (a workflow tool, a script, an agent) can react to board activity without polling. Webhooks are configured through host settings (see [Host Configuration](../README.md#webhooks)) — there is no API to manage them, so the only endpoints here are read-only diagnostics. For a guided walkthrough — turning it on, verifying a delivery, and the recursion-guard you need before pointing it at anything that creates cards — see the [Webhooks Integration Guide](integrating-webhooks.md).
+Collaboard can POST a structured event to a URL of your choice whenever a card is created or moved, so an external consumer (a workflow tool, a script, an agent) can react to board activity without polling. Delivery targets are managed as **subscriptions** — you can register more than one, each with its own URL, an optional signing secret, an enabled state, and a selection of which events it wants. For a guided walkthrough — creating a subscription, sending a test delivery, and the recursion guard you need before pointing one at anything that creates cards — see the [Webhooks Integration Guide](integrating-webhooks.md). For the global delivery settings (master switch, timeout, retries, and the private-network security control), see [Host Configuration](../README.md#webhooks).
+
+Every webhook endpoint below requires an administrator-level key — either the **Administrator** or the **AgentAdministrator** role. A request from any other role receives `403`.
+
+### Managing subscriptions
+
+| Method | Path | Auth | Notes |
+|--------|------|------|-------|
+| GET | /webhooks/subscriptions | Administrator / AgentAdministrator | List all subscriptions, each with on-read delivery metrics. Never returns secrets. |
+| GET | /webhooks/subscriptions/{id} | Administrator / AgentAdministrator | One subscription. `404` if it doesn't exist. |
+| POST | /webhooks/subscriptions | Administrator / AgentAdministrator | Create a subscription (body below). Returns the created subscription (`201`). |
+| PATCH | /webhooks/subscriptions/{id} | Administrator / AgentAdministrator | Update a subscription; any omitted field is left unchanged (body below). |
+| DELETE | /webhooks/subscriptions/{id} | Administrator / AgentAdministrator | Delete a subscription. Returns `{ "deleted": true }`. Its delivery-log history is kept. |
+| POST | /webhooks/subscriptions/{id}/test | Administrator / AgentAdministrator | Send a synchronous test delivery (a `webhook.ping`) to this subscription and return the outcome. |
+
+**Create body** (`POST /webhooks/subscriptions`):
+
+```json
+{
+  "url": "https://automation.example.com/collaboard-hook",
+  "events": ["card.created", "card.moved"],
+  "secret": "a-long-random-shared-secret",
+  "enabled": true,
+  "name": "automation prod"
+}
+```
+
+- `url` (required) — the dial-out target. Must be `http`/`https`, and must not resolve to a blocked private or internal address unless `Webhooks:AllowPrivateNetworkTargets` is set (see [Host Configuration](../README.md#webhooks)).
+- `events` (required, non-empty) — the event types this subscription receives. Use the exact event-type strings (`card.created`, `card.moved`) or the single wildcard `"*"` to receive every event type, including ones added in future versions. An empty list is rejected; an unknown event type is rejected with the list of valid ones.
+- `secret` (optional) — the HMAC signing key. **Write-only**: accepted here, never returned by any read. When set, this subscription's deliveries are signed (see [Signing](#signing)).
+- `enabled` (optional, default `true`) — whether the subscription delivers.
+- `name` (optional) — a label for your own reference.
+
+**Update body** (`PATCH /webhooks/subscriptions/{id}`) — the same fields, all optional; an omitted field is unchanged. The secret follows a set / keep / clear rule:
+
+- omit `secret` → the secret is **kept** unchanged (so you can edit the URL without re-sending the secret);
+- `"secret": "new-value"` → the secret is **replaced**;
+- `"clearSecret": true` → the secret is **removed**, and the subscription goes unsigned.
+
+**Subscription shape** (returned by the list, get, create, and update endpoints):
+
+```json
+{
+  "id": "8f1c…",
+  "name": "automation prod",
+  "url": "https://automation.example.com/collaboard-hook",
+  "enabled": true,
+  "events": ["card.created", "card.moved"],
+  "signed": true,
+  "successCount": 142,
+  "failureCount": 3,
+  "lastDeliveryStatus": "Succeeded",
+  "lastDeliveryAtUtc": "2026-06-25T16:42:25.770Z"
+}
+```
+
+The secret never appears — `signed` is `true` when a secret is set, `false` otherwise. The metric fields (`successCount`, `failureCount`, `lastDeliveryStatus`, `lastDeliveryAtUtc`) are computed from the delivery log at read time; a brand-new subscription reports zeros and nulls.
+
+**Test delivery** (`POST /webhooks/subscriptions/{id}/test`) sends one `webhook.ping` event to the subscription through the exact same delivery path as a real event — same private-network guard, same signing — and returns the outcome directly:
+
+```json
+{ "success": true, "statusCode": 200, "error": null }
+```
+
+It is synchronous (you get the result of the one attempt, with no retry) and it records a row in the delivery log like any other delivery. A blocked or unreachable target comes back with `"success": false` and the reason in `error`.
 
 ### Observability endpoints
 
 | Method | Path | Auth | Notes |
 |--------|------|------|-------|
-| GET | /webhooks/deliveries | Admin | Persisted delivery attempts, newest first. Query params: `boardId` (filter to one board), `offset` (default 0), `limit` (default 50, max 200). Returns a `PagedResult`. |
-| GET | /webhooks/status | Admin | Resolved configuration as booleans only — `{ enabled, endpointConfigured, signed }`. Never returns the secret or the endpoint URL. Answers "is it even on?" when the deliveries log is empty. |
+| GET | /webhooks/deliveries | Administrator / AgentAdministrator | Persisted delivery attempts, newest first. Query params: `boardId` (filter to one board), `subscriptionId` (filter to one subscription), `offset` (default 0), `limit` (default 50, max 200). Returns a `PagedResult`. |
+| GET | /webhooks/status | Administrator / AgentAdministrator | Global delivery posture and subscription counts — booleans and numbers only, never a secret or a URL. Answers "is delivery on, are private targets allowed, how many subscriptions exist?" when the delivery log is empty. |
+
+Each `deliveries` item:
+
+```json
+{
+  "id": "3a2b…",
+  "subscriptionId": "8f1c…",
+  "eventId": "01J9ZQK8H6F4N3M2P7R5T8V0XW",
+  "eventType": "card.created",
+  "boardId": "f6fa6794-4bed-44d0-9656-de8080791302",
+  "attempt": 1,
+  "status": "Succeeded",
+  "httpStatusCode": 200,
+  "error": null,
+  "attemptedAtUtc": "2026-06-25T16:42:25.770Z"
+}
+```
+
+`subscriptionId` identifies which subscription the attempt was for; it is `null` for an attempt whose subscription was later deleted (the log outlives the subscription). `status` is `Succeeded` or `Failed`; `httpStatusCode` and `error` are populated on a failed attempt where there was a response or an error to record.
 
 `GET /webhooks/status` response:
 
 ```json
-{ "enabled": true, "endpointConfigured": true, "signed": false }
+{
+  "enabled": true,
+  "allowPrivateNetworkTargets": false,
+  "subscriptionCount": 3,
+  "enabledSubscriptionCount": 2
+}
 ```
 
-- `enabled` — the `Webhooks:Enabled` master switch.
-- `endpointConfigured` — whether `Webhooks:Endpoint` is set. With `enabled: true` and `endpointConfigured: false`, the feature is unconfigured; with `enabled: false`, delivery is paused.
-- `signed` — whether a `Webhooks:Secret` is set (deliveries are HMAC-signed).
+- `enabled` — the `Webhooks:Enabled` global master switch. When `false`, no subscription delivers.
+- `allowPrivateNetworkTargets` — whether the `Webhooks:AllowPrivateNetworkTargets` override is on (see [Host Configuration](../README.md#webhooks)).
+- `subscriptionCount` — how many subscriptions are registered.
+- `enabledSubscriptionCount` — how many of those are individually enabled.
 
 ### Event types
+
+A subscription receives an event only when its `events` selection includes that event type (or the wildcard `"*"`). The event types available today:
 
 | Event | Fires when |
 |-------|------------|
@@ -180,12 +271,12 @@ Every POST carries these headers (signed or not):
 | `Content-Type` | `application/json` |
 | `User-Agent` | `Collaboard-Webhooks` |
 | `X-Collaboard-Event` | The event type (`card.created`) — lets a consumer route without parsing the body. |
-| `X-Collaboard-Delivery-Id` | The `eventId`. In v1 the delivery id is the event id, so every retry of one event carries the same value (which is what you want for dedup). |
-| `X-Collaboard-Signature` | Present only when a `Webhooks:Secret` is configured. |
+| `X-Collaboard-Delivery-Id` | The `eventId`. The delivery id is the event id, so every retry of one event carries the same value (which is what you want for dedup). |
+| `X-Collaboard-Signature` | Present only when the subscription has a secret configured. |
 
 ### Signing
 
-When a `Webhooks:Secret` is set, every delivery carries:
+When a subscription has a secret set, every delivery to it carries:
 
 ```
 X-Collaboard-Signature: sha256=<hex-lowercase-digest>
