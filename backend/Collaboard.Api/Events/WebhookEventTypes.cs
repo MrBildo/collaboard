@@ -7,14 +7,24 @@ namespace Collaboard.Api.Events;
 // reference this set, so a site cannot emit an event type a subscription cannot select, and a
 // subscription cannot select an event type that never fires.
 //
-// M1 declares only the two live event types. The full board-scoped catalog (~18 types) lands in
-// M2, which extends this class and its `All` set per family as it wires each emit-site — so the
-// invariant `selectable ≡ deliverable` holds at every milestone (an operator can only select an
-// event type that actually delivers). (#326 B1 — live-events-only in M1.)
+// M1 declared only the two live event types. M2 (#329) extends this class and its `All` set per
+// family as it wires each emit-site — so the invariant `selectable ≡ deliverable` holds at every
+// milestone (an operator can only select an event type that actually delivers). The card family is
+// wired here; comment / lane / board / label / attachment families add their consts and `All`
+// membership in their own follow-on slices, alongside their emit-sites. (#326 B1 / #329.)
 public static class WebhookEventTypes
 {
     public const string CardCreated = "card.created";
     public const string CardMoved = "card.moved";
+    public const string CardUpdated = "card.updated";
+    public const string CardArchived = "card.archived";
+    public const string CardRestored = "card.restored";
+
+    // The card is the subject — the automation cares "this card was labeled X", consistent with
+    // every other card.* event. (Distinct from a future label.* resource lifecycle: here the label
+    // resource didn't change, the card's label-set did.) (#329.)
+    public const string CardLabeled = "card.labeled";
+    public const string CardUnlabeled = "card.unlabeled";
 
     // "all current and future event types" — a subscription whose selection is the wildcard
     // receives every event. Validated as a standalone selection by the store and matched by
@@ -28,12 +38,18 @@ public static class WebhookEventTypes
     // idiom an integrator recognizes cold.
     public const string Ping = "webhook.ping";
 
-    // The selectable board-event types — what subscription event-selection validates against. M1 =
-    // the live events only (B1). Ordinal because event-type identifiers are exact ASCII tokens.
+    // The selectable board-event types — what subscription event-selection validates against. Grows
+    // per family as M2 wires emit-sites (#329 — card family wired). Ordinal because event-type
+    // identifiers are exact ASCII tokens.
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
         CardCreated,
         CardMoved,
+        CardUpdated,
+        CardArchived,
+        CardRestored,
+        CardLabeled,
+        CardUnlabeled,
     };
 
     // A selection entry is valid iff it names a known event type or is the wildcard.

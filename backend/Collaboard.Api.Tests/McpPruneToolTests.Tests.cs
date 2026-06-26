@@ -44,7 +44,8 @@ public class McpPruneToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
         var auth = new McpAuthService(new UserResolver(db));
         var broadcaster = scope.ServiceProvider.GetRequiredService<BoardEventBroadcaster>();
-        return (db, new PruneTools(db, auth, broadcaster));
+        var webhookSink = scope.ServiceProvider.GetRequiredService<IWebhookSink>();
+        return (db, new PruneTools(db, auth, broadcaster, webhookSink));
     }
 
     private async Task<string> AuthKeyForAsync(UserRole role)

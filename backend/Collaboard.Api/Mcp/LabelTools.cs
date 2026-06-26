@@ -170,7 +170,7 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
         CancellationToken ct = default
     )
     {
-        var (_, error) = await auth.RequireUserAsync(authKey, ct);
+        var (user, error) = await auth.RequireUserAsync(authKey, ct);
         if (error is not null)
         {
             return error;
@@ -219,7 +219,9 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
 
         db.CardLabels.Add(new CardLabel { CardId = card.Id, LabelId = resolvedLabelId!.Value });
         await db.SaveChangesAsync(ct);
-        broadcaster.PublishBoardUpdated(cardBoardId);
+
+        // card.labeled — REST/MCP emit the identical event through the shared factory. (#329.)
+        await WebhookEventFactory.PublishCardLabeledAsync(db, broadcaster, card, label, user!, ct);
         return "Label added successfully.";
     }
 
@@ -237,7 +239,7 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
         CancellationToken ct = default
     )
     {
-        var (_, error) = await auth.RequireUserAsync(authKey, ct);
+        var (user, error) = await auth.RequireUserAsync(authKey, ct);
         if (error is not null)
         {
             return error;
@@ -274,9 +276,19 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
             return "Error: Label not assigned to this card.";
         }
 
+        // Resolve the label resource for the event BEFORE removing the association (the Label
+        // row itself persists; only the card↔label join is removed). (#329.)
+        var label = await db.Labels.FindAsync([resolvedLabelId!.Value], ct);
+
         db.CardLabels.Remove(cardLabel);
         await db.SaveChangesAsync(ct);
-        await db.PublishForCardAsync(card.Id, broadcaster);
+
+        // card.unlabeled — REST/MCP emit the identical event through the shared factory. (#329.)
+        if (label is not null)
+        {
+            await WebhookEventFactory.PublishCardUnlabeledAsync(db, broadcaster, card, label, user!, ct);
+        }
+
         return "Label removed successfully.";
     }
 

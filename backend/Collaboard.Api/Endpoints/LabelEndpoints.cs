@@ -111,9 +111,9 @@ internal static class LabelEndpoints
             return Results.Ok(labels);
         }).RequireAuth();
 
-        group.MapPost("/cards/{id:guid}/labels", async (BoardDbContext db, Guid id, AddCardLabelRequest request, BoardEventBroadcaster broadcaster) =>
+        group.MapPost("/cards/{id:guid}/labels", async (BoardDbContext db, HttpContext http, Guid id, AddCardLabelRequest request, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
         {
-            var card = await db.Cards.FindAsync(id);
+            var card = await db.Cards.FindAsync([id], ct);
             if (card is null)
             {
                 return Results.NotFound();
@@ -125,34 +125,37 @@ internal static class LabelEndpoints
             }
 
             var labelId = request.LabelId;
-            var label = await db.Labels.FindAsync(labelId);
+            var label = await db.Labels.FindAsync([labelId], ct);
             if (label is null)
             {
                 return Results.NotFound();
             }
 
             // Validate that the label belongs to the same board as the card
-            var cardBoardId = await db.Lanes.Where(l => l.Id == card.LaneId).Select(l => l.BoardId).FirstOrDefaultAsync();
+            var cardBoardId = await db.Lanes.Where(l => l.Id == card.LaneId).Select(l => l.BoardId).FirstOrDefaultAsync(ct);
             if (label.BoardId != cardBoardId)
             {
                 return Results.BadRequest("Label does not belong to the same board as the card.");
             }
 
-            if (await db.CardLabels.AnyAsync(x => x.CardId == id && x.LabelId == labelId))
+            if (await db.CardLabels.AnyAsync(x => x.CardId == id && x.LabelId == labelId, ct))
             {
                 return Results.Conflict("Label is already assigned to this card.");
             }
 
             var cardLabel = new CardLabel { CardId = id, LabelId = labelId };
             db.CardLabels.Add(cardLabel);
-            await db.SaveChangesAsync();
-            broadcaster.PublishBoardUpdated(cardBoardId);
+            await db.SaveChangesAsync(ct);
+
+            // card.labeled — the card's label-set changed; the label resource is embedded so a
+            // consumer knows which label without a follow-up fetch. Same SSE bell. (#329.)
+            await WebhookEventFactory.PublishCardLabeledAsync(db, broadcaster, card, label, http.CurrentUser(), ct);
             return Results.Created($"/api/v1/cards/{id}/labels/{labelId}", cardLabel);
         }).RequireAuth();
 
-        group.MapDelete("/cards/{id:guid}/labels/{labelId:guid}", async (BoardDbContext db, Guid id, Guid labelId, BoardEventBroadcaster broadcaster) =>
+        group.MapDelete("/cards/{id:guid}/labels/{labelId:guid}", async (BoardDbContext db, HttpContext http, Guid id, Guid labelId, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
         {
-            var cardLabel = await db.CardLabels.FindAsync(id, labelId);
+            var cardLabel = await db.CardLabels.FindAsync([id, labelId], ct);
             if (cardLabel is null)
             {
                 return Results.NotFound();
@@ -163,16 +166,17 @@ internal static class LabelEndpoints
                 return Results.BadRequest("Archived cards cannot be modified. Restore the card first.");
             }
 
-            db.CardLabels.Remove(cardLabel);
-            await db.SaveChangesAsync();
+            var card = await db.Cards.FindAsync([id], ct);
+            var label = await db.Labels.FindAsync([labelId], ct);
 
-            var boardId = await db.Cards
-                .Where(c => c.Id == id)
-                    .Join(db.Lanes, c => c.LaneId, l => l.Id, (_, l) => l.BoardId)
-                        .FirstOrDefaultAsync();
-            if (boardId != Guid.Empty)
+            db.CardLabels.Remove(cardLabel);
+            await db.SaveChangesAsync(ct);
+
+            // card.unlabeled — the label row itself persists (only the card↔label association
+            // is removed), so the embedded label resource is still resolvable. (#329.)
+            if (card is not null && label is not null)
             {
-                broadcaster.PublishBoardUpdated(boardId);
+                await WebhookEventFactory.PublishCardUnlabeledAsync(db, broadcaster, card, label, http.CurrentUser(), ct);
             }
 
             return Results.NoContent();

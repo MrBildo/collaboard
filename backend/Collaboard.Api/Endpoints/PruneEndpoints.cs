@@ -46,7 +46,7 @@ internal static class PruneEndpoints
             return Results.Ok(new { matchCount = cards.Count, cards = cardSummaries });
         }).RequireAdminOrAgentAdmin();
 
-        group.MapPost("/boards/{boardId:guid}/prune", async (HttpContext http, BoardDbContext db, Guid boardId, PruneRequest request, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
+        group.MapPost("/boards/{boardId:guid}/prune", async (HttpContext http, BoardDbContext db, Guid boardId, PruneRequest request, BoardEventBroadcaster broadcaster, IWebhookSink webhookSink, CancellationToken ct) =>
         {
             if (!await db.Boards.AnyAsync(x => x.Id == boardId, ct))
             {
@@ -76,15 +76,21 @@ internal static class PruneEndpoints
 
             if (action == "archive")
             {
-                var (archivedCount, archiveError) = await PruneArchiveHelper.ArchiveMatchedAsync(db, boardId, query, ct);
+                var (archivedCards, archiveError) = await PruneArchiveHelper.ArchiveMatchedAsync(db, boardId, query, ct);
                 if (archiveError is not null)
                 {
                     return Results.BadRequest(archiveError);
                 }
 
+                // card.archived per pruned card — N webhook events, one SSE bell. (#329.)
+                foreach (var archived in await WebhookEventFactory.BuildCardArchivedBatchAsync(db, archivedCards, http.CurrentUser(), ct))
+                {
+                    webhookSink.Enqueue(archived);
+                }
+
                 broadcaster.PublishBoardUpdated(boardId);
 
-                return Results.Ok(new { archivedCount });
+                return Results.Ok(new { archivedCount = archivedCards.Count });
             }
             else
             {

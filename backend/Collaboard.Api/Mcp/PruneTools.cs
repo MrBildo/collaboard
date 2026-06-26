@@ -19,7 +19,7 @@ namespace Collaboard.Api.Mcp;
 // (archive is reversible, delete is not). The tool does not expose an `action`
 // parameter at all, so "delete" is not a value the MCP surface can ever carry.
 [McpServerToolType]
-public sealed class PruneTools(BoardDbContext db, McpAuthService auth, BoardEventBroadcaster broadcaster)
+public sealed class PruneTools(BoardDbContext db, McpAuthService auth, BoardEventBroadcaster broadcaster, IWebhookSink webhookSink)
 {
     [McpServerTool(Name = "prune_preview", Destructive = false)]
     [Description("Preview which cards a prune would match, without changing anything. Requires Administrator or AgentAdministrator role. At least one filter (olderThan, laneIds, or labelIds) is required. laneIds and labelIds accept comma-separated GUIDs ('guid1,guid2') or a JSON array string ('[\"guid1\",\"guid2\"]'). Archived cards are excluded unless includeArchived is true. Returns { matchCount, cards }.")]
@@ -81,7 +81,7 @@ public sealed class PruneTools(BoardDbContext db, McpAuthService auth, BoardEven
         CancellationToken ct = default
     )
     {
-        var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
+        var (user, error) = await auth.RequireAdminLevelAsync(authKey, ct);
         if (error is not null)
         {
             return error;
@@ -94,15 +94,21 @@ public sealed class PruneTools(BoardDbContext db, McpAuthService auth, BoardEven
         }
 
         var query = PruneFilter.BuildFilteredQuery(db, boardId, request);
-        var (archivedCount, archiveError) = await PruneArchiveHelper.ArchiveMatchedAsync(db, boardId, query, ct);
+        var (archivedCards, archiveError) = await PruneArchiveHelper.ArchiveMatchedAsync(db, boardId, query, ct);
         if (archiveError is not null)
         {
             return $"Error: {archiveError}";
         }
 
+        // card.archived per pruned card — N webhook events, one SSE bell. (#329.)
+        foreach (var archived in await WebhookEventFactory.BuildCardArchivedBatchAsync(db, archivedCards, user!, ct))
+        {
+            webhookSink.Enqueue(archived);
+        }
+
         broadcaster.PublishBoardUpdated(boardId);
 
-        return JsonSerializer.Serialize(new { archivedCount }, JsonSerializerOptions.Web);
+        return JsonSerializer.Serialize(new { archivedCount = archivedCards.Count }, JsonSerializerOptions.Web);
     }
 
     // Validates the board exists, parses the CSV/JSON-array GUID filters into a

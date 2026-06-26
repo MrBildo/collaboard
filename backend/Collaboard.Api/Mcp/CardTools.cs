@@ -179,6 +179,12 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             return "Error: Card not found.";
         }
 
+        // Snapshot the content axes BEFORE mutating, so card.updated fires only on a real
+        // change (#329 — the per-axis no-op guard).
+        var oldName = card.Name;
+        var oldDescription = card.DescriptionMarkdown;
+        var oldSizeId = card.SizeId;
+
         if (name is not null)
         {
             card.Name = name;
@@ -235,7 +241,10 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             await CardReorderHelper.MoveCardToLaneAsync(db, card, laneId.Value, index, ct);
         }
 
-        // Label replace: diff against current assignments
+        // Label replace: diff against current assignments. The added/removed sets drive
+        // card.labeled / card.unlabeled (#329 — one event per add/remove).
+        List<Guid> addedLabelIds = [];
+        List<Guid> removedLabelIds = [];
         if (labelIds is not null)
         {
             var cardBoardId = await db.Lanes.Where(l => l.Id == card.LaneId).Select(l => l.BoardId).FirstOrDefaultAsync(ct);
@@ -252,9 +261,11 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             // Remove labels no longer desired
             var toRemove = currentLabels.Where(cl => !desiredLabelIds.Contains(cl.LabelId)).ToList();
             db.CardLabels.RemoveRange(toRemove);
+            removedLabelIds = [.. toRemove.Select(cl => cl.LabelId)];
 
             // Add missing labels
-            foreach (var labelId in desiredLabelIds.Where(id => !currentLabelIds.Contains(id)))
+            addedLabelIds = [.. desiredLabelIds.Where(id => !currentLabelIds.Contains(id))];
+            foreach (var labelId in addedLabelIds)
             {
                 db.CardLabels.Add(new CardLabel { CardId = card.Id, LabelId = labelId });
             }
@@ -264,17 +275,17 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
 
-        if (moveToLane is not null)
-        {
-            // Real lane change → card.moved (which downsamples to the same SSE bell);
-            // subsumes PublishForCardAsync's broadcast — don't call both (#320).
-            await WebhookEventFactory.PublishCardMovedAsync(db, broadcaster, card, moveFromLane!, moveFromPosition, moveToLane, user, ct);
-        }
-        else
-        {
-            // Size/label/name-only update — the SSE bell still rings, but no webhook.
-            await db.PublishForCardAsync(card.Id, broadcaster);
-        }
+        // Multi-axis co-fire (#329): one webhook event per changed axis (content / lane /
+        // labels), all riding ONE coalesced SSE bell. Routed through the shared factory seam so
+        // REST PATCH and update_card emit the identical event set by construction. Size is a
+        // content axis here (alongside name/description); compare post-resolution.
+        var contentChanged =
+            (name is not null && name != oldName)
+            || (descriptionMarkdown is not null && descriptionMarkdown != oldDescription)
+            || card.SizeId != oldSizeId;
+
+        var events = await WebhookEventFactory.BuildCardUpdateEventsAsync(db, card, user, contentChanged, moveToLane, moveFromLane, moveFromPosition, addedLabelIds, removedLabelIds, ct);
+        broadcaster.PublishCoalesced(card.BoardId, events);
 
         var summaries = await CardSummaryBuilder.BuildAsync(db, [card], ct);
         return JsonSerializer.Serialize(summaries[0], JsonSerializerOptions.Web);

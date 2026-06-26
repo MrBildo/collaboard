@@ -339,7 +339,7 @@ public sealed class WebhookSeamTests(WebhookTestFactory factory) : IClassFixture
     }
 
     [Fact]
-    public async Task ArchiveAndRestore_FireNoWebhookEvent()
+    public async Task ArchiveAndRestore_FireCardArchivedAndRestored_NeverCardMoved()
     {
         var sink = Sink;
         TestAuthHelper.SetAdminAuth(_client, _factory);
@@ -347,17 +347,17 @@ public sealed class WebhookSeamTests(WebhookTestFactory factory) : IClassFixture
         var cardId = await CreateCardInLaneViaRestAsync(laneA, "Archive Me");
         sink.Clear();
 
-        // Archive then restore — both route through MoveCardToLaneAsync but are NOT
-        // card.moved in v1 (domain-distinct, future catalog).
+        // Archive then restore — both route through MoveCardToLaneAsync but emit the
+        // domain-distinct card.archived / card.restored at the call-site, NEVER card.moved
+        // (the shared move helper stays emission-free). M2 catalog (#329) — was the v1 fence.
         var archiveResponse = await _client.PostAsync($"/api/v1/cards/{cardId}/archive", null);
         archiveResponse.EnsureSuccessStatusCode();
 
         var restoreResponse = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/restore", new { laneId = laneB });
         restoreResponse.EnsureSuccessStatusCode();
 
-        // The negative half of the coverage rule: emission is at the semantic call-site,
-        // not the shared helper.
-        sink.Captured.ShouldBeEmpty();
+        sink.Captured.Select(e => e.EventType).ShouldBe(["card.archived", "card.restored"]);
+        sink.Captured.ShouldNotContain(e => e.EventType == "card.moved");
     }
 
     // ── Scenario 5: SSE byte-for-byte unchanged across all converted sites ────────

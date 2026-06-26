@@ -29,7 +29,8 @@ public class PruneArchiveParityTests(CollaboardApiFactory factory) : IClassFixtu
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
         var auth = scope.ServiceProvider.GetRequiredService<McpAuthService>();
         var broadcaster = scope.ServiceProvider.GetRequiredService<BoardEventBroadcaster>();
-        return (db, new PruneTools(db, auth, broadcaster));
+        var webhookSink = scope.ServiceProvider.GetRequiredService<IWebhookSink>();
+        return (db, new PruneTools(db, auth, broadcaster, webhookSink));
     }
 
     public void Dispose()
