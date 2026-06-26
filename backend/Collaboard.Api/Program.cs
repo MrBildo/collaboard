@@ -194,6 +194,12 @@ var webhookSettings = builder.Configuration
     .GetSection(WebhookSettings.SectionName)
     .Get<WebhookSettings>() ?? new WebhookSettings();
 
+// EXTEXP0001: RemoveAllResilienceHandlers is marked [Experimental]; it is the documented Aspire
+// mechanism to opt a single client out of the standard resilience handler, and the diagnostic's own
+// guidance is to suppress to proceed. Pinned at Microsoft.Extensions.Http.Resilience 10.4.0; a future
+// rename surfaces as a loud compile error, not a silent runtime regression. Scoped to this one
+// registration so no other accidental experimental-API use is silenced.
+#pragma warning disable EXTEXP0001
 builder.Services
     .AddHttpClient<IWebhookSender, HttpWebhookSender>(client =>
     {
@@ -208,7 +214,20 @@ builder.Services
         // registration validator (S2).
         AllowAutoRedirect = false,
         ConnectCallback = SsrfGuard.CreateConnectCallback(webhookSettings.AllowPrivateNetworkTargets),
-    });
+    })
+    // #326 — opt this client OUT of ServiceDefaults' standard resilience handler. AddServiceDefaults
+    // wires AddStandardResilienceHandler onto EVERY typed client via ConfigureHttpClientDefaults; for
+    // webhook delivery that handler is both redundant and harmful. Redundant: WebhookDispatcherService
+    // already owns the bounded retry loop (its MaxAttempts loop is the single retry authority), so the
+    // standard handler retries on top of it — a double-retry. Harmful: the SSRF connect guard throws
+    // WebhookSsrfBlockedException, SocketsHttpHandler wraps it in HttpRequestException, and the standard
+    // handler reads that as a transient fault and retries it until HttpClient.Timeout (DeliveryTimeout)
+    // elapses — so the recorded WebhookDeliveryAttempt carries a generic timeout instead of the guard's
+    // authentic "resolves to a blocked address" error (the delivery-time blocked-target signal the
+    // delivery log and the admin UI's blocked-state read). Removing it restores one connect attempt per
+    // send and records the authentic error.
+    .RemoveAllResilienceHandlers();
+#pragma warning restore EXTEXP0001
 
 // #326 — the shared CRUD/validation core both the REST endpoints and MCP tools delegate to, so the
 // SSRF validation and the write-only-secret projection are un-bypassable. WebhookTester is the
