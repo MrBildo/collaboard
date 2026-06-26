@@ -1,3 +1,4 @@
+using Collaboard.Api.Hosting.Webhooks;
 using Collaboard.Api.Models;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -5,6 +6,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace Collaboard.Api.Tests.Infrastructure;
 
@@ -95,6 +97,20 @@ public class CollaboardApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
             services.AddDbContext<BoardDbContext>(options =>
                 options.UseSqlite(_connection));
 
+            // Remove the webhook dispatcher hosted service by default. It queries WebhookSubscriptions
+            // on every drained card event (Webhooks:Enabled defaults true, #326 — IsConfigured no
+            // longer gates on a configured endpoint), and the WAF's single shared in-memory SQLite
+            // connection is not concurrency-safe across threads — that background query races a test
+            // thread's card SaveChanges under suite load (the S50 "a BackgroundService must do no DB
+            // work the test thread can race" discipline, extended from startup to per-drain work).
+            // The webhook DELIVERY tests opt back in via WebhookDeliveryFactory (RunDispatcher).
+            var dispatcher = services.SingleOrDefault(d =>
+                d.ServiceType == typeof(IHostedService) &&
+                d.ImplementationType == typeof(WebhookDispatcherService));
+            if (dispatcher is not null)
+            {
+                services.Remove(dispatcher);
+            }
         });
     }
 

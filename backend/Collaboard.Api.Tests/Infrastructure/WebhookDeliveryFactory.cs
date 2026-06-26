@@ -1,7 +1,6 @@
 using Collaboard.Api.Hosting.Webhooks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 
 namespace Collaboard.Api.Tests.Infrastructure;
 
@@ -44,17 +43,13 @@ public sealed class WebhookDeliveryFactory : CollaboardApiFactory
                 .AddHttpClient<IWebhookSender, HttpWebhookSender>()
                 .ConfigurePrimaryHttpMessageHandler(() => Handler);
 
-            if (!RunDispatcher)
+            // The base CollaboardApiFactory removes the hosted dispatcher (it races the shared
+            // in-memory connection — #326). Re-add it for the end-to-end delivery tests that assert
+            // on the running dispatcher; the persistence tests leave it off (RunDispatcher = false)
+            // and drive the deterministic DeliverEventAsync seam directly, fully owning the queue.
+            if (RunDispatcher)
             {
-                // Remove the hosted dispatcher so the test fully owns the queue and drives
-                // delivery via the deterministic DeliverEventAsync seam.
-                var hosted = services.SingleOrDefault(d =>
-                    d.ServiceType == typeof(IHostedService) &&
-                    d.ImplementationType == typeof(WebhookDispatcherService));
-                if (hosted is not null)
-                {
-                    services.Remove(hosted);
-                }
+                services.AddHostedService<WebhookDispatcherService>();
             }
         });
     }
