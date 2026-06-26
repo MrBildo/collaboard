@@ -48,8 +48,8 @@ internal static class SizeReorderHelper
 
         var sizeIds = await db.CardSizes
             .Where(s => s.BoardId == boardId)
-            .Select(s => s.Id)
-                .ToListAsync(ct);
+                .Select(s => s.Id)
+                    .ToListAsync(ct);
 
         if (sizeIds.Count != requestedOrder.Length || !requestedSet.SetEquals(sizeIds))
         {
