@@ -54,8 +54,8 @@ internal static class LaneReorderHelper
 
         var laneIds = await db.Lanes
             .Where(l => l.BoardId == boardId && !l.IsArchiveLane)
-            .Select(l => l.Id)
-                .ToListAsync(ct);
+                .Select(l => l.Id)
+                    .ToListAsync(ct);
 
         if (laneIds.Count != requestedOrder.Length || !requestedSet.SetEquals(laneIds))
         {

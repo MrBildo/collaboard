@@ -63,7 +63,7 @@ internal static class McpCardResolver
 
         var found = await db.Cards
             .Where(c => requestedIds.Contains(c.Id))
-            .ToListAsync(ct);
+                .ToListAsync(ct);
 
         var foundById = found.ToDictionary(c => c.Id);
         var missing = requestedIds.Where(id => !foundById.ContainsKey(id)).ToList();
@@ -112,7 +112,7 @@ internal static class McpCardResolver
 
         var found = await db.Cards
             .Where(c => c.BoardId == resolvedBoardId!.Value && requestedNumbers.Contains(c.Number))
-            .ToListAsync(ct);
+                .ToListAsync(ct);
 
         var foundByNumber = found.ToDictionary(c => c.Number);
         var missing = requestedNumbers.Where(n => !foundByNumber.ContainsKey(n)).ToList();
