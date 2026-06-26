@@ -10,13 +10,9 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// Card #263: the MCP add_comment input parameter was bare `content`, while the
-// rest of the surface uses `<noun>Markdown` (descriptionMarkdown, contentMarkdown)
-// and add_comment itself *returns* contentMarkdown for the same value. The fix is
-// an additive, non-breaking alias: add_comment accepts both `content` and a new
-// canonical `contentMarkdown`, preferring contentMarkdown when both are supplied,
-// while `content` keeps working for existing callers. These tests pin all three
-// resolution paths.
+// Card #263 added contentMarkdown as the canonical body param for add_comment.
+// Card #272 removed the deprecated `content` alias — contentMarkdown is now the sole
+// required param. These tests pin the canonical path and the empty-input guard.
 public class McpCommentToolTests(CollaboardApiFactory factory) : IClassFixture<CollaboardApiFactory>, IDisposable
 {
     private readonly CollaboardApiFactory _factory = factory;
@@ -92,33 +88,15 @@ public class McpCommentToolTests(CollaboardApiFactory factory) : IClassFixture<C
     }
 
     [Fact]
-    public async Task AddComment_WithLegacyContentParam_PersistsBody()
+    public async Task AddComment_WithContentMarkdown_PersistsBody()
     {
         // Arrange
         var (db, commentTools) = CreateTools();
         var author = await CreateUserAsync();
         var cardId = await CreateCardAsync(db, author);
 
-        // Act — the legacy `content` param keeps working for existing callers
-        var result = await commentTools.AddCommentAsync(author.AuthKey, content: "Body via content", cardId: cardId);
-
-        // Assert
-        var commentId = ParseCommentId(result);
-        var stored = await db.Comments.FindAsync(commentId);
-        stored.ShouldNotBeNull();
-        stored.ContentMarkdown.ShouldBe("Body via content");
-    }
-
-    [Fact]
-    public async Task AddComment_WithCanonicalContentMarkdownParam_PersistsBody()
-    {
-        // Arrange
-        var (db, commentTools) = CreateTools();
-        var author = await CreateUserAsync();
-        var cardId = await CreateCardAsync(db, author);
-
-        // Act — the new canonical `contentMarkdown` param resolves to the same body
-        var result = await commentTools.AddCommentAsync(author.AuthKey, contentMarkdown: "Body via contentMarkdown", cardId: cardId);
+        // Act
+        var result = await commentTools.AddCommentAsync(author.AuthKey, "Body via contentMarkdown", cardId: cardId);
 
         // Assert
         var commentId = ParseCommentId(result);
@@ -128,31 +106,7 @@ public class McpCommentToolTests(CollaboardApiFactory factory) : IClassFixture<C
     }
 
     [Fact]
-    public async Task AddComment_BothParamsSupplied_PrefersContentMarkdown()
-    {
-        // Arrange
-        var (db, commentTools) = CreateTools();
-        var author = await CreateUserAsync();
-        var cardId = await CreateCardAsync(db, author);
-
-        // Act — contentMarkdown wins when both are present
-        var result = await commentTools.AddCommentAsync
-        (
-            author.AuthKey,
-            content: "Loser via content",
-            contentMarkdown: "Winner via contentMarkdown",
-            cardId: cardId
-        );
-
-        // Assert
-        var commentId = ParseCommentId(result);
-        var stored = await db.Comments.FindAsync(commentId);
-        stored.ShouldNotBeNull();
-        stored.ContentMarkdown.ShouldBe("Winner via contentMarkdown");
-    }
-
-    [Fact]
-    public async Task AddComment_NeitherParamSupplied_ReturnsError()
+    public async Task AddComment_WithWhitespaceContentMarkdown_ReturnsError()
     {
         // Arrange
         var (db, commentTools) = CreateTools();
@@ -160,7 +114,7 @@ public class McpCommentToolTests(CollaboardApiFactory factory) : IClassFixture<C
         var cardId = await CreateCardAsync(db, author);
 
         // Act
-        var result = await commentTools.AddCommentAsync(author.AuthKey, cardId: cardId);
+        var result = await commentTools.AddCommentAsync(author.AuthKey, "   ", cardId: cardId);
 
         // Assert
         result.ShouldStartWith("Error");

@@ -15,8 +15,7 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
     public async Task<string> AddCommentAsync
     (
         [Description("Your auth key")] string authKey,
-        [Description("The comment text (Markdown supported). Alias for contentMarkdown, kept for compatibility; prefer contentMarkdown.")] string? content = null,
-        [Description("The comment text (Markdown supported). Canonical name; preferred over content when both are supplied.")] string? contentMarkdown = null,
+        [Description("The comment text (Markdown supported).")] string contentMarkdown,
         [Description("The ID (guid) of the card to comment on (provide this or cardNumber)")] Guid? cardId = null,
         [Description("The card number (provide this or cardId). Requires boardId or boardSlug.")] long? cardNumber = null,
         [Description("Board ID (required when using cardNumber)")] Guid? boardId = null,
@@ -30,10 +29,9 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
             return error;
         }
 
-        var commentText = contentMarkdown ?? content;
-        if (commentText is null)
+        if (string.IsNullOrWhiteSpace(contentMarkdown))
         {
-            return "Error: Provide comment text via contentMarkdown (or its alias content).";
+            return "Error: contentMarkdown is required.";
         }
 
         var (resolvedCardId, resolveError) = await McpCardResolver.ResolveCardIdAsync(db, cardId, cardNumber, boardId, boardSlug, ct);
@@ -58,7 +56,7 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
             Id = Guid.NewGuid(),
             CardId = card.Id,
             UserId = user!.Id,
-            ContentMarkdown = commentText,
+            ContentMarkdown = contentMarkdown,
             LastUpdatedAtUtc = DateTimeOffset.UtcNow,
         };
         db.Comments.Add(comment);
