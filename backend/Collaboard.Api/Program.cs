@@ -210,10 +210,16 @@ builder.Services
         ConnectCallback = SsrfGuard.CreateConnectCallback(webhookSettings.AllowPrivateNetworkTargets),
     });
 
-// #326 — the shared CRUD/validation core both the REST endpoints and MCP tools (later slices)
-// delegate to, so the SSRF validation and the write-only-secret projection are un-bypassable.
+// #326 — the shared CRUD/validation core both the REST endpoints and MCP tools delegate to, so the
+// SSRF validation and the write-only-secret projection are un-bypassable. WebhookTester is the
+// shared test-delivery (ping) seam both surfaces delegate to — it dials through the same
+// SSRF-guarded IWebhookSender, so a ping cannot bypass the delivery guard.
 builder.Services.AddScoped<WebhookSubscriptionStore>();
+builder.Services.AddScoped<WebhookTester>();
 builder.Services.AddHostedService<WebhookDispatcherService>();
+// #326 D4 — ages out old WebhookDeliveryAttempt rows (Webhooks:DeliveryLogRetentionDays; dormant
+// when 0). The catalog × subscription fan-out makes the log grow faster than v1's single endpoint.
+builder.Services.AddHostedService<WebhookDeliveryLogSweepService>();
 builder.Services.AddScoped<IUserResolver, UserResolver>();
 builder.Services.AddScoped<McpAuthService>();
 builder.Services.AddHostedService<TempCardSweepService>();
@@ -469,6 +475,7 @@ api.MapAttachmentEndpoints();
 api.MapPruneEndpoints();
 api.MapSearchEndpoints();
 api.MapWebhookEndpoints();
+api.MapWebhookSubscriptionEndpoints();
 
 app.MapEventEndpoints();
 

@@ -21,6 +21,13 @@ public static class WebhookEventTypes
     // Matches() at drain; deliberately NOT a member of `All` (it is not itself an event type).
     public const string Wildcard = "*";
 
+    // The test-delivery (ping) event type fired by the /test affordance (#326 — POST
+    // /webhooks/subscriptions/{id}/test and the test_webhook MCP tool). DELIVERABLE-ONLY: a board
+    // mutation never raises it, so it is deliberately NOT in `All` and not selectable — the M1
+    // selectable catalog stays the two live events (CardCreated, CardMoved). The GitHub "ping"
+    // idiom an integrator recognizes cold.
+    public const string Ping = "webhook.ping";
+
     // The selectable board-event types — what subscription event-selection validates against. M1 =
     // the live events only (B1). Ordinal because event-type identifiers are exact ASCII tokens.
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)

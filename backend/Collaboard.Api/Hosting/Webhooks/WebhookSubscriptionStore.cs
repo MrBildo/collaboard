@@ -114,8 +114,9 @@ internal sealed class WebhookSubscriptionStore
 
         if (patch.Events is not null)
         {
-            // Replace-only: assign a fresh list so EF's reference-equality change detection persists
-            // it (the entity's converter has no ValueComparer for in-place edits).
+            // Replace-only: assign a fresh list on update rather than mutating in place. A value
+            // comparer is configured (BoardDbContext) so an in-place edit would also be detected, but
+            // replace-only is the store's set-the-selection semantics.
             subscription.EventTypes = NormalizeAndValidateEvents(patch.Events);
         }
 
