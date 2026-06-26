@@ -143,7 +143,7 @@ internal sealed class WebhookDispatcherService
 
         var matches = enabled
             .Where(s => WebhookEventTypes.Matches(s.EventTypes, boardEvent.EventType))
-            .ToList();
+                .ToList();
 
         foreach (var subscription in matches)
         {

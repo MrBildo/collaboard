@@ -101,5 +101,5 @@ internal sealed class WebhookDeliveryLogSweepService
     public static async Task<int> SweepAsync(BoardDbContext db, DateTimeOffset cutoff, CancellationToken ct = default) =>
         await db.WebhookDeliveryAttempts
             .Where(a => a.AttemptedAtUtc < cutoff)
-            .ExecuteDeleteAsync(ct);
+                .ExecuteDeleteAsync(ct);
 }
