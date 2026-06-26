@@ -8,9 +8,9 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Collaboard.Api.Persistence;
 
 // Per-entity EF model configuration for the webhooks-v2 registry (#326): subscriptions and the
-// delivery-attempt audit log. Applied by BoardDbContext via ApplyConfigurationsFromAssembly. Each
-// type is a sealed leaf IEntityTypeConfiguration — no subtype hierarchy is intended.
+// delivery-attempt audit log. Applied by BoardDbContext via ApplyConfigurationsFromAssembly.
 
+// sealed: a leaf configuration type; no subtype hierarchy is intended.
 internal sealed class WebhookSubscriptionConfiguration : IEntityTypeConfiguration<WebhookSubscription>
 {
     // #326 — the webhook subscription event-selection is a small List<string> stored as a JSON TEXT
@@ -50,6 +50,7 @@ internal sealed class WebhookSubscriptionConfiguration : IEntityTypeConfiguratio
     }
 }
 
+// sealed: a leaf configuration type; no subtype hierarchy is intended.
 internal sealed class WebhookDeliveryAttemptConfiguration : IEntityTypeConfiguration<WebhookDeliveryAttempt>
 {
     public void Configure(EntityTypeBuilder<WebhookDeliveryAttempt> builder)

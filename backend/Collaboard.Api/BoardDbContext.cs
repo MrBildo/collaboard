@@ -20,6 +20,8 @@ public class BoardDbContext(DbContextOptions<BoardDbContext> options) : DbContex
     // Per-entity fluent configuration lives in IEntityTypeConfiguration<T> implementations under
     // Persistence/ (grouped by aggregate area). They are discovered and applied by assembly scan, so
     // adding a new entity's configuration there needs no change here.
+    // Max-length constraints are configured in the typed config classes — not via [MaxLength]
+    // attributes on the entity classes — single source of truth for all EF model configuration.
     protected override void OnModelCreating(ModelBuilder builder) =>
         builder.ApplyConfigurationsFromAssembly(typeof(BoardDbContext).Assembly);
 }

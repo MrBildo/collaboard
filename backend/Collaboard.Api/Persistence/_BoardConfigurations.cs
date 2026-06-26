@@ -5,9 +5,9 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace Collaboard.Api.Persistence;
 
 // Per-entity EF model configuration for the board, its structural children (lanes, sizes, labels),
-// and the user identity. Applied by BoardDbContext via ApplyConfigurationsFromAssembly. Each type is
-// a sealed leaf IEntityTypeConfiguration — no subtype hierarchy is intended.
+// and the user identity. Applied by BoardDbContext via ApplyConfigurationsFromAssembly.
 
+// sealed: a leaf configuration type; no subtype hierarchy is intended.
 internal sealed class BoardConfiguration : IEntityTypeConfiguration<Board>
 {
     public void Configure(EntityTypeBuilder<Board> builder)
@@ -21,6 +21,7 @@ internal sealed class BoardConfiguration : IEntityTypeConfiguration<Board>
     }
 }
 
+// sealed: a leaf configuration type; no subtype hierarchy is intended.
 internal sealed class BoardUserConfiguration : IEntityTypeConfiguration<BoardUser>
 {
     public void Configure(EntityTypeBuilder<BoardUser> builder)
@@ -32,6 +33,7 @@ internal sealed class BoardUserConfiguration : IEntityTypeConfiguration<BoardUse
     }
 }
 
+// sealed: a leaf configuration type; no subtype hierarchy is intended.
 internal sealed class LaneConfiguration : IEntityTypeConfiguration<Lane>
 {
     public void Configure(EntityTypeBuilder<Lane> builder)
@@ -47,6 +49,7 @@ internal sealed class LaneConfiguration : IEntityTypeConfiguration<Lane>
     }
 }
 
+// sealed: a leaf configuration type; no subtype hierarchy is intended.
 internal sealed class CardSizeConfiguration : IEntityTypeConfiguration<CardSize>
 {
     public void Configure(EntityTypeBuilder<CardSize> builder)
@@ -63,6 +66,7 @@ internal sealed class CardSizeConfiguration : IEntityTypeConfiguration<CardSize>
     }
 }
 
+// sealed: a leaf configuration type; no subtype hierarchy is intended.
 internal sealed class LabelConfiguration : IEntityTypeConfiguration<Label>
 {
     public void Configure(EntityTypeBuilder<Label> builder)

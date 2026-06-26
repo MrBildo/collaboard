@@ -5,9 +5,9 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace Collaboard.Api.Persistence;
 
 // Per-entity EF model configuration for the card aggregate and its children (comments, attachments,
-// label join). Applied by BoardDbContext via ApplyConfigurationsFromAssembly. Each type is a sealed
-// leaf IEntityTypeConfiguration — no subtype hierarchy is intended.
+// label join). Applied by BoardDbContext via ApplyConfigurationsFromAssembly.
 
+// sealed: a leaf configuration type; no subtype hierarchy is intended.
 internal sealed class CardItemConfiguration : IEntityTypeConfiguration<CardItem>
 {
     public void Configure(EntityTypeBuilder<CardItem> builder)
@@ -44,6 +44,7 @@ internal sealed class CardItemConfiguration : IEntityTypeConfiguration<CardItem>
     }
 }
 
+// sealed: a leaf configuration type; no subtype hierarchy is intended.
 internal sealed class CardCommentConfiguration : IEntityTypeConfiguration<CardComment>
 {
     public void Configure(EntityTypeBuilder<CardComment> builder)
@@ -65,6 +66,7 @@ internal sealed class CardCommentConfiguration : IEntityTypeConfiguration<CardCo
     }
 }
 
+// sealed: a leaf configuration type; no subtype hierarchy is intended.
 internal sealed class CardAttachmentConfiguration : IEntityTypeConfiguration<CardAttachment>
 {
     public void Configure(EntityTypeBuilder<CardAttachment> builder)
@@ -89,6 +91,7 @@ internal sealed class CardAttachmentConfiguration : IEntityTypeConfiguration<Car
     }
 }
 
+// sealed: a leaf configuration type; no subtype hierarchy is intended.
 internal sealed class CardLabelConfiguration : IEntityTypeConfiguration<CardLabel>
 {
     public void Configure(EntityTypeBuilder<CardLabel> builder)
