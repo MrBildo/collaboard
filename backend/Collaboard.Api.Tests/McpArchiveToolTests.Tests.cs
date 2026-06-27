@@ -27,7 +27,7 @@ public class McpArchiveToolTests(CollaboardApiFactory factory) : IClassFixture<C
 
         var archiveTools = new ArchiveTools(db, auth, broadcaster);
         var cardTools = new CardTools(db, auth, broadcaster);
-        var boardTools = new BoardTools(db, auth);
+        var boardTools = new BoardTools(db, auth, scope.ServiceProvider.GetRequiredService<IWebhookSink>());
         var commentTools = new CommentTools(db, auth, broadcaster);
         var labelTools = new LabelTools(db, auth, broadcaster);
         var attachmentTools = new AttachmentTools(db, auth, broadcaster, settings);

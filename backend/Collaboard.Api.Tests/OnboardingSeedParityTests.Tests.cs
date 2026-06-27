@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using Collaboard.Api.Endpoints;
+using Collaboard.Api.Events;
 using Collaboard.Api.Mcp;
 using Collaboard.Api.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -34,7 +35,7 @@ public class OnboardingSeedParityTests(CollaboardApiFactory factory) : IClassFix
         _scopes.Add(scope);
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
         var auth = scope.ServiceProvider.GetRequiredService<McpAuthService>();
-        return (db, new BoardTools(db, auth), _factory.AdminAuthKey);
+        return (db, new BoardTools(db, auth, scope.ServiceProvider.GetRequiredService<IWebhookSink>()), _factory.AdminAuthKey);
     }
 
     private BoardDbContext NewDbScope()

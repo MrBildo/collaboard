@@ -399,6 +399,164 @@ internal static class WebhookEventFactory
         broadcaster.Publish(boardEvent);
     }
 
+    // ── Lane-family M2 emit helpers (#329) ──────────────────────────────────────────
+    //
+    // lane.created / lane.deleted are single-axis lifecycle events: the same single board bell the
+    // lane CRUD sites always rang, plus one webhook event (broadcaster.Publish). lane.reordered
+    // carries the board's FULL new left-to-right order and fires from BOTH the bulk reorder (alone,
+    // via PublishLaneReorderedAsync) and a single-lane update_lane position move (in the co-fire set,
+    // via PublishCoalesced). update_lane can change name AND position in one call: it co-fires
+    // lane.renamed + lane.reordered through PublishCoalesced (one bell, one webhook event per changed
+    // axis), mirroring the card co-fire discipline. lane.deleted is published from the captured lane
+    // after the row is gone. The SSE wire stays byte-for-byte unchanged — exactly one bell per call.
+
+    public static async Task PublishLaneCreatedAsync
+    (
+        BoardDbContext db,
+        BoardEventBroadcaster broadcaster,
+        Lane lane,
+        BoardUser actor,
+        CancellationToken ct
+    )
+    {
+        var boardEvent = await BuildLaneLifecycleEventAsync(db, WebhookEventTypes.LaneCreated, lane, actor, l => new WebhookLaneCreatedData(l), ct);
+        broadcaster.Publish(boardEvent);
+    }
+
+    public static async Task PublishLaneDeletedAsync
+    (
+        BoardDbContext db,
+        BoardEventBroadcaster broadcaster,
+        Lane lane,
+        BoardUser actor,
+        CancellationToken ct
+    )
+    {
+        var boardEvent = await BuildLaneLifecycleEventAsync(db, WebhookEventTypes.LaneDeleted, lane, actor, l => new WebhookLaneDeletedData(l), ct);
+        broadcaster.Publish(boardEvent);
+    }
+
+    public static async Task PublishLaneReorderedAsync
+    (
+        BoardDbContext db,
+        BoardEventBroadcaster broadcaster,
+        Guid boardId,
+        BoardUser actor,
+        CancellationToken ct
+    )
+    {
+        var boardEvent = await BuildLaneReorderedAsync(db, boardId, actor, ct);
+        broadcaster.Publish(boardEvent);
+    }
+
+    public static Task<BoardEvent> BuildLaneRenamedAsync
+    (
+        BoardDbContext db,
+        Lane lane,
+        BoardUser actor,
+        CancellationToken ct
+    ) =>
+        BuildLaneLifecycleEventAsync(db, WebhookEventTypes.LaneRenamed, lane, actor, l => new WebhookLaneRenamedData(l), ct);
+
+    // The board's full new left-to-right order, re-queried post-save so BOTH triggers (bulk reorder
+    // and single-lane move) emit the IDENTICAL shape by construction. Off the request hot path and a
+    // handful of rows, so the extra query is free.
+    public static async Task<BoardEvent> BuildLaneReorderedAsync
+    (
+        BoardDbContext db,
+        Guid boardId,
+        BoardUser actor,
+        CancellationToken ct
+    )
+    {
+        var boardSlug = await ResolveBoardSlugAsync(db, boardId, ct);
+        var lanes = await db.Lanes
+            .Where(l => l.BoardId == boardId && !l.IsArchiveLane)
+            .OrderBy(l => l.Position)
+                .Select(l => new WebhookLaneOrderEntry(l.Id, l.Name, l.Position))
+                    .ToListAsync(ct);
+
+        return BuildEvent(WebhookEventTypes.LaneReordered, boardId, boardSlug, actor, new WebhookLaneReorderedData(lanes));
+    }
+
+    // The update_lane co-fire assembly — the shared REST/MCP seam so PATCH /lanes and update_lane emit
+    // the IDENTICAL event set for the same change by construction. One event per CHANGED axis: a name
+    // change → lane.renamed; a position change → lane.reordered (full new order). The caller rings
+    // exactly one SSE bell via PublishCoalesced (even when the list is empty — an all-no-op PATCH).
+    public static async Task<List<BoardEvent>> BuildLaneUpdateEventsAsync
+    (
+        BoardDbContext db,
+        Lane lane,
+        BoardUser actor,
+        bool nameChanged,
+        bool positionChanged,
+        CancellationToken ct
+    )
+    {
+        List<BoardEvent> events = [];
+
+        if (nameChanged)
+        {
+            events.Add(await BuildLaneRenamedAsync(db, lane, actor, ct));
+        }
+
+        if (positionChanged)
+        {
+            events.Add(await BuildLaneReorderedAsync(db, lane.BoardId, actor, ct));
+        }
+
+        return events;
+    }
+
+    // ── Board-family M2 emit helpers (#329) — WEBHOOK-ONLY ───────────────────────────
+    //
+    // STRUCTURALLY NOVEL: board CRUD has no SSE broadcast today. These emit STRAIGHT to the sink and
+    // NEVER call broadcaster.Publish — ringing a board bell here would change the SSE wire (a new
+    // signal the browser consumer never saw), breaking the byte-for-byte-unchanged invariant. The
+    // board entity carries everything the event needs (id, slug, name) and the slug is immutable, so
+    // no DB query is required. board.deleted is enqueued from the captured board after the row is gone.
+
+    public static void PublishBoardCreated(IWebhookSink sink, Board board, BoardUser actor) =>
+        sink.Enqueue(BuildBoardEvent(WebhookEventTypes.BoardCreated, board, actor, b => new WebhookBoardCreatedData(b)));
+
+    public static void PublishBoardRenamed(IWebhookSink sink, Board board, BoardUser actor) =>
+        sink.Enqueue(BuildBoardEvent(WebhookEventTypes.BoardRenamed, board, actor, b => new WebhookBoardRenamedData(b)));
+
+    public static void PublishBoardDeleted(IWebhookSink sink, Board board, BoardUser actor) =>
+        sink.Enqueue(BuildBoardEvent(WebhookEventTypes.BoardDeleted, board, actor, b => new WebhookBoardDeletedData(b)));
+
+    // The lane-lifecycle core: resolves the board slug and projects the single lane resource.
+    private static async Task<BoardEvent> BuildLaneLifecycleEventAsync
+    (
+        BoardDbContext db,
+        string eventType,
+        Lane lane,
+        BoardUser actor,
+        Func<WebhookLaneData, object> dataFactory,
+        CancellationToken ct
+    )
+    {
+        var boardSlug = await ResolveBoardSlugAsync(db, lane.BoardId, ct);
+        var laneData = new WebhookLaneData(lane.Id, lane.BoardId, lane.Name, lane.Position);
+
+        return BuildEvent(eventType, lane.BoardId, boardSlug, actor, dataFactory(laneData));
+    }
+
+    // The board-event core: the envelope's board IS the subject, so no DB query — the entity carries
+    // id, slug and name directly.
+    private static BoardEvent BuildBoardEvent
+    (
+        string eventType,
+        Board board,
+        BoardUser actor,
+        Func<WebhookBoardData, object> dataFactory
+    )
+    {
+        var boardData = new WebhookBoardData(board.Id, board.Slug, board.Name);
+
+        return BuildEvent(eventType, board.Id, board.Slug, actor, dataFactory(boardData));
+    }
+
     // The fat-CardSummary single-event core (#329). Resolves the summary + board slug +
     // current lane name, then stamps the envelope. dataFactory shapes the per-event-type
     // `data` block from the resolved summary and lane name.

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Collaboard.Api.Events;
 using Collaboard.Api.Mcp;
 using Collaboard.Api.Tests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,7 +18,7 @@ public class McpBoardToolTests(CollaboardApiFactory factory) : IClassFixture<Col
     {
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
         var authService = scope.ServiceProvider.GetRequiredService<McpAuthService>();
-        return new BoardTools(db, authService);
+        return new BoardTools(db, authService, scope.ServiceProvider.GetRequiredService<IWebhookSink>());
     }
 
     [Fact]

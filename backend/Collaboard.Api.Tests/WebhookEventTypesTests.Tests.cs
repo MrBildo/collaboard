@@ -33,12 +33,11 @@ public sealed class WebhookEventTypesTests
         }
     }
 
-    // M2 (#329) widens All per family as emit-sites are wired. The card, comment, label and
-    // attachment families are live; the lane and board families add their members in follow-on
-    // slices, so they are deliberately absent here (selectable ≡ deliverable at every slice
-    // boundary).
+    // M2 (#329) is now COMPLETE: the lane and board families close the catalog. All board-scoped
+    // events the project raises are both emitted and selectable. (User-account events are out of
+    // scope; Ping and the Wildcard sentinel are deliverable-only / not event types.)
     [Fact]
-    public void M2_All_ContainsExactlyTheWiredFamilies() =>
+    public void M2_All_ContainsTheFullCatalog() =>
         WebhookEventTypes.All.ShouldBe(
             [
                 WebhookEventTypes.CardCreated,
@@ -56,6 +55,13 @@ public sealed class WebhookEventTypesTests
                 WebhookEventTypes.LabelDeleted,
                 WebhookEventTypes.AttachmentCreated,
                 WebhookEventTypes.AttachmentDeleted,
+                WebhookEventTypes.LaneCreated,
+                WebhookEventTypes.LaneRenamed,
+                WebhookEventTypes.LaneReordered,
+                WebhookEventTypes.LaneDeleted,
+                WebhookEventTypes.BoardCreated,
+                WebhookEventTypes.BoardRenamed,
+                WebhookEventTypes.BoardDeleted,
             ],
             ignoreOrder: true);
 
@@ -63,9 +69,11 @@ public sealed class WebhookEventTypesTests
     public void IsValidSelection_AcceptsKnownTypesAndWildcard_RejectsUnknown()
     {
         WebhookEventTypes.IsValidSelection(WebhookEventTypes.CardCreated).ShouldBeTrue();
-        WebhookEventTypes.IsValidSelection(WebhookEventTypes.CommentCreated).ShouldBeTrue();   // M2 — now live
+        WebhookEventTypes.IsValidSelection(WebhookEventTypes.CommentCreated).ShouldBeTrue();
+        WebhookEventTypes.IsValidSelection(WebhookEventTypes.LaneReordered).ShouldBeTrue();   // M2 — catalog now closed
+        WebhookEventTypes.IsValidSelection(WebhookEventTypes.BoardCreated).ShouldBeTrue();    // M2 — catalog now closed
         WebhookEventTypes.IsValidSelection(WebhookEventTypes.Wildcard).ShouldBeTrue();
-        WebhookEventTypes.IsValidSelection("lane.created").ShouldBeFalse();   // M2 — not yet wired
+        WebhookEventTypes.IsValidSelection("user.created").ShouldBeFalse();   // user-account events are out of scope
         WebhookEventTypes.IsValidSelection("nonsense").ShouldBeFalse();
     }
 

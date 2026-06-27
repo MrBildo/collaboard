@@ -48,7 +48,7 @@ public class McpAdminToolTests(CollaboardApiFactory factory) : IClassFixture<Col
             new LaneTools(db, auth, broadcaster),
             new LabelTools(db, auth, broadcaster),
             new SizeTools(db, auth, broadcaster),
-            new BoardTools(db, auth));
+            new BoardTools(db, auth, scope.ServiceProvider.GetRequiredService<IWebhookSink>()));
     }
 
     private async Task<string> AuthKeyForAsync(UserRole role)

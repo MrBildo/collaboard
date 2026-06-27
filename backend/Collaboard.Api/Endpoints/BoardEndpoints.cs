@@ -1,4 +1,5 @@
 using Collaboard.Api.Auth;
+using Collaboard.Api.Events;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,7 +22,7 @@ internal static class BoardEndpoints
             return board is null ? Results.NotFound() : Results.Ok(board);
         }).RequireAuth();
 
-        group.MapPost("/boards", async (BoardDbContext db, CreateBoardRequest request) =>
+        group.MapPost("/boards", async (BoardDbContext db, HttpContext http, IWebhookSink sink, CreateBoardRequest request, CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(request.Name))
             {
@@ -31,7 +32,7 @@ internal static class BoardEndpoints
             var name = request.Name;
             var slug = Board.GenerateSlug(name);
 
-            if (await db.Boards.AnyAsync(x => x.Slug == slug))
+            if (await db.Boards.AnyAsync(x => x.Slug == slug, ct))
             {
                 return Results.Conflict("A board with that slug already exists.");
             }
@@ -47,17 +48,23 @@ internal static class BoardEndpoints
 
             BoardSeeder.Seed(db, board);
 
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(ct);
+
+            // board.created — WEBHOOK-ONLY: enqueue straight to the sink, NO board bell (board CRUD
+            // has no SSE broadcast, so the SSE wire stays byte-for-byte unchanged). (#329.)
+            WebhookEventFactory.PublishBoardCreated(sink, board, http.CurrentUser());
             return Results.Created($"/api/v1/boards/{board.Id}", board);
         }).RequireAdminOrAgentAdmin();
 
-        group.MapPatch("/boards/{id:guid}", async (BoardDbContext db, Guid id, UpdateBoardRequest request) =>
+        group.MapPatch("/boards/{id:guid}", async (BoardDbContext db, HttpContext http, IWebhookSink sink, Guid id, UpdateBoardRequest request, CancellationToken ct) =>
         {
-            var board = await db.Boards.FindAsync(id);
+            var board = await db.Boards.FindAsync([id], ct);
             if (board is null)
             {
                 return Results.NotFound();
             }
+
+            var oldName = board.Name;
 
             if (request.Name is not null)
             {
@@ -69,28 +76,39 @@ internal static class BoardEndpoints
                 board.Name = request.Name;
             }
 
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(ct);
+
+            // board.renamed — WEBHOOK-ONLY (no board bell), only on an actual name change (no-op
+            // guard; the slug is immutable so a rename is the board's only mutation). (#329.)
+            if (request.Name is not null && request.Name != oldName)
+            {
+                WebhookEventFactory.PublishBoardRenamed(sink, board, http.CurrentUser());
+            }
+
             return Results.Ok(board);
         }).RequireAdminOrAgentAdmin();
 
-        group.MapDelete("/boards/{id:guid}", async (BoardDbContext db, Guid id) =>
+        group.MapDelete("/boards/{id:guid}", async (BoardDbContext db, HttpContext http, IWebhookSink sink, Guid id, CancellationToken ct) =>
         {
-            var board = await db.Boards.FindAsync(id);
+            var board = await db.Boards.FindAsync([id], ct);
             if (board is null)
             {
                 return Results.NotFound();
             }
 
-            if (await db.Lanes.AnyAsync(x => x.BoardId == id && !x.IsArchiveLane))
+            if (await db.Lanes.AnyAsync(x => x.BoardId == id && !x.IsArchiveLane, ct))
             {
                 return Results.BadRequest("Board must have no lanes before it can be deleted.");
             }
 
-            var archivedCardsDeleted = await db.Cards.CountAsync(x => x.BoardId == id);
+            var archivedCardsDeleted = await db.Cards.CountAsync(x => x.BoardId == id, ct);
 
             db.Boards.Remove(board);
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(ct);
 
+            // board.deleted — WEBHOOK-ONLY (no board bell), enqueued from the captured board after the
+            // row is gone (state at occurrence; the event is self-contained). (#329.)
+            WebhookEventFactory.PublishBoardDeleted(sink, board, http.CurrentUser());
             return archivedCardsDeleted > 0 ? Results.Ok(new { deleted = true, archivedCardsDeleted }) : Results.NoContent();
         }).RequireAdmin();
 
