@@ -1,6 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { fetchWebhookDeliveries, fetchWebhookStatus, fetchWebhookSubscriptions } from '@/lib/api';
+import {
+  fetchWebhookDeliveries,
+  fetchWebhookEventCatalog,
+  fetchWebhookStatus,
+  fetchWebhookSubscriptions,
+} from '@/lib/api';
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
 
@@ -40,5 +45,18 @@ export function useWebhookStatus(enabled = true) {
     queryFn: fetchWebhookStatus,
     enabled,
     ...QUERY_DEFAULTS.webhooks,
+  });
+}
+
+// The selectable event catalog (#336). The single server-side source of truth
+// the subscription picker renders. It's static within a session, so it never
+// goes stale — fetched once when the form first opens and reused from cache.
+export function useWebhookEventCatalog(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.webhooks.eventTypes(),
+    queryFn: fetchWebhookEventCatalog,
+    enabled,
+    staleTime: Infinity,
+    retry: 1,
   });
 }

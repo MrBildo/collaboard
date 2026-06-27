@@ -18,13 +18,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { InlineError } from '@/components/ui/inline-error';
 import { createWebhookSubscription, updateWebhookSubscription } from '@/lib/api';
 import {
-  WEBHOOK_EVENT_GROUPS,
-  WEBHOOK_EVENT_TYPES,
+  WEBHOOK_WILDCARD,
   buildWebhookCreateInput,
   buildWebhookUpdatePatch,
   isWildcard,
   type WebhookFormState,
 } from '@/lib/webhooks';
+import { useWebhookEventCatalog } from '@/hooks/use-webhooks';
 import { queryKeys } from '@/lib/query-keys';
 import { toMessage } from '@/lib/mutation-floor';
 import type { CreateWebhookInput, UpdateWebhookPatch, WebhookSubscription } from '@/types';
@@ -62,12 +62,22 @@ function WebhookForm({ subscription, onDone }: WebhookFormProps) {
   const isEdit = subscription !== undefined;
   const queryClient = useQueryClient();
 
+  // The selectable event catalog is the server's source of truth (#336), fetched
+  // on first open and cached for the session. The per-event checkboxes render
+  // from it; "Send all events" (the wildcard) is independent, so a still-loading
+  // or failed catalog never blocks creating a wildcard subscription.
+  const catalogQuery = useWebhookEventCatalog();
+  const eventGroups = catalogQuery.data ?? [];
+
   const [name, setName] = useState(subscription?.name ?? '');
   const [url, setUrl] = useState(subscription?.url ?? '');
   const [enabled, setEnabled] = useState(subscription?.enabled ?? true);
   const [sendAll, setSendAll] = useState(subscription ? isWildcard(subscription.events) : false);
+  // Initialize the per-event selection from the subscription's concrete events
+  // (the wildcard is carried by `sendAll`, not a checkbox). Catalog-independent
+  // so it doesn't race the fetch — the boxes pre-check once the catalog renders.
   const [selected, setSelected] = useState<string[]>(
-    subscription ? subscription.events.filter((e) => WEBHOOK_EVENT_TYPES.includes(e)) : [],
+    subscription ? subscription.events.filter((e) => e !== WEBHOOK_WILDCARD) : [],
   );
   // The signing secret is write-only: we never receive it, only `signed`. The
   // input holds a NEW value (replace); `clearSecret` removes it (edit only).
@@ -243,44 +253,55 @@ function WebhookForm({ subscription, onDone }: WebhookFormProps) {
             <Switch id="wh-sendall" checked={sendAll} onCheckedChange={setSendAll} />
           </label>
 
-          {WEBHOOK_EVENT_GROUPS.map((group) => (
-            <div key={group.label} className="overflow-hidden rounded-md border border-border">
-              <div className="flex items-center justify-between bg-muted px-3 py-2 text-sm font-medium">
-                <span>{group.label}</span>
-                <span className="text-xs font-normal text-muted-foreground">
-                  {sendAll
-                    ? `${group.events.length} / ${group.events.length}`
-                    : `${group.events.filter((e) => selected.includes(e.type)).length} / ${group.events.length}`}
-                </span>
+          {/* The per-event picker. The catalog is the server's source of truth;
+              while it loads or if it fails, the wildcard toggle above still lets
+              the operator subscribe — the failure surfaces inline, never silent. */}
+          {catalogQuery.isLoading ? (
+            <p className="rounded-md border border-border px-3 py-6 text-center text-xs text-muted-foreground">
+              Loading events…
+            </p>
+          ) : catalogQuery.isError ? (
+            <InlineError message="Couldn't load the event catalog. Use “Send all events” above, or close and reopen to retry." />
+          ) : (
+            eventGroups.map((group) => (
+              <div key={group.family} className="overflow-hidden rounded-md border border-border">
+                <div className="flex items-center justify-between bg-muted px-3 py-2 text-sm font-medium">
+                  <span>{group.label}</span>
+                  <span className="text-xs font-normal text-muted-foreground">
+                    {sendAll
+                      ? `${group.events.length} / ${group.events.length}`
+                      : `${group.events.filter((e) => selected.includes(e.type)).length} / ${group.events.length}`}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1 p-2">
+                  {group.events.map((event) => {
+                    const checked = sendAll || selected.includes(event.type);
+                    return (
+                      <label
+                        key={event.type}
+                        className={
+                          sendAll
+                            ? 'flex items-start gap-2.5 rounded px-2 py-1.5 opacity-60'
+                            : 'flex cursor-pointer items-start gap-2.5 rounded px-2 py-1.5 hover:bg-muted'
+                        }
+                      >
+                        <Checkbox
+                          className="mt-0.5"
+                          checked={checked}
+                          disabled={sendAll}
+                          onCheckedChange={(c) => toggleEvent(event.type, c === true)}
+                        />
+                        <span className="flex flex-col gap-0.5">
+                          <span className="font-mono text-xs text-foreground">{event.label}</span>
+                          <span className="text-xs text-muted-foreground">{event.description}</span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="flex flex-col gap-1 p-2">
-                {group.events.map((event) => {
-                  const checked = sendAll || selected.includes(event.type);
-                  return (
-                    <label
-                      key={event.type}
-                      className={
-                        sendAll
-                          ? 'flex items-start gap-2.5 rounded px-2 py-1.5 opacity-60'
-                          : 'flex cursor-pointer items-start gap-2.5 rounded px-2 py-1.5 hover:bg-muted'
-                      }
-                    >
-                      <Checkbox
-                        className="mt-0.5"
-                        checked={checked}
-                        disabled={sendAll}
-                        onCheckedChange={(c) => toggleEvent(event.type, c === true)}
-                      />
-                      <span className="flex flex-col gap-0.5">
-                        <span className="font-mono text-xs text-foreground">{event.label}</span>
-                        <span className="text-xs text-muted-foreground">{event.description}</span>
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+            ))
+          )}
           <p className="text-xs text-muted-foreground">At least one event is required.</p>
         </div>
 

@@ -1,7 +1,6 @@
 import { describe, test, expect } from 'vitest';
 
 import {
-  WEBHOOK_EVENT_TYPES,
   WEBHOOK_WILDCARD,
   buildEventsPayload,
   buildWebhookCreateInput,
@@ -60,11 +59,7 @@ function makeFormState(overrides: Partial<WebhookFormState> = {}): WebhookFormSt
   };
 }
 
-describe('event catalog', () => {
-  test('exposes exactly the two M1 live events as selectable', () => {
-    expect(WEBHOOK_EVENT_TYPES).toEqual(['card.created', 'card.moved']);
-  });
-
+describe('event payload helpers', () => {
   test('isWildcard detects the wildcard entry', () => {
     expect(isWildcard(['*'])).toBe(true);
     expect(isWildcard(['card.created'])).toBe(false);

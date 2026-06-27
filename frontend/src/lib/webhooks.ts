@@ -7,54 +7,21 @@ import type {
 import { arraysEqual } from '@/lib/utils';
 
 // Webhook presentation + classification logic (#326). Pure functions over the
-// API contract — kept out of the components so the load-bearing rules (which
-// events are selectable, what counts as "blocked", the secret set/keep/clear
-// payload) are unit-tested in isolation. The frontend owns all display naming;
-// the API sends machine event-type strings.
+// API contract — kept out of the components so the load-bearing rules (what
+// counts as "blocked", the secret set/keep/clear payload) are unit-tested in
+// isolation. The server owns all display naming: the selectable event catalog
+// (labels, descriptions, family grouping) is fetched from
+// `GET /webhooks/event-types` (#336), not hardcoded here — so the picker can
+// never again drift from what the backend emits and accepts.
 
 // --- Event catalog --------------------------------------------------------
-// M1 fires ONLY card.created + card.moved. We surface exactly those — an
-// operator must not be able to subscribe to an event that never arrives (the
-// ratified lean on card #326). The grouped shape is M2-ready: a new event
-// family is a new entry here and the form renders groups generically, so the
-// catalog grows without touching the form.
+// The catalog itself is a fetched API contract — its schema/types live in
+// `@/lib/schemas` + `@/types` (`WebhookEventGroup`), fetched via
+// `useWebhookEventCatalog`. The wildcard sentinel stays here because it's a
+// frontend-only concern: "send all events" is a form toggle that collapses to
+// `["*"]`, independent of the catalog.
 
 export const WEBHOOK_WILDCARD = '*';
-
-export type WebhookEventOption = {
-  type: string;
-  label: string;
-  description: string;
-};
-
-export type WebhookEventGroup = {
-  label: string;
-  events: WebhookEventOption[];
-};
-
-export const WEBHOOK_EVENT_GROUPS: WebhookEventGroup[] = [
-  {
-    label: 'Cards',
-    events: [
-      {
-        type: 'card.created',
-        label: 'card.created',
-        description: 'A card first comes into existence.',
-      },
-      {
-        type: 'card.moved',
-        label: 'card.moved',
-        description: "A card's lane changes.",
-      },
-    ],
-  },
-];
-
-// The flat set of selectable event types — the valid universe the form and any
-// validation check against.
-export const WEBHOOK_EVENT_TYPES: string[] = WEBHOOK_EVENT_GROUPS.flatMap((group) =>
-  group.events.map((event) => event.type),
-);
 
 export function isWildcard(events: readonly string[]): boolean {
   return events.includes(WEBHOOK_WILDCARD);

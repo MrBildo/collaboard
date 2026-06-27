@@ -35,6 +35,7 @@ export const queryKeys = {
     subscriptions: () => ['webhooks', 'subscriptions'] as const,
     deliveries: () => ['webhooks', 'deliveries'] as const,
     status: () => ['webhooks', 'status'] as const,
+    eventTypes: () => ['webhooks', 'event-types'] as const,
   },
   version: () => ['version'] as const,
   versionStatus: () => ['version', 'status'] as const,
