@@ -9,9 +9,9 @@ namespace Collaboard.Api.Events;
 //
 // M1 declared only the two live event types. M2 (#329) extends this class and its `All` set per
 // family as it wires each emit-site — so the invariant `selectable ≡ deliverable` holds at every
-// milestone (an operator can only select an event type that actually delivers). The card, comment,
-// label and attachment families are wired here; the lane and board families add their consts and
-// `All` membership in their own follow-on slices, alongside their emit-sites. (#326 B1 / #329.)
+// milestone (an operator can only select an event type that actually delivers). The lane and board
+// families in this slice CLOSE the catalog: every board-scoped event the project raises is now both
+// emitted and selectable. (User-account events are intentionally out of scope.) (#326 B1 / #329.)
 public static class WebhookEventTypes
 {
     public const string CardCreated = "card.created";
@@ -47,6 +47,25 @@ public static class WebhookEventTypes
     public const string AttachmentCreated = "attachment.created";
     public const string AttachmentDeleted = "attachment.deleted";
 
+    // The lane lifecycle on a board. A lane carries only a name and a position, so the two mutations
+    // are rename and reorder (not a generic .updated). lane.reordered carries the board's FULL new
+    // left-to-right order and fires from BOTH the bulk reorder and a single-lane position move
+    // (Bill-ruled, #329); a single update_lane changing name AND position co-fires lane.renamed +
+    // lane.reordered. lane.deleted carries the lane's state at occurrence (the row is gone after).
+    public const string LaneCreated = "lane.created";
+    public const string LaneRenamed = "lane.renamed";
+    public const string LaneReordered = "lane.reordered";
+    public const string LaneDeleted = "lane.deleted";
+
+    // The board lifecycle. Board PATCH only changes the name (the slug is immutable), so the rename is
+    // a distinct event, not a generic .updated. These are WEBHOOK-ONLY: board CRUD has no SSE
+    // broadcast today, so emitting them must not ring a new board bell — they go straight to the
+    // webhook sink, keeping the SSE wire byte-for-byte unchanged. board.deleted references a
+    // now-deleted board (state at occurrence). (#329.)
+    public const string BoardCreated = "board.created";
+    public const string BoardRenamed = "board.renamed";
+    public const string BoardDeleted = "board.deleted";
+
     // "all current and future event types" — a subscription whose selection is the wildcard
     // receives every event. Validated as a standalone selection by the store and matched by
     // Matches() at drain; deliberately NOT a member of `All` (it is not itself an event type).
@@ -59,9 +78,9 @@ public static class WebhookEventTypes
     // idiom an integrator recognizes cold.
     public const string Ping = "webhook.ping";
 
-    // The selectable board-event types — what subscription event-selection validates against. Grows
-    // per family as M2 wires emit-sites (#329 — card family wired). Ordinal because event-type
-    // identifiers are exact ASCII tokens.
+    // The selectable board-event types — what subscription event-selection validates against. The
+    // lane and board families (#329) CLOSE the catalog: this is the full M2 set. Ordinal because
+    // event-type identifiers are exact ASCII tokens.
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
         CardCreated,
@@ -79,6 +98,13 @@ public static class WebhookEventTypes
         LabelDeleted,
         AttachmentCreated,
         AttachmentDeleted,
+        LaneCreated,
+        LaneRenamed,
+        LaneReordered,
+        LaneDeleted,
+        BoardCreated,
+        BoardRenamed,
+        BoardDeleted,
     };
 
     // A selection entry is valid iff it names a known event type or is the wildcard.

@@ -108,6 +108,36 @@ public sealed record WebhookAttachmentCreatedData(WebhookAttachmentData Attachme
 
 public sealed record WebhookAttachmentDeletedData(WebhookAttachmentData Attachment, WebhookCardRef Card);
 
+// The lane-family M2 payloads (#329). lane.created / lane.renamed / lane.deleted carry the single
+// lane resource (the envelope's boardId/boardSlug identify the board). lane.deleted carries the
+// lane's state at occurrence (the row is gone after the delete).
+public sealed record WebhookLaneData(Guid Id, Guid BoardId, string Name, int Position);
+
+public sealed record WebhookLaneCreatedData(WebhookLaneData Lane);
+
+public sealed record WebhookLaneRenamedData(WebhookLaneData Lane);
+
+public sealed record WebhookLaneDeletedData(WebhookLaneData Lane);
+
+// lane.reordered carries the board's FULL new left-to-right order (Bill-ruled, #329) — both the bulk
+// reorder_lanes path and a single-lane update_lane position move emit this same shape, so a consumer
+// gets the resulting lane order directly with no reconstruction. Each entry is {id, name, position};
+// the boardId is on the envelope (all entries share it), so it is not repeated per lane.
+public sealed record WebhookLaneOrderEntry(Guid Id, string Name, int Position);
+
+public sealed record WebhookLaneReorderedData(IReadOnlyList<WebhookLaneOrderEntry> Lanes);
+
+// The board-family M2 payloads (#329). board.created / board.renamed / board.deleted carry the board
+// resource. The envelope's boardId/boardSlug ARE this board; the embedded resource adds the name (and
+// slug for completeness). board.deleted references a now-deleted board (state at occurrence).
+public sealed record WebhookBoardData(Guid Id, string Slug, string Name);
+
+public sealed record WebhookBoardCreatedData(WebhookBoardData Board);
+
+public sealed record WebhookBoardRenamedData(WebhookBoardData Board);
+
+public sealed record WebhookBoardDeletedData(WebhookBoardData Board);
+
 // The webhook.ping test-delivery payload (#326). A minimal body so an integrator can confirm the
 // endpoint is reachable, signs, and parses — carries the subscription id and a human-readable
 // message, nothing board-scoped (a ping is not a board mutation).

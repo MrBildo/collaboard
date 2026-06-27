@@ -25,7 +25,7 @@ public sealed class LaneTools(BoardDbContext db, McpAuthService auth, BoardEvent
         CancellationToken ct = default
     )
     {
-        var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
+        var (user, error) = await auth.RequireAdminLevelAsync(authKey, ct);
         if (error is not null)
         {
             return error;
@@ -49,7 +49,9 @@ public sealed class LaneTools(BoardDbContext db, McpAuthService auth, BoardEvent
         var lane = new Lane { Id = Guid.NewGuid(), BoardId = boardId, Name = name, Position = position };
         db.Lanes.Add(lane);
         await db.SaveChangesAsync(ct);
-        broadcaster.PublishBoardUpdated(boardId);
+
+        // lane.created — REST/MCP emit the identical event through the shared factory. (#329.)
+        await WebhookEventFactory.PublishLaneCreatedAsync(db, broadcaster, lane, user!, ct);
         return JsonSerializer.Serialize(lane, JsonSerializerOptions.Web);
     }
 
@@ -64,7 +66,7 @@ public sealed class LaneTools(BoardDbContext db, McpAuthService auth, BoardEvent
         CancellationToken ct = default
     )
     {
-        var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
+        var (user, error) = await auth.RequireAdminLevelAsync(authKey, ct);
         if (error is not null)
         {
             return error;
@@ -80,6 +82,10 @@ public sealed class LaneTools(BoardDbContext db, McpAuthService auth, BoardEvent
         {
             return "Error: Archive lanes cannot be modified.";
         }
+
+        // Capture the pre-mutation values for the per-axis no-op guard (#329).
+        var oldName = lane.Name;
+        var oldPosition = lane.Position;
 
         if (name is not null)
         {
@@ -109,7 +115,14 @@ public sealed class LaneTools(BoardDbContext db, McpAuthService auth, BoardEvent
         }
 
         await db.SaveChangesAsync(ct);
-        broadcaster.PublishBoardUpdated(lane.BoardId);
+
+        // Split by axis (#329): name → lane.renamed; position → lane.reordered (board's full new
+        // order). Co-fire through PublishCoalesced — one SSE bell, identical to the REST PATCH.
+        var nameChanged = name is not null && name != oldName;
+        var positionChanged = position is not null && position.Value != oldPosition;
+
+        var events = await WebhookEventFactory.BuildLaneUpdateEventsAsync(db, lane, user!, nameChanged, positionChanged, ct);
+        broadcaster.PublishCoalesced(lane.BoardId, events);
         return JsonSerializer.Serialize(lane, JsonSerializerOptions.Web);
     }
 
@@ -123,7 +136,7 @@ public sealed class LaneTools(BoardDbContext db, McpAuthService auth, BoardEvent
         CancellationToken ct = default
     )
     {
-        var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
+        var (user, error) = await auth.RequireAdminLevelAsync(authKey, ct);
         if (error is not null)
         {
             return error;
@@ -153,7 +166,10 @@ public sealed class LaneTools(BoardDbContext db, McpAuthService auth, BoardEvent
         }
 
         var ordered = await LaneReorderHelper.ReorderAsync(db, lanes!, ids, ct);
-        broadcaster.PublishBoardUpdated(boardId);
+
+        // lane.reordered — ONE event carrying the board's full new order (never N), same single board
+        // bell the reorder always rang, identical to the REST reorder. (#329, #277 coalesce contract.)
+        await WebhookEventFactory.PublishLaneReorderedAsync(db, broadcaster, boardId, user!, ct);
         return JsonSerializer.Serialize(ordered, JsonSerializerOptions.Web);
     }
 
@@ -166,7 +182,7 @@ public sealed class LaneTools(BoardDbContext db, McpAuthService auth, BoardEvent
         CancellationToken ct = default
     )
     {
-        var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
+        var (user, error) = await auth.RequireAdminLevelAsync(authKey, ct);
         if (error is not null)
         {
             return error;
@@ -188,10 +204,12 @@ public sealed class LaneTools(BoardDbContext db, McpAuthService auth, BoardEvent
             return "Error: Lane must be empty.";
         }
 
-        var boardId = lane.BoardId;
         db.Lanes.Remove(lane);
         await db.SaveChangesAsync(ct);
-        broadcaster.PublishBoardUpdated(boardId);
+
+        // lane.deleted — published from the captured lane after the row is gone; REST/MCP identical
+        // through the shared factory. (#329.)
+        await WebhookEventFactory.PublishLaneDeletedAsync(db, broadcaster, lane, user!, ct);
         return "Lane deleted.";
     }
 }

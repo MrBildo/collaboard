@@ -41,7 +41,7 @@ public class McpReorderLanesToolTests(CollaboardApiFactory factory) : IClassFixt
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
         var auth = new McpAuthService(new UserResolver(db));
         var broadcaster = scope.ServiceProvider.GetRequiredService<BoardEventBroadcaster>();
-        return (db, new LaneTools(db, auth, broadcaster), new BoardTools(db, auth));
+        return (db, new LaneTools(db, auth, broadcaster), new BoardTools(db, auth, scope.ServiceProvider.GetRequiredService<IWebhookSink>()));
     }
 
     private async Task<Guid> CreateBoardAsync(BoardTools board)

@@ -16,9 +16,9 @@ internal static class LaneEndpoints
                 : Results.Ok(await db.Lanes.Where(x => x.BoardId == boardId && !x.IsArchiveLane).OrderBy(x => x.Position).ToListAsync()))
             .RequireAuth();
 
-        group.MapPost("/boards/{boardId:guid}/lanes", async (BoardDbContext db, Guid boardId, CreateLaneRequest request, BoardEventBroadcaster broadcaster) =>
+        group.MapPost("/boards/{boardId:guid}/lanes", async (BoardDbContext db, HttpContext http, Guid boardId, CreateLaneRequest request, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
         {
-            if (!await db.Boards.AnyAsync(x => x.Id == boardId))
+            if (!await db.Boards.AnyAsync(x => x.Id == boardId, ct))
             {
                 return Results.NotFound();
             }
@@ -35,8 +35,10 @@ internal static class LaneEndpoints
 
             var lane = new Lane { Id = Guid.NewGuid(), BoardId = boardId, Name = request.Name, Position = request.Position };
             db.Lanes.Add(lane);
-            await db.SaveChangesAsync();
-            broadcaster.PublishBoardUpdated(boardId);
+            await db.SaveChangesAsync(ct);
+
+            // lane.created — same single board bell, plus one webhook event. (#329.)
+            await WebhookEventFactory.PublishLaneCreatedAsync(db, broadcaster, lane, http.CurrentUser(), ct);
             return Results.Created($"/api/v1/lanes/{lane.Id}", lane);
         }).RequireAdminOrAgentAdmin();
 
@@ -44,7 +46,7 @@ internal static class LaneEndpoints
         // left-to-right order of the board's non-archive lanes; server owns all
         // position math (two-phase renumber under the unique (BoardId, Position)
         // index — see LaneReorderHelper).
-        group.MapPost("/boards/{boardId:guid}/lanes/reorder", async (BoardDbContext db, Guid boardId, ReorderLanesRequest request, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
+        group.MapPost("/boards/{boardId:guid}/lanes/reorder", async (BoardDbContext db, HttpContext http, Guid boardId, ReorderLanesRequest request, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
         {
             if (!await db.Boards.AnyAsync(x => x.Id == boardId, ct))
             {
@@ -58,7 +60,10 @@ internal static class LaneEndpoints
             }
 
             var ordered = await LaneReorderHelper.ReorderAsync(db, lanes!, request.LaneIds!, ct);
-            broadcaster.PublishBoardUpdated(boardId);
+
+            // lane.reordered — ONE event carrying the board's full new order (never N), same single
+            // board bell the reorder always rang. (#329, #277 coalesce contract.)
+            await WebhookEventFactory.PublishLaneReorderedAsync(db, broadcaster, boardId, http.CurrentUser(), ct);
             return Results.Ok(ordered);
         }).RequireAdminOrAgentAdmin();
 
@@ -69,9 +74,9 @@ internal static class LaneEndpoints
             return lane is null ? Results.NotFound() : Results.Ok(lane);
         }).RequireAuth();
 
-        group.MapDelete("/lanes/{id:guid}", async (BoardDbContext db, Guid id, BoardEventBroadcaster broadcaster) =>
+        group.MapDelete("/lanes/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
         {
-            var lane = await db.Lanes.FindAsync(id);
+            var lane = await db.Lanes.FindAsync([id], ct);
             if (lane is null)
             {
                 return Results.NotFound();
@@ -82,20 +87,23 @@ internal static class LaneEndpoints
                 return Results.BadRequest("Archive lanes cannot be deleted.");
             }
 
-            if (await db.Cards.AnyAsync(x => x.LaneId == id))
+            if (await db.Cards.AnyAsync(x => x.LaneId == id, ct))
             {
                 return Results.Conflict("Lane must be empty.");
             }
 
             db.Lanes.Remove(lane);
-            await db.SaveChangesAsync();
-            broadcaster.PublishBoardUpdated(lane.BoardId);
+            await db.SaveChangesAsync(ct);
+
+            // lane.deleted — published from the captured lane after the row is gone; the board still
+            // exists, so the slug resolves. (#329.)
+            await WebhookEventFactory.PublishLaneDeletedAsync(db, broadcaster, lane, http.CurrentUser(), ct);
             return Results.NoContent();
         }).RequireAdminOrAgentAdmin();
 
-        group.MapPatch("/lanes/{id:guid}", async (BoardDbContext db, Guid id, UpdateLaneRequest request, BoardEventBroadcaster broadcaster) =>
+        group.MapPatch("/lanes/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, UpdateLaneRequest request, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
         {
-            var lane = await db.Lanes.FindAsync(id);
+            var lane = await db.Lanes.FindAsync([id], ct);
             if (lane is null)
             {
                 return Results.NotFound();
@@ -105,6 +113,10 @@ internal static class LaneEndpoints
             {
                 return Results.BadRequest("Archive lanes cannot be modified.");
             }
+
+            // Capture the pre-mutation values for the per-axis no-op guard (#329).
+            var oldName = lane.Name;
+            var oldPosition = lane.Position;
 
             if (request.Name is not null)
             {
@@ -125,7 +137,7 @@ internal static class LaneEndpoints
                     return Results.BadRequest("Position value is reserved.");
                 }
 
-                if (await db.Lanes.AnyAsync(x => x.BoardId == lane.BoardId && x.Position == newPos && x.Id != id))
+                if (await db.Lanes.AnyAsync(x => x.BoardId == lane.BoardId && x.Position == newPos && x.Id != id, ct))
                 {
                     return Results.Conflict("Position already taken by another lane.");
                 }
@@ -133,8 +145,16 @@ internal static class LaneEndpoints
                 lane.Position = newPos;
             }
 
-            await db.SaveChangesAsync();
-            broadcaster.PublishBoardUpdated(lane.BoardId);
+            await db.SaveChangesAsync(ct);
+
+            // Split by axis (#329): a name change → lane.renamed; a position change → lane.reordered
+            // (the board's full new order). Both can co-fire from one PATCH; PublishCoalesced rings
+            // EXACTLY ONE SSE bell (byte-for-byte unchanged) and enqueues one webhook per changed axis.
+            var nameChanged = request.Name is not null && request.Name != oldName;
+            var positionChanged = request.Position is not null && request.Position.Value != oldPosition;
+
+            var events = await WebhookEventFactory.BuildLaneUpdateEventsAsync(db, lane, http.CurrentUser(), nameChanged, positionChanged, ct);
+            broadcaster.PublishCoalesced(lane.BoardId, events);
             return Results.Ok(lane);
         }).RequireAdminOrAgentAdmin();
 

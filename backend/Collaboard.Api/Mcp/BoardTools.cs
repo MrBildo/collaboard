@@ -1,14 +1,19 @@
 using System.ComponentModel;
 using System.Text.Json;
 using Collaboard.Api.Endpoints;
+using Collaboard.Api.Events;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
 using ModelContextProtocol.Server;
 
 namespace Collaboard.Api.Mcp;
 
+// Board create/update mirror the REST surface in BoardEndpoints.cs (board delete is intentionally
+// absent from MCP). board.created / board.renamed are WEBHOOK-ONLY: board CRUD has no SSE broadcast,
+// so they enqueue straight to IWebhookSink with no board bell, keeping the SSE wire byte-for-byte
+// unchanged (#329).
 [McpServerToolType]
-public sealed class BoardTools(BoardDbContext db, McpAuthService auth)
+public sealed class BoardTools(BoardDbContext db, McpAuthService auth, IWebhookSink webhookSink)
 {
     [McpServerTool(Name = "get_boards", ReadOnly = true, Destructive = false)]
     [Description("List all boards. Use this to discover board IDs for scoping other tools.")]
@@ -103,7 +108,7 @@ public sealed class BoardTools(BoardDbContext db, McpAuthService auth)
         CancellationToken ct = default
     )
     {
-        var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
+        var (user, error) = await auth.RequireAdminLevelAsync(authKey, ct);
         if (error is not null)
         {
             return error;
@@ -133,6 +138,9 @@ public sealed class BoardTools(BoardDbContext db, McpAuthService auth)
         BoardSeeder.Seed(db, board);
 
         await db.SaveChangesAsync(ct);
+
+        // board.created — WEBHOOK-ONLY (no board bell); REST/MCP enqueue the identical event. (#329.)
+        WebhookEventFactory.PublishBoardCreated(webhookSink, board, user!);
         return JsonSerializer.Serialize(board, JsonSerializerOptions.Web);
     }
 
@@ -152,7 +160,7 @@ public sealed class BoardTools(BoardDbContext db, McpAuthService auth)
         CancellationToken ct = default
     )
     {
-        var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
+        var (user, error) = await auth.RequireAdminLevelAsync(authKey, ct);
         if (error is not null)
         {
             return error;
@@ -169,8 +177,16 @@ public sealed class BoardTools(BoardDbContext db, McpAuthService auth)
             return "Error: Name cannot be empty.";
         }
 
+        var oldName = board.Name;
         board.Name = name;
         await db.SaveChangesAsync(ct);
+
+        // board.renamed — WEBHOOK-ONLY (no board bell), only on an actual name change. (#329.)
+        if (name != oldName)
+        {
+            WebhookEventFactory.PublishBoardRenamed(webhookSink, board, user!);
+        }
+
         return JsonSerializer.Serialize(board, JsonSerializerOptions.Web);
     }
 }
