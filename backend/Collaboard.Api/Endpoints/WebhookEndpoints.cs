@@ -1,5 +1,6 @@
 using Collaboard.Api.Auth;
 using Collaboard.Api.Configuration;
+using Collaboard.Api.Events;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -78,6 +79,14 @@ internal static class WebhookEndpoints
                 enabledSubscriptionCount
             ));
         }).RequireAdminOrAgentAdmin();
+
+        // The webhook event catalog (#336): the full set of selectable event types with their display
+        // metadata (label, description) grouped by family. The single server-side source of truth the
+        // admin UI's subscription picker consumes — replacing the frontend's hand-maintained copy, so
+        // the picker can never again drift from what the backend actually emits and accepts. Static
+        // data (no DB); admin-level, uniform with the rest of the webhook surface (D1).
+        group.MapGet("/webhooks/event-types", () => Results.Ok(WebhookEventCatalog.Groups))
+            .RequireAdminOrAgentAdmin();
 
         return group;
     }
