@@ -21,9 +21,9 @@ internal static class LabelEndpoints
             return Results.Ok(labels);
         }).RequireAuth();
 
-        group.MapPost("/boards/{boardId:guid}/labels", async (BoardDbContext db, Guid boardId, CreateLabelRequest request, BoardEventBroadcaster broadcaster) =>
+        group.MapPost("/boards/{boardId:guid}/labels", async (BoardDbContext db, HttpContext http, Guid boardId, CreateLabelRequest request, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
         {
-            if (!await db.Boards.AnyAsync(x => x.Id == boardId))
+            if (!await db.Boards.AnyAsync(x => x.Id == boardId, ct))
             {
                 return Results.NotFound();
             }
@@ -33,7 +33,7 @@ internal static class LabelEndpoints
                 return Results.BadRequest("Name is required.");
             }
 
-            if (await db.Labels.AnyAsync(x => x.BoardId == boardId && x.Name == request.Name))
+            if (await db.Labels.AnyAsync(x => x.BoardId == boardId && x.Name == request.Name, ct))
             {
                 return Results.Conflict("A label with that name already exists on this board.");
             }
@@ -46,14 +46,16 @@ internal static class LabelEndpoints
                 Color = request.Color,
             };
             db.Labels.Add(label);
-            await db.SaveChangesAsync();
-            broadcaster.PublishBoardUpdated(boardId);
+            await db.SaveChangesAsync(ct);
+
+            // label.created — same single board bell, plus one webhook event. (#329.)
+            await WebhookEventFactory.PublishLabelCreatedAsync(db, broadcaster, label, http.CurrentUser(), ct);
             return Results.Created($"/api/v1/boards/{boardId}/labels/{label.Id}", label);
         }).RequireAdminOrAgentAdmin();
 
-        group.MapPatch("/boards/{boardId:guid}/labels/{id:guid}", async (BoardDbContext db, Guid boardId, Guid id, UpdateLabelRequest request, BoardEventBroadcaster broadcaster) =>
+        group.MapPatch("/boards/{boardId:guid}/labels/{id:guid}", async (BoardDbContext db, HttpContext http, Guid boardId, Guid id, UpdateLabelRequest request, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
         {
-            var label = await db.Labels.FindAsync(id);
+            var label = await db.Labels.FindAsync([id], ct);
             if (label is null || label.BoardId != boardId)
             {
                 return Results.NotFound();
@@ -74,24 +76,28 @@ internal static class LabelEndpoints
                 label.Color = request.Color;
             }
 
-            await db.SaveChangesAsync();
-            broadcaster.PublishBoardUpdated(boardId);
+            await db.SaveChangesAsync(ct);
+
+            // label.updated — same single board bell, plus one webhook event. (#329.)
+            await WebhookEventFactory.PublishLabelUpdatedAsync(db, broadcaster, label, http.CurrentUser(), ct);
             return Results.Ok(label);
         }).RequireAdminOrAgentAdmin();
 
-        group.MapDelete("/boards/{boardId:guid}/labels/{id:guid}", async (BoardDbContext db, Guid boardId, Guid id, BoardEventBroadcaster broadcaster) =>
+        group.MapDelete("/boards/{boardId:guid}/labels/{id:guid}", async (BoardDbContext db, HttpContext http, Guid boardId, Guid id, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
         {
-            var label = await db.Labels.FindAsync(id);
+            var label = await db.Labels.FindAsync([id], ct);
             if (label is null || label.BoardId != boardId)
             {
                 return Results.NotFound();
             }
 
-            var cardLabels = await db.CardLabels.Where(x => x.LabelId == id).ToListAsync();
+            var cardLabels = await db.CardLabels.Where(x => x.LabelId == id).ToListAsync(ct);
             db.CardLabels.RemoveRange(cardLabels);
             db.Labels.Remove(label);
-            await db.SaveChangesAsync();
-            broadcaster.PublishBoardUpdated(boardId);
+            await db.SaveChangesAsync(ct);
+
+            // label.deleted — published from the captured label after the row is gone. (#329.)
+            await WebhookEventFactory.PublishLabelDeletedAsync(db, broadcaster, label, http.CurrentUser(), ct);
             return Results.NoContent();
         }).RequireAdminOrAgentAdmin();
 

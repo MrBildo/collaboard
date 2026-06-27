@@ -79,10 +79,11 @@ public sealed class AttachmentTools
             return "Error: You can only delete your own attachments.";
         }
 
-        var deleteCardId = attachment.CardId;
         db.Attachments.Remove(attachment);
         await db.SaveChangesAsync(ct);
-        await db.PublishForCardAsync(deleteCardId, broadcaster);
+
+        // attachment.deleted — published from the captured attachment after the row is gone. (#329.)
+        await WebhookEventFactory.PublishAttachmentDeletedAsync(db, broadcaster, attachment, user!, ct);
         return $"Attachment '{attachment.FileName}' deleted.";
     }
 
@@ -154,7 +155,9 @@ public sealed class AttachmentTools
         };
         db.Attachments.Add(attachment);
         await db.SaveChangesAsync(ct);
-        await db.PublishForCardAsync(card.Id, broadcaster);
+
+        // attachment.created — REST/MCP emit the identical event through the shared factory. (#329.)
+        await WebhookEventFactory.PublishAttachmentCreatedAsync(db, broadcaster, attachment, user!, ct);
         return JsonSerializer.Serialize(new { attachment.Id, attachment.FileName }, JsonSerializerOptions.Web);
     }
 }

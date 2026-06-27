@@ -59,9 +59,9 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
 
         await CardNumberHelper.InsertCardWithAutoNumberAsync(db, card!, lane.BoardId, ct);
 
-        // Webhook fan-out subsumes PublishForCardAsync's board lookup (we already have the
-        // card → its board); raising the typed event downsamples to the same SSE bell, so
-        // calling both would double-broadcast to SSE. (#320 — don't double-broadcast.)
+        // The webhook fan-out already rings the SSE bell (the typed event downsamples to the
+        // same "board-updated" signal), so a separate board broadcast here would double-ring
+        // SSE. (#320 — don't double-broadcast.)
         await WebhookEventFactory.PublishCardCreatedAsync(db, broadcaster, card!, user!, ct);
         var summaries = await CardSummaryBuilder.BuildAsync(db, [card!], ct);
         return JsonSerializer.Serialize(summaries[0], JsonSerializerOptions.Web);
