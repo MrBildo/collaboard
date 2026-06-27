@@ -65,7 +65,7 @@ public sealed class WebhookSubscriptionStoreTests
         var store = NewStore(scope, allowPrivate: false);
 
         await Should.ThrowAsync<WebhookValidationException>(() =>
-            store.CreateAsync(new WebhookSubscriptionInput(_publicUrl, ["comment.created"], null, null, null), CancellationToken.None));
+            store.CreateAsync(new WebhookSubscriptionInput(_publicUrl, ["nonexistent.event"], null, null, null), CancellationToken.None));
     }
 
     [Fact]

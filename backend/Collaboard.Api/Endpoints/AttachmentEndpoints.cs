@@ -56,7 +56,9 @@ internal static class AttachmentEndpoints
             };
             db.Attachments.Add(attachment);
             await db.SaveChangesAsync(ct);
-            await db.PublishForCardAsync(id, broadcaster);
+
+            // attachment.created — metadata only, same single board bell plus one webhook. (#329.)
+            await WebhookEventFactory.PublishAttachmentCreatedAsync(db, broadcaster, attachment, http.CurrentUser(), ct);
             return Results.Created($"/api/v1/cards/{id}/attachments/{attachment.Id}", new { attachment.Id, attachment.FileName });
         }).DisableAntiforgery().RequireAuth();
 
@@ -88,10 +90,11 @@ internal static class AttachmentEndpoints
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
 
-            var cardId = attachment.CardId;
             db.Attachments.Remove(attachment);
             await db.SaveChangesAsync(ct);
-            await db.PublishForCardAsync(cardId, broadcaster);
+
+            // attachment.deleted — published from the captured attachment after the row is gone. (#329.)
+            await WebhookEventFactory.PublishAttachmentDeletedAsync(db, broadcaster, attachment, user, ct);
             return Results.NoContent();
         }).RequireAuth();
 

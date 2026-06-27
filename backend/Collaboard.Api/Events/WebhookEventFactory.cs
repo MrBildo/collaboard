@@ -275,6 +275,130 @@ internal static class WebhookEventFactory
         return events;
     }
 
+    // ── Comment-family M2 emit helpers (#329) ───────────────────────────────────────
+    //
+    // A comment mutation rings the same single board bell it always has (one "board-updated")
+    // AND fans out one webhook event — routing REST and MCP through these helpers keeps the two
+    // surfaces identical by construction. comment.deleted is published AFTER the row is removed,
+    // from the captured comment object (its fields stay in memory); the card it belonged to still
+    // exists, so the card ref still resolves.
+
+    public static async Task PublishCommentCreatedAsync
+    (
+        BoardDbContext db,
+        BoardEventBroadcaster broadcaster,
+        CardComment comment,
+        BoardUser actor,
+        CancellationToken ct
+    )
+    {
+        var boardEvent = await BuildCommentEventAsync(db, WebhookEventTypes.CommentCreated, comment, actor, (c, card) => new WebhookCommentCreatedData(c, card), ct);
+        broadcaster.Publish(boardEvent);
+    }
+
+    public static async Task PublishCommentUpdatedAsync
+    (
+        BoardDbContext db,
+        BoardEventBroadcaster broadcaster,
+        CardComment comment,
+        BoardUser actor,
+        CancellationToken ct
+    )
+    {
+        var boardEvent = await BuildCommentEventAsync(db, WebhookEventTypes.CommentUpdated, comment, actor, (c, card) => new WebhookCommentUpdatedData(c, card), ct);
+        broadcaster.Publish(boardEvent);
+    }
+
+    public static async Task PublishCommentDeletedAsync
+    (
+        BoardDbContext db,
+        BoardEventBroadcaster broadcaster,
+        CardComment comment,
+        BoardUser actor,
+        CancellationToken ct
+    )
+    {
+        var boardEvent = await BuildCommentEventAsync(db, WebhookEventTypes.CommentDeleted, comment, actor, (c, card) => new WebhookCommentDeletedData(c, card), ct);
+        broadcaster.Publish(boardEvent);
+    }
+
+    // ── Label-resource-family M2 emit helpers (#329) ─────────────────────────────────
+    //
+    // The board-scoped label lifecycle (distinct from card.labeled / card.unlabeled). Same single
+    // board bell the label CRUD sites always rang plus one webhook event. label.deleted is
+    // published AFTER the row is removed, from the captured label object.
+
+    public static async Task PublishLabelCreatedAsync
+    (
+        BoardDbContext db,
+        BoardEventBroadcaster broadcaster,
+        Label label,
+        BoardUser actor,
+        CancellationToken ct
+    )
+    {
+        var boardEvent = await BuildLabelEventAsync(db, WebhookEventTypes.LabelCreated, label, actor, l => new WebhookLabelCreatedData(l), ct);
+        broadcaster.Publish(boardEvent);
+    }
+
+    public static async Task PublishLabelUpdatedAsync
+    (
+        BoardDbContext db,
+        BoardEventBroadcaster broadcaster,
+        Label label,
+        BoardUser actor,
+        CancellationToken ct
+    )
+    {
+        var boardEvent = await BuildLabelEventAsync(db, WebhookEventTypes.LabelUpdated, label, actor, l => new WebhookLabelUpdatedData(l), ct);
+        broadcaster.Publish(boardEvent);
+    }
+
+    public static async Task PublishLabelDeletedAsync
+    (
+        BoardDbContext db,
+        BoardEventBroadcaster broadcaster,
+        Label label,
+        BoardUser actor,
+        CancellationToken ct
+    )
+    {
+        var boardEvent = await BuildLabelEventAsync(db, WebhookEventTypes.LabelDeleted, label, actor, l => new WebhookLabelDeletedData(l), ct);
+        broadcaster.Publish(boardEvent);
+    }
+
+    // ── Attachment-family M2 emit helpers (#329) ─────────────────────────────────────
+    //
+    // Metadata only — the file bytes never enter the event. Same single board bell the attachment
+    // sites always rang plus one webhook event. attachment.deleted is published AFTER the row is
+    // removed, from the captured attachment object (its Payload length stays readable in memory).
+
+    public static async Task PublishAttachmentCreatedAsync
+    (
+        BoardDbContext db,
+        BoardEventBroadcaster broadcaster,
+        CardAttachment attachment,
+        BoardUser actor,
+        CancellationToken ct
+    )
+    {
+        var boardEvent = await BuildAttachmentEventAsync(db, WebhookEventTypes.AttachmentCreated, attachment, actor, (a, card) => new WebhookAttachmentCreatedData(a, card), ct);
+        broadcaster.Publish(boardEvent);
+    }
+
+    public static async Task PublishAttachmentDeletedAsync
+    (
+        BoardDbContext db,
+        BoardEventBroadcaster broadcaster,
+        CardAttachment attachment,
+        BoardUser actor,
+        CancellationToken ct
+    )
+    {
+        var boardEvent = await BuildAttachmentEventAsync(db, WebhookEventTypes.AttachmentDeleted, attachment, actor, (a, card) => new WebhookAttachmentDeletedData(a, card), ct);
+        broadcaster.Publish(boardEvent);
+    }
+
     // The fat-CardSummary single-event core (#329). Resolves the summary + board slug +
     // current lane name, then stamps the envelope. dataFactory shapes the per-event-type
     // `data` block from the resolved summary and lane name.
@@ -335,6 +459,94 @@ internal static class WebhookEventFactory
         return events;
     }
 
+    // The comment-event core: resolves the card's board + number and the comment author's name,
+    // then stamps the envelope. dataFactory shapes the per-event-type `data` block.
+    private static async Task<BoardEvent> BuildCommentEventAsync
+    (
+        BoardDbContext db,
+        string eventType,
+        CardComment comment,
+        BoardUser actor,
+        Func<WebhookCommentData, WebhookCardRef, object> dataFactory,
+        CancellationToken ct
+    )
+    {
+        var card = await db.Cards
+            .Where(c => c.Id == comment.CardId)
+                .Select(c => new { c.BoardId, c.Number })
+                    .FirstOrDefaultAsync(ct);
+
+        var boardId = card?.BoardId ?? Guid.Empty;
+        var cardNumber = card?.Number ?? 0;
+        var boardSlug = await ResolveBoardSlugAsync(db, boardId, ct);
+        var authorName = await ResolveUserNameAsync(db, comment.UserId, ct);
+
+        var commentData = new WebhookCommentData
+        (
+            comment.Id,
+            comment.CardId,
+            cardNumber,
+            comment.ContentMarkdown,
+            comment.UserId,
+            authorName,
+            comment.LastUpdatedAtUtc
+        );
+
+        return BuildEvent(eventType, boardId, boardSlug, actor, dataFactory(commentData, new WebhookCardRef(comment.CardId, cardNumber)));
+    }
+
+    // The label-event core: resolves the board slug and projects the label resource.
+    private static async Task<BoardEvent> BuildLabelEventAsync
+    (
+        BoardDbContext db,
+        string eventType,
+        Label label,
+        BoardUser actor,
+        Func<WebhookLabelData, object> dataFactory,
+        CancellationToken ct
+    )
+    {
+        var boardSlug = await ResolveBoardSlugAsync(db, label.BoardId, ct);
+        var labelData = new WebhookLabelData(label.Id, label.BoardId, label.Name, label.Color);
+
+        return BuildEvent(eventType, label.BoardId, boardSlug, actor, dataFactory(labelData));
+    }
+
+    // The attachment-event core: resolves the card's board + number and projects the attachment
+    // metadata (SizeBytes is the stored payload length — the bytes never ride the wire).
+    private static async Task<BoardEvent> BuildAttachmentEventAsync
+    (
+        BoardDbContext db,
+        string eventType,
+        CardAttachment attachment,
+        BoardUser actor,
+        Func<WebhookAttachmentData, WebhookCardRef, object> dataFactory,
+        CancellationToken ct
+    )
+    {
+        var card = await db.Cards
+            .Where(c => c.Id == attachment.CardId)
+                .Select(c => new { c.BoardId, c.Number })
+                    .FirstOrDefaultAsync(ct);
+
+        var boardId = card?.BoardId ?? Guid.Empty;
+        var cardNumber = card?.Number ?? 0;
+        var boardSlug = await ResolveBoardSlugAsync(db, boardId, ct);
+
+        var attachmentData = new WebhookAttachmentData
+        (
+            attachment.Id,
+            attachment.CardId,
+            attachment.FileName,
+            attachment.ContentType,
+            attachment.Payload.Length,
+            attachment.AddedByUserId,
+            attachment.AddedAtUtc
+        );
+
+        return BuildEvent(eventType, boardId, boardSlug, actor, dataFactory(attachmentData, new WebhookCardRef(attachment.CardId, cardNumber)));
+    }
+
     private static BoardEvent BuildEvent
     (
         string eventType,
@@ -365,6 +577,13 @@ internal static class WebhookEventFactory
         await db.Boards
             .Where(b => b.Id == boardId)
                 .Select(b => b.Slug)
+                    .FirstOrDefaultAsync(ct)
+        ?? string.Empty;
+
+    private static async Task<string> ResolveUserNameAsync(BoardDbContext db, Guid userId, CancellationToken ct) =>
+        await db.Users
+            .Where(u => u.Id == userId)
+                .Select(u => u.Name)
                     .FirstOrDefaultAsync(ct)
         ?? string.Empty;
 

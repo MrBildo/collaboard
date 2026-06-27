@@ -52,6 +52,62 @@ public sealed record WebhookCardUnlabeledData(CardSummary Card, string LaneName,
 // Label entity, so it rides the wire as nullable too.
 public sealed record WebhookLabelRef(Guid Id, string Name, string? Color);
 
+// The minimal card reference embedded in comment.* and attachment.* events — the affected card's
+// id and board-scoped number. The comment/attachment IS the changed resource; the card is context,
+// so it rides as a thin ref, not the fat CardSummary the card.* events carry. (#329.)
+public sealed record WebhookCardRef(Guid Id, long Number);
+
+// The comment-family M2 payloads (#329). Each embeds the comment resource plus a minimal card ref.
+// AuthorUserId / AuthorName are the comment's OWN author — an admin editing or deleting another
+// user's comment is the envelope `actor`, while the author stays the comment's author.
+// comment.deleted carries the comment's state at occurrence (the row is gone after the delete).
+public sealed record WebhookCommentData
+(
+    Guid Id,
+    Guid CardId,
+    long CardNumber,
+    string ContentMarkdown,
+    Guid AuthorUserId,
+    string AuthorName,
+    DateTimeOffset LastUpdatedAtUtc
+);
+
+public sealed record WebhookCommentCreatedData(WebhookCommentData Comment, WebhookCardRef Card);
+
+public sealed record WebhookCommentUpdatedData(WebhookCommentData Comment, WebhookCardRef Card);
+
+public sealed record WebhookCommentDeletedData(WebhookCommentData Comment, WebhookCardRef Card);
+
+// The label-resource-family M2 payloads (#329). The label resource itself — created / renamed or
+// recolored / deleted — distinct from card.labeled / card.unlabeled (which report a card's
+// label-SET changing). Color is nullable on the Label entity, so it rides the wire as nullable too.
+// label.deleted carries the label's state at occurrence.
+public sealed record WebhookLabelData(Guid Id, Guid BoardId, string Name, string? Color);
+
+public sealed record WebhookLabelCreatedData(WebhookLabelData Label);
+
+public sealed record WebhookLabelUpdatedData(WebhookLabelData Label);
+
+public sealed record WebhookLabelDeletedData(WebhookLabelData Label);
+
+// The attachment-family M2 payloads (#329). Metadata ONLY — the file bytes never ride the wire.
+// SizeBytes is the stored payload length (the bytes themselves stay at rest). attachment.deleted
+// carries the metadata at occurrence (the row is gone after the delete).
+public sealed record WebhookAttachmentData
+(
+    Guid Id,
+    Guid CardId,
+    string FileName,
+    string ContentType,
+    long SizeBytes,
+    Guid AddedByUserId,
+    DateTimeOffset AddedAtUtc
+);
+
+public sealed record WebhookAttachmentCreatedData(WebhookAttachmentData Attachment, WebhookCardRef Card);
+
+public sealed record WebhookAttachmentDeletedData(WebhookAttachmentData Attachment, WebhookCardRef Card);
+
 // The webhook.ping test-delivery payload (#326). A minimal body so an integrator can confirm the
 // endpoint is reachable, signs, and parses — carries the subscription id and a human-readable
 // message, nothing board-scoped (a ping is not a board mutation).

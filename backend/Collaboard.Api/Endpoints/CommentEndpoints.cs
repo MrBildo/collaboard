@@ -47,7 +47,9 @@ internal static class CommentEndpoints
             };
             db.Comments.Add(comment);
             await db.SaveChangesAsync(ct);
-            await db.PublishForCardAsync(id, broadcaster);
+
+            // comment.created — same single board bell, plus one webhook event. (#329.)
+            await WebhookEventFactory.PublishCommentCreatedAsync(db, broadcaster, comment, http.CurrentUser(), ct);
             return Results.Created($"/api/v1/cards/{id}/comments/{comment.Id}", comment);
         }).RequireAuth();
 
@@ -73,10 +75,12 @@ internal static class CommentEndpoints
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
 
-            var cardId = comment.CardId;
             db.Comments.Remove(comment);
             await db.SaveChangesAsync(ct);
-            await db.PublishForCardAsync(cardId, broadcaster);
+
+            // comment.deleted — published from the captured comment after the row is gone; the
+            // card it belonged to still exists, so the card ref resolves. (#329.)
+            await WebhookEventFactory.PublishCommentDeletedAsync(db, broadcaster, comment, user, ct);
             return Results.NoContent();
         }).RequireAuth();
 
@@ -114,7 +118,9 @@ internal static class CommentEndpoints
 
             comment.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
             await db.SaveChangesAsync(ct);
-            await db.PublishForCardAsync(comment.CardId, broadcaster);
+
+            // comment.updated — same single board bell, plus one webhook event. (#329.)
+            await WebhookEventFactory.PublishCommentUpdatedAsync(db, broadcaster, comment, user, ct);
             return Results.Ok(comment);
         }).RequireAuth();
 

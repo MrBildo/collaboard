@@ -33,11 +33,12 @@ public sealed class WebhookEventTypesTests
         }
     }
 
-    // M2 (#329) widens All per family as emit-sites are wired. The card family is live; the
-    // comment / lane / board / label / attachment families add their members in follow-on slices,
-    // so they are deliberately absent here (selectable ≡ deliverable at every slice boundary).
+    // M2 (#329) widens All per family as emit-sites are wired. The card, comment, label and
+    // attachment families are live; the lane and board families add their members in follow-on
+    // slices, so they are deliberately absent here (selectable ≡ deliverable at every slice
+    // boundary).
     [Fact]
-    public void M2_All_ContainsExactlyTheCardFamily() =>
+    public void M2_All_ContainsExactlyTheWiredFamilies() =>
         WebhookEventTypes.All.ShouldBe(
             [
                 WebhookEventTypes.CardCreated,
@@ -47,6 +48,14 @@ public sealed class WebhookEventTypesTests
                 WebhookEventTypes.CardRestored,
                 WebhookEventTypes.CardLabeled,
                 WebhookEventTypes.CardUnlabeled,
+                WebhookEventTypes.CommentCreated,
+                WebhookEventTypes.CommentUpdated,
+                WebhookEventTypes.CommentDeleted,
+                WebhookEventTypes.LabelCreated,
+                WebhookEventTypes.LabelUpdated,
+                WebhookEventTypes.LabelDeleted,
+                WebhookEventTypes.AttachmentCreated,
+                WebhookEventTypes.AttachmentDeleted,
             ],
             ignoreOrder: true);
 
@@ -54,8 +63,9 @@ public sealed class WebhookEventTypesTests
     public void IsValidSelection_AcceptsKnownTypesAndWildcard_RejectsUnknown()
     {
         WebhookEventTypes.IsValidSelection(WebhookEventTypes.CardCreated).ShouldBeTrue();
+        WebhookEventTypes.IsValidSelection(WebhookEventTypes.CommentCreated).ShouldBeTrue();   // M2 — now live
         WebhookEventTypes.IsValidSelection(WebhookEventTypes.Wildcard).ShouldBeTrue();
-        WebhookEventTypes.IsValidSelection("comment.created").ShouldBeFalse();   // M2, not yet live
+        WebhookEventTypes.IsValidSelection("lane.created").ShouldBeFalse();   // M2 — not yet wired
         WebhookEventTypes.IsValidSelection("nonsense").ShouldBeFalse();
     }
 

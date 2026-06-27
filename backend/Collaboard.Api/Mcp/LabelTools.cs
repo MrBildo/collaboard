@@ -49,7 +49,7 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
         CancellationToken ct = default
     )
     {
-        var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
+        var (user, error) = await auth.RequireAdminLevelAsync(authKey, ct);
         if (error is not null)
         {
             return error;
@@ -79,7 +79,9 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
         };
         db.Labels.Add(label);
         await db.SaveChangesAsync(ct);
-        broadcaster.PublishBoardUpdated(boardId);
+
+        // label.created — REST/MCP emit the identical event through the shared factory. (#329.)
+        await WebhookEventFactory.PublishLabelCreatedAsync(db, broadcaster, label, user!, ct);
         return JsonSerializer.Serialize(label, JsonSerializerOptions.Web);
     }
 
@@ -94,7 +96,7 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
         CancellationToken ct = default
     )
     {
-        var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
+        var (user, error) = await auth.RequireAdminLevelAsync(authKey, ct);
         if (error is not null)
         {
             return error;
@@ -122,7 +124,9 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
         }
 
         await db.SaveChangesAsync(ct);
-        broadcaster.PublishBoardUpdated(label.BoardId);
+
+        // label.updated — REST/MCP emit the identical event through the shared factory. (#329.)
+        await WebhookEventFactory.PublishLabelUpdatedAsync(db, broadcaster, label, user!, ct);
         return JsonSerializer.Serialize(label, JsonSerializerOptions.Web);
     }
 
@@ -135,7 +139,7 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
         CancellationToken ct = default
     )
     {
-        var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
+        var (user, error) = await auth.RequireAdminLevelAsync(authKey, ct);
         if (error is not null)
         {
             return error;
@@ -150,9 +154,10 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
         var cardLabels = await db.CardLabels.Where(cl => cl.LabelId == labelId).ToListAsync(ct);
         db.CardLabels.RemoveRange(cardLabels);
         db.Labels.Remove(label);
-        var boardId = label.BoardId;
         await db.SaveChangesAsync(ct);
-        broadcaster.PublishBoardUpdated(boardId);
+
+        // label.deleted — published from the captured label after the row is gone. (#329.)
+        await WebhookEventFactory.PublishLabelDeletedAsync(db, broadcaster, label, user!, ct);
         return "Label deleted.";
     }
 

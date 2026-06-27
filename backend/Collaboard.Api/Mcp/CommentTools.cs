@@ -61,7 +61,9 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
         };
         db.Comments.Add(comment);
         await db.SaveChangesAsync(ct);
-        await db.PublishForCardAsync(card.Id, broadcaster);
+
+        // comment.created — REST/MCP emit the identical event through the shared factory. (#329.)
+        await WebhookEventFactory.PublishCommentCreatedAsync(db, broadcaster, comment, user!, ct);
         return JsonSerializer.Serialize(comment, JsonSerializerOptions.Web);
     }
 
@@ -109,7 +111,9 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
         comment.ContentMarkdown = newText;
         comment.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
-        await db.PublishForCardAsync(comment.CardId, broadcaster);
+
+        // comment.updated — REST/MCP emit the identical event through the shared factory. (#329.)
+        await WebhookEventFactory.PublishCommentUpdatedAsync(db, broadcaster, comment, user!, ct);
         return JsonSerializer.Serialize(comment, JsonSerializerOptions.Web);
     }
 
@@ -146,10 +150,11 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
             return "Error: You can only delete your own comments.";
         }
 
-        var cardId = comment.CardId;
         db.Comments.Remove(comment);
         await db.SaveChangesAsync(ct);
-        await db.PublishForCardAsync(cardId, broadcaster);
+
+        // comment.deleted — published from the captured comment after the row is gone. (#329.)
+        await WebhookEventFactory.PublishCommentDeletedAsync(db, broadcaster, comment, user!, ct);
         return "Comment deleted.";
     }
 }
