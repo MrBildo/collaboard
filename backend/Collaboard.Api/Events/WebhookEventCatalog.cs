@@ -89,8 +89,8 @@ public static class WebhookEventCatalog
     // to WebhookEventTypes.All. Ordinal because event-type identifiers are exact ASCII tokens.
     public static IReadOnlySet<string> Types { get; } = Groups
         .SelectMany(group => group.Events)
-        .Select(descriptor => descriptor.Type)
-            .ToHashSet(StringComparer.Ordinal);
+            .Select(descriptor => descriptor.Type)
+                .ToHashSet(StringComparer.Ordinal);
 }
 
 // One family of related event types, with its display label (the section heading the picker renders)
