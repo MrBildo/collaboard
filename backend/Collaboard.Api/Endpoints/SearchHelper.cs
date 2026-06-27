@@ -1,3 +1,4 @@
+using System.Globalization;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,13 +16,13 @@ internal static class SearchHelper
         var term = search.Trim();
 
         // #123 — exact card number lookup
-        if (term.StartsWith('#') && long.TryParse(term[1..], out var cardNumber))
+        if (term.StartsWith('#') && long.TryParse(term[1..], CultureInfo.InvariantCulture, out var cardNumber))
         {
             return query.Where(c => c.Number == cardNumber);
         }
 
         // Plain number — match card number OR name/description
-        if (long.TryParse(term, out var num))
+        if (long.TryParse(term, CultureInfo.InvariantCulture, out var num))
         {
             var pattern = $"%{EscapeLike(term)}%";
             return query.Where(c =>
@@ -97,8 +98,9 @@ internal static class SearchHelper
         // Prioritize BEFORE the cut so the limit budget goes to the current board's
         // non-archived matches first (#276). Without this, the Take ran against a
         // board-GUID-sorted list and could drop current-board matches before the
-        // priority reorder ever saw them. Bucket 0 = current board, non-archived;
-        // everything else (other boards + current-board archived) = bucket 1.
+        // priority reorder ever saw them. The OrderBy sorts the current board's
+        // non-archived cards into the first bucket and everything else — other boards
+        // plus the current board's archived cards — into the second.
         var cards = await query
             .OrderBy(c => boardId != null && c.BoardId == boardId && !priorityArchiveLaneIds.Contains(c.LaneId) ? 0 : 1)
             .ThenBy(c => c.BoardId)
