@@ -13,9 +13,9 @@ namespace Collaboard.Api.Tests;
 // Card #269: the MCP update_comment tool closes the gap where REST had
 // PATCH /comments/{id} but MCP could only add and delete a comment. These tests
 // exercise it by direct tool-class invocation (#206 convention): the canonical
-// contentMarkdown / legacy content alias resolution, own-or-admin-level gating
-// (mirrors delete_comment, #243 Phase 2), empty-content rejection, the archive
-// freeze, and the JSON return shape.
+// contentMarkdown body param (#334 removed the deprecated `content` alias),
+// own-or-admin-level gating (mirrors delete_comment, #243 Phase 2), empty-content
+// rejection, the archive freeze, and the JSON return shape.
 public class McpUpdateCommentToolTests(CollaboardApiFactory factory) : IClassFixture<CollaboardApiFactory>, IDisposable
 {
     private readonly CollaboardApiFactory _factory = factory;
@@ -137,50 +137,6 @@ public class McpUpdateCommentToolTests(CollaboardApiFactory factory) : IClassFix
         doc.RootElement.GetProperty("contentMarkdown").GetString().ShouldBe("json shape body");
     }
 
-    [Fact]
-    public async Task UpdateComment_WithLegacyContentParam_PersistsBody()
-    {
-        // Arrange
-        var (db, commentTools) = CreateTools();
-        var author = await CreateUserAsync();
-        var cardId = await CreateCardAsync(db, author);
-        var commentId = await CreateCommentAsync(db, cardId, author);
-
-        // Act — the legacy `content` alias keeps working, symmetric with add_comment
-        var result = await commentTools.UpdateCommentAsync(author.AuthKey, commentId, content: "body via content");
-
-        // Assert
-        result.ShouldNotStartWith("Error");
-        var stored = await db.Comments.FindAsync(commentId);
-        stored.ShouldNotBeNull();
-        stored.ContentMarkdown.ShouldBe("body via content");
-    }
-
-    [Fact]
-    public async Task UpdateComment_BothParamsSupplied_PrefersContentMarkdown()
-    {
-        // Arrange
-        var (db, commentTools) = CreateTools();
-        var author = await CreateUserAsync();
-        var cardId = await CreateCardAsync(db, author);
-        var commentId = await CreateCommentAsync(db, cardId, author);
-
-        // Act — contentMarkdown wins when both are present
-        var result = await commentTools.UpdateCommentAsync
-        (
-            author.AuthKey,
-            commentId,
-            content: "loser via content",
-            contentMarkdown: "winner via contentMarkdown"
-        );
-
-        // Assert
-        result.ShouldNotStartWith("Error");
-        var stored = await db.Comments.FindAsync(commentId);
-        stored.ShouldNotBeNull();
-        stored.ContentMarkdown.ShouldBe("winner via contentMarkdown");
-    }
-
     [Theory]
     [InlineData(UserRole.Administrator)]
     [InlineData(UserRole.AgentAdministrator)]
@@ -240,25 +196,6 @@ public class McpUpdateCommentToolTests(CollaboardApiFactory factory) : IClassFix
         // Assert
         result.ShouldStartWith("Error");
         result.ShouldContain("contentMarkdown");
-        var stored = await db.Comments.FindAsync(commentId);
-        stored.ShouldNotBeNull();
-        stored.ContentMarkdown.ShouldBe("original body");
-    }
-
-    [Fact]
-    public async Task UpdateComment_NeitherParamSupplied_ReturnsError()
-    {
-        // Arrange
-        var (db, commentTools) = CreateTools();
-        var author = await CreateUserAsync();
-        var cardId = await CreateCardAsync(db, author);
-        var commentId = await CreateCommentAsync(db, cardId, author);
-
-        // Act
-        var result = await commentTools.UpdateCommentAsync(author.AuthKey, commentId);
-
-        // Assert
-        result.ShouldStartWith("Error");
         var stored = await db.Comments.FindAsync(commentId);
         stored.ShouldNotBeNull();
         stored.ContentMarkdown.ShouldBe("original body");

@@ -73,8 +73,7 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
     (
         [Description("Your auth key")] string authKey,
         [Description("The ID (guid) of the comment to edit")] Guid commentId,
-        [Description("The new comment text (Markdown supported). Alias for contentMarkdown, kept for symmetry with add_comment; prefer contentMarkdown.")] string? content = null,
-        [Description("The new comment text (Markdown supported). Canonical name; preferred over content when both are supplied.")] string? contentMarkdown = null,
+        [Description("The new comment text (Markdown supported).")] string contentMarkdown,
         CancellationToken ct = default
     )
     {
@@ -84,10 +83,9 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
             return error;
         }
 
-        var newText = contentMarkdown ?? content;
-        if (string.IsNullOrWhiteSpace(newText))
+        if (string.IsNullOrWhiteSpace(contentMarkdown))
         {
-            return "Error: Provide non-empty comment text via contentMarkdown (or its alias content).";
+            return "Error: contentMarkdown is required.";
         }
 
         var comment = await db.Comments.FindAsync([commentId], ct);
@@ -108,7 +106,7 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
             return "Error: You can only edit your own comments.";
         }
 
-        comment.ContentMarkdown = newText;
+        comment.ContentMarkdown = contentMarkdown;
         comment.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
 
