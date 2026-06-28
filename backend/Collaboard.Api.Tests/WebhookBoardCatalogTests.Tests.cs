@@ -9,7 +9,7 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// M2 catalog tests for the board family (#329): board.created / board.renamed / board.deleted across
+// Catalog tests for the board family: board.created / board.renamed / board.deleted across
 // REST + MCP (board delete is strict-admin-REST-only — no MCP parity). These are STRUCTURALLY NOVEL:
 // board CRUD has no SSE broadcast today, so the family is WEBHOOK-ONLY — it enqueues straight to the
 // sink and rings NO board bell, keeping the SSE wire byte-for-byte unchanged. The "no SSE bell" tests

@@ -69,7 +69,7 @@ function WebhookForm({ subscription, onDone }: WebhookFormProps) {
   const isEdit = subscription !== undefined;
   const queryClient = useQueryClient();
 
-  // The selectable event catalog is the server's source of truth (#336), fetched
+  // The selectable event catalog is the server's source of truth, fetched
   // on first open and cached for the session. The per-event checkboxes render
   // from it; "Send all events" (the wildcard) is independent, so a still-loading
   // or failed catalog never blocks creating a wildcard subscription.
@@ -97,8 +97,8 @@ function WebhookForm({ subscription, onDone }: WebhookFormProps) {
     queryClient.invalidateQueries({ queryKey: queryKeys.webhooks.status() });
   };
 
-  // Form mutations are inline tier (#203): the operator's attention is on this
-  // dialog, so failures surface inline here (skipToast keeps the floor quiet).
+  // Form mutations are inline tier: the operator's attention is on this
+  // dialog, so failures surface inline here (skipToast keeps the global toast floor quiet).
   const createMutation = useMutation({
     meta: { skipToast: true },
     mutationFn: (input: CreateWebhookInput) => createWebhookSubscription(input),
@@ -170,7 +170,7 @@ function WebhookForm({ subscription, onDone }: WebhookFormProps) {
 
       {/* Negative margin + matching padding gives the inputs' focus ring (3px)
           room to render inside this overflow-clip scroll container without
-          indenting content from the header/footer edges (#338). */}
+          indenting content from the header/footer edges. */}
       <div className="-m-2 flex min-h-0 flex-col gap-4 overflow-y-auto p-2">
         <div className="grid grid-cols-[1fr_auto] items-end gap-3">
           <div className="flex flex-col gap-1.5">

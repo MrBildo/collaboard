@@ -1,6 +1,6 @@
 namespace Collaboard.Api.Models;
 
-// A registered webhook subscription (#326 — webhooks v2 registry). v1 delivered to a single
+// A registered webhook subscription (the webhooks v2 registry). v1 delivered to a single
 // operator-configured endpoint (Webhooks:Endpoint); v2 turns delivery into a table of N
 // subscriptions, each with its own URL, optional HMAC secret, enabled-state, and event-selection.
 // The dispatcher loads the enabled rows per drained event and fans out to those whose selection

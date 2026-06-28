@@ -1,12 +1,12 @@
 namespace Collaboard.Api.Events;
 
-// The single server-side source of truth for webhook event DISPLAY metadata (#336): the
+// The single server-side source of truth for webhook event DISPLAY metadata: the
 // human-readable label, the description, and the family grouping for every selectable event type.
 // The machine event-type strings come from WebhookEventTypes (the deliver/select SoT); this class is
 // the presentation layer over that set and is exposed verbatim by GET /api/v1/webhooks/event-types,
 // so the admin UI's subscription picker consumes ONE catalog instead of keeping its own
 // hand-maintained copy. That second copy is exactly what drifted — the backend emitted and accepted
-// all 22 events while the picker still offered only the M1 two. WebhookEventCatalogTests pins this
+// all 22 events while the picker still offered only the original two. WebhookEventCatalogTests pins this
 // catalog's flattened type set to WebhookEventTypes.All, so adding an event to the deliver/select SoT
 // without display metadata here fails the build — the catalog and what the backend actually delivers
 // can never desync again.

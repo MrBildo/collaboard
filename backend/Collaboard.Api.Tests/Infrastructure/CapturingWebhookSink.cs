@@ -4,10 +4,10 @@ using Collaboard.Api.Events;
 namespace Collaboard.Api.Tests.Infrastructure;
 
 // A test IWebhookSink that captures every enqueued BoardEvent in arrival order, so a
-// Phase 1 test can assert on the typed event the seam produced — no HTTP delivery, no
+// test can assert on the typed event the seam produced — no HTTP delivery, no
 // dispatcher. Swapped in for the production WebhookQueue via WebhookTestFactory. The
 // broadcaster's Publish path (single-card sites) and BulkCardTools' direct enqueue (the
-// bulk site) both resolve IWebhookSink, so both capture into this one instance. (#320.)
+// bulk site) both resolve IWebhookSink, so both capture into this one instance.
 public sealed class CapturingWebhookSink : IWebhookSink
 {
     private readonly ConcurrentQueue<BoardEvent> _events = new();

@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Collaboard.Api.Tests.Infrastructure;
 
-// CollaboardApiFactory variant for the Phase 2 webhook DELIVERY tests (#320). Unlike
+// CollaboardApiFactory variant for the webhook DELIVERY tests. Unlike
 // WebhookTestFactory (which swaps the sink to capture enqueued events without delivery), this
 // keeps the REAL production pipeline — the WebhookQueue, the typed HttpClient, HMAC signing,
 // retry, persistence — and only swaps the dispatcher's HttpClient primary handler for a
@@ -44,7 +44,7 @@ public sealed class WebhookDeliveryFactory : CollaboardApiFactory
                 .ConfigurePrimaryHttpMessageHandler(() => Handler);
 
             // The base CollaboardApiFactory removes the hosted dispatcher (it races the shared
-            // in-memory connection — #326). Re-add it for the end-to-end delivery tests that assert
+            // in-memory connection). Re-add it for the end-to-end delivery tests that assert
             // on the running dispatcher; the persistence tests leave it off (RunDispatcher = false)
             // and drive the deterministic DeliverEventAsync seam directly, fully owning the queue.
             if (RunDispatcher)

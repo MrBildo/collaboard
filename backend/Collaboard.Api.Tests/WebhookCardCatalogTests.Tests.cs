@@ -11,11 +11,11 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// M2 catalog tests for the card family (#329): card.updated / card.archived /
+// Catalog tests for the card family: card.updated / card.archived /
 // card.restored / card.labeled / card.unlabeled across REST + MCP + bulk + prune, the
 // multi-axis co-fire rule, the archive/restore-never-card.moved fence, and the
 // one-SSE-bell coalesce for a co-fire. The CapturingWebhookSink IS the observable (no
-// HTTP delivery here). Test Plan scenario 9 + the SSE-byte-equivalence safety property.
+// HTTP delivery here), alongside the SSE-byte-equivalence safety property.
 public sealed class WebhookCardCatalogTests(WebhookTestFactory factory) : IClassFixture<WebhookTestFactory>, IDisposable
 {
     private readonly WebhookTestFactory _factory = factory;

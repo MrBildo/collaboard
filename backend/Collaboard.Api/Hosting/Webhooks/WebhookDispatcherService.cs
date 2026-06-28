@@ -6,8 +6,8 @@ using Microsoft.Extensions.Options;
 
 namespace Collaboard.Api.Hosting.Webhooks;
 
-// Drains the in-memory webhook queue and delivers each enriched event over HTTP (#320,
-// spec § Implementation Order step 2). The third TempCardSweepService-shaped BackgroundService.
+// Drains the in-memory webhook queue and delivers each enriched event over HTTP. The third
+// TempCardSweepService-shaped BackgroundService.
 //
 // Delivery is async-after-save and NEVER inline: the mutation handler enqueued and returned
 // long ago; a slow or dead endpoint can never degrade the board (a heavily-concurrent project).
@@ -15,7 +15,7 @@ namespace Collaboard.Api.Hosting.Webhooks;
 // loud drop on final failure (the difference between "acceptable v1 loss" and "silent black hole"
 // is whether the drop is observable). The actual POST — serialize-once + sign + headers — lives
 // behind IWebhookSender (a typed HttpClient seam, stubbable in tests). The dispatcher is DB-free
-// for the EVENT — the enriched BoardEvent is a self-contained POJO, resolved at emit-time per D1.
+// for the EVENT — the enriched BoardEvent is a self-contained POJO, fully resolved at emit-time.
 // The DB is touched only to persist attempt rows.
 //
 // Like TempCardSweepService, the per-event delivery logic is a deterministic static seam
@@ -51,7 +51,7 @@ internal sealed class WebhookDispatcherService
     private readonly ILogger<WebhookDispatcherService> _logger = logger
         ?? throw new ArgumentNullException(nameof(logger));
 
-    // #326 — delivery now routes to the subscription registry, not a single configured endpoint, so
+    // Delivery now routes to the subscription registry, not a single configured endpoint, so
     // "configured" collapses to the global master kill-switch. Endpoint is no longer read for
     // delivery (it survives only as the one-time config-migration seed input). Each per-subscription
     // Enabled is ANDed with this at fan-out.
@@ -71,7 +71,7 @@ internal sealed class WebhookDispatcherService
         }
     }
 
-    // The startup-confirmation log line (operator on-ramp). #326: the registry replaced the single
+    // The startup-confirmation log line (operator on-ramp). The registry replaced the single
     // configured endpoint, so this reports the master-switch posture only — NEVER a URL or secret,
     // and deliberately NO subscription-count DB read at startup (a startup-time query on the WAF's
     // shared in-memory connection races the test thread; the registry's contents surface through the
@@ -119,7 +119,7 @@ internal sealed class WebhookDispatcherService
         }
     }
 
-    // Delivers ONE event to EVERY enabled subscription whose selection matches its type (#326 — v1
+    // Delivers ONE event to EVERY enabled subscription whose selection matches its type (v1
     // dialed a single configured endpoint, v2 fans out to the registry). A deterministic static
     // seam the tests drive directly, the same shape as the temp-card sweep: it loads the matching
     // subscriptions and runs the full per-subscription attempt loop. The caller supplies one
@@ -136,7 +136,7 @@ internal sealed class WebhookDispatcherService
     {
         // Load the enabled rows with a translatable predicate, then match the selection in CLR
         // memory. A relational predicate over the value-converted EventTypes column does not
-        // translate to SQL, so the selection match must happen in memory after loading (#326).
+        // translate to SQL, so the selection match must happen in memory after loading.
         var enabled = await db.WebhookSubscriptions
             .Where(s => s.Enabled)
                 .ToListAsync(ct);

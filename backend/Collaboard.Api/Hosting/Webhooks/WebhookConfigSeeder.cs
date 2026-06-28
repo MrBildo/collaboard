@@ -5,15 +5,16 @@ using Microsoft.EntityFrameworkCore;
 namespace Collaboard.Api.Hosting.Webhooks;
 
 // Migrates the v1 single configured endpoint (Webhooks:Endpoint / :Secret) into a subscription row
-// on the first v2 boot (#326 B). Extracted from Program.cs as a static seam so the gate-catch and
+// on the first v2 boot. Extracted from Program.cs as a static seam so the gate-catch and
 // idempotency are testable directly (the BoardSeeder pattern).
 //
 // The gate is the load-bearing detail: Webhooks:Endpoint set AND an EMPTY subscription table — NOT
 // the !Users.AnyAsync() fresh-install gate, which never fires on an upgrade (prod already has
-// users) and would silently drop the working prod webhook (the exact locked-B failure).
+// users) and would silently drop the working prod webhook (the exact failure mode this gate exists
+// to prevent).
 //
 // The row is written DIRECTLY (no registration SSRF validation): a private prod endpoint must not
-// be dropped at seed. That is NOT a guard exemption (D3 — no grandfather): the seeded row's
+// be dropped at seed. That is NOT a guard exemption (no grandfathering): the seeded row's
 // DELIVERIES still pass the uniform connect-time SSRF guard, blocked until the operator sets
 // Webhooks:AllowPrivateNetworkTargets. The selection is the v1 parity pair [card.created,
 // card.moved], NOT "*" — seeding the wildcard would fire new event types at the prod consumer on

@@ -3,13 +3,14 @@ using System.Net.Sockets;
 
 namespace Collaboard.Api.Hosting.Webhooks;
 
-// SSRF controls for outbound webhook delivery (#326, D3). v1 had no SSRF surface — the single
+// SSRF controls for outbound webhook delivery. v1 had no SSRF surface — the single
 // endpoint was typed by the human deployer. v2 lets an admin (including a promptable
 // AgentAdministrator via MCP) register arbitrary URLs, so the server's outbound connections become
 // an attacker-influenceable channel. This is the UNIFORM guard every subscription's deliveries pass
-// through — no per-subscription exemption, including the config-migrated seed (D3, the deliberate
-// breaking change). The guard is what makes "agents manage webhooks" safe; it is load-bearing FOR
-// the locked decision, not optional hardening on top of it.
+// through — no per-subscription exemption, including the config-migrated seed (the deliberate
+// breaking change: no grandfathered v1 endpoint bypasses the guard). The guard is what makes
+// "agents manage webhooks" safe; it is load-bearing FOR that decision, not optional hardening on
+// top of it.
 //
 // The 4-control floor (denylist, not allowlist):
 //   1. Scheme allowlist — http/https only (reject file:/gopher:/ftp:/...).
@@ -31,10 +32,10 @@ namespace Collaboard.Api.Hosting.Webhooks;
 // LAN ranges (RFC1918 v4, unique-local v6) ONLY — it deliberately never re-opens loopback or the
 // link-local/cloud-metadata range, so turning the flag on to reach a LAN host cannot also expose the
 // metadata service (169.254.169.254) or loopback. Startup-bound (IOptions), so the registration
-// validator and the connect callback read the SAME value — they must agree (#326 S2).
+// validator and the connect callback read the SAME value — they must agree.
 internal static class SsrfGuard
 {
-    // The pure decision (#326 control 2): is this resolved IP in a blocked range? No DbContext, no
+    // The pure decision (control 2 of the floor above): is this resolved IP in a blocked range? No DbContext, no
     // DB — the project's pure-function carve-out, table-testable directly. The single-argument form
     // is the full denylist (the most restrictive posture, allowPrivate off).
     public static bool IsBlockedAddress(IPAddress address) => IsBlockedAddress(address, allowPrivate: false);
@@ -60,7 +61,7 @@ internal static class SsrfGuard
         return !allowPrivate && IsPrivateRange(ip);
     }
 
-    // Registration-time validation (#326 controls 1-2): scheme allowlist + resolve-and-deny. Throws
+    // Registration-time validation (controls 1-2 of the floor above): scheme allowlist + resolve-and-deny. Throws
     // WebhookValidationException (a caller-fixable 400, surfaced by the store) on rejection. The
     // public overload resolves via DNS; the internal overload takes an injectable resolver for
     // deterministic tests (a hostname resolving to a private IP, without real DNS).
@@ -120,11 +121,11 @@ internal static class SsrfGuard
         }
     }
 
-    // The connect-pin core (#326 control 3 + S3). Resolves the host, validates EVERY returned IP,
+    // The connect-pin core (control 3 of the floor above). Resolves the host, validates EVERY returned IP,
     // and returns the validated endpoint to dial. Throws WebhookSsrfBlockedException on a blocked
-    // address (S3a — the handler wraps it in HttpRequestException → the sender records a Failed
+    // address (the handler wraps it in HttpRequestException → the sender records a Failed
     // attempt). Connecting to the RETURNED IPEndPoint (never re-resolving the hostname) is what
-    // closes the rebind window (S3b): the IP we validated is the IP we dial. The resolver is
+    // closes the rebind window: the IP we validated is the IP we dial. The resolver is
     // injectable so a test can simulate a rebind (a host resolving to loopback) without real DNS.
     internal static async ValueTask<IPEndPoint> ResolveAndValidateEndpointAsync
     (
@@ -169,7 +170,7 @@ internal static class SsrfGuard
         return new IPEndPoint(addresses[0], port);
     }
 
-    // The production ConnectCallback for the dispatcher's SocketsHttpHandler (#326 control 3).
+    // The production ConnectCallback for the dispatcher's SocketsHttpHandler (control 3 of the floor above).
     // Resolves+validates via DNS, then opens the socket to the validated IPEndPoint.
     public static Func<SocketsHttpConnectionContext, CancellationToken, ValueTask<Stream>>
         CreateConnectCallback(bool allowPrivate) =>

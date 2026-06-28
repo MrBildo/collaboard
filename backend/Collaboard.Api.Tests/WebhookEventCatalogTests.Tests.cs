@@ -8,13 +8,13 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// WebhookEventCatalog + GET /api/v1/webhooks/event-types (#336) — the single server-side source of
+// WebhookEventCatalog + GET /api/v1/webhooks/event-types — the single server-side source of
 // truth for the subscription picker. Two layers: the pure drift guard (the catalog presents exactly
 // the deliver/select SoT, so the in-backend catalog can never desync from what actually fires) and
 // the endpoint (full catalog grouped by family, admin-gated like the rest of the webhook surface).
 public sealed class WebhookEventCatalogTests
 {
-    // The crux of #336: the catalog must present EXACTLY WebhookEventTypes.All. Adding an event to the
+    // The crux: the catalog must present EXACTLY WebhookEventTypes.All. Adding an event to the
     // deliver/select SoT without display metadata here — or vice versa — fails this test, which is the
     // anti-drift binding the frontend's hand-maintained copy never had.
     [Fact]

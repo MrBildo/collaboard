@@ -7,13 +7,13 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Collaboard.Api.Persistence;
 
-// Per-entity EF model configuration for the webhooks-v2 registry (#326): subscriptions and the
+// Per-entity EF model configuration for the webhooks-v2 registry: subscriptions and the
 // delivery-attempt audit log. Applied by BoardDbContext via ApplyConfigurationsFromAssembly.
 
 // sealed: a leaf configuration type; no subtype hierarchy is intended.
 internal sealed class WebhookSubscriptionConfiguration : IEntityTypeConfiguration<WebhookSubscription>
 {
-    // #326 — the webhook subscription event-selection is a small List<string> stored as a JSON TEXT
+    // The webhook subscription event-selection is a small List<string> stored as a JSON TEXT
     // column (no child table; the set is tiny and read whole per drain). A value comparer is
     // configured below so EF detects changes by value; the store also assigns a fresh list on update
     // (replace-only), so edits persist correctly either way. NOTE: a value-converted column defeats
@@ -42,7 +42,7 @@ internal sealed class WebhookSubscriptionConfiguration : IEntityTypeConfiguratio
         builder.Property(x => x.Name).HasMaxLength(200);
         builder.Property(x => x.Url).HasMaxLength(2048);   // conventional maximum-URL-length cap
 
-        // #326 — the subscription event-selection persists as a JSON TEXT column via the converter,
+        // The subscription event-selection persists as a JSON TEXT column via the converter,
         // compared by value for change detection.
         builder
             .Property(x => x.EventTypes)
@@ -55,12 +55,12 @@ internal sealed class WebhookDeliveryAttemptConfiguration : IEntityTypeConfigura
 {
     public void Configure(EntityTypeBuilder<WebhookDeliveryAttempt> builder)
     {
-        // #320 — webhook delivery-attempt log indexes: the "deliveries for this board,
+        // Webhook delivery-attempt log indexes: the "deliveries for this board,
         // newest first" read, and "all attempts for one event".
         builder.HasIndex(x => new { x.BoardId, x.AttemptedAtUtc });
         builder.HasIndex(x => x.EventId);
 
-        // #326 — serves the per-subscription "deliveries newest first" read and the on-read metrics
+        // Serves the per-subscription "deliveries newest first" read and the on-read metrics
         // aggregation (success/failure counts + last-delivery per subscription).
         builder.HasIndex(x => new { x.SubscriptionId, x.AttemptedAtUtc });
 
@@ -70,7 +70,7 @@ internal sealed class WebhookDeliveryAttemptConfiguration : IEntityTypeConfigura
 
         builder.Property(x => x.AttemptedAtUtc).HasConversion(ValueConverters.SortableUtc);
 
-        // #326 — the delivery-attempt log's nullable SubscriptionId FK. SetNull (not Cascade):
+        // The delivery-attempt log's nullable SubscriptionId FK. SetNull (not Cascade):
         // deleting a subscription must NOT delete its delivery history — the audit log outlives the
         // subscription (an admin removing a flaky webhook still wants to see why it failed). A
         // deliberate divergence from the board-scoped Cascade relationships.

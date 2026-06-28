@@ -4,10 +4,10 @@ using Collaboard.Api.Models;
 
 namespace Collaboard.Api.Endpoints;
 
-// Webhook subscription management (#326 — the registry CRUD + the test-delivery affordance). Every
-// route gates admin-level (Administrator OR AgentAdministrator, D1) — a write here reveals and
+// Webhook subscription management (the registry CRUD + the test-delivery affordance). Every
+// route gates admin-level (Administrator OR AgentAdministrator) — a write here reveals and
 // redirects where the server dials and what it signs with (the SSRF channel), the opposite security
-// shape from the intentionally-open SSE stream (#217). All operations delegate to the shared
+// shape from the intentionally-open SSE stream. All operations delegate to the shared
 // WebhookSubscriptionStore (validation, SSRF registration check, secret set/keep/clear, secret-free
 // projection) and WebhookTester (the ping), so the REST and MCP surfaces are identical by
 // construction and the SSRF check is un-bypassable. The store throws WebhookValidationException for

@@ -8,9 +8,10 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// WebhookTester (ping) seam tests (#326). The shared test-delivery path both REST /test and the
-// test_webhook MCP tool delegate to. Driven directly with a constructed HttpWebhookSender (the #320
-// Phase-2 IHttpClientFactory-opacity discipline): a CapturingHttpMessageHandler for the happy-path
+// WebhookTester (ping) seam tests. The shared test-delivery path both REST /test and the
+// test_webhook MCP tool delegate to. Driven directly with a constructed HttpWebhookSender
+// (constructing it directly sidesteps IHttpClientFactory's opaque handler caching): a
+// CapturingHttpMessageHandler for the happy-path
 // bytes/headers, and the REAL SSRF-guarded SocketsHttpHandler for the no-side-channel proof — a
 // private target with the flag off is connect-blocked here exactly as on a real event.
 public sealed class WebhookTesterTests

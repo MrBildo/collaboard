@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 
 namespace Collaboard.Api.Hosting.Webhooks;
 
-// HMAC-SHA256 signing of a webhook body (#320, D3). Pure function — no DbContext, no DB —
+// HMAC-SHA256 signing of a webhook body. Pure function — no DbContext, no DB —
 // so it is unit-testable directly (the project's pure-function carve-out). The input is the
 // EXACT raw body bytes the dispatcher writes to the request stream; the dispatcher serializes
 // once and signs that same byte array, never re-serializing (the classic HMAC footgun). The

@@ -7,8 +7,8 @@ using Microsoft.Extensions.Options;
 
 namespace Collaboard.Api.Endpoints;
 
-// Webhook observability endpoints (#320, #326). Read-only diagnostic data — delivery health, not
-// board content. #326 D1 — promoted from strict-Administrator to admin-level (Administrator OR
+// Webhook observability endpoints. Read-only diagnostic data — delivery health, not
+// board content. Promoted from strict-Administrator to admin-level (Administrator OR
 // AgentAdministrator), uniform with the subscription CRUD surface: one capability, one gate, no
 // per-transport drift.
 internal static class WebhookEndpoints
@@ -16,7 +16,7 @@ internal static class WebhookEndpoints
     public static RouteGroupBuilder MapWebhookEndpoints(this RouteGroupBuilder group)
     {
         // The operator's window into whether webhooks are firing: the persisted delivery
-        // attempts, newest first, filterable to one board and/or one subscription (#326 — the
+        // attempts, newest first, filterable to one board and/or one subscription (the
         // subscriptionId filter answers "is THIS webhook delivering?").
         group.MapGet("/webhooks/deliveries", async (BoardDbContext db, Guid? boardId, Guid? subscriptionId, int? offset, int? limit, CancellationToken ct) =>
         {
@@ -61,7 +61,7 @@ internal static class WebhookEndpoints
 
         // The status endpoint: the global delivery posture + registry counts, so an operator can
         // answer "is delivery on, are private targets allowed, how many subscriptions exist?"
-        // without a successful delivery already in the log. #326 — the v1 Endpoint/Secret-derived
+        // without a successful delivery already in the log. The v1 Endpoint/Secret-derived
         // endpointConfigured/signed booleans read the retiring config keys and would lie in the
         // registry world, so they are replaced by counts. Booleans + counts ONLY — never a secret
         // or a URL.
@@ -80,11 +80,11 @@ internal static class WebhookEndpoints
             ));
         }).RequireAdminOrAgentAdmin();
 
-        // The webhook event catalog (#336): the full set of selectable event types with their display
+        // The webhook event catalog: the full set of selectable event types with their display
         // metadata (label, description) grouped by family. The single server-side source of truth the
         // admin UI's subscription picker consumes — replacing the frontend's hand-maintained copy, so
         // the picker can never again drift from what the backend actually emits and accepts. Static
-        // data (no DB); admin-level, uniform with the rest of the webhook surface (D1).
+        // data (no DB); admin-level, uniform with the rest of the webhook surface.
         group.MapGet("/webhooks/event-types", () => Results.Ok(WebhookEventCatalog.Groups))
             .RequireAdminOrAgentAdmin();
 
@@ -95,7 +95,7 @@ internal static class WebhookEndpoints
 // The deliveries response item — projects WebhookDeliveryAttempt with Status as the enum NAME
 // string (the REST API registers no JsonStringEnumConverter, so the entity's enum would otherwise
 // serialize as its integer ordinal; the documented contract shows "Failed"/"Succeeded").
-// SubscriptionId (#326) is nullable — v1/seed/ping-pre-deletion rows can carry null.
+// SubscriptionId is nullable — v1/seed/ping-pre-deletion rows can carry null.
 internal sealed record WebhookDeliveryItem
 (
     Guid Id,
@@ -110,7 +110,7 @@ internal sealed record WebhookDeliveryItem
     DateTimeOffset AttemptedAtUtc
 );
 
-// The status response — global posture + registry counts (#326). Booleans + counts only; never the
+// The status response — global posture + registry counts. Booleans + counts only; never the
 // secret or any URL. enabled = the master kill-switch; allowPrivateNetworkTargets = the SSRF
 // override; the counts are the registry size and how many are individually enabled.
 internal sealed record WebhookStatus

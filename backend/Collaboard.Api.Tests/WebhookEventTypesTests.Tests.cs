@@ -4,12 +4,12 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// WebhookEventTypes — the catalog SoT and selection semantics (#326). The reflection test (S4) is
-// the drift guard: it keeps `selectable ≡ deliverable` honest as M2 grows the catalog.
+// WebhookEventTypes — the catalog source of truth and selection semantics. The reflection test is
+// the drift guard: it keeps `selectable ≡ deliverable` honest as the catalog grows.
 public sealed class WebhookEventTypesTests
 {
-    // S4 — every event-type const must appear in All, so a new const can't be silently unselectable.
-    // The wildcard sentinel and a deliverable-only Ping (M2) are the only non-selectable consts and
+    // Every event-type const must appear in All, so a new const can't be silently unselectable.
+    // The wildcard sentinel and a deliverable-only Ping are the only non-selectable consts and
     // are excluded by design.
     [Fact]
     public void EveryEventTypeConst_IsInTheAllSet()
@@ -33,7 +33,7 @@ public sealed class WebhookEventTypesTests
         }
     }
 
-    // M2 (#329) is now COMPLETE: the lane and board families close the catalog. All board-scoped
+    // The catalog is now COMPLETE: the lane and board families close it. All board-scoped
     // events the project raises are both emitted and selectable. (User-account events are out of
     // scope; Ping and the Wildcard sentinel are deliverable-only / not event types.)
     [Fact]
@@ -70,8 +70,8 @@ public sealed class WebhookEventTypesTests
     {
         WebhookEventTypes.IsValidSelection(WebhookEventTypes.CardCreated).ShouldBeTrue();
         WebhookEventTypes.IsValidSelection(WebhookEventTypes.CommentCreated).ShouldBeTrue();
-        WebhookEventTypes.IsValidSelection(WebhookEventTypes.LaneReordered).ShouldBeTrue();   // M2 — catalog now closed
-        WebhookEventTypes.IsValidSelection(WebhookEventTypes.BoardCreated).ShouldBeTrue();    // M2 — catalog now closed
+        WebhookEventTypes.IsValidSelection(WebhookEventTypes.LaneReordered).ShouldBeTrue();   // catalog now closed
+        WebhookEventTypes.IsValidSelection(WebhookEventTypes.BoardCreated).ShouldBeTrue();    // catalog now closed
         WebhookEventTypes.IsValidSelection(WebhookEventTypes.Wildcard).ShouldBeTrue();
         WebhookEventTypes.IsValidSelection("user.created").ShouldBeFalse();   // user-account events are out of scope
         WebhookEventTypes.IsValidSelection("nonsense").ShouldBeFalse();

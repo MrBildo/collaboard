@@ -10,10 +10,10 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// Phase 1 safety-property tests for the webhook fan-out seam (#320). There is NO HTTP
+// Safety-property tests for the webhook fan-out seam. There is NO HTTP
 // delivery yet — the CapturingWebhookSink IS the observable. These assert on the typed
 // BoardEvent the seam enqueues (and its JSON-serialized wire shape), plus the SSE
-// byte-for-byte-unchanged safety property. Test Plan scenarios 1, 2, 3, 4, 4b, 5.
+// byte-for-byte-unchanged safety property.
 public sealed class WebhookSeamTests(WebhookTestFactory factory) : IClassFixture<WebhookTestFactory>, IDisposable
 {
     private readonly WebhookTestFactory _factory = factory;
@@ -349,7 +349,7 @@ public sealed class WebhookSeamTests(WebhookTestFactory factory) : IClassFixture
 
         // Archive then restore — both route through MoveCardToLaneAsync but emit the
         // domain-distinct card.archived / card.restored at the call-site, NEVER card.moved
-        // (the shared move helper stays emission-free). M2 catalog (#329) — was the v1 fence.
+        // (the shared move helper stays emission-free).
         var archiveResponse = await _client.PostAsync($"/api/v1/cards/{cardId}/archive", null);
         archiveResponse.EnsureSuccessStatusCode();
 
@@ -392,7 +392,7 @@ public sealed class WebhookSeamTests(WebhookTestFactory factory) : IClassFixture
             singleSiteSignals.ShouldNotBeEmpty();
             singleSiteSignals.ShouldAllBe(s => s == "board-updated");
 
-            // T1 (Mira's gate fold): the bulk arm uses ≥2 cards so the SSE CARDINALITY is
+            // The bulk arm uses ≥2 cards so the SSE CARDINALITY is
             // load-bearing. A 1-card bulk move cannot distinguish the correct one-bell-per-board
             // coalesce from the naive per-card broadcaster.Publish (which rings N bells) — one
             // over-ring is indistinguishable from one correct bell. With 2 cards, the naive break

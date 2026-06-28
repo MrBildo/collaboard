@@ -4,11 +4,11 @@ using Microsoft.Extensions.Options;
 
 namespace Collaboard.Api.Hosting.Webhooks;
 
-// Sweeps old webhook delivery-attempt rows (#326 D4). The registry's catalog × subscription fan-out
+// Sweeps old webhook delivery-attempt rows. The registry's catalog × subscription fan-out
 // makes the WebhookDeliveryAttempt log grow faster than v1's single endpoint, so a retention cap
 // keeps it bounded. The TempCardSweepService-shaped background service: the per-tick delete is a
 // deterministic static seam (SweepAsync — takes a BoardDbContext directly) the tests drive without
-// racing the running loop against the shared in-memory connection (#193 / #320 Phase-2). Set-based
+// racing the running loop against the shared in-memory connection. Set-based
 // ExecuteDeleteAsync (predicate in the WHERE clause) so the delete is race-safe with concurrent
 // attempt writes — no read-then-write gap. Attempts whose subscription was deleted (SubscriptionId
 // nulled at SetNull) still age out by time, so the audit log never accumulates orphans.
@@ -51,8 +51,8 @@ internal sealed class WebhookDeliveryLogSweepService
 
         // No startup sweep: retention is not time-urgent (unlike temp-card orphan cleanup), and a
         // startup DB sweep would add a needless collision surface with the WAF's shared in-memory
-        // connection in tests (the #320 Phase-2 / S50 lesson — a BackgroundService should do no
-        // startup DB work the test thread can race). The first sweep is one interval after boot.
+        // connection in tests (a BackgroundService should do no startup DB work the test thread can
+        // race). The first sweep is one interval after boot.
         using var timer = new PeriodicTimer(_sweepInterval);
         while (await timer.WaitForNextTickAsync(stoppingToken))
         {
@@ -96,7 +96,7 @@ internal sealed class WebhookDeliveryLogSweepService
     // AttemptedAtUtc predicate lives in the WHERE clause, so the delete is evaluated against
     // committed state at execution time — a row written between any prior read and this delete is
     // simply not matched, no read-then-write gap. The AttemptedAtUtc value converter stores a
-    // sortable ISO-8601 string, so the relational `<` translates to SQL (the #234 converter rationale).
+    // sortable ISO-8601 string, so the relational `<` translates to SQL.
     // Returns the number of rows removed.
     public static async Task<int> SweepAsync(BoardDbContext db, DateTimeOffset cutoff, CancellationToken ct = default) =>
         await db.WebhookDeliveryAttempts
