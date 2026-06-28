@@ -38,13 +38,22 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  forceMountOverlay = false,
   ...props
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean;
+  // A nested dialog (one opened from inside another dialog's tree) does NOT
+  // render its backdrop by default — base-ui disables it (`enabled: !nested`),
+  // so the dialog reads as non-modal: no dim/blur and the background stays
+  // interactive. Opt in here to force the backdrop for a nested dialog that
+  // must still be a true modal over its parent. Top-level dialogs never need
+  // it (their backdrop already renders), so the default is off and every
+  // existing dialog is unaffected.
+  forceMountOverlay?: boolean;
 }) {
   return (
     <DialogPortal>
-      <DialogOverlay />
+      <DialogOverlay forceRender={forceMountOverlay} />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(

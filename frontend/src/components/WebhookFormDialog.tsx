@@ -40,7 +40,13 @@ type WebhookFormDialogProps = {
 export function WebhookFormDialog({ open, onOpenChange, subscription }: WebhookFormDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[85vh] flex-col gap-4 sm:max-w-lg">
+      {/* This dialog opens from inside the Admin Panel dialog, so base-ui treats
+          it as nested and (by default) renders no backdrop — leaving it
+          non-modal: no dim/blur, background stays clickable. forceMountOverlay
+          restores the backdrop so it's a true modal over the panel, matching the
+          panel's own dim+blur. max-h-[90vh] gives the tall, vertically-biased
+          form its own portrait envelope rather than the panel's height. */}
+      <DialogContent forceMountOverlay className="flex max-h-[90vh] flex-col gap-4 sm:max-w-lg">
         {/* Keyed remount resets all field state when switching create ↔ edit or
             between two subscriptions, without a useEffect sync. */}
         <WebhookForm
@@ -153,7 +159,10 @@ function WebhookForm({ subscription, onDone }: WebhookFormProps) {
         <DialogDescription>Deliver board events to an external URL.</DialogDescription>
       </DialogHeader>
 
-      <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
+      {/* Negative margin + matching padding gives the inputs' focus ring (3px)
+          room to render inside this overflow-clip scroll container without
+          indenting content from the header/footer edges (#338). */}
+      <div className="-m-2 flex min-h-0 flex-col gap-4 overflow-y-auto p-2">
         <div className="grid grid-cols-[1fr_auto] items-end gap-3">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="wh-name">
