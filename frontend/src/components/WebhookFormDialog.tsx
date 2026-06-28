@@ -123,6 +123,14 @@ function WebhookForm({ subscription, onDone }: WebhookFormProps) {
   const hasEvents = sendAll || selected.length > 0;
   const canSubmit = url.trim().length > 0 && hasEvents && !isPending;
 
+  // Reflect live typed state: cleared → unsigned; new secret typed → signed;
+  // otherwise fall back to the persisted signed flag (or false for a new subscription).
+  const effectiveSigned = clearSecret
+    ? false
+    : secret.trim().length > 0
+      ? true
+      : (subscription?.signed ?? false);
+
   const toggleEvent = (type: string, checked: boolean) => {
     setSelected((prev) => (checked ? [...prev, type] : prev.filter((t) => t !== type)));
   };
@@ -202,11 +210,11 @@ function WebhookForm({ subscription, onDone }: WebhookFormProps) {
             Signing secret <span className="font-normal text-muted-foreground">(optional)</span>
           </Label>
           <div className="flex items-center gap-2">
-            <Badge variant={subscription?.signed ? 'secondary' : 'outline'}>
-              {subscription?.signed ? 'Signed' : 'Unsigned'}
+            <Badge variant={effectiveSigned ? 'secondary' : 'outline'}>
+              {effectiveSigned ? 'Signed' : 'Unsigned'}
             </Badge>
             <span className="text-xs text-muted-foreground">
-              {subscription?.signed
+              {effectiveSigned
                 ? 'A secret is set — deliveries are signed (HMAC-SHA256).'
                 : 'No secret set — deliveries are unsigned.'}
             </span>

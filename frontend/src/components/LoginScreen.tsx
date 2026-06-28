@@ -38,6 +38,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
               value={key}
               onChange={(e) => setKey(e.target.value)}
               placeholder="Paste your X-User-Key"
+              autoComplete="off"
               autoFocus
             />
           </div>
