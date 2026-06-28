@@ -108,11 +108,13 @@ public sealed class WebhookSsrfGuardTests
     {
         // allowPrivate re-permits the genuinely-private LAN ranges — the operator override for a
         // self-hosted target on a LAN/Tailscale address.
-        var validate = () => SsrfGuard.ValidateForRegistrationAsync(
+        var validate = () => SsrfGuard.ValidateForRegistrationAsync
+        (
             $"http://{ip}/hook",
             allowPrivate: true,
             ResolvesTo(IPAddress.Parse(ip)),
-            CancellationToken.None);
+            CancellationToken.None
+        );
 
         await Should.NotThrowAsync(validate);
     }
@@ -124,11 +126,13 @@ public sealed class WebhookSsrfGuardTests
     {
         // The carve-out: loopback and the link-local/cloud-metadata range stay blocked even with
         // allowPrivate set, so turning the flag on to reach a LAN host cannot expose them.
-        var validate = () => SsrfGuard.ValidateForRegistrationAsync(
+        var validate = () => SsrfGuard.ValidateForRegistrationAsync
+        (
             $"http://{ip}/hook",
             allowPrivate: true,
             ResolvesTo(IPAddress.Parse(ip)),
-            CancellationToken.None);
+            CancellationToken.None
+        );
 
         await Should.ThrowAsync<WebhookValidationException>(validate);
     }
@@ -228,12 +232,14 @@ public sealed class WebhookSsrfGuardTests
     {
         // The carve-out at connect: loopback and the link-local/cloud-metadata range stay blocked
         // even with allowPrivate set — a rebind to either cannot be reached via the flag.
-        var connect = () => SsrfGuard.ResolveAndValidateEndpointAsync(
+        var connect = () => SsrfGuard.ResolveAndValidateEndpointAsync
+        (
             "internal.example.com",
             443,
             allowPrivate: true,
             ResolvesTo(IPAddress.Parse(ip)),
-            CancellationToken.None).AsTask();
+            CancellationToken.None
+        ).AsTask();
 
         await Should.ThrowAsync<WebhookSsrfBlockedException>(connect);
     }
