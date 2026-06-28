@@ -1,26 +1,29 @@
 # Integrating with Webhooks
 
-Collaboard can POST a structured event to a URL you choose whenever a card is
-**created** or **moved**. That turns board activity into a signal an external
-system can act on — a workflow automation tool, a small script, an AI agent —
-without polling the API or holding a connection open.
+Collaboard can POST a structured event to a URL you choose whenever something
+happens on a board — a card **created**, **moved**, or **labeled**; a comment
+posted; a lane reordered; and more, across a 22-event catalog. That turns board
+activity into a signal an external system can act on — a workflow automation tool,
+a small script, an AI agent — without polling the API or holding a connection open.
 
 Delivery targets are managed as **subscriptions**. You can register more than one,
 and each one carries its own URL, an optional signing secret, an enabled/disabled
-state, and a selection of which events it wants. You manage subscriptions through the
-API (the examples below) — and, if you're an agent, through the matching MCP tools. A
-built-in admin screen is on the way; until then, the API is how you create and manage
-them.
+state, and a selection of which events it wants. You manage subscriptions three ways,
+all equivalent: the built-in **Webhooks admin screen** (sign in as an administrator
+and open it from the Admin panel), the **REST API** (the examples below), and — if
+you're an agent — the matching **MCP tools**.
+
+![The Webhooks admin screen](images/webhooks-admin.png)
 
 This guide is the practical walkthrough: register a subscription, point it somewhere,
 send a test delivery to confirm it arrived, and read the delivery log when something
 looks wrong. It also covers the one rule you should read **before** you point a webhook
 at anything that creates cards — the recursion guard.
 
-For the exact field-by-field contract (the envelope, both payload shapes, the
-headers, the signing scheme) and the full list of management endpoints, see the
-[API Reference](api-reference.md#webhooks). For the host settings, see
-[Host Configuration](../README.md#webhooks).
+For the exact field-by-field contract (the envelope, every payload shape, the
+headers, the signing scheme), the **full 22-event catalog**, and the complete list of
+management endpoints, see the [API Reference](api-reference.md#webhooks). For the host
+settings, see [Host Configuration](../README.md#webhooks).
 
 ---
 
@@ -102,9 +105,19 @@ For safety, Collaboard blocks webhook deliveries to private and internal network
 addresses — loopback, LAN ranges, link-local, and the like. A URL that resolves to one
 of those is rejected when you create the subscription; and a target that resolves
 publicly at create time but to an internal address at delivery time is blocked at the
-moment of connection. If your receiver is legitimately on a private network — a
-self-hosted tool on your LAN, or a Tailscale address — set
-`Webhooks__AllowPrivateNetworkTargets=true` and restart. See
+moment of connection (so a DNS rebind can't sneak past the create-time check).
+
+If your receiver is legitimately on a private network — a self-hosted tool on your LAN
+— set `Webhooks__AllowPrivateNetworkTargets=true` and restart. One thing to know about
+that flag: it re-permits the **private LAN ranges only** (the RFC1918 ranges and IPv6
+unique-local). It does **not** re-open loopback (`127.0.0.1`, `::1`), the link-local
+range, or the cloud-metadata endpoint (`169.254.169.254`) — those stay blocked no matter
+what, so turning the flag on to reach a LAN host can never also expose your machine's own
+loopback services or a cloud provider's metadata service. The flag is a single global
+switch — all-or-nothing across every subscription, not a per-subscription setting.
+
+A **Tailscale** address (the `100.x` carrier-grade-NAT range) is treated as an ordinary
+reachable target and delivers **without** the flag. See
 [Host Configuration](../README.md#webhooks) for the exact ranges and the upgrade impact.
 
 ### Confirm it's on
@@ -134,13 +147,24 @@ to a setup tool. To see the subscriptions themselves, `GET /api/v1/webhooks/subs
 
 ## Choosing which events
 
-Each subscription names the events it wants in its `events` list. Today there are two
-event types:
+Each subscription names the events it wants in its `events` list. There are 22 event
+types, covering the full board-scoped lifecycle, grouped into six families:
 
-- `card.created` — a card came into existence.
-- `card.moved` — a card's lane changed.
+- **Cards** — `card.created`, `card.moved`, `card.updated`, `card.archived`,
+  `card.restored`, `card.labeled`, `card.unlabeled`.
+- **Comments** — `comment.created`, `comment.updated`, `comment.deleted`.
+- **Labels** — `label.created`, `label.updated`, `label.deleted`.
+- **Attachments** — `attachment.created`, `attachment.deleted`.
+- **Lanes** — `lane.created`, `lane.renamed`, `lane.reordered`, `lane.deleted`.
+- **Boards** — `board.created`, `board.renamed`, `board.deleted`.
 
-List the exact types you want (`["card.created"]`, or both), or use the single wildcard
+The admin screen's create/edit dialog lets you tick these by family; over the API and
+MCP you pass the exact type strings. For the payload each one carries, see the
+[event catalog in the API Reference](api-reference.md#event-types).
+
+![The 22-event picker in the create-subscription dialog](images/webhooks-event-picker.png)
+
+List the exact types you want (`["card.created"]`, or several), or use the single wildcard
 `"*"` to receive **every** event type — including any added in future versions:
 
 ```json

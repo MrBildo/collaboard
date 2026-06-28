@@ -386,6 +386,21 @@ instead:
 The [README](../README.md#for-agents) also has a quick MCP setup snippet for
 connecting a client like Claude Code.
 
+### Webhooks
+
+Collaboard can also call **out** to other systems. An administrator can point a
+**webhook** at any URL, and Collaboard POSTs a structured event to it whenever
+something happens on a board — a card created or moved, a comment posted, a label
+changed, and more. It's how you wire the board into an automation tool, a script, or
+an agent without anyone watching the lane.
+
+You manage webhooks from the **Webhooks** screen in the **Admin** panel (in the gear
+menu): add a target URL, choose which events it should receive, optionally sign
+deliveries with a secret, and send a test delivery to confirm it's reachable. A
+delivery log shows what was sent and whether it landed. For the full walkthrough — and
+the recursion guard worth reading before you point a webhook at anything that creates
+cards — see the [Webhooks Integration Guide](integrating-webhooks.md).
+
 ---
 
 ## Tips
