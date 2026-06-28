@@ -40,7 +40,13 @@ type WebhookFormDialogProps = {
 export function WebhookFormDialog({ open, onOpenChange, subscription }: WebhookFormDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[min(85vh,40rem)] flex-col gap-4 sm:max-w-lg">
+      {/* This dialog opens from inside the Admin Panel dialog, so base-ui treats
+          it as nested and (by default) renders no backdrop — leaving it
+          non-modal: no dim/blur, background stays clickable. forceMountOverlay
+          restores the backdrop so it's a true modal over the panel, matching the
+          panel's own dim+blur. max-h-[90vh] gives the tall, vertically-biased
+          form its own portrait envelope rather than the panel's height. */}
+      <DialogContent forceMountOverlay className="flex max-h-[90vh] flex-col gap-4 sm:max-w-lg">
         {/* Keyed remount resets all field state when switching create ↔ edit or
             between two subscriptions, without a useEffect sync. */}
         <WebhookForm
