@@ -9,8 +9,8 @@ import {
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
 
-// Webhook data hooks (#326). Thin query wrappers — mutations live at their call
-// sites (matching the admin-tab pattern) so each owns its #203 error surface.
+// Webhook data hooks. Thin query wrappers — mutations live at their call
+// sites (matching the admin-tab pattern) so each owns its own error surface.
 //
 // The admin UI joins two reads client-side: the subscriptions list carries the
 // authoritative on-read metrics (success/fail counts + last-delivery, computed
@@ -18,7 +18,7 @@ import { QUERY_DEFAULTS } from '@/lib/query-config';
 // per-attempt error text — joined by subscriptionId, it refines a row's last
 // delivery into "blocked vs HTTP-failed" and feeds the expanded recent-attempts
 // log. One window fetch, no N+1; the recent slice is enough for "a handful of
-// webhooks" (Variant B's target). The 200-row cap is the endpoint's max.
+// webhooks", the expected registry scale. The 200-row cap is the endpoint's max.
 const DELIVERY_WINDOW = 200;
 
 export function useWebhookSubscriptions(enabled = true) {
@@ -48,7 +48,7 @@ export function useWebhookStatus(enabled = true) {
   });
 }
 
-// The selectable event catalog (#336). The single server-side source of truth
+// The selectable event catalog. The single server-side source of truth
 // the subscription picker renders. It's static within a session, so it never
 // goes stale — fetched once when the form first opens and reused from cache.
 export function useWebhookEventCatalog(enabled = true) {

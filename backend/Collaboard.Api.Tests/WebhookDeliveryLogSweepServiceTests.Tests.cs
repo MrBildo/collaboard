@@ -8,8 +8,8 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// Retention sweep tests (#326 D4). The deletion logic is the deterministic static SweepAsync seam
-// (the #193 / #320 Phase-2 discipline — driven directly, never racing the hosted loop against the
+// Retention sweep tests. The deletion logic is the deterministic static SweepAsync seam
+// (driven directly, never racing the hosted loop against the
 // shared in-memory connection). The dormancy gate (DeliveryLogRetentionDays <= 0) is verified
 // through the hosted service over a configured WAF.
 public sealed class WebhookDeliveryLogSweepServiceTests

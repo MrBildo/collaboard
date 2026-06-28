@@ -5,13 +5,13 @@ using ModelContextProtocol.Server;
 
 namespace Collaboard.Api.Mcp;
 
-// Webhook subscription management over MCP (#326). Five admin-level tools mirroring the REST CRUD +
+// Webhook subscription management over MCP. Five admin-level tools mirroring the REST CRUD +
 // test surface. Every tool delegates to the SAME shared WebhookSubscriptionStore (and WebhookTester
 // for the ping) the REST endpoints use — so the two surfaces produce identical results and it is
 // structurally impossible to create a subscription via MCP that bypasses the REST SSRF validation
 // (the precedent is CardSummaryBuilder / SearchHelper, NOT LabelTools' per-surface re-implementation).
 // The auth gate + JSON serialization are the only per-surface concerns; the data op is shared. All
-// five gate RequireAdminLevelAsync (Administrator OR AgentAdministrator, D1) — and the SSRF floor is
+// five gate RequireAdminLevelAsync (Administrator OR AgentAdministrator) — and the SSRF floor is
 // what makes "an agent manages webhooks" safe, so it is load-bearing FOR this surface, not optional.
 // internal (not public like the sibling *Tools): the constructor takes the internal
 // WebhookSubscriptionStore / WebhookTester (the foundation kept the store + its DTOs internal —

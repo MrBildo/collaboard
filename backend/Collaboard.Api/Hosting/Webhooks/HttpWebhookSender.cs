@@ -5,14 +5,14 @@ using Collaboard.Api.Events;
 
 namespace Collaboard.Api.Hosting.Webhooks;
 
-// The typed-HttpClient realization of IWebhookSender (#320, #326). Serializes the enriched event
+// The typed-HttpClient realization of IWebhookSender. Serializes the enriched event
 // ONCE with the project's REST JSON config (camelCase / Web defaults — a consumer that already
 // reads Collaboard's REST shapes sees identical field names), signs THOSE bytes when the target
-// carries a secret (D3 — never re-serialize for the signature), and POSTs with the delivery
-// headers. The per-POST timeout is the typed client's Timeout (configured in Program.cs from
-// Webhooks:DeliveryTimeout) so a slow endpoint is a failed attempt, not a wait. The outbound
-// connection passes the SSRF connect guard wired on the client's primary handler (#326) — a
-// blocked target throws at connect and surfaces here as a Failed attempt.
+// carries a secret (never re-serialize for the signature, or the signed bytes would differ from the
+// sent bytes), and POSTs with the delivery headers. The per-POST timeout is the typed client's
+// Timeout (configured in Program.cs from Webhooks:DeliveryTimeout) so a slow endpoint is a failed
+// attempt, not a wait. The outbound connection passes the SSRF connect guard wired on the client's
+// primary handler — a blocked target throws at connect and surfaces here as a Failed attempt.
 internal sealed class HttpWebhookSender(HttpClient httpClient) : IWebhookSender
 {
     private readonly HttpClient _httpClient = httpClient
@@ -23,7 +23,7 @@ internal sealed class HttpWebhookSender(HttpClient httpClient) : IWebhookSender
         ArgumentNullException.ThrowIfNull(boardEvent);
         ArgumentNullException.ThrowIfNull(target);
 
-        // Serialize ONCE — these exact bytes are what we sign and what we send (D3).
+        // Serialize ONCE — these exact bytes are what we sign and what we send.
         var body = JsonSerializer.SerializeToUtf8Bytes(boardEvent, JsonSerializerOptions.Web);
 
         try

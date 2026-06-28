@@ -2,8 +2,8 @@ using Collaboard.Api.Models;
 
 namespace Collaboard.Api.Events;
 
-// The per-event `data` payloads (#320). Both embed the existing CardSummary DIRECTLY
-// (D2 — no parallel webhook-only card DTO to drift; the `version` envelope field is the
+// The per-event `data` payloads. Both embed the existing CardSummary DIRECTLY
+// (no parallel webhook-only card DTO to drift; the `version` envelope field is the
 // release valve if CardSummary's shape ever changes). CardSummary is GUID-keyed and
 // carries no board/lane names, so the payload enriches it with the resolved laneName.
 //
@@ -31,7 +31,7 @@ public sealed record WebhookCardMovedData
 // cheap. `from` is captured BEFORE the move mutates the card.
 public sealed record WebhookLaneRef(Guid LaneId, string LaneName, int Position);
 
-// The card-family M2 payloads (#329). Each embeds the fat CardSummary directly (D2 — no
+// The card-family payloads. Each embeds the fat CardSummary directly (no
 // parallel webhook-only card DTO to drift) plus the resolved laneName, mirroring the v1
 // card.created shape. card.updated fires on a content change to name, description or size.
 // card.archived and card.restored carry state at occurrence — the card sits in the archive
@@ -54,10 +54,10 @@ public sealed record WebhookLabelRef(Guid Id, string Name, string? Color);
 
 // The minimal card reference embedded in comment.* and attachment.* events — the affected card's
 // id and board-scoped number. The comment/attachment IS the changed resource; the card is context,
-// so it rides as a thin ref, not the fat CardSummary the card.* events carry. (#329.)
+// so it rides as a thin ref, not the fat CardSummary the card.* events carry.
 public sealed record WebhookCardRef(Guid Id, long Number);
 
-// The comment-family M2 payloads (#329). Each embeds the comment resource plus a minimal card ref.
+// The comment-family payloads. Each embeds the comment resource plus a minimal card ref.
 // AuthorUserId / AuthorName are the comment's OWN author — an admin editing or deleting another
 // user's comment is the envelope `actor`, while the author stays the comment's author.
 // comment.deleted carries the comment's state at occurrence (the row is gone after the delete).
@@ -78,7 +78,7 @@ public sealed record WebhookCommentUpdatedData(WebhookCommentData Comment, Webho
 
 public sealed record WebhookCommentDeletedData(WebhookCommentData Comment, WebhookCardRef Card);
 
-// The label-resource-family M2 payloads (#329). The label resource itself — created / renamed or
+// The label-resource-family payloads. The label resource itself — created / renamed or
 // recolored / deleted — distinct from card.labeled / card.unlabeled (which report a card's
 // label-SET changing). Color is nullable on the Label entity, so it rides the wire as nullable too.
 // label.deleted carries the label's state at occurrence.
@@ -90,7 +90,7 @@ public sealed record WebhookLabelUpdatedData(WebhookLabelData Label);
 
 public sealed record WebhookLabelDeletedData(WebhookLabelData Label);
 
-// The attachment-family M2 payloads (#329). Metadata ONLY — the file bytes never ride the wire.
+// The attachment-family payloads. Metadata ONLY — the file bytes never ride the wire.
 // SizeBytes is the stored payload length (the bytes themselves stay at rest). attachment.deleted
 // carries the metadata at occurrence (the row is gone after the delete).
 public sealed record WebhookAttachmentData
@@ -108,7 +108,7 @@ public sealed record WebhookAttachmentCreatedData(WebhookAttachmentData Attachme
 
 public sealed record WebhookAttachmentDeletedData(WebhookAttachmentData Attachment, WebhookCardRef Card);
 
-// The lane-family M2 payloads (#329). lane.created / lane.renamed / lane.deleted carry the single
+// The lane-family payloads. lane.created / lane.renamed / lane.deleted carry the single
 // lane resource (the envelope's boardId/boardSlug identify the board). lane.deleted carries the
 // lane's state at occurrence (the row is gone after the delete).
 public sealed record WebhookLaneData(Guid Id, Guid BoardId, string Name, int Position);
@@ -119,7 +119,7 @@ public sealed record WebhookLaneRenamedData(WebhookLaneData Lane);
 
 public sealed record WebhookLaneDeletedData(WebhookLaneData Lane);
 
-// lane.reordered carries the board's FULL new left-to-right order (Bill-ruled, #329) — both the bulk
+// lane.reordered carries the board's FULL new left-to-right order — both the bulk
 // reorder_lanes path and a single-lane update_lane position move emit this same shape, so a consumer
 // gets the resulting lane order directly with no reconstruction. Each entry is {id, name, position};
 // the boardId is on the envelope (all entries share it), so it is not repeated per lane.
@@ -127,7 +127,7 @@ public sealed record WebhookLaneOrderEntry(Guid Id, string Name, int Position);
 
 public sealed record WebhookLaneReorderedData(IReadOnlyList<WebhookLaneOrderEntry> Lanes);
 
-// The board-family M2 payloads (#329). board.created / board.renamed / board.deleted carry the board
+// The board-family payloads. board.created / board.renamed / board.deleted carry the board
 // resource. The envelope's boardId/boardSlug ARE this board; the embedded resource adds the name (and
 // slug for completeness). board.deleted references a now-deleted board (state at occurrence).
 public sealed record WebhookBoardData(Guid Id, string Slug, string Name);
@@ -138,7 +138,7 @@ public sealed record WebhookBoardRenamedData(WebhookBoardData Board);
 
 public sealed record WebhookBoardDeletedData(WebhookBoardData Board);
 
-// The webhook.ping test-delivery payload (#326). A minimal body so an integrator can confirm the
+// The webhook.ping test-delivery payload. A minimal body so an integrator can confirm the
 // endpoint is reachable, signs, and parses — carries the subscription id and a human-readable
 // message, nothing board-scoped (a ping is not a board mutation).
 public sealed record WebhookPingData(Guid SubscriptionId, string Message);

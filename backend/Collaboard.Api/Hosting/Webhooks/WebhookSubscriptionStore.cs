@@ -6,8 +6,8 @@ using Microsoft.Extensions.Options;
 
 namespace Collaboard.Api.Hosting.Webhooks;
 
-// The shared CRUD + validation core for webhook subscriptions (#326). The REST endpoints and the
-// MCP tools (later slices) both delegate here — so the SSRF/URL validation, the events-non-empty
+// The shared CRUD + validation core for webhook subscriptions. The REST endpoints and the
+// MCP tools both delegate here — so the SSRF/URL validation, the events-non-empty
 // rule, the secret set/keep/clear contract, and the secret-free read projection are defined ONCE
 // and are un-bypassable by construction. This is deliberately NOT the LabelTools pattern (which
 // re-implements CRUD inline per surface — the codebase's top bug class); the precedent is
@@ -15,7 +15,7 @@ namespace Collaboard.Api.Hosting.Webhooks;
 // a per-surface re-implementation would be a security bug, not mere inconsistency.
 //
 // Validation reads AllowPrivateNetworkTargets via IOptions (startup-bound), so registration and
-// the connect-time guard read the SAME value and agree (#326 S2). The secret is write-only at the
+// the connect-time guard read the SAME value and agree. The secret is write-only at the
 // API surface: ToView projects `signed: bool` and NEVER the secret string.
 internal sealed class WebhookSubscriptionStore
 (
@@ -66,7 +66,7 @@ internal sealed class WebhookSubscriptionStore
 
         // Metrics computed on-read (never persisted — no denormalized counters that would couple
         // every delivery write to a subscription update on a heavily-concurrent board). "Reject
-        // N+1" means one endpoint, not one SQL statement (#326 S5): one projected read of the
+        // N+1" means one endpoint, not one SQL statement: one projected read of the
         // relevant attempt rows, grouped in CLR. At registry scale (a handful of subscriptions,
         // bounded by the retention sweep) this is trivial; the (SubscriptionId, AttemptedAtUtc)
         // index serves it.
@@ -101,7 +101,7 @@ internal sealed class WebhookSubscriptionStore
             return null;
         }
 
-        // URL: re-run the SSRF registration check ONLY when the URL is changing (#326 S1). A name/
+        // URL: re-run the SSRF registration check ONLY when the URL is changing. A name/
         // enabled/secret-only PATCH must NOT re-validate an unchanged URL — otherwise the migrated
         // private-URL subscription could not be disabled (PATCH { enabled:false }) with the flag
         // off, a surprising asymmetry on the exact row the deliberate break targets.
@@ -151,7 +151,7 @@ internal sealed class WebhookSubscriptionStore
         return true;
     }
 
-    // Secret set/keep/clear (#326 — identical on REST PATCH and MCP update). clearSecret wins; else
+    // Secret set/keep/clear (identical on REST PATCH and MCP update). clearSecret wins; else
     // a provided non-blank secret replaces; else (omitted/blank) the secret is unchanged. Blank is
     // treated as "not provided" because an empty string is indistinguishable from absent in many
     // client serializers — clearing is the explicit clearSecret flag.
@@ -197,7 +197,7 @@ internal sealed class WebhookSubscriptionStore
         return new SubscriptionMetrics(success, failure, latest.Status.ToString(), latest.AttemptedAtUtc);
     }
 
-    // The secret-free read projection — the #1 leak guard (#326). NEVER returns the entity; the
+    // The secret-free read projection — the primary secret-leak guard. NEVER returns the entity; the
     // secret becomes the `signed` boolean and nothing else. Every read path (REST list/get, MCP
     // list, metrics enrichment) funnels through here, so the write-only-secret rule has teeth.
     private static WebhookSubscriptionView ToView(WebhookSubscription subscription, SubscriptionMetrics metrics) =>
@@ -239,11 +239,11 @@ internal sealed class WebhookSubscriptionStore
 
         if (normalized.Count == 0)
         {
-            // DP-1 — empty is never "all"; a subscription must select at least one event.
+            // Empty is never "all" — a subscription must explicitly select at least one event.
             throw new WebhookValidationException("A webhook subscription must select at least one event type.");
         }
 
-        // N1 — the wildcard stands alone: if present, it IS the selection (co-listed explicit types
+        // The wildcard stands alone: if present, it IS the selection (co-listed explicit types
         // are redundant under "all current and future").
         if (normalized.Contains(WebhookEventTypes.Wildcard, StringComparer.Ordinal))
         {
@@ -300,7 +300,7 @@ internal sealed record WebhookSubscriptionInput
 
 // Partial-update patch. A null field means unchanged. The secret follows set-keep-clear: a non-
 // blank Secret replaces, ClearSecret clears, both absent leaves it unchanged. Url is re-validated
-// for SSRF only when present (#326 S1).
+// for SSRF only when present.
 internal sealed record WebhookSubscriptionPatch
 (
     string? Url,

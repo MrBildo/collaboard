@@ -6,12 +6,12 @@ import type {
 } from '@/types';
 import { arraysEqual } from '@/lib/utils';
 
-// Webhook presentation + classification logic (#326). Pure functions over the
+// Webhook presentation + classification logic. Pure functions over the
 // API contract — kept out of the components so the load-bearing rules (what
 // counts as "blocked", the secret set/keep/clear payload) are unit-tested in
 // isolation. The server owns all display naming: the selectable event catalog
 // (labels, descriptions, family grouping) is fetched from
-// `GET /webhooks/event-types` (#336), not hardcoded here — so the picker can
+// `GET /webhooks/event-types`, not hardcoded here — so the picker can
 // never again drift from what the backend emits and accepts.
 
 // --- Event catalog --------------------------------------------------------

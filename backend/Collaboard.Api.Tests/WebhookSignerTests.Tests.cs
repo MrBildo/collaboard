@@ -5,7 +5,7 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// Unit tests for the HMAC signer (#320, D3). WebhookSigner is a pure function (no DbContext, no
+// Unit tests for the HMAC signer. WebhookSigner is a pure function (no DbContext, no
 // DB) — the project's pure-function carve-out lets it be tested directly. These prove the wire
 // contract: the sha256= prefix, lowercase hex, and that a consumer recomputing HMAC-SHA256 over
 // the SAME bytes with the SAME secret matches byte-for-byte.

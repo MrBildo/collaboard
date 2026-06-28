@@ -5,11 +5,11 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// SSRF guard tests (#326). IsBlockedAddress and the connect-pin are the pure-function carve-out —
+// SSRF guard tests. IsBlockedAddress and the connect-pin are the pure-function carve-out —
 // no DbContext, no DB — so they are unit-tested directly. The connect-pin's DNS resolution is
 // injected so a DNS-rebind (a host resolving to loopback at delivery) is simulated without real
 // DNS. One end-to-end test drives a real SocketsHttpHandler with the connect callback to prove the
-// guard throws and surfaces as a Failed delivery attempt (S3a).
+// guard throws and surfaces as a Failed delivery attempt.
 public sealed class WebhookSsrfGuardTests
 {
     // ── IsBlockedAddress — the denylist table (control 2) ────────────────────────
@@ -158,7 +158,7 @@ public sealed class WebhookSsrfGuardTests
         await Should.ThrowAsync<WebhookValidationException>(validate);
     }
 
-    // ── Connect-pin — the DNS-rebind / TOCTOU defense (control 3, S3) ────────────
+    // ── Connect-pin — the DNS-rebind / TOCTOU defense ────────────
 
     [Fact]
     public async Task ConnectPin_BlocksHostThatRebindsToLoopback()
@@ -194,7 +194,7 @@ public sealed class WebhookSsrfGuardTests
     public async Task ConnectPin_DialsTheValidatedIp_NeverReResolving()
     {
         // The endpoint returned is the IP we validated — connecting to it (not the hostname) is what
-        // closes the rebind window (S3b).
+        // closes the rebind window.
         var publicIp = IPAddress.Parse("93.184.216.34");
 
         var endpoint = await SsrfGuard.ResolveAndValidateEndpointAsync(
@@ -244,7 +244,7 @@ public sealed class WebhookSsrfGuardTests
         await Should.ThrowAsync<WebhookSsrfBlockedException>(connect);
     }
 
-    // ── End-to-end: a blocked connect surfaces as a Failed delivery attempt (S3a) ─
+    // ── End-to-end: a blocked connect surfaces as a Failed delivery attempt ─
 
     [Fact]
     public async Task BlockedConnect_SurfacesAsFailedDeliveryResult_NotAnUncaughtThrow()

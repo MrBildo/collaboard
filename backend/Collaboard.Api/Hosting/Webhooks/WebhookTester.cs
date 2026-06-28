@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Collaboard.Api.Hosting.Webhooks;
 
-// The shared test-delivery (ping) seam (#326). Both the REST POST /webhooks/subscriptions/{id}/test
+// The shared test-delivery (ping) seam. Both the REST POST /webhooks/subscriptions/{id}/test
 // endpoint and the test_webhook MCP tool delegate here, so the two surfaces ping identically and a
 // test cannot become a validation-bypassing side-channel: the ping dials through the SAME
 // IWebhookSender (the SSRF-guarded typed client + HMAC signing) as production delivery, so a private
@@ -76,5 +76,5 @@ internal sealed class WebhookTester
         error is { Length: > 500 } ? error[..500] : error;
 }
 
-// The inline outcome of a test delivery (#326): success / statusCode / error — never the secret.
+// The inline outcome of a test delivery: success / statusCode / error — never the secret.
 internal sealed record WebhookTestResult(bool Success, int? StatusCode, string? Error);

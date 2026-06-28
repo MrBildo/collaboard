@@ -6,7 +6,7 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// The delivery-time SSRF-blocked signal must survive the PRODUCTION HttpClient configuration (#326).
+// The delivery-time SSRF-blocked signal must survive the PRODUCTION HttpClient configuration.
 //
 // AddServiceDefaults wires AddStandardResilienceHandler onto every typed client via
 // ConfigureHttpClientDefaults. For webhook delivery that handler reads the SSRF connect-throw
@@ -19,10 +19,10 @@ namespace Collaboard.Api.Tests;
 // The foundation test (WebhookSsrfGuardTests.BlockedConnect_SurfacesAsFailedDeliveryResult) constructs
 // HttpWebhookSender with a BARE HttpClient — no resilience handler — so it never exercised the
 // production-wrapped path and could not catch the masking. This test resolves the REAL IWebhookSender
-// from the application's DI (the production client: resilience-default + the #326 opt-out + the SSRF
+// from the application's DI (the production client: resilience-default + the webhook-client opt-out + the SSRF
 // connect callback) and asserts the recorded error is the guard's authentic phrasing, not a timeout.
 //
-// Mutation-revert (#42 discipline): drop .RemoveAllResilienceHandlers() in Program.cs and this test
+// Mutation-revert check: drop .RemoveAllResilienceHandlers() in Program.cs and this test
 // reds — the resilience handler retries the connect-throw to a 5s timeout and the authentic phrasing
 // no longer appears in the recorded error.
 public sealed class WebhookDeliveryResilienceTests
@@ -35,7 +35,7 @@ public sealed class WebhookDeliveryResilienceTests
 
         // The production-configured client — NOT a bare HttpClient. The base factory does not stub the
         // webhook handler, so this carries the real SSRF connect callback plus whatever resilience
-        // wiring Program.cs settled (the #326 opt-out).
+        // wiring Program.cs settled (the webhook-client opt-out).
         var sender = factory.Services.GetRequiredService<IWebhookSender>();
 
         var boardEvent = SampleEvent();

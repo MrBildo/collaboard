@@ -7,7 +7,7 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// Config-migration seeder tests (#326 B). The seeder is a deterministic static seam driven directly
+// Config-migration seeder tests. The seeder is a deterministic static seam driven directly
 // (the BoardSeeder / SweepAsync pattern). The WAF boot test proves the load-bearing gate-catch: the
 // seed fires on an upgrade where users ALREADY exist — because it gates on an empty subscription
 // table, not the !Users.AnyAsync() fresh-install gate.
@@ -65,7 +65,7 @@ public sealed class WebhookConfigSeederTests
     [Fact]
     public async Task Boot_WithEndpointSet_SeedsDespiteUsersAlreadyExisting()
     {
-        // The gate-catch (#326 B): production already has users, so the seed must NOT reuse the
+        // The gate-catch: production already has users, so the seed must NOT reuse the
         // !Users.AnyAsync() fresh-install gate. Boot the real host with Webhooks:Endpoint set; the
         // seed fires at startup even though the admin user was already seeded.
         await using var factory = new CollaboardApiFactory

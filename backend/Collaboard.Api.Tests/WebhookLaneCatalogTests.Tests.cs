@@ -10,10 +10,10 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// M2 catalog tests for the lane family (#329): lane.created / lane.renamed / lane.reordered /
+// Catalog tests for the lane family: lane.created / lane.renamed / lane.reordered /
 // lane.deleted across REST + MCP. update_lane splits by axis (name → renamed, position → reordered)
 // and co-fires both through ONE SSE bell; reorder_lanes raises exactly ONE lane.reordered carrying
-// the board's FULL new left-to-right order (Bill-ruled; #277 coalesce contract). Each site rings the
+// the board's FULL new left-to-right order (the one-bell reorder coalesce contract). Each site rings the
 // same single SSE bell it always did, so the SSE wire stays byte-for-byte unchanged. The
 // CapturingWebhookSink IS the observable (no HTTP delivery here).
 public sealed class WebhookLaneCatalogTests : IClassFixture<WebhookTestFactory>, IDisposable
@@ -253,7 +253,7 @@ public sealed class WebhookLaneCatalogTests : IClassFixture<WebhookTestFactory>,
             lanes.EnumerateArray().Select(l => l.GetProperty("id").GetGuid()).ToList().ShouldBe(reversed);
             lanes.EnumerateArray().Select(l => l.GetProperty("position").GetInt32()).ToList().ShouldBe([.. Enumerable.Range(0, reversed.Count)]);
 
-            // Exactly one SSE bell for the whole reorder (the #277 one-bell coalesce).
+            // Exactly one SSE bell for the whole reorder (the one-bell coalesce contract).
             var signals = DrainChannel(reader);
             signals.Count.ShouldBe(1);
             signals[0].ShouldBe("board-updated");

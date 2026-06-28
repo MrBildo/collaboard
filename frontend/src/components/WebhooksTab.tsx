@@ -206,7 +206,7 @@ function WebhookRow({ row, expanded, onToggle, onEdit }: WebhookRowProps) {
 
   // The per-row enable/disable toggle. Single-gesture, board-action-like — the
   // operator's attention is on the whole table, so a failure surfaces via the
-  // global toast floor (#203 toast tier). No optimistic flip: the switch reflects
+  // global toast floor (the toast tier). No optimistic flip: the switch reflects
   // authoritative `enabled` after invalidation, and stays put on failure.
   const toggleMutation = useMutation({
     meta: { errorMessage: 'Couldn’t update the webhook.' },

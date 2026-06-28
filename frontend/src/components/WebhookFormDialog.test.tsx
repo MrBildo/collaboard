@@ -36,7 +36,7 @@ function makeSubscription(events: string[]): WebhookSubscription {
   };
 }
 
-// A trimmed catalog with a non-card family — the point of #336 is that the
+// A trimmed catalog with a non-card family — the point is that the
 // picker renders whatever the server returns, not a hardcoded card-only list.
 const CATALOG: WebhookEventGroup[] = [
   {
@@ -110,13 +110,13 @@ describe('WebhookFormDialog event picker', () => {
 });
 
 // The selection the picker shows MUST be the selection the form submits. This is
-// the contract #339 is about: a build where the checkbox/count reflected a tick
+// the contract these tests lock: a build where the checkbox/count reflected a tick
 // the POST body did not carry shipped because no test drove tick -> submit. These
 // tests close that gap at the component seam — they exercise the real click, not
 // the buildEventsPayload helper in isolation, so a future desync between what the
 // picker displays and what the request sends fails here.
 describe('WebhookFormDialog submit payload', () => {
-  test('a ticked event reaches the create request body (#339 regression)', async () => {
+  test('a ticked event reaches the create request body', async () => {
     mockCatalog.mockResolvedValue(CATALOG);
     mockCreate.mockResolvedValue(makeSubscription(['card.created']));
     const user = userEvent.setup();
@@ -205,10 +205,10 @@ describe('WebhookFormDialog secret indicator', () => {
 // When a create is rejected, the operator's attention is on this dialog, so the
 // failure surfaces inline here. The content that surfaces must be the server's
 // actionable message — not axios's generic "Request failed with status code
-// 400", which is what buried the real SSRF diagnosis (#339). The API returns the
+// 400", which is what buried the real SSRF diagnosis. The API returns the
 // message as a bare JSON string on its validation 400s (Results.BadRequest(msg)),
 // so axios parses error.response.data to that string.
-describe('WebhookFormDialog error surfacing (#339)', () => {
+describe('WebhookFormDialog error surfacing', () => {
   const SSRF_MESSAGE =
     "Webhook host 'collaboard.collabot.dev' resolves to a private or otherwise blocked " +
     'address (192.168.50.135); set Webhooks:AllowPrivateNetworkTargets to allow it.';

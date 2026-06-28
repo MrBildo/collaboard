@@ -16,7 +16,7 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// Phase 2 webhook DELIVERY tests (#320, Test Plan scenarios 6-9 + status endpoint + edge cases).
+// Webhook DELIVERY tests (delivery flow + status endpoint + edge cases).
 // These exercise the REAL dispatcher draining the REAL queue and POSTing real bytes through the
 // real HttpWebhookSender (serialize-once + sign + headers); only the HttpClient's primary handler
 // is swapped for a capture stub. Each scenario needs its own Webhooks config (Endpoint/Secret/
@@ -284,7 +284,7 @@ public sealed class WebhookDeliveryTests
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
-    // ── Status endpoint (#326 — posture + counts) — admin-level/403, never the secret/URL ──
+    // ── Status endpoint (posture + counts) — admin-level/403, never the secret/URL ──
 
     [Fact]
     public async Task StatusEndpoint_ReturnsPostureAndCounts_ForAdmin_NeverSecretOrUrl()
@@ -299,7 +299,7 @@ public sealed class WebhookDeliveryTests
         var raw = await response.Content.ReadAsStringAsync();
         var status = JsonDocument.Parse(raw).RootElement;
 
-        // #326 — the evolved posture+counts shape. The v1 endpointConfigured/signed booleans read
+        // The evolved posture+counts shape. The v1 endpointConfigured/signed booleans read
         // the retiring config keys and would lie in the registry world, so they are gone.
         status.GetProperty("enabled").GetBoolean().ShouldBeTrue();
         status.GetProperty("allowPrivateNetworkTargets").GetBoolean().ShouldBeFalse();
@@ -341,7 +341,7 @@ public sealed class WebhookDeliveryTests
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
-    // ── #326 D1 — the diagnostics are now admin-level (AgentAdministrator admitted) ──
+    // ── The diagnostics are now admin-level (AgentAdministrator admitted) ──
 
     [Fact]
     public async Task StatusEndpoint_AgentAdministrator_Succeeds()

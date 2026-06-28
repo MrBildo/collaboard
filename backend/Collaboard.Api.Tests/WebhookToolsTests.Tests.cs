@@ -12,8 +12,8 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// MCP WebhookTools tests (#326). The tools are invoked directly against a DI scope (the #206
-// convention — never through /mcp). Load-bearing properties: the MCP surface shares the one store
+// MCP WebhookTools tests. The tools are invoked directly against a DI scope (the project's
+// MCP-tools test convention — never through /mcp). Load-bearing properties: the MCP surface shares the one store
 // with REST (anti-drift — create via MCP, read via REST → identical), the SSRF check is
 // un-bypassable from MCP, list_webhooks never leaks the secret, the secret set/keep/clear contract
 // matches REST, and the admin-level gate rejects a non-admin authKey.

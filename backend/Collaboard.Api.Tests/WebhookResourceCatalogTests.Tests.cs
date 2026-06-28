@@ -14,10 +14,10 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// M2 catalog tests for the resource-lifecycle families (#329): comment.* / label.* / attachment.*
+// Catalog tests for the resource-lifecycle families: comment.* / label.* / attachment.*
 // across REST + MCP. Each family rings the same single SSE board bell it always did PLUS one
 // webhook event — so the SSE wire stays byte-for-byte unchanged while the catalog grows. The
-// CapturingWebhookSink IS the observable (no HTTP delivery here). Test Plan scenario 9 + the
+// CapturingWebhookSink IS the observable (no HTTP delivery here), alongside the
 // SSE-byte-equivalence safety property.
 public sealed class WebhookResourceCatalogTests : IClassFixture<WebhookTestFactory>, IDisposable
 {

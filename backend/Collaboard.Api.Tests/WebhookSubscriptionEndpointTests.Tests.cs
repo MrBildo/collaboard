@@ -10,7 +10,7 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// REST webhook subscription endpoint tests (#326). CRUD round-trip; the D1 auth matrix
+// REST webhook subscription endpoint tests. CRUD round-trip; the admin-level auth matrix
 // (AgentAdministrator admitted, HumanUser/AgentUser 403 on every verb); the secret-never-leaks floor
 // asserted against the actual serialized bytes; the SSRF registration check un-bypassable from REST;
 // the secret set/keep/clear contract; and the ping endpoint (a private target with the flag off

@@ -11,9 +11,9 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// WebhookSubscriptionStore tests (#326) — the shared CRUD/validation core both REST and MCP will
+// WebhookSubscriptionStore tests — the shared CRUD/validation core both REST and MCP
 // delegate to. The store is tested directly against a WAF DI scope (the MCP-tools convention), not
-// through an HTTP surface (there is none in this slice). The load-bearing security assertions live
+// through an HTTP surface (the store has no HTTP surface of its own). The load-bearing security assertions live
 // here: the write-only secret never appears in any read projection, and the SSRF registration check
 // is un-bypassable.
 public sealed class WebhookSubscriptionStoreTests
@@ -85,7 +85,7 @@ public sealed class WebhookSubscriptionStoreTests
             new WebhookSubscriptionInput(_publicUrl, [WebhookEventTypes.Wildcard, WebhookEventTypes.CardCreated], null, null, null),
             CancellationToken.None);
 
-        // N1 — the wildcard stands alone; the co-listed explicit type is dropped.
+        // The wildcard stands alone; the co-listed explicit type is dropped.
         view.Events.ShouldBe([WebhookEventTypes.Wildcard]);
     }
 
@@ -224,7 +224,7 @@ public sealed class WebhookSubscriptionStoreTests
         updated!.Signed.ShouldBeFalse();
     }
 
-    // ── S1 — PATCH re-validates the URL only when it changes ─────────────────────
+    // ── PATCH re-validates the URL only when it changes ─────────────────────
 
     [Fact]
     public async Task Update_DisableMigratedPrivateUrl_FlagOff_Succeeds_WithoutReValidatingUrl()
@@ -239,7 +239,7 @@ public sealed class WebhookSubscriptionStoreTests
         await db.SaveChangesAsync();
 
         // The operator's remediation: disable the failing webhook. Must NOT re-validate the
-        // unchanged private URL (S1) — otherwise the row could only be deleted, never disabled.
+        // unchanged private URL — otherwise the row could only be deleted, never disabled.
         var updated = await store.UpdateAsync(
             seeded.Id,
             new WebhookSubscriptionPatch(Url: null, Events: null, Secret: null, ClearSecret: false, Enabled: false, Name: null),
