@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 namespace Collaboard.Api.Models;
@@ -120,6 +121,12 @@ public record CardSummary
     string DescriptionMarkdown,
     Guid SizeId,
     string SizeName,
+    // An archived card's lane is the board's hidden internal archive lane, whose GUID is an
+    // implementation detail of no use to an external consumer — the card.archived webhook payload
+    // omits it (laneName + isArchived carry the relevant state) by emitting a default lane id, which
+    // this drops from the wire. A real card always carries its (non-default) lane id, so REST and the
+    // other events are unaffected.
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     Guid LaneId,
     int Position,
     Guid CreatedByUserId,

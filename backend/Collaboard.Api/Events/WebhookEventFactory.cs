@@ -145,7 +145,7 @@ internal static class WebhookEventFactory
         CancellationToken ct
     )
     {
-        var boardEvent = await BuildCardSummaryEventAsync(db, WebhookEventTypes.CardArchived, card, actor, (summary, laneName) => new WebhookCardArchivedData(summary, laneName), ct);
+        var boardEvent = await BuildCardSummaryEventAsync(db, WebhookEventTypes.CardArchived, card, actor, (summary, laneName) => new WebhookCardArchivedData(ForArchived(summary), laneName), ct);
         broadcaster.Publish(boardEvent);
     }
 
@@ -203,7 +203,7 @@ internal static class WebhookEventFactory
         BoardUser actor,
         CancellationToken ct
     ) =>
-        BuildCardSummaryEventBatchAsync(db, WebhookEventTypes.CardArchived, cards, actor, (summary, laneName) => new WebhookCardArchivedData(summary, laneName), ct);
+        BuildCardSummaryEventBatchAsync(db, WebhookEventTypes.CardArchived, cards, actor, (summary, laneName) => new WebhookCardArchivedData(ForArchived(summary), laneName), ct);
 
     public static Task<List<BoardEvent>> BuildCardRestoredBatchAsync
     (
@@ -730,6 +730,11 @@ internal static class WebhookEventFactory
         var summaries = await CardSummaryBuilder.BuildAsync(db, [card], ct);
         return summaries[0];
     }
+
+    // An archived card's lane is the board's hidden internal archive lane; its GUID is an internal
+    // implementation detail, so card.archived blanks the embedded summary's lane id (it drops off the
+    // wire — see CardSummary.LaneId). laneName + isArchived carry the state a consumer needs.
+    private static CardSummary ForArchived(CardSummary summary) => summary with { LaneId = default };
 
     private static async Task<string> ResolveBoardSlugAsync(BoardDbContext db, Guid boardId, CancellationToken ct) =>
         await db.Boards
