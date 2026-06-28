@@ -256,8 +256,20 @@ public sealed class WebhookCardCatalogTests(WebhookTestFactory factory) : IClass
 
         sink.Captured.Select(e => e.EventType).ShouldBe(["card.archived", "card.restored"]);
         sink.Captured.ShouldNotContain(e => e.EventType == "card.moved");
-        Serialize(sink.Captured[0]).GetProperty("data").GetProperty("card").GetProperty("isArchived").GetBoolean().ShouldBeTrue();
-        Serialize(sink.Captured[1]).GetProperty("data").GetProperty("card").GetProperty("isArchived").GetBoolean().ShouldBeFalse();
+
+        // card.archived: the internal archive-lane GUID is dropped from the embedded card (an
+        // implementation detail of no use to a consumer), while laneName + isArchived stay.
+        var archivedData = Serialize(sink.Captured[0]).GetProperty("data");
+        var archivedCard = archivedData.GetProperty("card");
+        archivedCard.GetProperty("isArchived").GetBoolean().ShouldBeTrue();
+        archivedCard.TryGetProperty("laneId", out _).ShouldBeFalse("card.archived must not leak the archive-lane GUID");
+        archivedData.GetProperty("laneName").GetString().ShouldNotBeNullOrEmpty();
+
+        // card.restored: the card is back in a real target lane, so its laneId rides as normal.
+        var restoredCard = Serialize(sink.Captured[1]).GetProperty("data").GetProperty("card");
+        restoredCard.GetProperty("isArchived").GetBoolean().ShouldBeFalse();
+        restoredCard.TryGetProperty("laneId", out var restoredLaneId).ShouldBeTrue();
+        restoredLaneId.GetGuid().ShouldBe(laneB);
     }
 
     // ── Bulk — one event per card, never card.moved for archive/restore ─────────

@@ -19,7 +19,13 @@ namespace Collaboard.Api.Tests;
 public sealed class WebhookSubscriptionStoreTests
 {
     private const string _publicUrl = "https://8.8.8.8/hook";
-    private const string _privateUrl = "http://127.0.0.1/hook";
+
+    // A genuinely-private RFC1918 LAN target — the legitimate allowPrivate case. Loopback and the
+    // cloud-metadata endpoint are NOT private LAN targets; they stay blocked even with the flag on
+    // (see the carve-out tests below), so they are kept as separate literals.
+    private const string _privateUrl = "http://10.0.0.1/hook";
+    private const string _loopbackUrl = "http://127.0.0.1/hook";
+    private const string _metadataUrl = "http://169.254.169.254/latest/meta-data";
 
     // ── Create + validation ──────────────────────────────────────────────────────
 
@@ -107,6 +113,22 @@ public sealed class WebhookSubscriptionStoreTests
             CancellationToken.None);
 
         view.Url.ShouldBe(_privateUrl);
+    }
+
+    [Theory]
+    [InlineData(_loopbackUrl)]
+    [InlineData(_metadataUrl)]
+    public async Task Create_LoopbackOrMetadata_FlagOn_IsStillRejected(string url)
+    {
+        // The carve-out at the un-bypassable seam: allowPrivate re-permits RFC1918 LAN targets, but
+        // never loopback or the cloud-metadata endpoint — so flipping the flag to reach a LAN host
+        // cannot also open an SSRF path to the metadata service.
+        await using var factory = await NewFactoryAsync();
+        await using var scope = factory.Services.CreateAsyncScope();
+        var store = NewStore(scope, allowPrivate: true);
+
+        await Should.ThrowAsync<WebhookValidationException>(() =>
+            store.CreateAsync(new WebhookSubscriptionInput(url, [WebhookEventTypes.CardCreated], null, null, null), CancellationToken.None));
     }
 
     // ── The load-bearing security assertion: the secret never leaks ──────────────

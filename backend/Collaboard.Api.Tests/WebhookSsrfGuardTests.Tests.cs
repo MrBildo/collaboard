@@ -48,6 +48,32 @@ public sealed class WebhookSsrfGuardTests
     public void IsBlockedAddress_AllowsPublicRanges(string ip) =>
         SsrfGuard.IsBlockedAddress(IPAddress.Parse(ip)).ShouldBeFalse($"{ip} should be allowed");
 
+    // ── IsBlockedAddress(allowPrivate: true) — the unconditional carve-out ────────
+
+    [Theory]
+    [InlineData("127.0.0.1")]            // loopback v4
+    [InlineData("::1")]                  // loopback v6
+    [InlineData("169.254.169.254")]      // link-local / cloud metadata
+    [InlineData("169.254.1.1")]          // link-local range
+    [InlineData("fe80::1")]              // v6 link-local
+    [InlineData("0.0.0.0")]              // unspecified
+    [InlineData("224.0.0.1")]            // multicast
+    [InlineData("::ffff:127.0.0.1")]     // IPv4-mapped loopback (must unwrap)
+    public void IsBlockedAddress_WithAllowPrivate_StillBlocksLoopbackAndLinkLocal(string ip) =>
+        SsrfGuard.IsBlockedAddress(IPAddress.Parse(ip), allowPrivate: true)
+            .ShouldBeTrue($"{ip} must stay blocked even with allowPrivate");
+
+    [Theory]
+    [InlineData("10.0.0.1")]             // RFC1918 10/8
+    [InlineData("172.16.0.1")]           // RFC1918 172.16/12 low
+    [InlineData("172.31.255.254")]       // RFC1918 172.16/12 high
+    [InlineData("192.168.1.1")]          // RFC1918 192.168/16
+    [InlineData("fc00::1")]              // v6 unique-local
+    [InlineData("::ffff:10.0.0.1")]      // IPv4-mapped RFC1918 (must unwrap)
+    public void IsBlockedAddress_WithAllowPrivate_PermitsRfc1918(string ip) =>
+        SsrfGuard.IsBlockedAddress(IPAddress.Parse(ip), allowPrivate: true)
+            .ShouldBeFalse($"{ip} should be permitted with allowPrivate");
+
     // ── ValidateForRegistration — scheme + resolve-and-deny (controls 1-2) ───────
 
     [Theory]
@@ -74,12 +100,41 @@ public sealed class WebhookSsrfGuardTests
         await Should.ThrowAsync<WebhookValidationException>(validate);
     }
 
-    [Fact]
-    public async Task ValidateForRegistration_AcceptsPrivateLiteral_WhenFlagOn()
+    [Theory]
+    [InlineData("10.0.0.1")]             // RFC1918 10/8
+    [InlineData("172.16.0.1")]           // RFC1918 172.16/12
+    [InlineData("192.168.1.1")]          // RFC1918 192.168/16
+    public async Task ValidateForRegistration_AcceptsRfc1918_WhenFlagOn(string ip)
     {
-        // allowPrivate short-circuits the IP denylist — the operator override.
-        var validate = () => SsrfGuard.ValidateForRegistrationAsync("http://127.0.0.1/hook", allowPrivate: true, CancellationToken.None);
+        // allowPrivate re-permits the genuinely-private LAN ranges — the operator override for a
+        // self-hosted target on a LAN/Tailscale address.
+        var validate = () => SsrfGuard.ValidateForRegistrationAsync
+        (
+            $"http://{ip}/hook",
+            allowPrivate: true,
+            ResolvesTo(IPAddress.Parse(ip)),
+            CancellationToken.None
+        );
+
         await Should.NotThrowAsync(validate);
+    }
+
+    [Theory]
+    [InlineData("127.0.0.1")]            // loopback — never re-opened by the flag
+    [InlineData("169.254.169.254")]      // cloud-metadata endpoint — never re-opened by the flag
+    public async Task ValidateForRegistration_StillRejectsLoopbackAndMetadata_WhenFlagOn(string ip)
+    {
+        // The carve-out: loopback and the link-local/cloud-metadata range stay blocked even with
+        // allowPrivate set, so turning the flag on to reach a LAN host cannot expose them.
+        var validate = () => SsrfGuard.ValidateForRegistrationAsync
+        (
+            $"http://{ip}/hook",
+            allowPrivate: true,
+            ResolvesTo(IPAddress.Parse(ip)),
+            CancellationToken.None
+        );
+
+        await Should.ThrowAsync<WebhookValidationException>(validate);
     }
 
     [Fact]
@@ -154,18 +209,39 @@ public sealed class WebhookSsrfGuardTests
     }
 
     [Fact]
-    public async Task ConnectPin_PermitsLoopback_WhenFlagOn()
+    public async Task ConnectPin_PermitsRfc1918_WhenFlagOn()
     {
-        // The flag flips the gate: a private target is permitted at connect (resumes delivery for a
-        // migrated private-URL subscription once the operator sets the flag).
+        // The flag flips the gate for a genuinely-private LAN target: it is permitted at connect
+        // (resumes delivery for a migrated private-URL subscription once the operator sets the flag).
+        var privateIp = IPAddress.Parse("10.0.0.5");
+
         var endpoint = await SsrfGuard.ResolveAndValidateEndpointAsync(
             "internal.example.com",
             443,
             allowPrivate: true,
-            ResolvesTo(IPAddress.Loopback),
+            ResolvesTo(privateIp),
             CancellationToken.None);
 
-        endpoint.Address.ShouldBe(IPAddress.Loopback);
+        endpoint.Address.ShouldBe(privateIp);
+    }
+
+    [Theory]
+    [InlineData("127.0.0.1")]            // loopback — never re-opened by the flag
+    [InlineData("169.254.169.254")]      // cloud-metadata endpoint — never re-opened by the flag
+    public async Task ConnectPin_StillBlocksLoopbackAndMetadata_WhenFlagOn(string ip)
+    {
+        // The carve-out at connect: loopback and the link-local/cloud-metadata range stay blocked
+        // even with allowPrivate set — a rebind to either cannot be reached via the flag.
+        var connect = () => SsrfGuard.ResolveAndValidateEndpointAsync
+        (
+            "internal.example.com",
+            443,
+            allowPrivate: true,
+            ResolvesTo(IPAddress.Parse(ip)),
+            CancellationToken.None
+        ).AsTask();
+
+        await Should.ThrowAsync<WebhookSsrfBlockedException>(connect);
     }
 
     // ── End-to-end: a blocked connect surfaces as a Failed delivery attempt (S3a) ─
