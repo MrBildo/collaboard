@@ -22,6 +22,7 @@ import {
   buildWebhookCreateInput,
   buildWebhookUpdatePatch,
   isWildcard,
+  willBeSigned,
   type WebhookFormState,
 } from '@/lib/webhooks';
 import { useWebhookEventCatalog } from '@/hooks/use-webhooks';
@@ -123,6 +124,14 @@ function WebhookForm({ subscription, onDone }: WebhookFormProps) {
   const hasEvents = sendAll || selected.length > 0;
   const canSubmit = url.trim().length > 0 && hasEvents && !isPending;
 
+  // The indicator reflects live typed state through the same predicate the submit
+  // path uses, so the badge can never claim a signing posture the request won't
+  // produce (typed secret → Signed; clear → Unsigned; else the persisted flag).
+  const effectiveSigned = willBeSigned(
+    { url, name, enabled, sendAll, selected, secret, clearSecret },
+    subscription?.signed ?? false,
+  );
+
   const toggleEvent = (type: string, checked: boolean) => {
     setSelected((prev) => (checked ? [...prev, type] : prev.filter((t) => t !== type)));
   };
@@ -202,11 +211,11 @@ function WebhookForm({ subscription, onDone }: WebhookFormProps) {
             Signing secret <span className="font-normal text-muted-foreground">(optional)</span>
           </Label>
           <div className="flex items-center gap-2">
-            <Badge variant={subscription?.signed ? 'secondary' : 'outline'}>
-              {subscription?.signed ? 'Signed' : 'Unsigned'}
+            <Badge variant={effectiveSigned ? 'secondary' : 'outline'}>
+              {effectiveSigned ? 'Signed' : 'Unsigned'}
             </Badge>
             <span className="text-xs text-muted-foreground">
-              {subscription?.signed
+              {effectiveSigned
                 ? 'A secret is set — deliveries are signed (HMAC-SHA256).'
                 : 'No secret set — deliveries are unsigned.'}
             </span>

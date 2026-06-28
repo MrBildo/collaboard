@@ -155,6 +155,53 @@ describe('WebhookFormDialog submit payload', () => {
   });
 });
 
+// The signed/unsigned indicator must track what the operator is typing, not just
+// the persisted state — otherwise the create flow shows "Unsigned" the whole time
+// a secret is being entered. And it must agree with the submit path: a
+// whitespace-only secret reads as Unsigned AND is not sent as a secret (an
+// invisible HMAC key in a masked field is a fat-finger, not a credential).
+describe('WebhookFormDialog secret indicator', () => {
+  test('typing a secret flips the indicator to Signed in the create flow', async () => {
+    mockCatalog.mockResolvedValue(CATALOG);
+    const user = userEvent.setup();
+    renderDialog();
+
+    // A fresh create dialog starts Unsigned.
+    expect(await screen.findByText('Unsigned')).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText(/signing secret/i), 'my-secret');
+
+    expect(screen.getByText('Signed')).toBeInTheDocument();
+    expect(screen.queryByText('Unsigned')).not.toBeInTheDocument();
+  });
+
+  test('a whitespace-only secret stays Unsigned and is not submitted as a secret', async () => {
+    mockCatalog.mockResolvedValue(CATALOG);
+    mockCreate.mockResolvedValue(makeSubscription(['card.created']));
+    const user = userEvent.setup();
+    renderDialog();
+
+    await user.type(await screen.findByLabelText('Payload URL'), 'https://example.com/hook');
+    await user.type(screen.getByLabelText(/signing secret/i), '   ');
+
+    // The indicator agrees with the submit gate: whitespace is not a secret.
+    expect(screen.getByText('Unsigned')).toBeInTheDocument();
+    expect(screen.queryByText('Signed')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('checkbox', { name: /card\.created/i }));
+    await user.click(screen.getByRole('button', { name: /create webhook/i }));
+
+    // No secret key in the request body — the whitespace was dropped, not signed with.
+    await waitFor(() => {
+      expect(mockCreate).toHaveBeenCalledWith({
+        url: 'https://example.com/hook',
+        events: ['card.created'],
+        enabled: true,
+      });
+    });
+  });
+});
+
 // When a create is rejected, the operator's attention is on this dialog, so the
 // failure surfaces inline here. The content that surfaces must be the server's
 // actionable message — not axios's generic "Request failed with status code
