@@ -2,6 +2,7 @@ import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AxiosError, AxiosHeaders } from 'axios';
 import type { ReactNode } from 'react';
 
 import { WebhookFormDialog } from './WebhookFormDialog';
@@ -151,5 +152,57 @@ describe('WebhookFormDialog submit payload', () => {
         enabled: true,
       });
     });
+  });
+});
+
+// When a create is rejected, the operator's attention is on this dialog, so the
+// failure surfaces inline here. The content that surfaces must be the server's
+// actionable message — not axios's generic "Request failed with status code
+// 400", which is what buried the real SSRF diagnosis (#339). The API returns the
+// message as a bare JSON string on its validation 400s (Results.BadRequest(msg)),
+// so axios parses error.response.data to that string.
+describe('WebhookFormDialog error surfacing (#339)', () => {
+  const SSRF_MESSAGE =
+    "Webhook host 'collaboard.collabot.dev' resolves to a private or otherwise blocked " +
+    'address (192.168.50.135); set Webhooks:AllowPrivateNetworkTargets to allow it.';
+
+  function badRequest(body: unknown): AxiosError {
+    const response = {
+      data: body,
+      status: 400,
+      statusText: 'Bad Request',
+      headers: {},
+      config: { headers: new AxiosHeaders() },
+    };
+    return new AxiosError(
+      'Request failed with status code 400',
+      'ERR_BAD_REQUEST',
+      undefined,
+      undefined,
+      // The AxiosResponse cast mirrors the shape axios builds; the test only
+      // reads .data / .status off it.
+      response as AxiosError['response'],
+    );
+  }
+
+  test("renders the server's 400 message inline, not the generic axios string", async () => {
+    mockCatalog.mockResolvedValue(CATALOG);
+    mockCreate.mockRejectedValue(badRequest(SSRF_MESSAGE));
+    const user = userEvent.setup();
+    renderDialog();
+
+    await user.type(
+      await screen.findByLabelText('Payload URL'),
+      'https://collaboard.collabot.dev/hook',
+    );
+    await user.click(screen.getByRole('checkbox', { name: /card\.created/i }));
+    await user.click(screen.getByRole('button', { name: /create webhook/i }));
+
+    // The actionable server message reaches the inline error...
+    expect(
+      await screen.findByText(/resolves to a private or otherwise blocked address/),
+    ).toBeInTheDocument();
+    // ...and the generic axios status-code string never reaches the operator.
+    expect(screen.queryByText('Request failed with status code 400')).not.toBeInTheDocument();
   });
 });
