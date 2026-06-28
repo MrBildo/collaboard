@@ -244,3 +244,23 @@ export const webhookTestResultSchema = z.object({
   statusCode: z.number().nullable(),
   error: z.string().nullable(),
 });
+
+// The selectable event catalog (GET /webhooks/event-types) — the single
+// server-side source of truth the subscription picker renders (#336). A list of
+// family groups, each carrying its display `label` and ordered events. An event's
+// `type` is the value a subscription selects; `label` is the display token (the
+// machine event-type string — what an integrator picks by), with the prose in
+// `description`. The server owns all display naming, so the picker renders these
+// groups generically and a new backend event appears automatically — no
+// frontend-hardcoded copy to drift.
+export const webhookEventOptionSchema = z.object({
+  type: z.string(),
+  label: z.string(),
+  description: z.string(),
+});
+
+export const webhookEventGroupSchema = z.object({
+  family: z.string(),
+  label: z.string(),
+  events: z.array(webhookEventOptionSchema),
+});

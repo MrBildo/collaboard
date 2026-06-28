@@ -10,6 +10,7 @@ vi.mock('@/lib/api', () => ({
   fetchWebhookSubscriptions: vi.fn(),
   fetchWebhookDeliveries: vi.fn(),
   fetchWebhookStatus: vi.fn(),
+  fetchWebhookEventCatalog: vi.fn(),
   createWebhookSubscription: vi.fn(),
   updateWebhookSubscription: vi.fn(),
   deleteWebhookSubscription: vi.fn(),

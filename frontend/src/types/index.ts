@@ -25,6 +25,8 @@ import type {
   webhookDeliveriesPageSchema,
   webhookStatusSchema,
   webhookTestResultSchema,
+  webhookEventOptionSchema,
+  webhookEventGroupSchema,
 } from '@/lib/schemas';
 
 export type Board = z.infer<typeof boardSchema>;
@@ -79,6 +81,8 @@ export type WebhookDelivery = z.infer<typeof webhookDeliverySchema>;
 export type WebhookDeliveriesPage = z.infer<typeof webhookDeliveriesPageSchema>;
 export type WebhookStatus = z.infer<typeof webhookStatusSchema>;
 export type WebhookTestResult = z.infer<typeof webhookTestResultSchema>;
+export type WebhookEventOption = z.infer<typeof webhookEventOptionSchema>;
+export type WebhookEventGroup = z.infer<typeof webhookEventGroupSchema>;
 
 // Create payload — `events` is required and non-empty (or `["*"]`). An omitted
 // `secret` creates an unsigned subscription. `enabled` defaults to true server-side.

@@ -32,6 +32,7 @@ import type {
   WebhookStatus,
   WebhookSubscription,
   WebhookTestResult,
+  WebhookEventGroup,
 } from '@/types';
 import { findUserKey } from '@/lib/auth';
 import { getApiBaseUrl } from '@/lib/runtime-config';
@@ -59,6 +60,7 @@ import {
   versionSchema,
   versionStatusSchema,
   webhookDeliveriesPageSchema,
+  webhookEventGroupSchema,
   webhookStatusSchema,
   webhookSubscriptionSchema,
   webhookTestResultSchema,
@@ -463,4 +465,12 @@ export async function fetchWebhookDeliveries(params?: {
 export async function fetchWebhookStatus(): Promise<WebhookStatus> {
   const { data } = await api.get('/webhooks/status');
   return webhookStatusSchema.parse(data);
+}
+
+// The full selectable event catalog — the server-side source of truth the
+// subscription picker renders (#336). Static within a session; the form groups
+// render in array order (no client-side sort).
+export async function fetchWebhookEventCatalog(): Promise<WebhookEventGroup[]> {
+  const { data } = await api.get('/webhooks/event-types');
+  return z.array(webhookEventGroupSchema).parse(data);
 }
