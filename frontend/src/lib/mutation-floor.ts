@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { MutationCache, type Mutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
@@ -26,8 +27,40 @@ declare module '@tanstack/react-query' {
   }
 }
 
+// Surface the most actionable message we have for a failed mutation. For an
+// axios error the API's validation 400s carry a plain-string body that names
+// exactly what to fix (e.g. the webhook SSRF rejection: "...resolves to a
+// private or otherwise blocked address (192.168.50.135); set
+// Webhooks:AllowPrivateNetworkTargets to allow it."), whereas axios's own
+// error.message is the generic "Request failed with status code 400" that
+// buries it. Prefer the server's body; fall back to the generic message only
+// when there is no usable body (network error, empty/HTML 500, etc.).
 function toMessage(error: unknown): string {
+  if (axios.isAxiosError(error)) {
+    const serverMessage = serverMessageFrom(error.response?.data);
+    if (serverMessage) return serverMessage;
+  }
   return error instanceof Error ? error.message : String(error);
+}
+
+// Pull a human-readable message out of a response body. The API returns the
+// message as a bare JSON string on its validation 400s (Results.BadRequest(msg));
+// other framework responses use ProblemDetails ({ detail, title }) or a
+// { message } object. An HTML body (a proxy or unhandled-500 error page) is not
+// an actionable message — skip it so the generic fallback wins.
+function serverMessageFrom(data: unknown): string | null {
+  if (typeof data === 'string') {
+    const trimmed = data.trim();
+    return trimmed.length > 0 && !trimmed.startsWith('<') ? trimmed : null;
+  }
+  if (data !== null && typeof data === 'object') {
+    const body = data as Record<string, unknown>;
+    for (const key of ['detail', 'message', 'title'] as const) {
+      const value = body[key];
+      if (typeof value === 'string' && value.trim().length > 0) return value.trim();
+    }
+  }
+  return null;
 }
 
 function prefersReducedMotion(): boolean {

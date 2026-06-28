@@ -2,7 +2,8 @@ import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider, useMutation } from '@tanstack/react-query';
 import { createElement, type ReactNode } from 'react';
-import { createMutationFloor } from './mutation-floor';
+import { AxiosError, AxiosHeaders } from 'axios';
+import { createMutationFloor, toMessage } from './mutation-floor';
 
 // The floor's whole job is that a mutation failure surfaces *something* —
 // either a toast (the floor) or, when the call site opts out, nothing from the
@@ -101,5 +102,63 @@ describe('createMutationFloor onSuccess', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockToastSuccess).toHaveBeenCalledWith('Saved', expect.anything());
+  });
+});
+
+// toMessage feeds the inline-error surfaces (the webhook form, card comments,
+// attachments, prune, etc.). The contract that matters: an axios error shows the
+// server's actionable body, NOT axios's generic status-code string — that
+// generic string is what buried the webhook SSRF diagnosis (#339).
+describe('toMessage', () => {
+  function axiosErrorWith(body: unknown): AxiosError {
+    const response = {
+      data: body,
+      status: 400,
+      statusText: 'Bad Request',
+      headers: {},
+      config: { headers: new AxiosHeaders() },
+    };
+    return new AxiosError(
+      'Request failed with status code 400',
+      'ERR_BAD_REQUEST',
+      undefined,
+      undefined,
+      response as AxiosError['response'],
+    );
+  }
+
+  test('returns the bare-string 400 body (Results.BadRequest(msg)), not the axios message', () => {
+    const serverMessage = "Webhook host 'x' resolves to a private or otherwise blocked address.";
+    expect(toMessage(axiosErrorWith(serverMessage))).toBe(serverMessage);
+  });
+
+  test('returns ProblemDetails.detail over the generic axios message', () => {
+    expect(
+      toMessage(axiosErrorWith({ title: 'Bad Request', detail: 'A payload URL is required.' })),
+    ).toBe('A payload URL is required.');
+  });
+
+  test('returns a { message } body', () => {
+    expect(toMessage(axiosErrorWith({ message: 'Events must be non-empty.' }))).toBe(
+      'Events must be non-empty.',
+    );
+  });
+
+  test('falls back to the generic axios message for an HTML error-page body', () => {
+    expect(toMessage(axiosErrorWith('<!DOCTYPE html><title>500</title>'))).toBe(
+      'Request failed with status code 400',
+    );
+  });
+
+  test('falls back to the generic axios message when there is no response body', () => {
+    expect(toMessage(new AxiosError('Network Error', 'ERR_NETWORK'))).toBe('Network Error');
+  });
+
+  test('handles a plain Error (non-axios)', () => {
+    expect(toMessage(new Error('boom'))).toBe('boom');
+  });
+
+  test('stringifies a non-Error throw', () => {
+    expect(toMessage('weird')).toBe('weird');
   });
 });
