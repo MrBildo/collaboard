@@ -10,6 +10,7 @@ import {
   isBlockedDelivery,
   isWildcard,
   successRate,
+  willBeSigned,
   type WebhookFormState,
 } from './webhooks';
 import type { WebhookDelivery, WebhookSubscription } from '@/types';
@@ -173,6 +174,25 @@ describe('successRate / formatSuccessRate', () => {
   });
 });
 
+describe('willBeSigned', () => {
+  test('a typed secret signs (create flow, nothing persisted)', () => {
+    expect(willBeSigned(makeFormState({ secret: 'k' }), false)).toBe(true);
+  });
+
+  test('no typed secret falls back to the persisted flag', () => {
+    expect(willBeSigned(makeFormState({ secret: '' }), true)).toBe(true);
+    expect(willBeSigned(makeFormState({ secret: '' }), false)).toBe(false);
+  });
+
+  test('a whitespace-only secret does not sign — it matches the unset submit gate', () => {
+    expect(willBeSigned(makeFormState({ secret: '   ' }), false)).toBe(false);
+  });
+
+  test('clearSecret wins over both a typed secret and the persisted flag', () => {
+    expect(willBeSigned(makeFormState({ secret: 'k', clearSecret: true }), true)).toBe(false);
+  });
+});
+
 describe('buildWebhookCreateInput', () => {
   test('builds the create payload, trimming url and name', () => {
     const input = buildWebhookCreateInput(
@@ -195,6 +215,16 @@ describe('buildWebhookCreateInput', () => {
   test('includes a typed secret', () => {
     const input = buildWebhookCreateInput(makeFormState({ secret: 's3cr3t' }));
     expect(input.secret).toBe('s3cr3t');
+  });
+
+  test('trims a typed secret so pasted whitespace never reaches the HMAC key', () => {
+    const input = buildWebhookCreateInput(makeFormState({ secret: '  s3cr3t  ' }));
+    expect(input.secret).toBe('s3cr3t');
+  });
+
+  test('treats a whitespace-only secret as no secret', () => {
+    const input = buildWebhookCreateInput(makeFormState({ secret: '   ' }));
+    expect(input.secret).toBeUndefined();
   });
 
   test('collapses to the wildcard when sendAll is on', () => {
@@ -224,6 +254,17 @@ describe('buildWebhookUpdatePatch — secret set / keep / clear', () => {
     const patch = buildWebhookUpdatePatch(signed, makeFormState({ secret: 'new-secret' }));
     expect(patch.secret).toBe('new-secret');
     expect(patch.clearSecret).toBeUndefined();
+  });
+
+  test('a replacement secret is trimmed', () => {
+    const patch = buildWebhookUpdatePatch(signed, makeFormState({ secret: '  new-secret  ' }));
+    expect(patch.secret).toBe('new-secret');
+  });
+
+  test('a whitespace-only secret keeps the current one (no replace)', () => {
+    const patch = buildWebhookUpdatePatch(signed, makeFormState({ secret: '   ' }));
+    expect('secret' in patch).toBe(false);
+    expect('clearSecret' in patch).toBe(false);
   });
 
   test('clearSecret wins over a typed secret', () => {

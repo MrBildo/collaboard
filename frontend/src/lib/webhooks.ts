@@ -105,6 +105,17 @@ export type WebhookFormState = {
   clearSecret: boolean;
 };
 
+// Whether the form state will result in a signed subscription. The single
+// notion of "a secret is being set", shared by the signed/unsigned indicator and
+// the submit builders so the two can never disagree: a whitespace-only secret is
+// treated as no secret (an invisible HMAC key in a masked field is a fat-finger,
+// not a credential), and clearSecret always wins.
+export function willBeSigned(state: WebhookFormState, currentlySigned: boolean): boolean {
+  if (state.clearSecret) return false;
+  if (state.secret.trim().length > 0) return true;
+  return currentlySigned;
+}
+
 export function buildWebhookCreateInput(state: WebhookFormState): CreateWebhookInput {
   const input: CreateWebhookInput = {
     url: state.url.trim(),
@@ -113,7 +124,11 @@ export function buildWebhookCreateInput(state: WebhookFormState): CreateWebhookI
   };
   const name = state.name.trim();
   if (name) input.name = name;
-  if (state.secret.length > 0) input.secret = state.secret;
+  // Trim the secret value, not just the gate: trailing whitespace pasted with a
+  // credential is invisible in a masked field and would silently break HMAC
+  // verification on the receiver. A whitespace-only secret trims to empty → unset.
+  const secret = state.secret.trim();
+  if (secret) input.secret = secret;
   return input;
 }
 
@@ -135,10 +150,13 @@ export function buildWebhookUpdatePatch(
   if (state.enabled !== subscription.enabled) patch.enabled = state.enabled;
   if (!arraysEqual(events, subscription.events)) patch.events = events;
 
+  // Same trim rationale as create: the value is trimmed, and a whitespace-only
+  // secret trims to empty → the key is omitted (kept unchanged), not replaced.
+  const secret = state.secret.trim();
   if (state.clearSecret) {
     patch.clearSecret = true;
-  } else if (state.secret.length > 0) {
-    patch.secret = state.secret;
+  } else if (secret) {
+    patch.secret = secret;
   }
 
   return patch;
