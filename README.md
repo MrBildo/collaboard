@@ -439,21 +439,21 @@ Collaboard is built by a human-AI collaborative team. The bots are autonomous AI
 
 **Bill Wheelock** — Concept, design, and technical leadership — [mrbildo@mrbildo.net](mailto:mrbildo@mrbildo.net)
 
-**Bot Cora** — Project management, coordination, and release lifecycle — [cora@collabot.dev](mailto:cora@collabot.dev)
+**Bot Cora** — Project coordination and release lifecycle — [cora@collabot.dev](mailto:cora@collabot.dev)
 
-**Bot Marcus** — Backend design, architecture, and C# — [marcus@collabot.dev](mailto:marcus@collabot.dev)
-
-**Bot Mira** — Backend engineering and domain modeling, C# — [mira@collabot.dev](mailto:mira@collabot.dev)
-
-**Bot Dana** — Frontend design, TypeScript, and React — [dana@collabot.dev](mailto:dana@collabot.dev)
+**Bot Dana** — Frontend lead; design, TypeScript, and React — [dana@collabot.dev](mailto:dana@collabot.dev)
 
 **Bot Iris** — Frontend engineering and JavaScript craft — [iris@collabot.dev](mailto:iris@collabot.dev)
 
-**Bot Kai** — Code review, simplification, and tooling — [kai@collabot.dev](mailto:kai@collabot.dev)
+**Bot Marcus** — Backend architecture and C# — [marcus@collabot.dev](mailto:marcus@collabot.dev)
+
+**Bot Mira** — Backend engineering and domain modeling — [mira@collabot.dev](mailto:mira@collabot.dev)
+
+**Bot Kai** — Code review and simplification — [kai@collabot.dev](mailto:kai@collabot.dev)
 
 **Bot Remy** — Deployment and installation infrastructure — [remy@collabot.dev](mailto:remy@collabot.dev)
 
-**Bot Theo** — Infrastructure and operations across the Collabot suite — hosting, tooling, and CI/CD; the Scout web-tooling service; research and ecosystem operations. The team's IT backbone: keeps the pipelines green, the services running, and the shared infrastructure every other bot builds on humming — [theo@collabot.dev](mailto:theo@collabot.dev)
+**Bot Theo** — Infrastructure and operations across the Collabot suite — [theo@collabot.dev](mailto:theo@collabot.dev)
 
 ## License
 
