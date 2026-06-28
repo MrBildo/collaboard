@@ -38,6 +38,7 @@ If you're building an AI harness, agent framework, or multi-agent system that ne
 
 - **First-class AI agent support** — a built-in MCP endpoint exposes the full board as tools. Agents create cards, move work, comment, label, archive, search, and manage attachments — see [For Agents](#for-agents).
 - **Real-time collaboration** — Server-Sent Events stream every change to every connected client. An agent moves a card and you see it move; no refresh.
+- **Outbound webhooks** — POST board events to any URL across a 22-event catalog (cards, comments, labels, attachments, lanes, boards). Manage subscriptions from a built-in admin screen, the REST API, or MCP — each with its own event selection, optional HMAC signing, and a delivery log. See [Webhooks](#webhooks).
 - **Drag-and-drop** — reorder cards within a lane, move them between lanes, and reorder whole lanes across the board.
 - **Rich Markdown rendering** — descriptions and comments render GitHub-flavored Markdown and then some: **syntax-highlighted code blocks**, **Mermaid diagrams** (flowcharts, sequence, and more, rendered inline), **emoji** shortcodes (`:rocket:` → 🚀), a safe **subset of inline HTML** (`<kbd>`, `<sub>`/`<sup>`, `<details>`, and friends), plus tables, task lists, and `#42` card auto-linking. See the [card tour](#a-tour) for a live example.
 - **Cross-board search** — find cards by name, description, or number (`#42`) across every board. Open it with `/` or `Ctrl+K`.
@@ -184,22 +185,23 @@ the next upgrade:
 | `Webhooks:DeliveryTimeout` | `00:00:05` | Per-POST timeout. A slow endpoint is treated as a failed attempt, not waited on. |
 | `Webhooks:MaxAttempts` | `3` | Delivery attempts per event (initial try plus retries) before the event is dropped. |
 | `Webhooks:RetryBackoffBase` | `00:00:02` | Wait before the first retry. Later retries grow it (roughly 4× per step) with a little jitter. |
-| `Webhooks:AllowPrivateNetworkTargets` | `false` | Security control for outbound delivery. When `false`, deliveries to private, internal, loopback, and link-local addresses are blocked, and such URLs are rejected when a subscription is created. Set `true` only if your consumer is legitimately on a private network (a LAN or Tailscale address). Takes effect on restart. **This is a breaking change when upgrading — see [Webhooks](#webhooks) below.** |
+| `Webhooks:AllowPrivateNetworkTargets` | `false` | Security control for outbound delivery. When `false`, deliveries to private, internal, loopback, and link-local addresses are blocked, and such URLs are rejected when a subscription is created. Setting `true` re-permits the **private LAN ranges only** (RFC1918 and IPv6 unique-local); loopback, link-local, and the cloud-metadata endpoint (`169.254.169.254`) stay blocked regardless. It's a single global all-or-nothing switch, takes effect on restart, and Tailscale `100.x` targets work without it. **This is a breaking change when upgrading — see [Webhooks](#webhooks) below.** |
 | `Webhooks:DeliveryLogRetentionDays` | `30` | Delivery-attempt log rows older than this many days are deleted on a daily sweep. Set to `0` to keep the log forever. |
 
 ### Webhooks
 
-Collaboard can POST a structured event to a URL of your choice whenever a card is
-created or moved — a callback-free way to drive automation (a workflow tool, a
-script, an agent) off board activity.
+Collaboard can POST a structured event to a URL of your choice whenever something
+happens on a board — a card created, moved, or labeled; a comment posted; a lane
+reordered; and more, across a 22-event catalog — a poll-free way to drive automation
+(a workflow tool, a script, an agent) off board activity.
 
 Delivery targets are managed as **subscriptions**. You can register more than one, and
 each carries its own URL, an optional signing secret, an enabled/disabled state, and a
-selection of which events it wants to receive. Subscriptions are created and managed
-through the API — and, for agents, through the MCP tools. A built-in admin screen is
-on the way; until then, manage subscriptions through the API. See the
-[Webhooks Integration Guide](docs/integrating-webhooks.md) for the walkthrough and the
-[API Reference](docs/api-reference.md#webhooks) for the exact endpoints.
+selection of which events it wants to receive. Manage them from the built-in
+**Webhooks admin screen** (in the Admin panel), the REST API, or — for agents — the
+MCP tools. See the [Webhooks Integration Guide](docs/integrating-webhooks.md) for the
+walkthrough and the [API Reference](docs/api-reference.md#webhooks) for the exact
+endpoints and the full event catalog.
 
 The `Webhooks:Enabled` setting in the table above is the global master switch — set it
 to `false` to pause every subscription at once. The other `Webhooks:*` settings are
@@ -221,14 +223,20 @@ kept) and apply to all subscriptions.
 > migrated subscription still exists and is visible through the API; only its deliveries
 > are paused.
 >
-> The blocked ranges are loopback (`127.0.0.0/8`, `::1`), the private ranges
-> (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), link-local (`169.254.0.0/16`,
-> `fe80::/10`), IPv6 unique-local (`fc00::/7`), and the unspecified and multicast
-> ranges. Ordinary public endpoints are unaffected — and so is the carrier-grade NAT
-> range `100.64.0.0/10`, which includes **Tailscale `100.x` addresses**: a webhook
-> pointed at a Tailscale `100.x` host keeps delivering without the flag. Set
-> `AllowPrivateNetworkTargets=true` only when you genuinely need a target on a LAN or
-> another private range.
+> The blocked ranges fall into two tiers. Setting `AllowPrivateNetworkTargets=true`
+> re-permits the **private LAN tier** — the RFC1918 ranges (`10.0.0.0/8`,
+> `172.16.0.0/12`, `192.168.0.0/16`) and IPv6 unique-local (`fc00::/7`) — so you can
+> reach a self-hosted tool on your LAN. An **always-blocked tier** stays blocked no
+> matter what the flag is set to: loopback (`127.0.0.0/8`, `::1`), link-local
+> (`169.254.0.0/16` — which carries the cloud-metadata endpoint `169.254.169.254` —
+> and `fe80::/10`), and the unspecified and multicast ranges. So turning the flag on to
+> reach a LAN host can never also expose your own loopback services or a cloud
+> provider's metadata service. The flag is a single global all-or-nothing switch — it
+> is not per-subscription.
+>
+> Ordinary public endpoints are unaffected — and so is the carrier-grade NAT range
+> `100.64.0.0/10`, which includes **Tailscale `100.x` addresses**: a webhook pointed at
+> a Tailscale `100.x` host keeps delivering without the flag.
 
 For the full event contract, the recursion guard you'll want before pointing this at
 anything that creates cards, and a step-by-step walkthrough, see the
@@ -354,7 +362,7 @@ Tools are grouped by workflow — discover the board, work cards, then manage th
 
 Collaboard is built for a small team — human and agent — to share one board they can both fully operate, then get out of the way. Here's what we built; use it the way that works for you.
 
-The board already streams every change live over a built-in event bus. The direction we're most excited about builds on that: **a surface for automation** — letting the board kick off outside work when something happens on it, so routine follow-through can run without anyone watching the lane.
+The board streams every change live over a built-in event bus, and **a surface for automation** now builds on that: [outbound webhooks](#webhooks) let the board kick off outside work when something happens on it, so routine follow-through can run without anyone watching the lane. From here we want to deepen that surface — more of the board's activity reachable by automation, and the delivery path made more durable.
 
 The guiding principle: flexibility in how you *use* Collaboard, deliberate restraint in what it *includes*. A focused set of things done well, not a configuration surface for every workflow.
 
@@ -431,21 +439,23 @@ Collaboard is built by a human-AI collaborative team. The bots are autonomous AI
 
 **Bill Wheelock** — Concept, design, and technical leadership — [mrbildo@mrbildo.net](mailto:mrbildo@mrbildo.net)
 
-**Bot Cora** — Project management, coordination, and release lifecycle — [cora@collabot.dev](mailto:cora@collabot.dev)
+**Bot Cora** — Project coordination and release lifecycle — [cora@collabot.dev](mailto:cora@collabot.dev)
 
-**Bot Marcus** — Backend design, architecture, and C# — [marcus@collabot.dev](mailto:marcus@collabot.dev)
-
-**Bot Mira** — Backend engineering and domain modeling, C# — [mira@collabot.dev](mailto:mira@collabot.dev)
-
-**Bot Dana** — Frontend design, TypeScript, and React — [dana@collabot.dev](mailto:dana@collabot.dev)
+**Bot Dana** — Frontend lead; design, TypeScript, and React — [dana@collabot.dev](mailto:dana@collabot.dev)
 
 **Bot Iris** — Frontend engineering and JavaScript craft — [iris@collabot.dev](mailto:iris@collabot.dev)
 
-**Bot Kai** — Code review, simplification, and tooling — [kai@collabot.dev](mailto:kai@collabot.dev)
+**Bot Marcus** — Backend architecture and C# — [marcus@collabot.dev](mailto:marcus@collabot.dev)
+
+**Bot Mira** — Backend engineering and domain modeling — [mira@collabot.dev](mailto:mira@collabot.dev)
+
+**Bot Alan** — Backend performance engineering; allocations, spans, and benchmarks — [alan@collabot.dev](mailto:alan@collabot.dev)
+
+**Bot Kai** — Code review and simplification — [kai@collabot.dev](mailto:kai@collabot.dev)
 
 **Bot Remy** — Deployment and installation infrastructure — [remy@collabot.dev](mailto:remy@collabot.dev)
 
-**Bot Theo** — Infrastructure and operations across the Collabot suite — hosting, tooling, and CI/CD; the Scout web-tooling service; research and ecosystem operations. The team's IT backbone: keeps the pipelines green, the services running, and the shared infrastructure every other bot builds on humming — [theo@collabot.dev](mailto:theo@collabot.dev)
+**Bot Theo** — Infrastructure and operations across the Collabot suite — [theo@collabot.dev](mailto:theo@collabot.dev)
 
 ## License
 

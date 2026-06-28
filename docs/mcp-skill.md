@@ -24,7 +24,7 @@ It uses the **streamable HTTP** transport. Point your MCP client at
 with `/mcp` appended. If you don't know the base URL at runtime, the
 `get_api_info` tool returns it along with the REST API prefix.
 
-The endpoint hosts **38 tools** across these groups:
+The endpoint hosts **44 tools** across these groups:
 
 | Group | Tools |
 |---|---|
@@ -36,10 +36,11 @@ The endpoint hosts **38 tools** across these groups:
 | Attachments | `upload_attachment`, `download_attachment`, `delete_attachment` |
 | Labels | `get_labels`, `create_label`, `update_label`, `delete_label`, `add_label_to_card`, `remove_label_from_card` |
 | Lanes | `create_lane`, `update_lane`, `reorder_lanes`, `delete_lane` |
-| Sizes | `create_size`, `update_size`, `delete_size` |
+| Sizes | `create_size`, `update_size`, `delete_size`, `reorder_sizes` |
 | Prune | `prune_preview`, `prune` |
 | Bulk | `bulk_archive_cards`, `bulk_restore_cards`, `bulk_update_cards` |
 | Search | `search_cards` |
+| Webhooks | `create_webhook`, `list_webhooks`, `update_webhook`, `delete_webhook`, `test_webhook` |
 
 ---
 
@@ -447,6 +448,14 @@ board is a conflict.
 Delete a size. A size in use by any card cannot be deleted.
 - **Params:** `authKey`, `sizeId` (GUID).
 
+#### `reorder_sizes` *(admin-level)*
+Reorder *all* of a board's sizes in one call. Pass `orderedSizeIds` as a CSV of size
+GUIDs giving the **complete** desired order. It must be exactly the board's current
+size set — no missing, extra, duplicate, or unknown IDs — or the call fails with no
+change. The server then assigns dense ordinals `0, 1, 2, …`. Returns the reordered
+sizes.
+- **Params:** `authKey`, `boardId` (GUID), `orderedSizeIds` (CSV of GUIDs).
+
 ### Board CRUD
 
 #### `create_board` *(admin-level)*
@@ -514,6 +523,53 @@ labels) is set, all cards must share one board.
 
 > There is no `bulk_delete_cards`. Deletion is irreversible and is intentionally
 > kept off the MCP surface — archive (reversible) is the bulk-removal path.
+
+### Webhooks (admin-level)
+
+Collaboard can POST board events to an outbound URL. Delivery targets are
+**subscriptions** — each with its own URL, an optional HMAC signing secret, an
+enabled/disabled state, and a selection of which event types it wants (a 22-event
+catalog spanning cards, comments, labels, attachments, lanes, and boards, or the `*`
+wildcard for all of them). These tools manage subscriptions; they are **all
+admin-level**. The secret is **write-only** — you set it here, but no read ever returns
+it (a `signed` boolean reports whether one is set).
+
+For safety, a subscription URL that resolves to a private, internal, loopback, or
+cloud-metadata address is rejected at creation (and blocked at delivery) unless the
+host operator has set `Webhooks:AllowPrivateNetworkTargets`. The exact event catalog,
+payload shapes, and host settings live in the
+[API Reference](api-reference.md#webhooks) and the
+[Webhooks Integration Guide](integrating-webhooks.md).
+
+#### `create_webhook` *(admin-level)*
+Create a subscription.
+- **Params:** `authKey`, `url`, `events` (CSV of event types, or `*`). Optional:
+  `secret` (the HMAC key — write-only), `enabled` (default `true`), `name`.
+- Returns the created subscription, secret-free (`signed: true`/`false`).
+
+#### `list_webhooks` *(admin-level)*
+List every subscription (global — not board-scoped), each with its event selection,
+`signed` flag, and delivery metrics (success/failure counts, last-delivery status and
+time). Never returns a secret.
+- **Params:** `authKey`.
+
+#### `update_webhook` *(admin-level)*
+Update a subscription; any field you omit is left unchanged. The secret follows a
+set / keep / clear rule: omit `secret` to keep it, pass `secret` to replace it, or pass
+`clearSecret: true` to remove it (the subscription goes unsigned).
+- **Params:** `authKey`, `webhookId` (GUID). Optional: `url`, `events`, `secret`,
+  `clearSecret`, `enabled`, `name`.
+
+#### `delete_webhook` *(admin-level)*
+Delete a subscription. Its delivery-log history is kept.
+- **Params:** `authKey`, `webhookId` (GUID).
+
+#### `test_webhook` *(admin-level)*
+Send a synchronous test delivery (a `webhook.ping`) to one subscription through the
+exact same path a real event takes — same private-network guard, same signing — and
+return the outcome (`{ success, statusCode, error? }`) inline. It records a row in the
+delivery log like any other attempt.
+- **Params:** `authKey`, `webhookId` (GUID).
 
 ---
 
