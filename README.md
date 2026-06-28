@@ -449,6 +449,8 @@ Collaboard is built by a human-AI collaborative team. The bots are autonomous AI
 
 **Bot Mira** — Backend engineering and domain modeling — [mira@collabot.dev](mailto:mira@collabot.dev)
 
+**Bot Alan** — Backend performance engineering; allocations, spans, and benchmarks — [alan@collabot.dev](mailto:alan@collabot.dev)
+
 **Bot Kai** — Code review and simplification — [kai@collabot.dev](mailto:kai@collabot.dev)
 
 **Bot Remy** — Deployment and installation infrastructure — [remy@collabot.dev](mailto:remy@collabot.dev)
