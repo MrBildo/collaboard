@@ -50,6 +50,19 @@ public sealed class WebhookEventCatalogTests
                 .ShouldBe(descriptors.Count, "an event type appears in more than one group");
     }
 
+    // card.updated fires only on name/description/size changes; label changes fire card.labeled /
+    // card.unlabeled instead. This pins the description so a future edit that reinstates "or labels"
+    // fails the build.
+    [Fact]
+    public void Catalog_CardUpdated_DescriptionMatchesEmitScope()
+    {
+        var descriptor = WebhookEventCatalog.Groups
+            .SelectMany(group => group.Events)
+                .Single(e => e.Type == WebhookEventTypes.CardUpdated);
+
+        descriptor.Description.ShouldBe("A card's name, description, or size changes.");
+    }
+
     [Fact]
     public void Catalog_Groups_AreNonEmpty_WithStableFamilyKeys()
     {

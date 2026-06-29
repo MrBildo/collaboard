@@ -26,7 +26,7 @@ public static class WebhookEventCatalog
             [
                 new WebhookEventDescriptor(WebhookEventTypes.CardCreated, "A card is created."),
                 new WebhookEventDescriptor(WebhookEventTypes.CardMoved, "A card moves to a different lane."),
-                new WebhookEventDescriptor(WebhookEventTypes.CardUpdated, "A card's name, description, size, or labels change."),
+                new WebhookEventDescriptor(WebhookEventTypes.CardUpdated, "A card's name, description, or size changes."),
                 new WebhookEventDescriptor(WebhookEventTypes.CardArchived, "A card is archived."),
                 new WebhookEventDescriptor(WebhookEventTypes.CardRestored, "A card is restored from the archive."),
                 new WebhookEventDescriptor(WebhookEventTypes.CardLabeled, "A label is added to a card."),
