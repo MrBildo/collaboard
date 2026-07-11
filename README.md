@@ -362,7 +362,7 @@ Tools are grouped by workflow — discover the board, work cards, then manage th
 
 Collaboard is built for a small team — human and agent — to share one board they can both fully operate, then get out of the way. Here's what we built; use it the way that works for you.
 
-The board streams every change live over a built-in event bus, and **a surface for automation** now builds on that: [outbound webhooks](#webhooks) let the board kick off outside work when something happens on it, so routine follow-through can run without anyone watching the lane. From here we want to deepen that surface — more of the board's activity reachable by automation, and the delivery path made more durable.
+The board streams every change live over a built-in event bus, and **a surface for automation** now builds on that: [outbound webhooks](#webhooks) let the board kick off outside work when something happens on it, so routine follow-through can run without anyone watching the lane. From here we're turning attention to the board itself: a cleaner, more refined interface; archiving a whole board, not just its cards; and steadier handling of attachments, on disk and in flight. More to come.
 
 The guiding principle: flexibility in how you *use* Collaboard, deliberate restraint in what it *includes*. A focused set of things done well, not a configuration surface for every workflow.
 
