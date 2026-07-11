@@ -256,7 +256,13 @@
     margin-top: 1rem !important;
   }
 
-  /* Card detail dialog: full-screen on mobile */
+  /* Card detail dialog: full-screen on mobile.
+     The centered-dialog base applies `-translate-x-1/2 -translate-y-1/2`. Tailwind v4
+     emits those through the standalone `translate` CSS property (v3 emitted them through
+     `transform`), so `transform: none` no longer neutralizes the centering shift — the
+     leaked `translate: -50% -50%` drags the inset-0 full-viewport dialog off the top-left
+     corner. Reset `translate` (and `scale`, also its own property in v4) so a true
+     fullscreen dialog stays anchored at 0,0. */
   [data-slot='dialog-content'][data-mobile-fullscreen] {
     inset: 0 !important;
     width: 100% !important;
@@ -264,6 +270,8 @@
     height: 100% !important;
     max-height: 100% !important;
     transform: none !important;
+    translate: none !important;
+    scale: none !important;
     border-radius: 0 !important;
   }
 }
