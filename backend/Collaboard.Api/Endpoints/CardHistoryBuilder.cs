@@ -159,9 +159,9 @@ internal static class CardHistoryBuilder
     {
         var editorIds = rows
             .Where(r => r.EditedByUserId is not null)
-            .Select(r => r.EditedByUserId!.Value)
-            .Distinct()
-                .ToList();
+                .Select(r => r.EditedByUserId!.Value)
+                .Distinct()
+                    .ToList();
 
         // A trail whose only row is the un-attributed oldest revision needs no user lookup at all.
         return editorIds.Count == 0

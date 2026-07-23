@@ -417,8 +417,6 @@ public class CardHistoryEndpointTests(CollaboardApiFactory factory) : IClassFixt
         rows[1].EditedAtUtc.ShouldNotBeNull();
     }
 
-    // --- Helpers ---
-
     private async Task<Guid> CreateCardAsync(string name, string descriptionMarkdown)
     {
         var laneId = await TestDataHelper.GetFirstLaneIdAsync(_client, _factory.DefaultBoardId);

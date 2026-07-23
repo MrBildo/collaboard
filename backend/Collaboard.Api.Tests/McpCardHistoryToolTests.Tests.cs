@@ -226,8 +226,6 @@ public class McpCardHistoryToolTests(CollaboardApiFactory factory) : IClassFixtu
         result.ShouldBe("Error: from and to must be supplied together.");
     }
 
-    // --- Helpers ---
-
     private static HistoryTools CreateHistoryTools(AsyncServiceScope scope) =>
         new
         (
