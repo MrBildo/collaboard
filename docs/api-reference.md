@@ -36,6 +36,7 @@ All endpoints are under `/api/v1/`. Authentication is via the `X-User-Key` heade
 | Lanes | `GET /lanes/{id}`, `PATCH /lanes/{id}`, `DELETE /lanes/{id}` |
 | Sizes | `GET /sizes/{id}`, `PATCH /sizes/{id}` (name/ordinal), `DELETE /sizes/{id}` (blocked if in use) |
 | Cards | `GET /cards/{id}` (enriched detail), `PATCH /cards/{id}`, `DELETE /cards/{id}`, `POST /cards/{id}/reorder`, `POST /cards/{id}/archive`, `POST /cards/{id}/restore` |
+| Card history | `GET /cards/{id}/history` — the card's description edit trail; see [Card History](#card-history) |
 
 ## Users
 
@@ -55,6 +56,110 @@ All endpoints are under `/api/v1/`. Authentication is via the `X-User-Key` heade
 | Card Labels | `GET /cards/{id}/labels`, `POST /cards/{id}/labels` (validates same board), `DELETE /cards/{id}/labels/{labelId}` |
 | Comments | `GET /cards/{id}/comments`, `POST /cards/{id}/comments`, `PATCH /comments/{id}`, `DELETE /comments/{id}` |
 | Attachments | `GET /cards/{id}/attachments`, `POST /cards/{id}/attachments` (5 MB via MCP / 50 MB via REST), `GET /attachments/{id}`, `DELETE /attachments/{id}` |
+
+## Card History
+
+Editing a card's description is recorded. `PATCH /cards/{id}` — and the MCP `update_card` tool, which shares the same capture — preserve the value they replace, so every version of a description stays recoverable along with who replaced it and when. The card mutation and its history entry commit together: a description can never replace an unrecorded one.
+
+Only the **description** is recorded today. The store is field-general (the `field` parameter exists for it), but no other field is captured yet.
+
+| Method | Path | Auth | Notes |
+|--------|------|------|-------|
+| GET | /cards/{id}/history | All | The card's description version trail, newest first. `404` if the card does not exist. |
+
+Reading history needs no permission beyond reading the card — any authenticated user who can read a card can read its history.
+
+### Query parameters
+
+| Param | Values | Default | Notes |
+|---|---|---|---|
+| `field` | `description` | `description` | Which field's trail to return; case-insensitive. An unrecognized field is a `400`, not an empty trail — on an audit surface a typo must not read as "this card has no history". |
+| `format` | `diff` \| `full` \| `both` | `both` | Whether each entry carries the unified diff of what that edit changed, the full value at that revision, or both. Case-insensitive; an unrecognized value is a `400`. (The MCP tool defaults to `diff` instead — see the [MCP skill](mcp-skill.md).) |
+| `from`, `to` | revision numbers | — | Supply **both** to compare two arbitrary revisions instead of walking the trail; the response is a different shape (below). One without the other is a `400`, as is a revision this card's trail does not have. |
+
+### Trail response
+
+```json
+{
+  "cardId": "a1b2c3d4-5e6f-7a8b-9c0d-1e2f3a4b5c6d",
+  "field": "description",
+  "entries": [
+    {
+      "revision": 3,
+      "editedByUserId": "52df8c11-2c9a-4d1e-8b3f-7a6e5d4c3b2a",
+      "editedByName": "Bill Wheelock",
+      "editedAtUtc": "2026-07-23T20:41:12.7731840+00:00",
+      "value": "the full description text at revision 3",
+      "diff": "@@ -1,2 +1,3 @@\n alpha\n gamma\n+delta\n"
+    },
+    {
+      "revision": 2,
+      "editedByUserId": "b4261f19-f9dd-4231-9b3f-1b01e725cb96",
+      "editedByName": "Agent Bot",
+      "editedAtUtc": "2026-07-23T20:39:03.1120040+00:00",
+      "value": "the full description text at revision 2",
+      "diff": "@@ -1,2 +1,2 @@\n alpha\n-beta\n+gamma\n"
+    },
+    {
+      "revision": 1,
+      "editedByUserId": null,
+      "editedByName": null,
+      "editedAtUtc": null,
+      "value": "the description as it stood when recording began",
+      "diff": ""
+    }
+  ]
+}
+```
+
+- `entries` is ordered **newest first**. Each entry is a *version* of the text, not an edit delta — so the newest entry's `value` is the card's current description, and `diff` answers "what did this edit change?".
+- `revision` is a monotonic integer starting at 1, unique within a card and field. It is the addressing scheme `from`/`to` uses.
+- **The oldest revision carries a `null` author and timestamp**, and only the oldest. History is not back-filled, so revision 1 holds whatever the description said when recording began — nobody observed it being written, and an audit trail should not attribute a value to someone who may not have written it. Every later revision is fully attributed. Render this case explicitly (*"original version — author unknown"*), not as an empty name or an invalid date.
+- The oldest revision's `diff` is `""` — an empty string, never `null`. There is nothing older to compare it against.
+- `value` and `diff` are **omitted from the JSON entirely** (not serialized as `null`) when the requested `format` does not include them, so `format=diff` carries no wasted padding.
+- The trail comes back **whole** — there is no paging or limit parameter — and the REST default `format=both` carries every full version *and* every diff. On a heavily edited card that is the largest response this API produces; ask for `format=diff` (or `full`) when you do not need both halves.
+
+### Pair response
+
+Supplying both `from` and `to` returns a single object rather than a list:
+
+```json
+{
+  "cardId": "a1b2c3d4-5e6f-7a8b-9c0d-1e2f3a4b5c6d",
+  "field": "description",
+  "from": 1,
+  "to": 3,
+  "diff": "@@ -1,1 +1,1 @@\n-one\n+three\n",
+  "fromValue": "one",
+  "toValue": "three"
+}
+```
+
+`diff`, `fromValue` and `toValue` are gated by `format` the same way the trail's `diff` and `value` are. The revisions are compared in the order given, so `from=3&to=1` returns the diff that would undo the change rather than an error.
+
+### The diff format
+
+Diffs are computed on read and rendered as a **git-style unified diff**: hunks only, no `---`/`+++` file headers (the envelope already names what is being compared), and `\n` line endings on every host.
+
+```
+@@ -1,2 +1,3 @@
+ alpha
+ gamma
++delta
+```
+
+- A line starting `@@ ` is a hunk header; `+` marks an addition, `-` a removal, and a single leading space unchanged context. The prefix is one character and is not part of the line's text.
+- Three lines of context surround each change. Nearby changes merge into one hunk; distant ones produce several `@@` hunks in the same string.
+- Empty ranges follow git's convention — a description that started empty diffs as `@@ -0,0 +1,4 @@`.
+- Ranges always carry an explicit count, including single-line ranges that git abbreviates: this renderer emits `@@ -1,1 +1,1 @@` where git would write `@@ -1 +1 @@`. Both forms are valid unified diff and every reader accepts them.
+
+### What does and does not accrue
+
+- **No back-fill.** A trail begins at a card's first description edit after this feature shipped; the value in place at that moment is preserved as revision 1. A card whose description has never been edited returns `entries: []`, and its current text remains available from `GET /cards/{id}`.
+- **No-op edits record nothing.** Saving a description identical to the current one adds no revision — including a `PATCH` that changes the lane or labels while carrying an unchanged description.
+- **Archived cards are frozen.** Their descriptions cannot be edited (`400`), so no history accrues; whatever they already have stays readable.
+- **Retention is unbounded.** History is never pruned — that is the point of an audit trail. It is deleted only with the card.
+- A description edit fires the existing `card.updated` webhook event; recording history adds no new event type.
 
 ## Search
 
@@ -77,7 +182,7 @@ Search supports:
 
 | Path | Notes |
 |------|-------|
-| /mcp | Streamable HTTP transport — 44 tools (boards, cards, lanes, sizes, labels, comments, attachments, archive, bulk operations, search, prune, webhooks) |
+| /mcp | Streamable HTTP transport — 45 tools (boards, cards, card history, lanes, sizes, labels, comments, attachments, archive, bulk operations, search, prune, webhooks) |
 
 ## Webhooks
 
