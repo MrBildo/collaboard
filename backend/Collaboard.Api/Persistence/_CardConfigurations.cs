@@ -45,6 +45,39 @@ internal sealed class CardItemConfiguration : IEntityTypeConfiguration<CardItem>
 }
 
 // sealed: a leaf configuration type; no subtype hierarchy is intended.
+internal sealed class CardFieldHistoryConfiguration : IEntityTypeConfiguration<CardFieldHistory>
+{
+    public void Configure(EntityTypeBuilder<CardFieldHistory> builder)
+    {
+        // Unique, not merely indexed: the revision ordinal is the trail's addressing scheme (the
+        // from/to pair read and the consecutive-diff chain both index by it), so two rows sharing a
+        // revision would silently corrupt the audit trail. Two edits racing the max+1 allocation
+        // fail loudly here instead. Also serves the trail read, which is always ordered by revision
+        // within one card and field.
+        builder.HasIndex(x => new { x.CardId, x.Field, x.Revision }).IsUnique();
+
+        // Field names are short lowercase identifiers ("description"); 40 leaves room for the
+        // compound names a later field increment might want without inviting free-form text.
+        builder.Property(x => x.Field).HasMaxLength(40);
+
+        builder.Property(x => x.EditedAtUtc).HasConversion(ValueConverters.SortableUtc);
+
+        builder
+            .HasOne<CardItem>().WithMany()
+            .HasForeignKey(x => x.CardId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // Restrict matches every other user reference in the model: users are deactivated, never
+        // deleted, so history keeps a resolvable editor. Null (the oldest row of a trail, whose
+        // author predates recording) is exempt from the constraint.
+        builder
+            .HasOne<BoardUser>().WithMany()
+            .HasForeignKey(x => x.EditedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+// sealed: a leaf configuration type; no subtype hierarchy is intended.
 internal sealed class CardCommentConfiguration : IEntityTypeConfiguration<CardComment>
 {
     public void Configure(EntityTypeBuilder<CardComment> builder)

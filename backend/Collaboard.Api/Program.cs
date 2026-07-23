@@ -488,6 +488,7 @@ api.MapUserEndpoints();
 api.MapLaneEndpoints();
 api.MapSizeEndpoints();
 api.MapCardEndpoints();
+api.MapCardHistoryEndpoints();
 api.MapLabelEndpoints();
 api.MapCommentEndpoints();
 api.MapAttachmentEndpoints();

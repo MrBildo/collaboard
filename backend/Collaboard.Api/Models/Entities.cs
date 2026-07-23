@@ -65,6 +65,27 @@ public class CardItem
     public bool IsTemp { get; set; }
 }
 
+// One recorded version of one card field's value. The store is deliberately field-general — the
+// Field discriminator lets title, size or lane history be added later without a schema change —
+// but only the description is captured today.
+//
+// A row is a VERSION, not an edit delta: Value is what the field said at that revision, so any two
+// revisions can be diffed against each other and no reconstruction chain is needed. The oldest row
+// of a trail is the value that was already in place when recording began; its author and time are
+// genuinely unknown (the trail is not back-filled), so both are null rather than attributed to the
+// card's creator or to the editor who happened to trigger the capture. An audit trail that guesses
+// at provenance is worse than one that admits the gap.
+public class CardFieldHistory
+{
+    public Guid Id { get; set; }
+    public Guid CardId { get; set; }
+    public string Field { get; set; } = string.Empty;
+    public int Revision { get; set; }
+    public string Value { get; set; } = string.Empty;
+    public Guid? EditedByUserId { get; set; }
+    public DateTimeOffset? EditedAtUtc { get; set; }
+}
+
 public class CardComment
 {
     public Guid Id { get; set; }
