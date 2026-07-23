@@ -86,9 +86,11 @@ export function GearMenu({
     setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
   };
 
-  // The current version shown in the footer prefers the status payload (always present once
-  // /version/status responds) and falls back to the plain /version string.
-  const currentVersion = versionStatus?.current ?? version;
+  // The current version shown in the footer prefers the plain /version string — it carries a
+  // shorter cache lifetime than the update-status payload, so it reflects a freshly deployed
+  // build sooner. Falls back to the status payload's `current` field when /version hasn't
+  // resolved yet.
+  const currentVersion = version ?? versionStatus?.current;
 
   // An update is "showable" only when the backend reports one AND the operator hasn't
   // dismissed this exact latest version. The dot and the link row share this gate, so a

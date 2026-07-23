@@ -94,4 +94,37 @@ describe('GearMenu update indicator', () => {
     expect(await screen.findByText('v1.16.0')).toBeInTheDocument();
     expect(screen.queryByLabelText('Update available')).not.toBeInTheDocument();
   });
+
+  test('prefers the fresher /version value over a stale status payload for the footer', async () => {
+    const user = userEvent.setup();
+    // version (5-minute staleTime) has already caught up to a new deploy; versionStatus
+    // (30-minute staleTime) still reflects the pre-deploy build. The footer must show the
+    // fresher value, not the stale one.
+    render(<GearMenu {...baseProps} version="1.16.1" versionStatus={statusUpToDate()} />);
+
+    await user.click(screen.getByRole('button'));
+
+    expect(await screen.findByText('v1.16.1')).toBeInTheDocument();
+    expect(screen.queryByText('v1.16.0')).not.toBeInTheDocument();
+  });
+
+  test('prefers the fresher /version value in the update-available link text too', async () => {
+    const user = userEvent.setup();
+    render(<GearMenu {...baseProps} version="1.16.1" versionStatus={statusWithUpdate()} />);
+
+    await user.click(screen.getByRole('button'));
+
+    expect(
+      await screen.findByRole('link', { name: /v1.16.1.*v1.17.0 available/i }),
+    ).toBeInTheDocument();
+  });
+
+  test('falls back to the status payload current version when /version has not resolved yet', async () => {
+    const user = userEvent.setup();
+    render(<GearMenu {...baseProps} versionStatus={statusUpToDate()} />);
+
+    await user.click(screen.getByRole('button'));
+
+    expect(await screen.findByText('v1.16.0')).toBeInTheDocument();
+  });
 });
