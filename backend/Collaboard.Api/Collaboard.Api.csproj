@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <ItemGroup>
+    <PackageReference Include="DiffPlex" Version="1.9.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.5" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.5">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

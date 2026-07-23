@@ -24,13 +24,14 @@ It uses the **streamable HTTP** transport. Point your MCP client at
 with `/mcp` appended. If you don't know the base URL at runtime, the
 `get_api_info` tool returns it along with the REST API prefix.
 
-The endpoint hosts **44 tools** across these groups:
+The endpoint hosts **45 tools** across these groups:
 
 | Group | Tools |
 |---|---|
 | System | `get_api_info` |
 | Boards | `get_boards`, `get_lanes`, `get_sizes`, `create_board`, `update_board` |
 | Cards | `create_card`, `move_card`, `update_card`, `get_cards`, `get_card` |
+| History | `get_card_history` |
 | Archive | `archive_card`, `restore_card` |
 | Comments | `add_comment`, `update_comment`, `delete_comment` |
 | Attachments | `upload_attachment`, `download_attachment`, `delete_attachment` |
@@ -326,6 +327,47 @@ follow-up `get_card` needed.
   card's whole label set — comma-separated GUIDs or a JSON-array string; an empty
   string clears all labels).
 - Archived cards are rejected — restore first.
+- A description change is recorded — the value you replace is preserved and
+  readable through `get_card_history`. Editing a description is lossless, so you
+  can keep it current rather than hoarding detail in comments.
+
+### History
+
+#### `get_card_history`
+Read how a card's description reached its current state: every recorded version,
+**newest first**, with who replaced it and when. `format` defaults to **`diff`** —
+a unified, git-style diff of what each edit changed — because that is the answer to
+"what changed?", and reconstructing it from full snapshots is the expensive way to
+get it. Pass `full` for the whole text at each revision, or `both`.
+- **Params:** `authKey`, and a card ref. Optional: `field` (default `description`
+  — the only field recorded today; an unrecognized name is an error, not an empty
+  trail), `format` (`diff` (default) / `full` / `both`), `from` **and** `to`
+  (revision numbers — see below; one without the other is an error).
+- Returns `{ cardId, field, entries }`. Each entry carries `revision` (a monotonic
+  integer from 1), `editedByUserId`, `editedByName`, `editedAtUtc`, and — per
+  `format` — `value` (the whole text at that revision) and/or `diff`. A key the
+  format excludes is **absent** from the JSON, not null.
+- **The trail's oldest revision has a null author and timestamp — only the oldest.**
+  History is not back-filled, so revision 1 holds whatever the description said
+  when recording began; nobody observed it being written, so it is left
+  un-attributed rather than credited to a guess. Its `diff` is `""` — there is
+  nothing older to compare it against. Every later revision is fully attributed.
+- Supplying `from` **and** `to` compares those two revisions instead of returning
+  the trail, and answers with a different shape: a single
+  `{ cardId, field, from, to, diff, fromValue, toValue }` object. Revisions compare
+  in the order given, so `from=3&to=1` yields the diff that would undo the change.
+  A revision the card does not have is an error.
+- **A trail starts at a card's first description edit after this feature shipped.**
+  Existing cards began empty; a card whose description has never been edited
+  returns `entries: []`, and its current text is available from `get_card`. Saving
+  an unchanged description records nothing, and an archived card accrues no history
+  (its description cannot be edited) while its existing trail stays readable.
+- No role gate: anyone who can read the card can read its history.
+- The diff is hunks only — no `---`/`+++` file headers — with `\n` line endings on
+  every host, three lines of context, and git's empty-range convention
+  (`@@ -0,0 +1,4 @@`). Parse it by line prefix: `@@ ` opens a hunk, `+` adds, `-`
+  removes, a single leading space is unchanged context. The full response shape is
+  in the [API Reference](api-reference.md#card-history).
 
 ### Archive
 

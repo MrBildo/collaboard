@@ -10,6 +10,7 @@ public class BoardDbContext(DbContextOptions<BoardDbContext> options) : DbContex
     public DbSet<Lane> Lanes => Set<Lane>();
     public DbSet<CardSize> CardSizes => Set<CardSize>();
     public DbSet<CardItem> Cards => Set<CardItem>();
+    public DbSet<CardFieldHistory> CardFieldHistories => Set<CardFieldHistory>();
     public DbSet<CardComment> Comments => Set<CardComment>();
     public DbSet<CardAttachment> Attachments => Set<CardAttachment>();
     public DbSet<Label> Labels => Set<Label>();

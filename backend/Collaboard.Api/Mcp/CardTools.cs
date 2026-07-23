@@ -273,6 +273,12 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
 
         card.LastUpdatedByUserId = user!.Id;
         card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
+
+        // Staged after all validation and before the single save, so the new description and the
+        // record of the old one commit together. Shared with the REST PATCH path so the two
+        // surfaces cannot drift on what a description edit records.
+        await CardHistoryHelper.StageDescriptionChangeAsync(db, card.Id, oldDescription, card.DescriptionMarkdown, user.Id, card.LastUpdatedAtUtc, ct);
+
         await db.SaveChangesAsync(ct);
 
         // Multi-axis co-fire (#329): one webhook event per changed axis (content / lane /

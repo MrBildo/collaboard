@@ -24,7 +24,8 @@ public class McpTransportSmokeTests(CollaboardApiFactory factory) : IClassFixtur
     // #277 added reorder_lanes (LaneTools): 37 -> 38.
     // #308 added reorder_sizes (SizeTools): 38 -> 39.
     // #326 added WebhookTools (create/list/update/delete/test_webhook): 39 -> 44.
-    private const int _expectedToolCount = 44;
+    // #357 added get_card_history (HistoryTools): 44 -> 45.
+    private const int _expectedToolCount = 45;
 
     private readonly CollaboardApiFactory _factory = factory;
 
