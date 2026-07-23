@@ -12,6 +12,9 @@ const baseProps = {
   onLogout: vi.fn(),
 };
 
+// A payload reporting that an upgrade is available from 1.16.0. In the tests below that pass a
+// separate `version` prop, this doubles as the stale payload an operator sees just after
+// upgrading — one that is still advertising the release they have already installed.
 function statusWithUpdate(latest = '1.17.0'): VersionStatus {
   return {
     current: '1.16.0',
@@ -126,5 +129,102 @@ describe('GearMenu update indicator', () => {
     await user.click(screen.getByRole('button'));
 
     expect(await screen.findByText('v1.16.0')).toBeInTheDocument();
+  });
+
+  test('suppresses the update row once the displayed version is the advertised release', async () => {
+    const user = userEvent.setup();
+    // The operator has upgraded to 1.17.0 and /version already says so, but the slower status
+    // query is still advertising 1.17.0 as the upgrade. Advertising it would read
+    // "v1.17.0 -> v1.17.0 available".
+    render(<GearMenu {...baseProps} version="1.17.0" versionStatus={statusWithUpdate('1.17.0')} />);
+
+    expect(screen.queryByLabelText('Update available')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button'));
+
+    expect(await screen.findByText('v1.17.0')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /available/i })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Dismiss update reminder')).not.toBeInTheDocument();
+  });
+
+  test('suppresses the update row on a pre-release build of the advertised release', async () => {
+    const user = userEvent.setup();
+    // /version keeps the pre-release suffix that the status payload drops, so the two
+    // spellings of the same release are not equal as strings — only as versions.
+    render(
+      <GearMenu {...baseProps} version="1.17.0-rc1" versionStatus={statusWithUpdate('1.17.0')} />,
+    );
+
+    expect(screen.queryByLabelText('Update available')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button'));
+
+    expect(await screen.findByText('v1.17.0-rc1')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /available/i })).not.toBeInTheDocument();
+  });
+
+  test('suppresses the update row when the displayed version is ahead of the advertised release', async () => {
+    const user = userEvent.setup();
+    render(<GearMenu {...baseProps} version="1.18.0" versionStatus={statusWithUpdate('1.17.0')} />);
+
+    expect(screen.queryByLabelText('Update available')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button'));
+
+    expect(await screen.findByText('v1.18.0')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /available/i })).not.toBeInTheDocument();
+  });
+
+  test('still shows the update row when the displayed version is genuinely behind', async () => {
+    const user = userEvent.setup();
+    render(<GearMenu {...baseProps} version="1.17.0" versionStatus={statusWithUpdate('1.18.0')} />);
+
+    expect(screen.getByLabelText('Update available')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button'));
+
+    expect(
+      await screen.findByRole('link', { name: /v1.17.0.*v1.18.0 available/i }),
+    ).toBeInTheDocument();
+  });
+
+  test('still shows the update row when the displayed version cannot be compared', async () => {
+    const user = userEvent.setup();
+    // A build with no stamped version reports a four-part assembly version, which is not a
+    // release number the comparison can read. The server has asserted an update exists, so it
+    // stays advertised rather than being silently withheld.
+    render(
+      <GearMenu {...baseProps} version="1.0.0.0" versionStatus={statusWithUpdate('1.17.0')} />,
+    );
+
+    expect(screen.getByLabelText('Update available')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button'));
+
+    expect(
+      await screen.findByRole('link', { name: /v1.0.0.0.*v1.17.0 available/i }),
+    ).toBeInTheDocument();
+  });
+
+  test('still shows the update row when /version is the staler of the two sources', async () => {
+    const user = userEvent.setup();
+    // Suppression keys on the displayed version against the advertised one, not on the two
+    // payloads disagreeing: here they disagree and the update is still real.
+    const freshStatus: VersionStatus = {
+      current: '1.17.0',
+      latest: '1.18.0',
+      updateAvailable: true,
+      releaseUrl: 'https://example.test/release',
+      lastChecked: new Date().toISOString(),
+    };
+    render(<GearMenu {...baseProps} version="1.16.0" versionStatus={freshStatus} />);
+
+    expect(screen.getByLabelText('Update available')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button'));
+
+    expect(
+      await screen.findByRole('link', { name: /v1.16.0.*v1.18.0 available/i }),
+    ).toBeInTheDocument();
   });
 });

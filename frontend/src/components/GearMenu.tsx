@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { ROLES, type Role } from '@/lib/roles';
 import type { VersionStatus } from '@/types';
+import { compareVersionCores } from '@/lib/semver';
 import { cn } from '@/lib/utils';
 
 // Per-version dismissal (#303): the operator dismisses a specific available version, not all
@@ -92,13 +93,32 @@ export function GearMenu({
   // resolved yet.
   const currentVersion = version ?? versionStatus?.current;
 
-  // An update is "showable" only when the backend reports one AND the operator hasn't
-  // dismissed this exact latest version. The dot and the link row share this gate, so a
-  // dismiss clears both at once and a later, newer `latest` re-shows both.
+  // The update row reads "v<yours> → v<newer> available", but its two halves come from
+  // different queries: "yours" from /version, the target from the update-status payload,
+  // which carries a much longer cache lifetime. Right after an upgrade the status payload can
+  // still be advertising the release the operator just installed — "v1.17.0 → v1.17.0
+  // available", a sentence that contradicts itself. So only advertise an update the displayed
+  // version is actually behind.
+  //
+  // Comparing by release rather than by string is what makes that safe in both directions: a
+  // pre-release build is not nagged to "upgrade" to the release it is a candidate for, and a
+  // self-consistent status payload is never suppressed, since the server decided "update
+  // available" by that same comparison. The check can only fire when the two halves came from
+  // different snapshots. An unparseable version leaves the row visible — the server has
+  // asserted an update exists, and silently withholding an upgrade notice is worse than
+  // showing an odd-looking one.
+  const latestComparedToDisplayed = compareVersionCores(versionStatus?.latest, currentVersion);
+  const hasNewerVersion = latestComparedToDisplayed === null || latestComparedToDisplayed > 0;
+
+  // An update is "showable" only when the backend reports one, it is genuinely newer than
+  // what we are displaying, AND the operator hasn't dismissed this exact latest version. The
+  // dot and the link row share this gate, so a dismiss clears both at once and a later, newer
+  // `latest` re-shows both — and nothing advertises an update the menu then declines to name.
   const updateShowable =
     versionStatus?.updateAvailable === true &&
     versionStatus.latest !== null &&
-    versionStatus.latest !== dismissedVersion;
+    versionStatus.latest !== dismissedVersion &&
+    hasNewerVersion;
 
   const handleDismiss = () => {
     if (versionStatus?.latest) {
