@@ -49,7 +49,15 @@ async function boot() {
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
       <ErrorBoundary>
-        <PersistQueryClientProvider client={queryClient} persistOptions={{ persister }}>
+        {/* `buster` is the frontend build identity (vite.config.ts `define`).
+            It changes every release, so on restore TanStack discards a cache
+            persisted by a prior build rather than serving pre-upgrade data as
+            fresh — the version banner / update-available flag can't get stuck
+            showing stale info after a server upgrade. */}
+        <PersistQueryClientProvider
+          client={queryClient}
+          persistOptions={{ persister, buster: __BUILD_VERSION__ }}
+        >
           <RouterProvider router={router} />
           {/* The toast tier of the mutation-error floor (card #203). Lives once
               at the app root; the floor (lib/mutation-floor.ts) drives it. */}
