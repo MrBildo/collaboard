@@ -460,5 +460,9 @@ Collaboard is built by a human-AI collaborative team. The bots are autonomous AI
 ## License
 
 [MIT](LICENSE)
-</content>
-</invoke>
+
+Collaboard bundles third-party software in every release archive — the .NET
+runtime, the server's NuGet dependencies, and the npm packages compiled into the
+browser bundle. [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) lists each one
+with its license and copyright, and reproduces the license texts. It ships inside
+the release archive as well, so anyone who downloads a build receives it.

@@ -126,6 +126,34 @@ jobs:
             --self-contained \
             -o "publish/${ARTIFACT}"
 
+      # Re-derive the third-party component inventory from what this build
+      # actually produced -- the publish dependency manifest for the server side,
+      # and the bundle's own sourcemaps for the browser side -- and fail if it
+      # disagrees with what THIRD-PARTY-NOTICES.md publishes.
+      #
+      # Several bundled components (DiffPlex, the OpenTelemetry set, the MCP SDK,
+      # SQLitePCLRaw, Polly, highlight.js among them) are licensed on the
+      # condition that recipients of the redistributed binaries also receive the
+      # license. That makes the notices file a shipping obligation rather than
+      # documentation, and an obligation nothing checks is one that quietly
+      # lapses: the defect this exists to prevent was a dependency being added
+      # with nobody noticing its license.
+      #
+      # The sourcemap build goes to its own throwaway output directory. Using the
+      # real dist/ would put .map files where the next step copies them into
+      # wwwroot, and the archive contract has no rule that would catch them.
+      - name: Build frontend sourcemaps (notices audit only)
+        run: npx vite build --sourcemap --outDir dist-notices-audit
+        working-directory: frontend
+
+      - name: Verify third-party notices
+        run: |
+          bash scripts/generate-third-party-notices.sh \
+            --check THIRD-PARTY-NOTICES.md \
+            "publish/${ARTIFACT}/Collaboard.Api.deps.json" \
+            frontend \
+            frontend/dist-notices-audit
+
       - name: Stage archive
         run: |
           bash scripts/stage-archive.sh \

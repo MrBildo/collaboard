@@ -14,6 +14,10 @@
 node_modules/
 frontend/node_modules/
 frontend/dist/
+# Throwaway sourcemap build the third-party-notices check reads to learn which
+# npm packages actually reach the browser bundle. Deliberately a separate output
+# directory from frontend/dist/ so sourcemaps can never leak into wwwroot.
+frontend/dist-notices-audit/
 
 # .NET
 backend/**/bin/
