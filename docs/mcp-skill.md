@@ -375,6 +375,16 @@ get it. Pass `full` for the whole text at each revision, or `both`.
   when recording began; nobody observed it being written, so it is left
   un-attributed rather than credited to a guess. Its `diff` is `""` — there is
   nothing older to compare it against. Every later revision is fully attributed.
+  **Only the oldest revision has an empty diff**, so an empty diff is a reliable
+  test for "this is the start of the record" — no revision ever repeats the text
+  of the one below it.
+- **Your edit and someone else's landing at the same instant both record**, as two
+  attributed revisions in commit order; `update_card` does not fail on a collision
+  and there is no conflict response to handle. If you both set the same text, the
+  second records nothing, exactly as it would have arriving a minute later. Not
+  lost-update protection: the card's text is still last-one-wins.
+  `editedAtUtc` never decreases as `revision` increases, but stamps can tie —
+  **sort by `revision`, not by time.**
 - Supplying `from` **and** `to` compares those two revisions instead of returning
   the trail, and answers with a different shape: a single
   `{ cardId, field, from, to, diff, fromValue, toValue }` object. Revisions compare

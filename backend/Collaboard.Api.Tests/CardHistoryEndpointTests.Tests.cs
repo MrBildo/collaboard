@@ -545,6 +545,36 @@ public class CardHistoryEndpointTests(CollaboardApiFactory factory) : IClassFixt
     }
 
     [Fact]
+    public async Task OffsetWithNoLimit_ReturnsTheRestOfTheTrailDownToItsFirstRevision()
+    {
+        // An offset with no limit is the one paged read whose page runs to the end of the trail, so
+        // its oldest entry has no predecessor because there genuinely is none — not because one
+        // fell off a page edge. The empty diff it carries is the true one, and the entries have to
+        // match the tail of the unpaged read exactly.
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var cardId = await CreateRevisionsAsync("History Offset No Limit", 5);
+
+        // Act
+        var trail = await GetTrailAsync(cardId, "offset=2");
+
+        // Assert
+        var entries = trail.GetProperty("entries").EnumerateArray().ToArray();
+        entries.Select(e => e.GetProperty("revision").GetInt32()).ShouldBe([3, 2, 1]);
+        trail.GetProperty("totalCount").GetInt32().ShouldBe(5);
+        trail.GetProperty("offset").GetInt32().ShouldBe(2);
+        trail.GetProperty("limit").ValueKind.ShouldBe(JsonValueKind.Null);
+
+        entries[2].GetProperty("diff").GetString().ShouldBe(string.Empty);
+        entries[0].GetProperty("diff").GetString().ShouldNotBe(string.Empty);
+        entries[1].GetProperty("diff").GetString().ShouldNotBe(string.Empty);
+
+        var whole = await GetTrailEntriesAsync(cardId);
+        entries
+            .Select(e => e.GetProperty("diff").GetString())
+            .ShouldBe(whole[2..].Select(e => e.GetProperty("diff").GetString()));
+    }
+
+    [Fact]
     public async Task OffsetPastTheEndOfTheTrail_ReturnsNoEntriesAndTheRealCount()
     {
         // Arrange

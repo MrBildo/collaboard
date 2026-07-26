@@ -234,7 +234,7 @@ internal static class CardEndpoints
             // record of the old one commit together — a description can never replace an unrecorded
             // one. Shared with the MCP update_card path so the two surfaces cannot drift, including
             // on how a concurrent edit racing the same revision number is resolved.
-            var descriptionChange = await CardHistoryHelper.StageDescriptionChangeAsync(db, card.Id, oldDescription, card.DescriptionMarkdown, actor.Id, card.LastUpdatedAtUtc, ct);
+            var descriptionChange = await CardHistoryHelper.StageDescriptionChangeAsync(db, card.Id, oldDescription, card.DescriptionMarkdown, actor.Id, ct);
 
             await CardHistoryHelper.SaveWithRevisionRetryAsync(db, descriptionChange, ct);
 

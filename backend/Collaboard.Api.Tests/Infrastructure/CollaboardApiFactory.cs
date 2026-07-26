@@ -94,8 +94,11 @@ public class CollaboardApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
             _connection = new SqliteConnection("Data Source=:memory:");
             _connection.Open();
 
-            services.AddDbContext<BoardDbContext>(options =>
-                options.UseSqlite(_connection));
+            services.AddDbContext<BoardDbContext>((serviceProvider, options) =>
+            {
+                options.UseSqlite(_connection);
+                ConfigureDbContext(serviceProvider, options);
+            });
 
             // Remove the webhook dispatcher hosted service by default. It queries WebhookSubscriptions
             // on every drained card event (Webhooks:Enabled defaults true, #326 — IsConfigured no
@@ -112,6 +115,13 @@ public class CollaboardApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
                 services.Remove(dispatcher);
             }
         });
+    }
+
+    // Lets a derived factory add to the test DbContext without re-registering it. Re-registration
+    // would drop the shared in-memory connection this class owns, which is the whole harness.
+    // No-op here, so the standard factory behaves exactly as it did.
+    protected virtual void ConfigureDbContext(IServiceProvider serviceProvider, DbContextOptionsBuilder options)
+    {
     }
 
     public async Task InitializeAsync()

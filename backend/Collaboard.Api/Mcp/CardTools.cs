@@ -278,7 +278,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         // record of the old one commit together. Shared with the REST PATCH path so the two
         // surfaces cannot drift on what a description edit records, or on how a concurrent edit
         // racing the same revision number is resolved.
-        var descriptionChange = await CardHistoryHelper.StageDescriptionChangeAsync(db, card.Id, oldDescription, card.DescriptionMarkdown, user.Id, card.LastUpdatedAtUtc, ct);
+        var descriptionChange = await CardHistoryHelper.StageDescriptionChangeAsync(db, card.Id, oldDescription, card.DescriptionMarkdown, user.Id, ct);
 
         await CardHistoryHelper.SaveWithRevisionRetryAsync(db, descriptionChange, ct);
 
@@ -358,7 +358,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
     }
 
     [McpServerTool(Name = "get_card", ReadOnly = true, Destructive = false)]
-    [Description("Get a single card by its ID or card number, including its comments, labels, and attachments (metadata only). To download attachment content, GET /api/v1/attachments/{id} with X-User-Key header.")]
+    [Description("Get a single card by its ID or card number, including its comments, labels, and attachments (metadata only). Also carries descriptionHistoryCount — how many description revisions get_card_history would return for this card. Zero means there is nothing to show; it is never one, because a card's first edit records both the value that was already there and the value that replaced it. To download attachment content, GET /api/v1/attachments/{id} with X-User-Key header.")]
     public async Task<string> GetCardAsync
     (
         [Description("Your auth key")] string authKey,

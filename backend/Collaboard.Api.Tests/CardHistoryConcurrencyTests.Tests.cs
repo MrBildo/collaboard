@@ -43,8 +43,7 @@ public class CardHistoryConcurrencyTests(CollaboardApiFactory factory) : IClassF
             cardId,
             "original",
             "loser text",
-            loser.Id,
-            DateTimeOffset.UtcNow
+            loser.Id
         );
 
         // The rival reads the same empty trail and commits first, taking revisions 1 and 2.
@@ -59,8 +58,7 @@ public class CardHistoryConcurrencyTests(CollaboardApiFactory factory) : IClassF
             cardId,
             "original",
             "rival text",
-            rival.Id,
-            DateTimeOffset.UtcNow
+            rival.Id
         );
 
         await CardHistoryHelper.SaveWithRevisionRetryAsync(rivalDb, rivalChange);
@@ -119,8 +117,7 @@ public class CardHistoryConcurrencyTests(CollaboardApiFactory factory) : IClassF
             cardId,
             "second",
             "loser third",
-            loser.Id,
-            DateTimeOffset.UtcNow
+            loser.Id
         );
 
         await using var rivalScope = _factory.Services.CreateAsyncScope();
@@ -131,8 +128,7 @@ public class CardHistoryConcurrencyTests(CollaboardApiFactory factory) : IClassF
             cardId,
             "second",
             "rival third",
-            rival.Id,
-            DateTimeOffset.UtcNow
+            rival.Id
         );
 
         await CardHistoryHelper.SaveWithRevisionRetryAsync(rivalDb, rivalChange);
@@ -173,8 +169,7 @@ public class CardHistoryConcurrencyTests(CollaboardApiFactory factory) : IClassF
             cardId,
             "alpha",
             "gamma",
-            loser.Id,
-            DateTimeOffset.UtcNow
+            loser.Id
         );
 
         await using var rivalScope = _factory.Services.CreateAsyncScope();
@@ -185,8 +180,7 @@ public class CardHistoryConcurrencyTests(CollaboardApiFactory factory) : IClassF
             cardId,
             "alpha",
             "beta",
-            rival.Id,
-            DateTimeOffset.UtcNow
+            rival.Id
         );
 
         await CardHistoryHelper.SaveWithRevisionRetryAsync(rivalDb, rivalChange);
@@ -204,6 +198,195 @@ public class CardHistoryConcurrencyTests(CollaboardApiFactory factory) : IClassF
         entries[0].GetProperty("diff").GetString().ShouldBe("@@ -1,1 +1,1 @@\n-beta\n+gamma\n");
         entries[1].GetProperty("value").GetString().ShouldBe("beta");
     }
+
+    [Fact]
+    public async Task TwoEditsRacingWithTheSameText_RecordOneRevision_NotADuplicateWithAnEmptyDiff()
+    {
+        // The unchanged-description check runs once, against the value read at the start of the
+        // request. A retry happens after a rival has committed, so by then that reading is stale —
+        // and when both editors are setting the same text, the rival's commit has already made this
+        // request a no-op. Recording it anyway appends a revision identical to its predecessor,
+        // whose diff is empty; an empty diff on this trail means "oldest revision, nothing before
+        // it", which is the one distinction the trail exists to make.
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var cardId = await CreateCardAsync("Same Text Race", "original");
+        var rival = await TestAuthHelper.CreateUserAsync(_client, _factory, "Same Text Rival", UserRole.HumanUser);
+        var loser = await TestAuthHelper.CreateUserAsync(_client, _factory, "Same Text Loser", UserRole.HumanUser);
+
+        await using var loserScope = _factory.Services.CreateAsyncScope();
+        var loserDb = loserScope.ServiceProvider.GetRequiredService<BoardDbContext>();
+        var loserCard = await loserDb.Cards.FindAsync(cardId);
+        loserCard!.DescriptionMarkdown = "agreed text";
+
+        var loserChange = await CardHistoryHelper.StageDescriptionChangeAsync
+        (
+            loserDb,
+            cardId,
+            "original",
+            "agreed text",
+            loser.Id
+        );
+
+        await using var rivalScope = _factory.Services.CreateAsyncScope();
+        var rivalDb = rivalScope.ServiceProvider.GetRequiredService<BoardDbContext>();
+        var rivalCard = await rivalDb.Cards.FindAsync(cardId);
+        rivalCard!.DescriptionMarkdown = "agreed text";
+
+        var rivalChange = await CardHistoryHelper.StageDescriptionChangeAsync
+        (
+            rivalDb,
+            cardId,
+            "original",
+            "agreed text",
+            rival.Id
+        );
+
+        await CardHistoryHelper.SaveWithRevisionRetryAsync(rivalDb, rivalChange);
+
+        // Act
+        await CardHistoryHelper.SaveWithRevisionRetryAsync(loserDb, loserChange);
+
+        // Assert — exactly the trail these two edits leave when they arrive one after the other
+        // instead of at once. The second one changes nothing and records nothing, either way.
+        await using var readScope = _factory.Services.CreateAsyncScope();
+        var readDb = readScope.ServiceProvider.GetRequiredService<BoardDbContext>();
+        var rows = await readDb.CardFieldHistories
+            .Where(h => h.CardId == cardId)
+            .OrderBy(h => h.Revision)
+                .ToListAsync();
+
+        rows.Select(r => r.Revision).ShouldBe([1, 2]);
+        rows.Select(r => r.Value).ShouldBe(["original", "agreed text"]);
+        rows[1].EditedByUserId.ShouldBe(rival.Id);
+
+        // The losing save still committed — it just had nothing left to record.
+        var card = await readDb.Cards.AsNoTracking().FirstAsync(c => c.Id == cardId);
+        card.DescriptionMarkdown.ShouldBe("agreed text");
+
+        // Read back through the surface that publishes the empty-diff meaning, because that is
+        // where the damage would show: no revision but the oldest may carry an empty diff.
+        var response = await _client.GetAsync($"/api/v1/cards/{cardId}/history");
+        response.EnsureSuccessStatusCode();
+        var trail = await response.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
+        var entries = trail.GetProperty("entries").EnumerateArray().ToArray();
+
+        trail.GetProperty("totalCount").GetInt32().ShouldBe(2);
+        entries
+            .Where(e => e.GetProperty("revision").GetInt32() > 1)
+            .ShouldAllBe(e => e.GetProperty("diff").GetString() != string.Empty);
+    }
+
+    [Fact]
+    public async Task ARetriedRevisionIsStampedWhenItLands_NotWhenTheRequestArrived()
+    {
+        // A revision that waited out a rival is written after that rival's, so it has to carry a
+        // later instant too. Keeping the arrival time would file a higher revision under an earlier
+        // timestamp, and a reader who sorts the trail by time would get a different order than the
+        // revision numbers give — on a trail whose values only mean anything in revision order.
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var cardId = await CreateCardAsync("Stamp Order Race", "start");
+        var rival = await TestAuthHelper.CreateUserAsync(_client, _factory, "Stamp Rival", UserRole.HumanUser);
+        var loser = await TestAuthHelper.CreateUserAsync(_client, _factory, "Stamp Loser", UserRole.HumanUser);
+
+        var loserArrivedAt = DateTimeOffset.UtcNow;
+
+        await using var loserScope = _factory.Services.CreateAsyncScope();
+        var loserDb = loserScope.ServiceProvider.GetRequiredService<BoardDbContext>();
+        var loserCard = await loserDb.Cards.FindAsync(cardId);
+        loserCard!.DescriptionMarkdown = "loser wording";
+
+        var loserChange = await CardHistoryHelper.StageDescriptionChangeAsync
+        (
+            loserDb,
+            cardId,
+            "start",
+            "loser wording",
+            loser.Id
+        );
+
+        await using var rivalScope = _factory.Services.CreateAsyncScope();
+        var rivalDb = rivalScope.ServiceProvider.GetRequiredService<BoardDbContext>();
+        var rivalCard = await rivalDb.Cards.FindAsync(cardId);
+        rivalCard!.DescriptionMarkdown = "rival wording";
+
+        var rivalChange = await CardHistoryHelper.StageDescriptionChangeAsync
+        (
+            rivalDb,
+            cardId,
+            "start",
+            "rival wording",
+            rival.Id
+        );
+
+        await CardHistoryHelper.SaveWithRevisionRetryAsync(rivalDb, rivalChange);
+
+        // Act
+        await CardHistoryHelper.SaveWithRevisionRetryAsync(loserDb, loserChange);
+
+        // Assert
+        await using var readScope = _factory.Services.CreateAsyncScope();
+        var readDb = readScope.ServiceProvider.GetRequiredService<BoardDbContext>();
+        var rows = await readDb.CardFieldHistories
+            .Where(h => h.CardId == cardId)
+            .OrderBy(h => h.Revision)
+                .ToListAsync();
+
+        rows.Select(r => r.Value).ShouldBe(["start", "rival wording", "loser wording"]);
+
+        // The load-bearing pair: timestamps rise with revision, and the retried one moved off the
+        // instant its request arrived — which is the reading it would have kept if the stamp came
+        // from the caller rather than from where the revision number does.
+        rows[2].EditedAtUtc!.Value.ShouldBeGreaterThanOrEqualTo(rows[1].EditedAtUtc!.Value);
+        rows[2].EditedAtUtc!.Value.ShouldBeGreaterThan(loserArrivedAt);
+    }
+
+    [Fact]
+    public async Task AUniqueConstraintFailureThatIsNotARevisionCollision_ReachesTheCallerUnretried()
+    {
+        // The retry is for one collision only. Another unique-constraint violation riding in the
+        // same save has to arrive at the caller as itself — retrying it cannot help, and rebuilding
+        // the history rows in response describes it as a revision problem it never was.
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var cardId = await CreateCardAsync("Unrelated Constraint", "before");
+        var editor = await TestAuthHelper.CreateUserAsync(_client, _factory, "Constraint Editor", UserRole.HumanUser);
+
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
+        var card = await db.Cards.FindAsync(cardId);
+        card!.DescriptionMarkdown = "after";
+
+        var change = await CardHistoryHelper.StageDescriptionChangeAsync
+        (
+            db,
+            cardId,
+            "before",
+            "after",
+            editor.Id
+        );
+
+        // Two labels claiming one name on one board — the board's own unique index, nothing to do
+        // with revisions.
+        db.Labels.Add(new Label { Id = Guid.NewGuid(), BoardId = _factory.DefaultBoardId, Name = "Contested Name" });
+        db.Labels.Add(new Label { Id = Guid.NewGuid(), BoardId = _factory.DefaultBoardId, Name = "Contested Name" });
+
+        var stagedIdsBefore = StagedHistoryIds(db);
+
+        // Act
+        var act = () => CardHistoryHelper.SaveWithRevisionRetryAsync(db, change);
+        await Should.ThrowAsync<DbUpdateException>(act);
+
+        // Assert — the discriminator. A retry detaches the staged rows and builds replacements, so
+        // surviving with the same identities is what proves no retry ran. The exception type alone
+        // does not: an exhausted retry loop rethrows this same type on its final attempt.
+        StagedHistoryIds(db).ShouldBe(stagedIdsBefore);
+    }
+
+    private static List<Guid> StagedHistoryIds(BoardDbContext db) =>
+        [.. db.ChangeTracker
+            .Entries<CardFieldHistory>()
+            .Where(e => e.State == EntityState.Added)
+                .Select(e => e.Entity.Id)
+                .Order()];
 
     private async Task<Guid> CreateCardAsync(string name, string descriptionMarkdown)
     {

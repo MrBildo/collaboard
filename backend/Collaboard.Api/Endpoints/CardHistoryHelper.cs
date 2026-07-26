@@ -61,19 +61,23 @@ internal static class CardHistoryHelper
         string oldValue,
         string newValue,
         Guid editedByUserId,
-        DateTimeOffset editedAtUtc,
         CancellationToken ct = default
     )
     {
         // A save that leaves the description exactly as it was is not an edit and records nothing —
         // otherwise a lane move or label change carrying an unchanged description in the same PATCH
-        // would pad the trail with revisions that changed nothing.
+        // would pad the trail with revisions that changed nothing. Answered here, before any query,
+        // because most card saves are lane moves and this keeps them off the history tables
+        // entirely. It is a question about the request, not about the trail: whether the row that
+        // would be written differs from the one the trail already ends with is decided in
+        // StageRowsAsync, which is the only place that can still be asked it correctly after a
+        // retry.
         if (string.Equals(oldValue, newValue, StringComparison.Ordinal))
         {
             return null;
         }
 
-        var change = new StagedDescriptionChange(cardId, oldValue, newValue, editedByUserId, editedAtUtc);
+        var change = new StagedDescriptionChange(cardId, oldValue, newValue, editedByUserId);
         await StageRowsAsync(db, change, ct);
 
         return change;
@@ -82,9 +86,9 @@ internal static class CardHistoryHelper
     // Replaces the caller's SaveChangesAsync on the description write paths. The revision ordinal
     // is allocated as max+1 and enforced unique, so two edits of one card that read the same max
     // before either saves collide on insert. The window is brief in wall-clock terms and easy to
-    // underestimate for that reason — measured under sustained eight-way concurrent editing of one
-    // description, roughly half of the requests hit it. Before history existed those same saves all
-    // simply succeeded, with the last one winning.
+    // underestimate for exactly that reason — measured under sustained eight-way concurrent editing
+    // of one description with the writers released together, seven of every eight requests hit it.
+    // Before history existed those same saves all simply succeeded, with the last one winning.
     //
     // The loser retries rather than being told to reload: the revision number is internal
     // bookkeeping, the caller's intent (set this description) is still fully satisfiable, and the
@@ -104,13 +108,14 @@ internal static class CardHistoryHelper
             return;
         }
 
-        // Five rather than the three the card-number allocator uses, and with a pause between
-        // them. That allocator contends over a whole board's card creations; this one contends
-        // over repeated edits of a single card's description, where every loser of a collision
-        // otherwise wakes at the same instant, re-reads the same head, and collides again in
-        // lockstep. Measured under sustained eight-way concurrent editing of one description:
-        // no retry at all loses roughly half the edits, immediate lockstep retries still lose a
-        // few percent, and pausing a randomized few milliseconds first clears them.
+        // Five rather than the three the card-number allocator uses, and with a pause of a
+        // randomized 2 to 14 milliseconds between them. That allocator contends over a whole
+        // board's card creations; this one contends over repeated edits of a single card's
+        // description, where every loser of a collision otherwise wakes at the same instant,
+        // re-reads the same head, and collides again in lockstep. Measured under sustained
+        // eight-way concurrent editing of one description: no retry at all loses most of the
+        // edits, immediate lockstep retries still lose a couple of percent, and pausing first
+        // clears them — through thirty-two-way, with no loss.
         const int maxAttempts = 5;
         for (var attempt = 0; attempt < maxAttempts; attempt++)
         {
@@ -119,15 +124,14 @@ internal static class CardHistoryHelper
                 await db.SaveChangesAsync(ct);
                 return;
             }
-            catch (DbUpdateException ex)
-                when (attempt < maxAttempts - 1
-                      && ex.InnerException is SqliteException { SqliteErrorCode: 19 }
-                      && HasStagedRows(db, change))
+            catch (DbUpdateException ex) when (attempt < maxAttempts - 1 && IsRevisionCollision(ex))
             {
                 // Rebuild the rows against the trail's new head rather than renumbering the ones
                 // already staged: the winning edit has by now written the seed row holding the
                 // pre-history value, and re-adding a second copy of it at a later revision would
-                // make the trail read as though the description had reverted.
+                // make the trail read as though the description had reverted. Rebuilding also
+                // re-asks whether there is anything left to record at all, which is the question
+                // the winner's commit may just have changed the answer to.
                 DetachStagedRows(db, change);
                 await Task.Delay(Random.Shared.Next(2, 15), ct);
                 await StageRowsAsync(db, change, ct);
@@ -139,48 +143,81 @@ internal static class CardHistoryHelper
 
     private static async Task StageRowsAsync(BoardDbContext db, StagedDescriptionChange change, CancellationToken ct)
     {
-        var latestRevision = await db.CardFieldHistories
+        var head = await db.CardFieldHistories
             .Where(h => h.CardId == change.CardId && h.Field == DescriptionField)
-                .MaxAsync(h => (int?)h.Revision, ct) ?? 0;
+            .OrderByDescending(h => h.Revision)
+                .Select(h => new { h.Revision, h.Value })
+                    .FirstOrDefaultAsync(ct);
+
+        // Stamped from the same moment the ordinal is derived from, which is what makes revision
+        // order and time order agree instead of merely tend to. A row numbered above another was
+        // staged by a read that had already seen that other one committed, so its clock reading is
+        // necessarily the later of the two. Taking the stamp at the start of the request instead
+        // breaks that: a request can arrive early, wait out a collision, and land a high revision
+        // carrying an early instant — or arrive late, sail through uncontended, and land a high
+        // revision carrying an instant earlier than the retried row beneath it. Both were measured.
+        // Timestamps can still tie at clock resolution, so revision order stays the authority.
+        var recordedAtUtc = DateTimeOffset.UtcNow;
 
         // First capture on this card seeds the value that was already in place. It is a real
         // revision (the trail's oldest), but nobody observed it being written — history is not
         // back-filled — so its author and time stay null rather than being attributed to the card's
         // creator or to whoever happened to trigger this first capture.
-        if (latestRevision == 0)
+        if (head is null)
         {
-            db.CardFieldHistories.Add(new CardFieldHistory
-            {
-                Id = Guid.NewGuid(),
-                CardId = change.CardId,
-                Field = DescriptionField,
-                Revision = 1,
-                Value = change.OldValue,
-                EditedByUserId = null,
-                EditedAtUtc = null,
-            });
+            AddRevision(db, change.CardId, 1, change.OldValue, null, null);
+            AddRevision(db, change.CardId, 2, change.NewValue, change.EditedByUserId, recordedAtUtc);
 
-            latestRevision = 1;
+            return;
         }
 
+        // Whether this row is worth writing is decided against the value the trail currently ends
+        // with, and it is re-decided every time the rows are staged. On a first attempt that is the
+        // same answer the caller's own unchanged-description check gave. On a retry it is not: a
+        // rival edit committed in between, and if it set the description to the text this request
+        // is also setting, then nothing is changing by the time this row would land. Writing it
+        // anyway appends a revision whose diff is empty — and an empty diff on this trail is how a
+        // reader is told "this is the oldest revision, there is nothing before it". The invariant
+        // that keeps both readings true: a race leaves the same trail the same two edits would
+        // leave arriving one after the other.
+        if (string.Equals(head.Value, change.NewValue, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        AddRevision(db, change.CardId, head.Revision + 1, change.NewValue, change.EditedByUserId, recordedAtUtc);
+    }
+
+    private static void AddRevision
+    (
+        BoardDbContext db,
+        Guid cardId,
+        int revision,
+        string value,
+        Guid? editedByUserId,
+        DateTimeOffset? editedAtUtc
+    ) =>
         db.CardFieldHistories.Add(new CardFieldHistory
         {
             Id = Guid.NewGuid(),
-            CardId = change.CardId,
+            CardId = cardId,
             Field = DescriptionField,
-            Revision = latestRevision + 1,
-            Value = change.NewValue,
-            EditedByUserId = change.EditedByUserId,
-            EditedAtUtc = change.EditedAtUtc,
+            Revision = revision,
+            Value = value,
+            EditedByUserId = editedByUserId,
+            EditedAtUtc = editedAtUtc,
         });
-    }
 
-    // Asked of our own change tracker rather than of the exception's entries: a unique-constraint
-    // failure somewhere else in the same save must reach the caller as itself, not be retried
-    // three times and rethrown as a revision problem it never was.
-    private static bool HasStagedRows(BoardDbContext db, StagedDescriptionChange change) =>
-        StagedRows(db, change)
-            .Any();
+    // Only one failure is ours to retry: this request and another one both allocating the same
+    // description revision. A unique-constraint violation anywhere else in the same save — a label
+    // name, a card number, a lane position — has to reach the caller as itself rather than be
+    // retried and rethrown as a revision problem it never was. The discrimination is on the rows
+    // the failed statement was actually writing, which the exception carries; asking instead what
+    // this request had staged answers yes every time, because a staged revision is the only reason
+    // this method is running.
+    private static bool IsRevisionCollision(DbUpdateException ex) =>
+        ex.InnerException is SqliteException { SqliteErrorCode: 19 }
+        && ex.Entries.Any(e => e.Entity is CardFieldHistory);
 
     private static void DetachStagedRows(BoardDbContext db, StagedDescriptionChange change)
     {
@@ -203,12 +240,13 @@ internal static class CardHistoryHelper
 }
 
 // The description edit a request has staged but not yet committed. Carried from staging to save so
-// the rows can be rebuilt from the trail's current head if the save loses a revision race.
+// the rows can be rebuilt from the trail's current head if the save loses a revision race. It holds
+// no timestamp on purpose: when the revision was recorded is decided where the revision number is,
+// so that the two cannot disagree about their order.
 internal record StagedDescriptionChange
 (
     Guid CardId,
     string OldValue,
     string NewValue,
-    Guid EditedByUserId,
-    DateTimeOffset EditedAtUtc
+    Guid EditedByUserId
 );
