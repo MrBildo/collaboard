@@ -7,6 +7,7 @@ import type {
   BoardData,
   BoardUser,
   CardComment,
+  CardHistoryTrail,
   CardItem,
   CardSize,
   CardSummary,
@@ -43,6 +44,7 @@ import {
   boardSchema,
   boardUserSchema,
   cardCommentSchema,
+  cardHistoryTrailSchema,
   cardItemSchema,
   cardSizeSchema,
   cardSummarySchema,
@@ -170,6 +172,19 @@ export async function updateCard(id: string, patch: UpdateCardPatch): Promise<Ca
 
 export async function deleteCard(id: string): Promise<void> {
   await api.delete(`/cards/${id}`);
+}
+
+// Description edit-history trail, newest first. Omitting every param returns the
+// whole trail with both the per-revision diff and the full value (the REST
+// defaults). `limit: 1, format: 'diff'` is the cheap "does history exist" probe:
+// `totalCount` reports the whole trail's length regardless of paging, resolved
+// by the same backend query the card detail's descriptionHistoryCount uses.
+export async function fetchCardHistory(
+  cardId: string,
+  params?: { format?: 'diff' | 'full' | 'both'; offset?: number; limit?: number },
+): Promise<CardHistoryTrail> {
+  const { data } = await api.get(`/cards/${cardId}/history`, { params });
+  return cardHistoryTrailSchema.parse(data);
 }
 
 export async function archiveCard(id: string): Promise<void> {

@@ -11,6 +11,11 @@ export const queryKeys = {
     labels: (cardId: string) => ['cards', cardId, 'labels'] as const,
     comments: (cardId: string) => ['cards', cardId, 'comments'] as const,
     attachments: (cardId: string) => ['cards', cardId, 'attachments'] as const,
+    // `history` is the invalidation prefix covering both history queries below —
+    // invalidate it after a description edit so the gate and the trail move together.
+    history: (cardId: string) => ['cards', cardId, 'history'] as const,
+    historyMeta: (cardId: string) => ['cards', cardId, 'history', 'meta'] as const,
+    historyTrail: (cardId: string) => ['cards', cardId, 'history', 'trail'] as const,
   },
   lanes: {
     all: (boardId: string) => ['lanes', boardId] as const,

@@ -26,7 +26,15 @@ import {
 } from '@/components/ui/select';
 import { CardComments } from '@/components/CardComments';
 import { CardAttachments } from '@/components/CardAttachments';
-import { deleteCard, fetchCardLabels, fetchLabels, updateCard, uploadAttachment } from '@/lib/api';
+import { CardDescriptionHistory } from '@/components/CardDescriptionHistory';
+import {
+  deleteCard,
+  fetchCardHistory,
+  fetchCardLabels,
+  fetchLabels,
+  updateCard,
+  uploadAttachment,
+} from '@/lib/api';
 import { InlineError } from '@/components/ui/inline-error';
 import { toMessage } from '@/lib/mutation-floor';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -45,6 +53,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  History,
   RefreshCw,
   RotateCcw,
 } from 'lucide-react';
@@ -52,6 +61,8 @@ import { ROLES } from '@/lib/roles';
 import type { BoardData, CardItem, CardSize, Lane, UpdateCardPatch } from '@/types';
 
 type FieldName = 'name' | 'description' | 'sizeId' | 'laneId' | 'labelIds';
+
+type DescriptionView = 'edit' | 'preview' | 'history';
 
 type ExternalUpdate = { remoteValue: string };
 type ExternalLabelUpdate = { remoteLabelIds: string[] };
@@ -159,7 +170,7 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
     const [description, setDescription] = useState(card.descriptionMarkdown ?? '');
     const [sizeId, setSizeId] = useState(card.sizeId);
     const [selectedLabelIds, setSelectedLabelIds] = useState<string[] | null>(null);
-    const [isEditingDescription, setIsEditingDescription] = useState(false);
+    const [descriptionView, setDescriptionView] = useState<DescriptionView>('preview');
     const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
     const [showArchiveActions, setShowArchiveActions] = useState(false);
     const [restoreLaneId, setRestoreLaneId] = useState<string | null>(null);
@@ -242,6 +253,24 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
       enabled: !!boardId,
       ...QUERY_DEFAULTS.labels,
     });
+
+    // Gates the History control on whether any description revisions exist.
+    // This SPA renders the card detail from the board composite cache and never
+    // calls GET /cards/{id}, so the detail's descriptionHistoryCount is not in
+    // reach without fetching a payload that duplicates the comments, labels and
+    // attachments queries. A limit-1 probe of the history trail reads the same
+    // number — totalCount reports the whole trail regardless of paging, through
+    // the same backend query — for a response a few hundred bytes long.
+    const historyMetaQuery = useQuery({
+      queryKey: queryKeys.cards.historyMeta(card.id),
+      queryFn: () => fetchCardHistory(card.id, { limit: 1, format: 'diff' }),
+      ...QUERY_DEFAULTS.history,
+    });
+    const historyCount = historyMetaQuery.data?.totalCount ?? 0;
+    // A failed probe cannot rule history out. Showing the control and letting
+    // the panel present the real load error beats silently hiding a trail —
+    // "no history" and "couldn't check" must never look the same.
+    const isHistoryAvailable = historyCount > 0 || historyMetaQuery.isError;
 
     const originalLabelIds = useMemo(
       () => (labelsQuery.data ?? []).map((l) => l.id),
@@ -399,7 +428,7 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
       // is the app's biggest current silent-loss gap (spec §2a).
       meta: { skipToast: true },
       mutationFn: (patch: UpdateCardPatch) => updateCard(card.id, patch),
-      onSuccess: (updatedCard) => {
+      onSuccess: (updatedCard, patch) => {
         if (boardId) {
           // PATCH /cards/{id} now returns the enriched CardSummary (#209), so the
           // mutation response carries everything the board cache needs — labels,
@@ -414,6 +443,11 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
           );
         }
         queryClient.invalidateQueries({ queryKey: queryKeys.cards.labels(card.id) });
+        if (patch.descriptionMarkdown !== undefined) {
+          // A description save just recorded new revisions (0 → 2 on the first
+          // edit); refresh the History gate and any open trail together.
+          queryClient.invalidateQueries({ queryKey: queryKeys.cards.history(card.id) });
+        }
 
         // Reset touch tracking and baseline after successful save
         touchedFields.current.clear();
@@ -759,23 +793,38 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
           <div className="min-w-0 flex-1 px-6 py-4 md:overflow-y-auto">
             {/* Description */}
             <div className="mb-4">
-              {!isArchived && (
+              {/* Archived cards are frozen but their history stays readable, so
+                  the view switcher renders for them too once history exists —
+                  minus the Edit segment. */}
+              {(!isArchived || isHistoryAvailable) && (
                 <div className="mb-2 flex items-center gap-1">
+                  {!isArchived && (
+                    <Button
+                      variant={descriptionView === 'edit' ? 'secondary' : 'ghost'}
+                      size="xs"
+                      onClick={() => setDescriptionView('edit')}
+                    >
+                      Edit
+                    </Button>
+                  )}
                   <Button
-                    variant={isEditingDescription ? 'secondary' : 'ghost'}
+                    variant={descriptionView === 'preview' ? 'secondary' : 'ghost'}
                     size="xs"
-                    onClick={() => setIsEditingDescription(true)}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    variant={!isEditingDescription ? 'secondary' : 'ghost'}
-                    size="xs"
-                    onClick={() => setIsEditingDescription(false)}
+                    onClick={() => setDescriptionView('preview')}
                   >
                     Preview
                   </Button>
-                  {externalUpdates.description && (
+                  {isHistoryAvailable && (
+                    <Button
+                      variant={descriptionView === 'history' ? 'secondary' : 'ghost'}
+                      size="xs"
+                      onClick={() => setDescriptionView('history')}
+                    >
+                      <History className="mr-1 h-3.5 w-3.5" />
+                      History{historyCount > 0 ? ` (${historyCount})` : ''}
+                    </Button>
+                  )}
+                  {!isArchived && externalUpdates.description && (
                     <ExternalUpdateDot
                       field="Description"
                       remoteDisplay={
@@ -788,7 +837,9 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
                   )}
                 </div>
               )}
-              {isEditingDescription && !isArchived ? (
+              {descriptionView === 'history' && isHistoryAvailable ? (
+                <CardDescriptionHistory cardId={card.id} />
+              ) : descriptionView === 'edit' && !isArchived ? (
                 <Textarea
                   value={description}
                   onChange={(e) => {

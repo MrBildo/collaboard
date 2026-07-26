@@ -33,12 +33,23 @@ type MarkdownRendererProps = {
   // gate uses, so no fetch-on-hover. Omit (or omit a given number) and the
   // `#NNN` link renders with no preview — never a hanging or empty tooltip.
   cardPreviews?: Map<number, CardLinkPreviewData>;
+  // Render mermaid fences as plain code blocks (the diagram source) instead of
+  // executing them as diagrams. The description-history view sets this: a
+  // rendered diagram is injected as raw SVG, which bypasses both the markdown
+  // sanitizer and the link-origin check, and a history view resurrects text
+  // that may have been removed precisely because it was bad — then renders one
+  // block per revision. Showing the fence's source is the honest snapshot.
+  suppressDiagrams?: boolean;
 };
 
 // The anchor renderer (markdownComponents.a) is fixed at module scope, but it
 // needs the per-render preview map. A context bridges that without rebuilding
 // the components object on every render.
 const CardPreviewsContext = createContext<Map<number, CardLinkPreviewData> | undefined>(undefined);
+
+// Same bridge for the diagram-suppression flag: the `pre` renderer is fixed at
+// module scope but the choice is per-render.
+const DiagramsSuppressedContext = createContext(false);
 
 // An internal card link is `/boards/{slug}/cards/{n}`. Pull the trailing card
 // number so the anchor can look up its preview data. Returns null for any other
@@ -140,18 +151,24 @@ function MarkdownAnchor({
   );
 }
 
+function MarkdownPre({
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- `node` is named so that it is left out of `props`; it is the renderer's own handle on the parsed markdown, not an attribute of the block being rendered
+  node,
+  children: preChildren,
+  ...props
+}: ComponentPropsWithoutRef<'pre'> & ExtraProps) {
+  const diagramsSuppressed = useContext(DiagramsSuppressedContext);
+  const mermaidCode = findMermaidCode(preChildren);
+  if (mermaidCode !== null && !diagramsSuppressed) {
+    return <MermaidBlock>{mermaidCode}</MermaidBlock>;
+  }
+  // A suppressed mermaid fence falls through here and renders as an ordinary
+  // code block — the diagram's source, visible and inert.
+  return <pre {...props}>{preChildren}</pre>;
+}
+
 const markdownComponents: Components = {
-  // `node` is dropped for the same reason it is dropped on an anchor: it is the
-  // renderer's own handle on the parsed markdown, not an attribute of the block
-  // being rendered.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- `node` is named so that it is left out of `props`
-  pre({ node, children: preChildren, ...props }) {
-    const mermaidCode = findMermaidCode(preChildren);
-    if (mermaidCode !== null) {
-      return <MermaidBlock>{mermaidCode}</MermaidBlock>;
-    }
-    return <pre {...props}>{preChildren}</pre>;
-  },
+  pre: MarkdownPre,
   a: MarkdownAnchor,
 };
 
@@ -162,6 +179,7 @@ export function MarkdownRenderer({
   boardSlug,
   cardNumbers,
   cardPreviews,
+  suppressDiagrams = false,
 }: MarkdownRendererProps) {
   const remarkPlugins = useMemo<RemarkPlugins>(() => {
     const plugins: RemarkPlugins = [remarkGfm, remarkEmoji];
@@ -173,18 +191,20 @@ export function MarkdownRenderer({
 
   return (
     <CardPreviewsContext.Provider value={cardPreviews}>
-      <ReactMarkdown
-        remarkPlugins={remarkPlugins}
-        rehypePlugins={[
-          rehypeRaw,
-          rehypeSanitize,
-          [rehypeHighlight, { plainText: ['mermaid'] }],
-          [rehypeExternalLinks, { target: '_blank', rel: ['noopener', 'noreferrer'] }],
-        ]}
-        components={markdownComponents}
-      >
-        {children}
-      </ReactMarkdown>
+      <DiagramsSuppressedContext.Provider value={suppressDiagrams}>
+        <ReactMarkdown
+          remarkPlugins={remarkPlugins}
+          rehypePlugins={[
+            rehypeRaw,
+            rehypeSanitize,
+            [rehypeHighlight, { plainText: ['mermaid'] }],
+            [rehypeExternalLinks, { target: '_blank', rel: ['noopener', 'noreferrer'] }],
+          ]}
+          components={markdownComponents}
+        >
+          {children}
+        </ReactMarkdown>
+      </DiagramsSuppressedContext.Provider>
     </CardPreviewsContext.Provider>
   );
 }

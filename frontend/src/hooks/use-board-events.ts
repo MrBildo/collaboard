@@ -30,6 +30,13 @@ export function useBoardEvents(boardId: string | undefined) {
         queryClient.invalidateQueries({ queryKey: queryKeys.boards.cards(boardId) });
         queryClient.invalidateQueries({ queryKey: queryKeys.labels.all(boardId) });
         queryClient.invalidateQueries({ queryKey: queryKeys.users.directory() });
+        // Description edits ring this same bell (no dedicated event type), so
+        // the open card's history gate and trail refresh alongside the board
+        // data. The bell doesn't say which card changed; the predicate marks
+        // every card's history queries stale, and only mounted ones refetch.
+        queryClient.invalidateQueries({
+          predicate: (query) => query.queryKey[0] === 'cards' && query.queryKey[2] === 'history',
+        });
       }, SSE_DEBOUNCE_MS);
     });
 

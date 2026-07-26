@@ -106,6 +106,32 @@ export const pagedCardSummarySchema = z.object({
   limit: z.number().nullable(),
 });
 
+// One revision in a card field's history trail (GET /cards/{id}/history).
+// The attribution fields are null on the trail's oldest revision only: history
+// is not back-filled, so nobody observed that value being written, and the
+// backend refuses to invent provenance for it. `value`/`diff` are absent from
+// the wire entirely (not null) when the requested format excludes them.
+export const cardHistoryEntrySchema = z.object({
+  revision: z.number(),
+  editedByUserId: z.string().nullable(),
+  editedByName: z.string().nullable(),
+  editedAtUtc: z.string().nullable(),
+  value: z.string().optional(),
+  diff: z.string().optional(),
+});
+
+// The trail envelope. `entries` is newest-first; `totalCount` is the whole
+// trail's length regardless of paging, so `entries.length < totalCount` means
+// there is more. `limit` echoes what was applied — null when none was passed.
+export const cardHistoryTrailSchema = z.object({
+  cardId: z.string(),
+  field: z.string(),
+  entries: z.array(cardHistoryEntrySchema),
+  totalCount: z.number(),
+  offset: z.number(),
+  limit: z.number().nullable(),
+});
+
 export const userDirectoryEntrySchema = z.object({
   id: z.string(),
   name: z.string(),

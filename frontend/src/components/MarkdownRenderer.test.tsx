@@ -87,6 +87,29 @@ describe('MarkdownRenderer', () => {
     expect(screen.getByText('Rendering diagram...')).toBeInTheDocument();
   });
 
+  test('suppressDiagrams renders a mermaid fence as its source in a plain code block', () => {
+    const md = '```mermaid\ngraph TD;\n  A-->B;\n```';
+    const { container } = render(<MarkdownRenderer suppressDiagrams>{md}</MarkdownRenderer>);
+
+    // The diagram pipeline never runs — MermaidBlock is not mounted, so its
+    // mount-time render call cannot have fired.
+    expect(mockedRender).not.toHaveBeenCalled();
+    // The fence's source is visible as an ordinary code block instead.
+    const codeEl = container.querySelector('pre code');
+    expect(codeEl).not.toBeNull();
+    expect(codeEl!.textContent).toContain('graph TD;');
+    expect(codeEl!.textContent).toContain('A-->B;');
+  });
+
+  test('non-mermaid rendering is unchanged under suppressDiagrams', () => {
+    const { container } = render(
+      <MarkdownRenderer suppressDiagrams>{'```js\nconst x = 1;\n```'}</MarkdownRenderer>,
+    );
+    const codeEl = container.querySelector('code.hljs');
+    expect(codeEl).not.toBeNull();
+    expect(codeEl!.textContent).toContain('const x = 1;');
+  });
+
   test('renders HTML ins tag as inserted text', () => {
     render(<MarkdownRenderer>{'<ins>inserted</ins>'}</MarkdownRenderer>);
     const el = screen.getByText('inserted');

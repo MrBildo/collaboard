@@ -88,7 +88,7 @@ describe('useBoardEvents', () => {
     expect(FakeEventSource.instances[0].url).toBe('/api/v1/boards/board-1/events');
   });
 
-  test('debounced board-updated invalidates the four query slices after the debounce window', () => {
+  test('debounced board-updated invalidates the five query slices after the debounce window', () => {
     renderHook(() => useBoardEvents('board-1'), { wrapper: createWrapper(queryClient) });
     const es = FakeEventSource.instances[0];
 
@@ -109,7 +109,32 @@ describe('useBoardEvents', () => {
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.boards.cards('board-1') });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.labels.all('board-1') });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.users.directory() });
-    expect(invalidateSpy).toHaveBeenCalledTimes(4);
+    expect(invalidateSpy).toHaveBeenCalledWith({ predicate: expect.any(Function) });
+    expect(invalidateSpy).toHaveBeenCalledTimes(5);
+  });
+
+  test('the history invalidation predicate matches card history queries and nothing else', () => {
+    renderHook(() => useBoardEvents('board-1'), { wrapper: createWrapper(queryClient) });
+    const es = FakeEventSource.instances[0];
+
+    act(() => {
+      es.emit('board-updated');
+      vi.advanceTimersByTime(SSE_DEBOUNCE_MS);
+    });
+
+    const predicateCall = invalidateSpy.mock.calls.find(
+      (call) => typeof call[0]?.predicate === 'function',
+    );
+    expect(predicateCall).toBeDefined();
+    const predicate = predicateCall![0].predicate as (query: { queryKey: unknown[] }) => boolean;
+
+    // A description edit rings the plain board bell, so both history queries of
+    // any card must be caught — and the card's sibling queries must not be.
+    expect(predicate({ queryKey: [...queryKeys.cards.historyMeta('card-1')] })).toBe(true);
+    expect(predicate({ queryKey: [...queryKeys.cards.historyTrail('card-1')] })).toBe(true);
+    expect(predicate({ queryKey: [...queryKeys.cards.labels('card-1')] })).toBe(false);
+    expect(predicate({ queryKey: [...queryKeys.cards.comments('card-1')] })).toBe(false);
+    expect(predicate({ queryKey: [...queryKeys.boards.data('board-1')] })).toBe(false);
   });
 
   test('rapid board-updated bursts collapse into a single fan-out', () => {
@@ -130,7 +155,7 @@ describe('useBoardEvents', () => {
       vi.advanceTimersByTime(SSE_DEBOUNCE_MS);
     });
 
-    expect(invalidateSpy).toHaveBeenCalledTimes(4);
+    expect(invalidateSpy).toHaveBeenCalledTimes(5);
   });
 
   test('unmount before the debounce fires closes the source and drops the queued invalidation', () => {
@@ -190,6 +215,6 @@ describe('useBoardEvents', () => {
       vi.advanceTimersByTime(SSE_DEBOUNCE_MS);
     });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.boards.data('board-2') });
-    expect(invalidateSpy).toHaveBeenCalledTimes(4);
+    expect(invalidateSpy).toHaveBeenCalledTimes(5);
   });
 });
