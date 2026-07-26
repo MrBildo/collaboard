@@ -112,13 +112,15 @@ jobs:
         run: npx vite build
         working-directory: frontend
 
-      # Ordering here is load-bearing, not incidental. Tailwind's content
-      # scanner walks the project and skips whatever git ignores, so any
-      # unignored copy of the bundle that exists when a build runs becomes an
-      # input to that build. Run the two frontend builds back to back, before
-      # anything copies the bundle anywhere, and they see the same inputs.
-      # Publishing first would hand the second build a copy of the first build's
-      # output to scan.
+      # Ordering here is load-bearing, not incidental. Both builds must see the
+      # same inputs, and Tailwind's content scan is one of those inputs: it is
+      # rooted at the Vite root (frontend/) and skips whatever git ignores, so
+      # any unignored file appearing anywhere under frontend/ between these two
+      # steps would be scanned by the second build and not the first --
+      # changing the stylesheet and every chunk hash downstream of it. Keeping
+      # the two builds adjacent means nothing can appear between them. Paths
+      # outside frontend/ (the wwwroot copy, the publish tree) are outside the
+      # scan root and cannot contribute.
       #
       # The sourcemap build goes to its own throwaway output directory. Using the
       # real dist/ would put .map files where the next step copies them into

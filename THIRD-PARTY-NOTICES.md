@@ -70,7 +70,11 @@ naming a license and never printing it.
 The component set is identical across all five published platforms
 (`win-x64`, `linux-x64`, `linux-arm64`, `osx-x64`, `osx-arm64`). Only file *names*
 differ between them: the native SQLite library and the launcher both carry a
-platform-specific extension.
+platform-specific extension. That was established by generating this inventory
+from each platform's own dependency manifest and comparing all five, at the commit
+this file was last regenerated. The CI check above re-derives it from a single
+platform build, so a dependency that arrives on only some platforms is not
+something that check would catch.
 
 <!-- BEGIN GENERATED INVENTORY -->
 ### .NET runtime and shared framework

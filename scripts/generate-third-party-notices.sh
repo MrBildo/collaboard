@@ -155,10 +155,9 @@ fail_unresolved() {
 emit_inventory() {
   # ---------------------------------------------------------------- .NET runtime
   # A self-contained publish carries the entire .NET runtime and the ASP.NET Core
-  # shared framework as loose assemblies -- roughly 313 managed libraries and 15
-  # native ones per archive. deps.json records them as two runtimepack entries
-  # rather than as packages, so they are read from there and asserted to be the
-  # Microsoft-published runtime packs; an unrecognized runtimepack fails the run
+  # shared framework as loose assemblies. deps.json records them as two runtimepack
+  # entries rather than as packages, so they are read from there and asserted to be
+  # the Microsoft-published runtime packs; an unrecognized runtimepack fails the run
   # instead of being folded silently into the Microsoft line.
   echo "### .NET runtime and shared framework"
   echo
