@@ -112,6 +112,32 @@ jobs:
         run: npx vite build
         working-directory: frontend
 
+      # Ordering here is load-bearing, not incidental. Both builds must see the
+      # same inputs, and Tailwind's content scan is one of those inputs: it is
+      # rooted at the Vite root (frontend/) and skips whatever git ignores, so
+      # any unignored file appearing anywhere under frontend/ between these two
+      # steps would be scanned by the second build and not the first --
+      # changing the stylesheet and every chunk hash downstream of it. Keeping
+      # the two builds adjacent means nothing can appear between them. Paths
+      # outside frontend/ (the wwwroot copy, the publish tree) are outside the
+      # scan root and cannot contribute.
+      #
+      # The sourcemap build goes to its own throwaway output directory. Using the
+      # real dist/ would put .map files where the next step copies them into
+      # wwwroot, and the archive contract has no rule that would catch them.
+      - name: Build frontend sourcemaps (notices audit only)
+        run: npx vite build --sourcemap --outDir dist-notices-audit
+        working-directory: frontend
+
+      # The notices inventory is derived from the sourcemap build; the archive
+      # ships the build above it. That reasoning only holds while the two compile
+      # the same modules, and nothing required them to. Both trees are already
+      # here, so the check costs a hash pass -- and without it a config change
+      # could make the notices file a precise description of a bundle nobody
+      # receives, which is a failure with no visible symptom.
+      - name: Verify the audit build is the shipped bundle
+        run: bash scripts/verify-bundle-equivalence.sh frontend/dist frontend/dist-notices-audit
+
       - name: Copy frontend to wwwroot
         run: |
           mkdir -p backend/Collaboard.Api/wwwroot
@@ -125,6 +151,31 @@ jobs:
             -r "${RID}" \
             --self-contained \
             -o "publish/${ARTIFACT}"
+
+      # Re-derive the third-party component inventory from what this build
+      # actually produced -- the publish dependency manifest for the server side,
+      # and the bundle's own sourcemaps for the browser side -- and fail if it
+      # disagrees with what THIRD-PARTY-NOTICES.md publishes.
+      #
+      # Several bundled components (DiffPlex, the OpenTelemetry set, the MCP SDK,
+      # SQLitePCLRaw, Polly, highlight.js among them) are licensed on the
+      # condition that recipients of the redistributed binaries also receive the
+      # license. That makes the notices file a shipping obligation rather than
+      # documentation, and an obligation nothing checks is one that quietly
+      # lapses: the defect this exists to prevent was a dependency being added
+      # with nobody noticing its license.
+      #
+      # The same run also requires that every license the inventory names has its
+      # text reproduced in the file, and fails on a license it has no mapping for
+      # rather than passing it through. An inventory entry naming a license the
+      # document never prints discharges nothing, and is otherwise silent.
+      - name: Verify third-party notices
+        run: |
+          bash scripts/generate-third-party-notices.sh \
+            --check THIRD-PARTY-NOTICES.md \
+            "publish/${ARTIFACT}/Collaboard.Api.deps.json" \
+            frontend \
+            frontend/dist-notices-audit
 
       - name: Stage archive
         run: |

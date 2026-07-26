@@ -20,7 +20,7 @@
 # Asserts:
 #   (1) flat layout      — no wrapping "<artifact>/" directory at the root
 #   (2) required present  — binary, appsettings.json, deps.json, runtimeconfig,
-#                           INSTALL.md, wwwroot/index.html
+#                           INSTALL.md, THIRD-PARTY-NOTICES.md, wwwroot/index.html
 #   (3) no excluded leak  — *.pdb, *.xml, appsettings.Development.json,
 #                           *.staticwebassets.endpoints.json (recursive)
 #   (4) no top-level drift — every top-level entry matches a known library class
@@ -67,7 +67,8 @@ for path in \
   "appsettings.json" \
   "${APP_BASE}.deps.json" \
   "${APP_BASE}.runtimeconfig.json" \
-  "INSTALL.md"
+  "INSTALL.md" \
+  "THIRD-PARTY-NOTICES.md"
 do
   if [[ ! -f "${VERIFY_DIR}/${path}" ]]; then
     echo "MISSING: ${path}" >&2
@@ -121,6 +122,14 @@ fi
 #   <base>.deps.json                   dependency manifest (runtime-load-bearing)
 #   <base>.runtimeconfig.json          runtime config (runtime-load-bearing)
 #   INSTALL.md                         bundled operator setup guide
+#   THIRD-PARTY-NOTICES.md             attribution + license texts for every
+#                                      third-party component the archive
+#                                      redistributes. Required, not merely
+#                                      allowed: several bundled components are
+#                                      licensed on the condition that recipients
+#                                      of the binaries get the license too, and
+#                                      an archive without this file does not
+#                                      satisfy that.
 #   wwwroot                            SPA static assets (directory)
 #   web.config                         Windows-only ASP.NET Core hosting config
 #                                      (IIS / in-process model — emitted by the
@@ -137,6 +146,7 @@ UNRECOGNIZED=$(
       "${APP_BASE}.deps.json") ;;
       "${APP_BASE}.runtimeconfig.json") ;;
       INSTALL.md) ;;
+      THIRD-PARTY-NOTICES.md) ;;
       wwwroot) ;;
       web.config) ;;
       *) echo "${entry}" ;;

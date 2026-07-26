@@ -5,7 +5,19 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import eslintConfigPrettier from 'eslint-config-prettier';
 
 export default tseslint.config(
-  { ignores: ['dist/', 'node_modules/', 'src/components/ui/', '*.js', '.claude/'] },
+  {
+    ignores: [
+      'dist/',
+      // Throwaway sourcemap build the third-party-notices check reads to learn
+      // which npm packages actually reach the browser bundle. Build output, same
+      // as dist/ — linting it means linting bundled dependency code.
+      'dist-notices-audit/',
+      'node_modules/',
+      'src/components/ui/',
+      '*.js',
+      '.claude/',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

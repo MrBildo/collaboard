@@ -149,6 +149,14 @@ jobs:
       # stable CLASSES (managed/native libraries) plus a short named set of
       # non-library artifacts.
       #
+      # Staging also bundles THIRD-PARTY-NOTICES.md, and the verify step requires
+      # it. That file is a shipping obligation, not documentation: the archive
+      # redistributes Apache-2.0 and BSD-licensed components whose terms ask that
+      # recipients of the binaries also receive the license, and attribution that
+      # stays in the source repository never reaches someone who downloads a
+      # release. Its inventory is re-derived and diffed against the build in PR
+      # CI, so it cannot silently fall behind the dependencies it describes.
+      #
       # The stage + verify logic both live in scripts/ (stage-archive.sh,
       # verify-archive.sh) so that the PR-CI contract check (ci.yml) runs the
       # EXACT same logic -- they cannot drift. The blind spot #282 closed: this
