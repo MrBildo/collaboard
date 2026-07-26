@@ -276,10 +276,11 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
 
         // Staged after all validation and before the single save, so the new description and the
         // record of the old one commit together. Shared with the REST PATCH path so the two
-        // surfaces cannot drift on what a description edit records.
-        await CardHistoryHelper.StageDescriptionChangeAsync(db, card.Id, oldDescription, card.DescriptionMarkdown, user.Id, card.LastUpdatedAtUtc, ct);
+        // surfaces cannot drift on what a description edit records, or on how a concurrent edit
+        // racing the same revision number is resolved.
+        var descriptionChange = await CardHistoryHelper.StageDescriptionChangeAsync(db, card.Id, oldDescription, card.DescriptionMarkdown, user.Id, card.LastUpdatedAtUtc, ct);
 
-        await db.SaveChangesAsync(ct);
+        await CardHistoryHelper.SaveWithRevisionRetryAsync(db, descriptionChange, ct);
 
         // Multi-axis co-fire (#329): one webhook event per changed axis (content / lane /
         // labels), all riding ONE coalesced SSE bell. Routed through the shared factory seam so

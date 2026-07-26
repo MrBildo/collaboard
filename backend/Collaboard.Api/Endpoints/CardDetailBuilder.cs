@@ -53,6 +53,11 @@ internal static class CardDetailBuilder
         var isArchived = await db.Lanes
             .AnyAsync(l => l.Id == card.LaneId && l.IsArchiveLane, ct);
 
+        // Carried on the detail so a consumer can decide whether a history affordance is worth
+        // offering without spending a second call to find out the trail is empty — which it is for
+        // every card that has not been description-edited since recording began.
+        var descriptionHistoryCount = await CardHistoryHelper.CountRevisionsAsync(db, card.Id, CardHistoryHelper.DescriptionField, ct);
+
         return new CardDetail
         (
             card,
@@ -62,7 +67,8 @@ internal static class CardDetailBuilder
             commentsWithUserNames,
             labels,
             attachments,
-            isArchived
+            isArchived,
+            descriptionHistoryCount
         );
     }
 }
@@ -87,6 +93,14 @@ internal record CardDetailAttachment
     DateTimeOffset AddedAtUtc
 );
 
+// DescriptionHistoryCount is the number of recorded revisions of this card's description — the
+// same number the history trail reports as its totalCount, and the length of the trail a caller
+// gets back unpaged. Zero means there is nothing to show: either the description has never been
+// edited, or it has not been edited since recording began. It is never one — a card's first edit
+// records two revisions, the value that was already there and the value that replaced it.
+// Field-qualified rather than a bare history count because the store records fields other than
+// description as soon as one is lit up, and a name that would have to change its meaning then is
+// a name that misleads now.
 internal record CardDetail
 (
     CardItem Card,
@@ -96,5 +110,6 @@ internal record CardDetail
     List<CardDetailComment> Comments,
     List<Label> Labels,
     List<CardDetailAttachment> Attachments,
-    bool IsArchived
+    bool IsArchived,
+    int DescriptionHistoryCount
 );

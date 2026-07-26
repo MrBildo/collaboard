@@ -24,19 +24,43 @@ internal static class CardHistoryBuilder
             ["both"] = CardHistoryFormat.Both,
         }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
+    // Paged newest-first, because that is the order a reader walks: page 0 is the most recent
+    // revisions. A null limit returns the whole trail from the offset down, which is what a caller
+    // that passes no paging parameters gets.
     public static async Task<CardHistoryResult> BuildTrailAsync
     (
         BoardDbContext db,
         Guid cardId,
         string field,
         CardHistoryFormat format,
+        int offset,
+        int? limit,
         CancellationToken ct = default
     )
     {
-        var rows = await db.CardFieldHistories
+        var totalCount = await CardHistoryHelper.CountRevisionsAsync(db, cardId, field, ct);
+
+        var pageQuery = db.CardFieldHistories
             .Where(h => h.CardId == cardId && h.Field == field)
-            .OrderBy(h => h.Revision)
-                .ToListAsync(ct);
+            .OrderByDescending(h => h.Revision)
+            .Skip(offset);
+
+        // One row past the page when a limit truncates the tail: the oldest entry on the page
+        // needs its predecessor's value to render a diff. Without it that entry would come back
+        // with an empty diff and masquerade as the trail's genuinely un-diffable first revision.
+        if (limit.HasValue)
+        {
+            pageQuery = pageQuery.Take(limit.Value + 1);
+        }
+
+        var rows = await pageQuery.ToListAsync(ct);
+
+        CardFieldHistory? predecessor = null;
+        if (limit.HasValue && rows.Count > limit.Value)
+        {
+            predecessor = rows[limit.Value];
+            rows.RemoveAt(limit.Value);
+        }
 
         var editorNames = await ResolveEditorNamesAsync(db, rows, ct);
 
@@ -44,19 +68,15 @@ internal static class CardHistoryBuilder
 
         for (var index = 0; index < rows.Count; index++)
         {
-            var row = rows[index];
+            // The row one step older than this one: the next in newest-first order, or the extra
+            // row fetched past the page boundary. Null only for the trail's true first revision,
+            // which has nothing older to diff against.
+            var older = index + 1 < rows.Count ? rows[index + 1] : predecessor;
 
-            // The oldest row has nothing older to diff against. Empty string, not null: a consumer
-            // can tell "nothing to show here" apart from "diffs were not requested."
-            var previousValue = index == 0 ? null : rows[index - 1].Value;
-
-            entries.Add(BuildEntry(row, previousValue, editorNames, format));
+            entries.Add(BuildEntry(rows[index], older?.Value, editorNames, format));
         }
 
-        // Newest first — the question a reader almost always has is "what changed most recently?"
-        entries.Reverse();
-
-        return new CardHistoryResult(cardId, field, entries);
+        return new CardHistoryResult(cardId, field, entries, totalCount, offset, limit);
     }
 
     public static async Task<(CardHistoryPairResult? Result, string? Error)> BuildPairAsync
@@ -204,7 +224,19 @@ internal record CardHistoryEntry
     string? Diff
 );
 
-internal record CardHistoryResult(Guid CardId, string Field, List<CardHistoryEntry> Entries);
+// Entries carries the requested page; TotalCount is the whole trail's length regardless of paging,
+// so a consumer can tell "this is all of it" from "there is more above or below". The collection
+// keeps the name it shipped with rather than the paged envelope's "items" — the paging vocabulary
+// is what the rest of the API shares, and renaming the collection would break every reader for it.
+internal record CardHistoryResult
+(
+    Guid CardId,
+    string Field,
+    List<CardHistoryEntry> Entries,
+    int TotalCount,
+    int Offset,
+    int? Limit
+);
 
 internal record CardHistoryPairResult
 (

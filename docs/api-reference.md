@@ -35,7 +35,7 @@ All endpoints are under `/api/v1/`. Authentication is via the `X-User-Key` heade
 |----------|-----------|
 | Lanes | `GET /lanes/{id}`, `PATCH /lanes/{id}`, `DELETE /lanes/{id}` |
 | Sizes | `GET /sizes/{id}`, `PATCH /sizes/{id}` (name/ordinal), `DELETE /sizes/{id}` (blocked if in use) |
-| Cards | `GET /cards/{id}` (enriched detail), `PATCH /cards/{id}`, `DELETE /cards/{id}`, `POST /cards/{id}/reorder`, `POST /cards/{id}/archive`, `POST /cards/{id}/restore` |
+| Cards | `GET /cards/{id}` (enriched detail, including `descriptionHistoryCount` — see [Card History](#card-history)), `PATCH /cards/{id}`, `DELETE /cards/{id}`, `POST /cards/{id}/reorder`, `POST /cards/{id}/archive`, `POST /cards/{id}/restore` |
 | Card history | `GET /cards/{id}/history` — the card's description edit trail; see [Card History](#card-history) |
 
 ## Users
@@ -69,6 +69,12 @@ Only the **description** is recorded today. The store is field-general (the `fie
 
 Reading history needs no permission beyond reading the card — any authenticated user who can read a card can read its history.
 
+### Knowing whether there is any history, without asking for it
+
+`GET /cards/{id}` carries **`descriptionHistoryCount`**: how many recorded revisions this card's description has. It is the same number the trail reports as its `totalCount`, so a client can decide whether a history affordance is worth offering without spending a call to find out the trail is empty — which it is for every card that has not been description-edited since recording began.
+
+It is `0` or at least `2`, never `1`: a card's first edit records two revisions, the value that was already there and the value that replaced it. It counts the **description** specifically rather than history in general, because the store records other fields as soon as one is lit up and a count that would have to change meaning then would be misleading now.
+
 ### Query parameters
 
 | Param | Values | Default | Notes |
@@ -76,6 +82,10 @@ Reading history needs no permission beyond reading the card — any authenticate
 | `field` | `description` | `description` | Which field's trail to return; case-insensitive. An unrecognized field is a `400`, not an empty trail — on an audit surface a typo must not read as "this card has no history". |
 | `format` | `diff` \| `full` \| `both` | `both` | Whether each entry carries the unified diff of what that edit changed, the full value at that revision, or both. Case-insensitive; an unrecognized value is a `400`. (The MCP tool defaults to `diff` instead — see the [MCP skill](mcp-skill.md).) |
 | `from`, `to` | revision numbers | — | Supply **both** to compare two arbitrary revisions instead of walking the trail; the response is a different shape (below). One without the other is a `400`, as is a revision this card's trail does not have. |
+| `offset` | integer | `0` | Revisions to skip, counting back from the newest. Negative values clamp to `0`. |
+| `limit` | integer | *(none)* | Maximum revisions to return, `1`–`200`; values outside that range clamp into it. **Omit it to get the whole trail** — that is what a caller written before paging existed sees. |
+
+`offset` and `limit` apply to the trail only. Sending either alongside `from`/`to` is a `400`: a pair comparison answers with a single object, and there is no page to take of it.
 
 ### Trail response
 
@@ -108,7 +118,10 @@ Reading history needs no permission beyond reading the card — any authenticate
       "value": "the description as it stood when recording began",
       "diff": ""
     }
-  ]
+  ],
+  "totalCount": 3,
+  "offset": 0,
+  "limit": null
 }
 ```
 
@@ -117,7 +130,9 @@ Reading history needs no permission beyond reading the card — any authenticate
 - **The oldest revision carries a `null` author and timestamp**, and only the oldest. History is not back-filled, so revision 1 holds whatever the description said when recording began — nobody observed it being written, and an audit trail should not attribute a value to someone who may not have written it. Every later revision is fully attributed. Render this case explicitly (*"original version — author unknown"*), not as an empty name or an invalid date.
 - The oldest revision's `diff` is `""` — an empty string, never `null`. There is nothing older to compare it against.
 - `value` and `diff` are **omitted from the JSON entirely** (not serialized as `null`) when the requested `format` does not include them, so `format=diff` carries no wasted padding.
-- The trail comes back **whole** — there is no paging or limit parameter — and the REST default `format=both` carries every full version *and* every diff. On a heavily edited card that is the largest response this API produces; ask for `format=diff` (or `full`) when you do not need both halves.
+- `totalCount` is the length of the **whole** trail regardless of paging, so `entries.length < totalCount` is how you tell there is more to fetch. `offset` and `limit` echo what was applied; `limit` is `null` when none was.
+- **Pages are taken from the newest end**, so `offset=0` is the most recent revisions and walking the trail means increasing `offset`. A revision's `diff` is the same whether it arrives on a page or in the whole trail — the entry at a page's oldest edge is still diffed against the revision before it, even though that revision is not on the page.
+- The trail comes back whole when no `limit` is given, and the REST default `format=both` carries every full version *and* every diff. On a heavily edited card that is the largest response this API produces; pass a `limit`, or ask for `format=diff` (or `full`) when you do not need both halves.
 
 ### Pair response
 
