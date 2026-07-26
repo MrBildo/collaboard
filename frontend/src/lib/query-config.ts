@@ -3,6 +3,7 @@ export const QUERY_DEFAULTS = {
   userDirectory: { staleTime: 60_000, retry: 1 },
   labels: { staleTime: 60_000, retry: 1 },
   comments: { staleTime: 30_000, retry: 1 },
+  history: { staleTime: 30_000, retry: 1 },
   attachments: { staleTime: 30_000, retry: 1 },
   boards: { staleTime: 30_000, retry: 2 },
   webhooks: { staleTime: 15_000, retry: 1 },

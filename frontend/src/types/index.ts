@@ -12,6 +12,8 @@ import type {
   cardLabelSummarySchema,
   boardDataSchema,
   pagedCardSummarySchema,
+  cardHistoryEntrySchema,
+  cardHistoryTrailSchema,
   userDirectoryEntrySchema,
   authMeSchema,
   prunePreviewCardSchema,
@@ -41,6 +43,8 @@ export type CardSummary = z.infer<typeof cardSummarySchema>;
 export type CardLabelSummary = z.infer<typeof cardLabelSummarySchema>;
 export type BoardData = z.infer<typeof boardDataSchema>;
 export type PagedCardSummary = z.infer<typeof pagedCardSummarySchema>;
+export type CardHistoryEntry = z.infer<typeof cardHistoryEntrySchema>;
+export type CardHistoryTrail = z.infer<typeof cardHistoryTrailSchema>;
 export type UserDirectoryEntry = z.infer<typeof userDirectoryEntrySchema>;
 export type AuthMe = z.infer<typeof authMeSchema>;
 export type VersionStatus = z.infer<typeof versionStatusSchema>;
