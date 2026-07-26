@@ -6,7 +6,7 @@ import {
   type ComponentPropsWithoutRef,
   type ReactNode,
 } from 'react';
-import ReactMarkdown, { type Components, type Options } from 'react-markdown';
+import ReactMarkdown, { type Components, type ExtraProps, type Options } from 'react-markdown';
 import { Link } from 'react-router-dom';
 import rehypeExternalLinks from 'rehype-external-links';
 import rehypeHighlight from 'rehype-highlight';
@@ -71,7 +71,28 @@ function findMermaidCode(children: ReactNode): string | null {
 // it works on link text during the build and has no idea which origin the page
 // is served from, which is exactly how a link like `/\elsewhere.example` slipped
 // past it while also being mistaken for an internal one.
-function MarkdownAnchor({ href, children, ...props }: ComponentPropsWithoutRef<'a'>) {
+//
+// Four of the props this receives belong to the renderer rather than to the
+// rendered link, and each is taken out of the author's attributes deliberately:
+// `node` is react-markdown's handle on the parsed markdown and is not an HTML
+// attribute at all (React would write it into the DOM as `[object Object]`
+// without complaining, since it does not recognise it); `href` is replaced by
+// the resolved path on an in-app link; and `target`/`rel` are decided here,
+// because the plugin that adds them cannot tell a link back to this origin from
+// a link away, so its decoration must never ride along on in-app navigation —
+// a router link carrying a `target` is one the router declines to intercept,
+// which quietly turns client-side navigation into a full page load. Everything
+// left over is the author's: a link title, the aria and footnote attributes
+// generated for GFM footnotes, whatever else survived the sanitiser.
+function MarkdownAnchor({
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- named so that it is left out of the attributes below
+  node,
+  href,
+  target,
+  rel,
+  children,
+  ...authorAttributes
+}: ComponentPropsWithoutRef<'a'> & ExtraProps) {
   const cardPreviews = useContext(CardPreviewsContext);
   const internalPath = findInternalPath(href);
 
@@ -83,7 +104,7 @@ function MarkdownAnchor({ href, children, ...props }: ComponentPropsWithoutRef<'
     // link) — render the plain router link, no popup.
     if (!preview) {
       return (
-        <Link to={internalPath} {...props}>
+        <Link to={internalPath} {...authorAttributes}>
           {children}
         </Link>
       );
@@ -91,7 +112,7 @@ function MarkdownAnchor({ href, children, ...props }: ComponentPropsWithoutRef<'
 
     return (
       <PreviewCard>
-        <PreviewCardTrigger render={<Link to={internalPath} {...props} />}>
+        <PreviewCardTrigger render={<Link to={internalPath} {...authorAttributes} />}>
           {children}
         </PreviewCardTrigger>
         <PreviewCardContent>
@@ -101,19 +122,30 @@ function MarkdownAnchor({ href, children, ...props }: ComponentPropsWithoutRef<'
     );
   }
 
-  const offOriginProps = isCrossOriginHttpHref(href)
-    ? { target: '_blank', rel: 'noopener noreferrer' }
-    : undefined;
+  // An ordinary anchor keeps whatever decoration it arrived with — that is what
+  // the plugin is for — except where this link demonstrably leaves the origin,
+  // where the protections are set here rather than inferred from the shape of
+  // the href.
+  const offOrigin = isCrossOriginHttpHref(href);
 
   return (
-    <a {...props} {...offOriginProps} href={href}>
+    <a
+      {...authorAttributes}
+      href={href}
+      target={offOrigin ? '_blank' : target}
+      rel={offOrigin ? 'noopener noreferrer' : rel}
+    >
       {children}
     </a>
   );
 }
 
 const markdownComponents: Components = {
-  pre({ children: preChildren, ...props }) {
+  // `node` is dropped for the same reason it is dropped on an anchor: it is the
+  // renderer's own handle on the parsed markdown, not an attribute of the block
+  // being rendered.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- `node` is named so that it is left out of `props`
+  pre({ node, children: preChildren, ...props }) {
     const mermaidCode = findMermaidCode(preChildren);
     if (mermaidCode !== null) {
       return <MermaidBlock>{mermaidCode}</MermaidBlock>;

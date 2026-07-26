@@ -300,6 +300,24 @@ describe('MarkdownRenderer link origin handling', () => {
     );
   });
 
+  test('routes a scheme-relative link back to this origin through the router', async () => {
+    // `//this-origin/path` resolves to our own origin, so it is an in-app link —
+    // but it reads as absolute to the plugin that decorates external links, and
+    // a router link carrying `target` is one the router declines to intercept.
+    // The decoration has to be dropped, or an in-app link full-page-reloads.
+    const user = userEvent.setup();
+    renderAt(`<a href="//${window.location.host}/boards/demo/cards/28">sneaky</a>`);
+
+    const link = screen.getByRole('link', { name: 'sneaky' });
+    // The resolved path, which is what says the in-app branch handled it.
+    expect(link).toHaveAttribute('href', '/boards/demo/cards/28');
+    expect(link).not.toHaveAttribute('target');
+    expect(link).not.toHaveAttribute('rel');
+
+    await user.click(link);
+    expect(screen.getByTestId('current-path')).toHaveTextContent('/boards/demo/cards/28');
+  });
+
   test('leaves a link to another site working as it always has', () => {
     renderAt('[docs](https://example.com/docs)');
     const link = screen.getByRole('link', { name: 'docs' });
@@ -328,6 +346,65 @@ describe('MarkdownRenderer link origin handling', () => {
     // so the one above is measuring something.
     const ordinary = renderAt('[fine](https://example.com)');
     expect(ordinary.container.querySelectorAll('a[href]')).toHaveLength(1);
+  });
+});
+
+describe('MarkdownRenderer anchor attributes', () => {
+  // react-markdown hands every component the parsed markdown node alongside the
+  // element's own attributes. It is not an HTML attribute, and forwarding the
+  // props object wholesale writes it into the DOM as `node="[object Object]"` —
+  // silently, because React passes an unknown lowercase attribute straight
+  // through without a warning.
+  const withAnchors: Array<[string, string]> = [
+    ['an in-app card link', 'See #28'],
+    ['an in-app link with a title', '[home](/boards/demo "Back to the board")'],
+    ['a link to another site', '[docs](https://example.com/docs)'],
+    ['a mail link', '[write](mailto:someone@example.com)'],
+    ['the anchors GFM generates for a footnote', 'Text with a note[^1]\n\n[^1]: the note body\n'],
+  ];
+
+  test.each(withAnchors)('renders no react-markdown internals on %s', (_label, markdown) => {
+    const { container } = render(
+      <MemoryRouter>
+        <MarkdownRenderer boardSlug="demo" cardNumbers={new Set([28])}>
+          {markdown}
+        </MarkdownRenderer>
+      </MemoryRouter>,
+    );
+
+    // Control: this case does render an anchor, so the assertion below is
+    // measuring something rather than passing over an empty document.
+    expect(container.querySelectorAll('a').length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('[node]')).toHaveLength(0);
+  });
+
+  test('renders no react-markdown internals on a fenced code block', () => {
+    // The other element this renderer takes over. Same defect, same fix — worth
+    // its own case because the anchors above would not have caught it.
+    const { container } = render(
+      <MemoryRouter>
+        <MarkdownRenderer>{'```js\nconst x = 1;\n```'}</MarkdownRenderer>
+      </MemoryRouter>,
+    );
+
+    // Control: the block rendered, so the assertion below has something to see.
+    expect(container.querySelector('pre')).not.toBeNull();
+    expect(container.querySelectorAll('[node]')).toHaveLength(0);
+  });
+
+  test('still renders the attributes an author or a plugin put on the anchor', () => {
+    // The other half of the same change: dropping react-markdown's own prop
+    // must not take the anchor's real attributes with it.
+    const { container } = render(
+      <MemoryRouter>
+        <MarkdownRenderer>{'Text with a note[^1]\n\n[^1]: the note body\n'}</MarkdownRenderer>
+      </MemoryRouter>,
+    );
+
+    const backref = container.querySelector('a[data-footnote-backref]');
+    expect(backref).not.toBeNull();
+    expect(backref).toHaveAttribute('aria-label');
+    expect(backref).toHaveClass('data-footnote-backref');
   });
 });
 
