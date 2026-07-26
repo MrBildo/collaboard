@@ -23,6 +23,12 @@ frontend/dist-notices-audit/
 backend/**/bin/
 backend/**/obj/
 backend/**/TestResults/
+# `dotnet publish` output. Ignored for the obvious reason, and for a
+# non-obvious one: Tailwind's content scanner walks the project and skips
+# whatever git ignores. An unignored publish tree contains a copy of the browser
+# bundle, so a later frontend build would scan its own previous output and emit
+# extra utilities -- changing the stylesheet, and with it every chunk hash.
+publish/
 
 # Aspire local state
 .aspire/

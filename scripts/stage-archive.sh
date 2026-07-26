@@ -64,11 +64,14 @@ find "${STAGE}" -type f \
 cp INSTALL.md "${STAGE}/"
 
 # Bundle the third-party attribution file. The archive redistributes the .NET
-# runtime, 41 NuGet packages and a browser bundle compiled from 193 npm packages;
-# several of those are Apache-2.0 or BSD-licensed and ask that recipients of the
-# redistributed binaries also receive the license. Attribution that lives only in
-# the source repository never reaches an operator who downloads a release, so the
-# file has to travel inside the archive itself -- verify-archive.sh requires it.
+# runtime, the NuGet packages the server was built against, and a browser bundle
+# compiled from npm packages; a number of those are Apache-2.0 or BSD-licensed and
+# ask that recipients of the redistributed binaries also receive the license.
+# Attribution that lives only in the source repository never reaches an operator
+# who downloads a release, so the file has to travel inside the archive itself --
+# verify-archive.sh requires it. (Counts deliberately omitted: THIRD-PARTY-NOTICES.md
+# is generated and drift-checked, and a hand-written total in a comment here would
+# be the one part of that claim nothing verifies.)
 cp THIRD-PARTY-NOTICES.md "${STAGE}/"
 
 # Unix archives must carry the execute bit on the apphost binary.
