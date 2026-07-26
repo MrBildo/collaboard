@@ -70,7 +70,7 @@ public class RevisionRaceInterceptor(IServiceScopeFactory scopeFactory) : SaveCh
 
         var stagesARevision = context.ChangeTracker
             .Entries<CardFieldHistory>()
-            .Any(e => e.State == EntityState.Added && e.Entity.CardId == _armedCardId);
+                .Any(e => e.State == EntityState.Added && e.Entity.CardId == _armedCardId);
 
         // Claiming the latch here is also what stops the rival's own save from re-entering: it
         // stages a revision on the same card and would otherwise arm a race against itself.
