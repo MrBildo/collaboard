@@ -289,6 +289,12 @@ Each card is enriched (labels, `sizeId`, `sizeName`, `commentCount`,
 Get one card in full — its fields plus comments, labels, and attachment metadata
 (not attachment bytes; download those separately).
 - **Params:** `authKey`, and a card ref.
+- Carries **`descriptionHistoryCount`** — how many recorded revisions the description
+  has, the same number `get_card_history` reports as its `totalCount`. Check it
+  before spending a call on the trail: it is `0` for every card whose description
+  has not been edited since recording began, which is most of them. It is never
+  `1` — a first edit records two revisions, the value that was already there and
+  the one that replaced it.
 
 #### `search_cards`
 Free-text search across **all** boards. Results are grouped by board; each card
@@ -330,6 +336,12 @@ follow-up `get_card` needed.
 - A description change is recorded — the value you replace is preserved and
   readable through `get_card_history`. Editing a description is lossless, so you
   can keep it current rather than hoarding detail in comments.
+- Two editors changing one description at the same moment both land, each as its
+  own attributed revision, in the order they committed. There is no conflict
+  response to handle. Note what that does and does not promise: the trail records
+  both edits, and the card keeps whichever text was written last — the same
+  last-one-wins the card has always had. If you need the value you read to still
+  be current when you write, read it back and check.
 
 ### History
 
@@ -342,16 +354,37 @@ get it. Pass `full` for the whole text at each revision, or `both`.
 - **Params:** `authKey`, and a card ref. Optional: `field` (default `description`
   — the only field recorded today; an unrecognized name is an error, not an empty
   trail), `format` (`diff` (default) / `full` / `both`), `from` **and** `to`
-  (revision numbers — see below; one without the other is an error).
-- Returns `{ cardId, field, entries }`. Each entry carries `revision` (a monotonic
-  integer from 1), `editedByUserId`, `editedByName`, `editedAtUtc`, and — per
-  `format` — `value` (the whole text at that revision) and/or `diff`. A key the
-  format excludes is **absent** from the JSON, not null.
+  (revision numbers — see below; one without the other is an error), `offset`
+  (default `0`) and `limit` (default `200`, max `500`).
+- Returns `{ cardId, field, entries, totalCount, offset, limit }`. Each entry
+  carries `revision` (a monotonic integer from 1), `editedByUserId`,
+  `editedByName`, `editedAtUtc`, and — per `format` — `value` (the whole text at
+  that revision) and/or `diff`. A key the format excludes is **absent** from the
+  JSON, not null.
+- **You get the newest 200 revisions unless you ask otherwise**, and `totalCount`
+  is the whole trail's length regardless — so `entries.length < totalCount` is how
+  you tell there is more. Pages are taken from the newest end: `offset=0` is the
+  most recent, and you walk backwards in time by increasing `offset`. A revision's
+  `diff` is the same whether it arrives on a page or in the whole trail; the entry
+  at a page's oldest edge is still diffed against the revision before it, even
+  though that revision is not on the page. `offset`/`limit` apply to the trail
+  only — sending either with `from`/`to` is an error, because a pair comparison
+  answers with a single object and there is no page to take of it.
 - **The trail's oldest revision has a null author and timestamp — only the oldest.**
   History is not back-filled, so revision 1 holds whatever the description said
   when recording began; nobody observed it being written, so it is left
   un-attributed rather than credited to a guess. Its `diff` is `""` — there is
   nothing older to compare it against. Every later revision is fully attributed.
+  **Only the oldest revision has an empty diff**, so an empty diff is a reliable
+  test for "this is the start of the record" — no revision ever repeats the text
+  of the one below it.
+- **Your edit and someone else's landing at the same instant both record**, as two
+  attributed revisions in commit order; `update_card` does not fail on a collision
+  and there is no conflict response to handle. If you both set the same text, the
+  second records nothing, exactly as it would have arriving a minute later. Not
+  lost-update protection: the card's text is still last-one-wins.
+  `editedAtUtc` never decreases as `revision` increases, but stamps can tie —
+  **sort by `revision`, not by time.**
 - Supplying `from` **and** `to` compares those two revisions instead of returning
   the trail, and answers with a different shape: a single
   `{ cardId, field, from, to, diff, fromValue, toValue }` object. Revisions compare

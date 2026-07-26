@@ -232,10 +232,11 @@ internal static class CardEndpoints
 
             // Staged after all validation and before the single save, so the new description and the
             // record of the old one commit together — a description can never replace an unrecorded
-            // one. Shared with the MCP update_card path so the two surfaces cannot drift.
-            await CardHistoryHelper.StageDescriptionChangeAsync(db, card.Id, oldDescription, card.DescriptionMarkdown, actor.Id, card.LastUpdatedAtUtc, ct);
+            // one. Shared with the MCP update_card path so the two surfaces cannot drift, including
+            // on how a concurrent edit racing the same revision number is resolved.
+            var descriptionChange = await CardHistoryHelper.StageDescriptionChangeAsync(db, card.Id, oldDescription, card.DescriptionMarkdown, actor.Id, ct);
 
-            await db.SaveChangesAsync(ct);
+            await CardHistoryHelper.SaveWithRevisionRetryAsync(db, descriptionChange, ct);
 
             // Multi-axis co-fire (#329): a single PATCH can change content + lane + labels and
             // emits one webhook event per CHANGED axis, while ringing EXACTLY ONE SSE bell via

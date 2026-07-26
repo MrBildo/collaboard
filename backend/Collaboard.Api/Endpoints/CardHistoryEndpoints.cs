@@ -7,7 +7,7 @@ internal static class CardHistoryEndpoints
 {
     public static RouteGroupBuilder MapCardHistoryEndpoints(this RouteGroupBuilder group)
     {
-        group.MapGet("/cards/{id:guid}/history", async (BoardDbContext db, Guid id, string? field, string? format, int? from, int? to, CancellationToken ct) =>
+        group.MapGet("/cards/{id:guid}/history", async (BoardDbContext db, Guid id, string? field, string? format, int? from, int? to, int? offset, int? limit, CancellationToken ct) =>
         {
             // Reading history needs no permission beyond reading the card, and every authenticated
             // user can read every card on this board model — so RequireAuth is the whole gate. If
@@ -39,6 +39,14 @@ internal static class CardHistoryEndpoints
 
             if (from.HasValue && to.HasValue)
             {
+                // A pair comparison answers with one object, so there is no page to take of it.
+                // Rejected rather than ignored, for the same reason a lone from is: a caller who
+                // believes they paged this response would be wrong and never find out.
+                if (offset.HasValue || limit.HasValue)
+                {
+                    return Results.BadRequest("offset and limit do not apply to a from/to comparison.");
+                }
+
                 var (pair, pairError) = await CardHistoryBuilder.BuildPairAsync(db, id, resolvedField!, resolvedFormat, from.Value, to.Value, ct);
 
                 return pairError is not null
@@ -46,7 +54,13 @@ internal static class CardHistoryEndpoints
                     : Results.Ok(pair);
             }
 
-            var trail = await CardHistoryBuilder.BuildTrailAsync(db, id, resolvedField!, resolvedFormat, ct);
+            // Same paging contract as the board's card list: out-of-range values clamp rather than
+            // error, and an omitted limit returns everything, so a caller written before paging
+            // existed sees exactly what it saw before.
+            var effectiveOffset = Math.Max(offset ?? 0, 0);
+            int? effectiveLimit = limit.HasValue ? Math.Clamp(limit.Value, 1, 200) : null;
+
+            var trail = await CardHistoryBuilder.BuildTrailAsync(db, id, resolvedField!, resolvedFormat, effectiveOffset, effectiveLimit, ct);
             return Results.Ok(trail);
         }).RequireAuth();
 

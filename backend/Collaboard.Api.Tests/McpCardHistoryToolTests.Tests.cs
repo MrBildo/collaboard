@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Collaboard.Api.Events;
@@ -235,6 +236,128 @@ public class McpCardHistoryToolTests(CollaboardApiFactory factory) : IClassFixtu
 
     private static JsonElement[] ParseEntries(string json) =>
         [.. JsonDocument.Parse(json).RootElement.GetProperty("entries").EnumerateArray()];
+
+    [Fact]
+    public async Task GetCardHistory_ReturnsThePagingEnvelopeAlongsideTheEntries()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var cardId = await CreateRevisionsAsync("Mcp History Envelope", 4);
+
+        // Act
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var tools = CreateHistoryTools(scope);
+        var json = await tools.GetCardHistoryAsync(_factory.AdminAuthKey, cardId: cardId);
+
+        // Assert — asserted on the JSON the caller actually receives, not the rows behind it.
+        var root = JsonDocument.Parse(json).RootElement;
+        root.GetProperty("totalCount").GetInt32().ShouldBe(4);
+        root.GetProperty("offset").GetInt32().ShouldBe(0);
+        root.GetProperty("limit").GetInt32().ShouldBe(200);
+        root.GetProperty("entries").GetArrayLength().ShouldBe(4);
+    }
+
+    [Fact]
+    public async Task GetCardHistory_PagesFromTheNewestEndAndKeepsTotalCountWhole()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var cardId = await CreateRevisionsAsync("Mcp History Paging", 5);
+
+        // Act
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var tools = CreateHistoryTools(scope);
+        var firstPage = await tools.GetCardHistoryAsync(_factory.AdminAuthKey, cardId: cardId, limit: 2);
+        var secondPage = await tools.GetCardHistoryAsync(_factory.AdminAuthKey, cardId: cardId, offset: 2, limit: 2);
+
+        // Assert
+        var first = JsonDocument.Parse(firstPage).RootElement;
+        first.GetProperty("entries").EnumerateArray().Select(e => e.GetProperty("revision").GetInt32()).ShouldBe([5, 4]);
+        first.GetProperty("totalCount").GetInt32().ShouldBe(5);
+
+        var second = JsonDocument.Parse(secondPage).RootElement;
+        second.GetProperty("entries").EnumerateArray().Select(e => e.GetProperty("revision").GetInt32()).ShouldBe([3, 2]);
+        second.GetProperty("offset").GetInt32().ShouldBe(2);
+
+        // The page boundary does not flatten a real diff into the empty one the first revision has.
+        second.GetProperty("entries")[1].GetProperty("diff").GetString().ShouldNotBe(string.Empty);
+    }
+
+    [Fact]
+    public async Task GetCardHistory_ClampsItsLimitToTheToolCeiling()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var cardId = await CreateRevisionsAsync("Mcp History Clamp", 3);
+
+        // Act
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var tools = CreateHistoryTools(scope);
+        var json = await tools.GetCardHistoryAsync(_factory.AdminAuthKey, cardId: cardId, offset: -3, limit: 9999);
+
+        // Assert
+        var root = JsonDocument.Parse(json).RootElement;
+        root.GetProperty("offset").GetInt32().ShouldBe(0);
+        root.GetProperty("limit").GetInt32().ShouldBe(500);
+        root.GetProperty("entries").GetArrayLength().ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task GetCardHistory_PagingAFromToComparison_IsAnError()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var cardId = await CreateRevisionsAsync("Mcp History Pair Paging", 3);
+
+        // Act
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var tools = CreateHistoryTools(scope);
+        var result = await tools.GetCardHistoryAsync(_factory.AdminAuthKey, cardId: cardId, from: 1, to: 3, limit: 1);
+
+        // Assert
+        result.ShouldBe("Error: offset and limit do not apply to a from/to comparison.");
+    }
+
+    [Fact]
+    public async Task GetCard_CarriesTheDescriptionHistoryCount()
+    {
+        // The same count REST's card detail carries — both surfaces read it through one builder,
+        // so a bot deciding whether to spend a call on the trail gets the same answer a browser does.
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var cardId = await CreateRevisionsAsync("Mcp History Count", 3);
+
+        // Act
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var tools = new CardTools
+        (
+            scope.ServiceProvider.GetRequiredService<BoardDbContext>(),
+            scope.ServiceProvider.GetRequiredService<McpAuthService>(),
+            scope.ServiceProvider.GetRequiredService<BoardEventBroadcaster>()
+        );
+        var json = await tools.GetCardAsync(_factory.AdminAuthKey, cardId: cardId);
+
+        // Assert
+        var root = JsonDocument.Parse(json).RootElement;
+        root.GetProperty("descriptionHistoryCount").GetInt32().ShouldBe(3);
+
+        // And it agrees with what the history tool reports for the same card.
+        var historyTools = CreateHistoryTools(scope);
+        var trail = await historyTools.GetCardHistoryAsync(_factory.AdminAuthKey, cardId: cardId);
+        JsonDocument.Parse(trail).RootElement.GetProperty("totalCount").GetInt32().ShouldBe(3);
+    }
+
+    private async Task<Guid> CreateRevisionsAsync(string name, int revisions)
+    {
+        // One edit seeds two revisions, so N revisions take N-1 edits.
+        var cardId = await CreateCardAsync(name, "v1");
+
+        for (var version = 2; version <= revisions; version++)
+        {
+            await PatchDescriptionAsync(cardId, string.Create(CultureInfo.InvariantCulture, $"v{version}"));
+        }
+
+        return cardId;
+    }
 
     private async Task<Guid> CreateCardAsync(string name, string descriptionMarkdown)
     {

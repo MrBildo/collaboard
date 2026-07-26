@@ -10,7 +10,7 @@ namespace Collaboard.Api.Mcp;
 public sealed class HistoryTools(BoardDbContext db, McpAuthService auth)
 {
     [McpServerTool(Name = "get_card_history", ReadOnly = true, Destructive = false)]
-    [Description("Get the edit history of a card's description — every recorded version with who replaced it and when, newest first. Defaults to format 'diff', which returns a unified (git-style) diff of what each edit changed instead of full snapshots; pass 'full' for the whole text at each revision or 'both' for each. Supply from AND to to get the diff between two arbitrary revisions instead of the whole trail. History starts at a card's first description edit — a never-edited card returns an empty trail and its current text is available from get_card.")]
+    [Description("Get the edit history of a card's description — every recorded version with who replaced it and when, newest first. Defaults to format 'diff', which returns a unified (git-style) diff of what each edit changed instead of full snapshots; pass 'full' for the whole text at each revision or 'both' for each. Returns { cardId, field, entries, totalCount, offset, limit } — the newest 200 revisions by default; page a longer trail with offset/limit and compare entries.length against totalCount. Supply from AND to to get the diff between two arbitrary revisions instead of the whole trail. History starts at a card's first description edit — a never-edited card returns an empty trail and its current text is available from get_card.")]
     public async Task<string> GetCardHistoryAsync
     (
         [Description("Your auth key")] string authKey,
@@ -22,6 +22,8 @@ public sealed class HistoryTools(BoardDbContext db, McpAuthService auth)
         [Description("One of 'diff' (default — unified diff of what each edit changed), 'full' (the whole value at each revision), or 'both'.")] string? format = null,
         [Description("Start revision of an arbitrary-pair comparison. Requires 'to'.")] int? from = null,
         [Description("End revision of an arbitrary-pair comparison. Requires 'from'.")] int? to = null,
+        [Description("Number of revisions to skip, counting back from the newest (default 0). Use with limit to walk a long trail.")] int? offset = null,
+        [Description("Maximum number of revisions to return (default 200, max 500). The response's totalCount is the whole trail's length regardless.")] int? limit = null,
         CancellationToken ct = default
     )
     {
@@ -63,6 +65,12 @@ public sealed class HistoryTools(BoardDbContext db, McpAuthService auth)
 
         if (from.HasValue && to.HasValue)
         {
+            // A pair comparison answers with one object, so there is no page to take of it.
+            if (offset.HasValue || limit.HasValue)
+            {
+                return "Error: offset and limit do not apply to a from/to comparison.";
+            }
+
             var (pair, pairError) = await CardHistoryBuilder.BuildPairAsync(db, resolvedCardId!.Value, resolvedField!, resolvedFormat, from.Value, to.Value, ct);
 
             return pairError is not null
@@ -70,7 +78,13 @@ public sealed class HistoryTools(BoardDbContext db, McpAuthService auth)
                 : JsonSerializer.Serialize(pair, JsonSerializerOptions.Web);
         }
 
-        var trail = await CardHistoryBuilder.BuildTrailAsync(db, resolvedCardId!.Value, resolvedField!, resolvedFormat, ct);
+        // Capped by default, matching get_cards: this is the surface that pays per token, and a
+        // trail is the one list in this API whose whole premise is that it grows without bound.
+        // The cap is visible rather than silent — totalCount always reports the full length.
+        var effectiveOffset = Math.Max(offset ?? 0, 0);
+        var effectiveLimit = Math.Clamp(limit ?? 200, 1, 500);
+
+        var trail = await CardHistoryBuilder.BuildTrailAsync(db, resolvedCardId!.Value, resolvedField!, resolvedFormat, effectiveOffset, effectiveLimit, ct);
         return JsonSerializer.Serialize(trail, JsonSerializerOptions.Web);
     }
 }

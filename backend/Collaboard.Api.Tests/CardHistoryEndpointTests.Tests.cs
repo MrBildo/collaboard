@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -415,6 +416,265 @@ public class CardHistoryEndpointTests(CollaboardApiFactory factory) : IClassFixt
         rows[0].EditedAtUtc.ShouldBeNull();
         rows[0].EditedByUserId.ShouldBeNull();
         rows[1].EditedAtUtc.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task TrailWithoutPagingParameters_ReturnsEverythingAndReportsNoLimit()
+    {
+        // The behaviour a caller written before paging existed must keep seeing.
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var cardId = await CreateRevisionsAsync("History Unpaged", 6);
+
+        // Act
+        var trail = await GetTrailAsync(cardId);
+
+        // Assert
+        trail.GetProperty("entries").GetArrayLength().ShouldBe(6);
+        trail.GetProperty("totalCount").GetInt32().ShouldBe(6);
+        trail.GetProperty("offset").GetInt32().ShouldBe(0);
+        trail.GetProperty("limit").ValueKind.ShouldBe(JsonValueKind.Null);
+    }
+
+    [Fact]
+    public async Task TrailWithALimit_ReturnsTheNewestPageAndTheWholeTrailsCount()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var cardId = await CreateRevisionsAsync("History First Page", 6);
+
+        // Act
+        var trail = await GetTrailAsync(cardId, "limit=2");
+
+        // Assert — a page is taken from the newest end, and totalCount still describes all of it.
+        var entries = trail.GetProperty("entries").EnumerateArray().ToArray();
+        entries.Select(e => e.GetProperty("revision").GetInt32()).ShouldBe([6, 5]);
+        trail.GetProperty("totalCount").GetInt32().ShouldBe(6);
+        trail.GetProperty("offset").GetInt32().ShouldBe(0);
+        trail.GetProperty("limit").GetInt32().ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task PagesWalkTheWholeTrailWithoutGapsOrOverlap()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var cardId = await CreateRevisionsAsync("History Walk", 7);
+
+        // Act — walk it two at a time.
+        List<int> walked = [];
+        for (var offset = 0; offset < 8; offset += 2)
+        {
+            var page = await GetTrailAsync(cardId, string.Create(CultureInfo.InvariantCulture, $"offset={offset}&limit=2"));
+            walked.AddRange(page.GetProperty("entries").EnumerateArray().Select(e => e.GetProperty("revision").GetInt32()));
+        }
+
+        // Assert
+        walked.ShouldBe([7, 6, 5, 4, 3, 2, 1]);
+    }
+
+    [Fact]
+    public async Task TheOldestEntryOnATruncatedPage_DiffsAgainstItsRealPredecessor()
+    {
+        // The failure this guards: a paged read that only fetches its own page has nothing older
+        // than the page's last entry, so that entry would come back with an empty diff and be
+        // indistinguishable from the trail's genuinely un-diffable first revision. The diff must
+        // be identical whether the entry arrives on a page or in the whole trail.
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var cardId = await CreateCardAsync("History Page Boundary", "one");
+        await PatchDescriptionAsync(cardId, "two");
+        await PatchDescriptionAsync(cardId, "three");
+        await PatchDescriptionAsync(cardId, "four");
+
+        // Act — the page holds revisions 3 and 2; revision 2 is its oldest and its predecessor
+        // (revision 1) falls outside the page. That entry is where the hazard lives, not the
+        // page's newest, whose predecessor is on the page anyway and would be right regardless.
+        var page = await GetTrailAsync(cardId, "offset=1&limit=2");
+        var pagedEntries = page.GetProperty("entries").EnumerateArray().ToArray();
+
+        // Assert
+        pagedEntries.Select(e => e.GetProperty("revision").GetInt32()).ShouldBe([3, 2]);
+
+        var oldestOnPage = pagedEntries[1];
+        oldestOnPage.GetProperty("revision").GetInt32().ShouldBe(2);
+        oldestOnPage.GetProperty("diff").GetString().ShouldBe("@@ -1,1 +1,1 @@\n-one\n+two\n");
+        oldestOnPage.GetProperty("diff").GetString().ShouldNotBe(string.Empty);
+
+        // The same revision, read unpaged, carries the same diff — paging must not change it.
+        var whole = await GetTrailEntriesAsync(cardId);
+        var unpagedRevisionTwo = whole.Single(e => e.GetProperty("revision").GetInt32() == 2);
+        unpagedRevisionTwo.GetProperty("diff").GetString().ShouldBe(oldestOnPage.GetProperty("diff").GetString());
+    }
+
+    [Fact]
+    public async Task TheTrailsFirstRevision_StillHasAnEmptyDiffWhenItLandsOnAPage()
+    {
+        // The other side of the boundary: reaching the true oldest revision through paging must
+        // still report "nothing older to compare against" rather than inventing a predecessor.
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var cardId = await CreateRevisionsAsync("History Page Tail", 4);
+
+        // Act
+        var page = await GetTrailAsync(cardId, "offset=2&limit=2");
+
+        // Assert
+        var entries = page.GetProperty("entries").EnumerateArray().ToArray();
+        entries.Select(e => e.GetProperty("revision").GetInt32()).ShouldBe([2, 1]);
+        entries[1].GetProperty("diff").GetString().ShouldBe(string.Empty);
+        entries[1].GetProperty("editedByUserId").ValueKind.ShouldBe(JsonValueKind.Null);
+    }
+
+    [Fact]
+    public async Task OutOfRangePagingValues_ClampLikeTheRestOfTheApi()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var cardId = await CreateRevisionsAsync("History Clamp", 3);
+
+        // Act & Assert — a negative offset is zero, and a limit outside 1..200 clamps into it.
+        var negativeOffset = await GetTrailAsync(cardId, "offset=-5");
+        negativeOffset.GetProperty("offset").GetInt32().ShouldBe(0);
+        negativeOffset.GetProperty("entries").GetArrayLength().ShouldBe(3);
+
+        var zeroLimit = await GetTrailAsync(cardId, "limit=0");
+        zeroLimit.GetProperty("limit").GetInt32().ShouldBe(1);
+        zeroLimit.GetProperty("entries").GetArrayLength().ShouldBe(1);
+
+        var hugeLimit = await GetTrailAsync(cardId, "limit=9999");
+        hugeLimit.GetProperty("limit").GetInt32().ShouldBe(200);
+        hugeLimit.GetProperty("entries").GetArrayLength().ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task OffsetWithNoLimit_ReturnsTheRestOfTheTrailDownToItsFirstRevision()
+    {
+        // An offset with no limit is the one paged read whose page runs to the end of the trail, so
+        // its oldest entry has no predecessor because there genuinely is none — not because one
+        // fell off a page edge. The empty diff it carries is the true one, and the entries have to
+        // match the tail of the unpaged read exactly.
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var cardId = await CreateRevisionsAsync("History Offset No Limit", 5);
+
+        // Act
+        var trail = await GetTrailAsync(cardId, "offset=2");
+
+        // Assert
+        var entries = trail.GetProperty("entries").EnumerateArray().ToArray();
+        entries.Select(e => e.GetProperty("revision").GetInt32()).ShouldBe([3, 2, 1]);
+        trail.GetProperty("totalCount").GetInt32().ShouldBe(5);
+        trail.GetProperty("offset").GetInt32().ShouldBe(2);
+        trail.GetProperty("limit").ValueKind.ShouldBe(JsonValueKind.Null);
+
+        entries[2].GetProperty("diff").GetString().ShouldBe(string.Empty);
+        entries[0].GetProperty("diff").GetString().ShouldNotBe(string.Empty);
+        entries[1].GetProperty("diff").GetString().ShouldNotBe(string.Empty);
+
+        var whole = await GetTrailEntriesAsync(cardId);
+        entries
+            .Select(e => e.GetProperty("diff").GetString())
+            .ShouldBe(whole[2..].Select(e => e.GetProperty("diff").GetString()));
+    }
+
+    [Fact]
+    public async Task OffsetPastTheEndOfTheTrail_ReturnsNoEntriesAndTheRealCount()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var cardId = await CreateRevisionsAsync("History Past End", 3);
+
+        // Act
+        var trail = await GetTrailAsync(cardId, "offset=50&limit=10");
+
+        // Assert
+        trail.GetProperty("entries").GetArrayLength().ShouldBe(0);
+        trail.GetProperty("totalCount").GetInt32().ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task PagingAFromToComparison_Returns400()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var cardId = await CreateRevisionsAsync("History Pair Paging", 3);
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/cards/{cardId}/history?from=1&to=3&limit=1");
+
+        // Assert — a pair comparison is one object; a caller who thinks they paged it is wrong.
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var message = await response.Content.ReadAsStringAsync();
+        message.ShouldContain("do not apply to a from/to comparison");
+    }
+
+    [Fact]
+    public async Task CardDetail_CarriesTheDescriptionHistoryCount_AndItAgreesWithTheTrail()
+    {
+        // The count exists so a consumer can decide whether a history affordance is worth offering
+        // without a second call. If it disagreed with the trail it would be worse than absent — a
+        // reader has no way to tell which of the two lied.
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var cardId = await CreateRevisionsAsync("History Count", 5);
+
+        // Act
+        var card = await GetCardAsync(cardId);
+        var trail = await GetTrailAsync(cardId);
+
+        // Assert
+        var count = card.GetProperty("descriptionHistoryCount").GetInt32();
+        count.ShouldBe(5);
+        count.ShouldBe(trail.GetProperty("totalCount").GetInt32());
+        count.ShouldBe(trail.GetProperty("entries").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task CardDetail_ReportsZeroHistoryForANeverEditedCard()
+    {
+        // The common case at launch, and the one the count exists to let a consumer detect: no
+        // affordance should be offered for a card with nothing to show.
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var cardId = await CreateCardAsync("History Count Empty", "never edited");
+
+        // Act
+        var card = await GetCardAsync(cardId);
+
+        // Assert
+        card.GetProperty("descriptionHistoryCount").GetInt32().ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task CardDetail_HistoryCount_GoesFromZeroToTwoOnTheFirstEdit()
+    {
+        // Never one: a card's first edit records the value that was already there as well as the
+        // one replacing it. A consumer rendering "N revisions" needs to expect that jump.
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var cardId = await CreateCardAsync("History Count First Edit", "before");
+        (await GetCardAsync(cardId)).GetProperty("descriptionHistoryCount").GetInt32().ShouldBe(0);
+
+        // Act
+        await PatchDescriptionAsync(cardId, "after");
+
+        // Assert
+        (await GetCardAsync(cardId)).GetProperty("descriptionHistoryCount").GetInt32().ShouldBe(2);
+    }
+
+    private async Task<Guid> CreateRevisionsAsync(string name, int revisions)
+    {
+        // One edit seeds two revisions, so N revisions take N-1 edits.
+        var cardId = await CreateCardAsync(name, "v1");
+
+        for (var version = 2; version <= revisions; version++)
+        {
+            await PatchDescriptionAsync(cardId, string.Create(CultureInfo.InvariantCulture, $"v{version}"));
+        }
+
+        return cardId;
+    }
+
+    private async Task<JsonElement> GetTrailAsync(Guid cardId, string? query = null)
+    {
+        var suffix = query is null ? string.Empty : $"?{query}";
+        var response = await _client.GetAsync($"/api/v1/cards/{cardId}/history{suffix}");
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
     }
 
     private async Task<Guid> CreateCardAsync(string name, string descriptionMarkdown)
