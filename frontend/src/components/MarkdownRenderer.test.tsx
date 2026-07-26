@@ -1,7 +1,7 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import type { CardLinkPreviewData } from './CardLinkPreview';
 import type { CardSummary } from '@/types';
@@ -212,6 +212,199 @@ describe('MarkdownRenderer card-link autolinking (#273)', () => {
     renderWithLinks('anchor #28-foo here');
     expect(screen.queryByRole('link')).toBeNull();
     expect(screen.getByText(/#28-foo/)).toBeInTheDocument();
+  });
+});
+
+describe('MarkdownRenderer link origin handling', () => {
+  // A link in a card description is followed inside the app only when it
+  // genuinely points back at this origin. Anything else is an external link and
+  // has to carry the external-link protections, however innocuous its shape.
+  //
+  // Descriptions can contain HTML as well as markdown, and the two reach the
+  // renderer differently: markdown's own link syntax percent-encodes anything
+  // unusual in a destination, while an HTML anchor's href arrives verbatim. So
+  // the shapes below are written as HTML — that is the authoring path on which
+  // they survive, and testing them as markdown links would have quietly tested
+  // nothing (see the markdown-encoding case further down).
+  const offOriginAnchors: Array<[string, string]> = [
+    ['//elsewhere.example/x', 'scheme-relative'],
+    ['/\\elsewhere.example/x', 'backslash reads as a second slash'],
+    ['/\\\\elsewhere.example', 'two backslashes'],
+    ['/&#9;/elsewhere.example', 'tab is dropped before parsing, leaving a scheme-relative link'],
+    ['/&#10;/elsewhere.example', 'newline is dropped before parsing, same result'],
+  ];
+
+  function CurrentPath() {
+    return <span data-testid="current-path">{useLocation().pathname}</span>;
+  }
+
+  function renderAt(markdown: string, path = '/boards/demo') {
+    return render(
+      <MemoryRouter initialEntries={[path]}>
+        <CurrentPath />
+        <MarkdownRenderer boardSlug="demo" cardNumbers={new Set([28])}>
+          {markdown}
+        </MarkdownRenderer>
+      </MemoryRouter>,
+    );
+  }
+
+  test.each(offOriginAnchors)('treats %j as external — %s', (href) => {
+    renderAt(`<a href="${href}">somewhere</a>`);
+    const link = screen.getByRole('link', { name: 'somewhere' });
+
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link.getAttribute('rel')).toContain('noopener');
+    expect(link.getAttribute('rel')).toContain('noreferrer');
+  });
+
+  test.each(offOriginAnchors)('does not route %j through in-app navigation — %s', async (href) => {
+    const user = userEvent.setup();
+    renderAt(`<a href="${href}">somewhere</a>`);
+
+    await user.click(screen.getByRole('link', { name: 'somewhere' }));
+
+    // An in-app link would have moved the router here. These must not.
+    expect(screen.getByTestId('current-path')).toHaveTextContent('/boards/demo');
+  });
+
+  test('a backslash written in markdown link syntax stays on this origin', () => {
+    // Markdown encodes the backslash in a link destination, so this shape never
+    // reaches the renderer intact by that route. Pinned because it is the
+    // reason the cases above are written as HTML: if this encoding ever stops
+    // happening, markdown link syntax becomes another way in and this test is
+    // where that shows up.
+    renderAt('[somewhere](/\\elsewhere.example/x)');
+    const href = screen.getByRole('link', { name: 'somewhere' }).getAttribute('href') ?? '';
+    expect(new URL(href, window.location.href).origin).toBe(window.location.origin);
+  });
+
+  test('still routes a genuine in-app link through the router', async () => {
+    const user = userEvent.setup();
+    renderAt('See #28');
+
+    const link = screen.getByRole('link', { name: '#28' });
+    expect(link).not.toHaveAttribute('target');
+
+    await user.click(link);
+    expect(screen.getByTestId('current-path')).toHaveTextContent('/boards/demo/cards/28');
+  });
+
+  test('an in-app link keeps the attributes the markdown gave it', () => {
+    // The in-app branch used to drop everything except the destination, so a
+    // link title written in the markdown never reached the rendered anchor.
+    renderAt('[home](/boards/demo "Back to the board")');
+    expect(screen.getByRole('link', { name: 'home' })).toHaveAttribute(
+      'title',
+      'Back to the board',
+    );
+  });
+
+  test('routes a scheme-relative link back to this origin through the router', async () => {
+    // `//this-origin/path` resolves to our own origin, so it is an in-app link —
+    // but it reads as absolute to the plugin that decorates external links, and
+    // a router link carrying `target` is one the router declines to intercept.
+    // The decoration has to be dropped, or an in-app link full-page-reloads.
+    const user = userEvent.setup();
+    renderAt(`<a href="//${window.location.host}/boards/demo/cards/28">sneaky</a>`);
+
+    const link = screen.getByRole('link', { name: 'sneaky' });
+    // The resolved path, which is what says the in-app branch handled it.
+    expect(link).toHaveAttribute('href', '/boards/demo/cards/28');
+    expect(link).not.toHaveAttribute('target');
+    expect(link).not.toHaveAttribute('rel');
+
+    await user.click(link);
+    expect(screen.getByTestId('current-path')).toHaveTextContent('/boards/demo/cards/28');
+  });
+
+  test('leaves a link to another site working as it always has', () => {
+    renderAt('[docs](https://example.com/docs)');
+    const link = screen.getByRole('link', { name: 'docs' });
+    expect(link).toHaveAttribute('href', 'https://example.com/docs');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link.getAttribute('rel')).toContain('noopener');
+  });
+
+  test('does not open a blank tab for a mail link', () => {
+    renderAt('[write](mailto:someone@example.com)');
+    const link = screen.getByRole('link', { name: 'write' });
+    expect(link).toHaveAttribute('href', 'mailto:someone@example.com');
+    expect(link).not.toHaveAttribute('target');
+  });
+
+  test('never renders a script-scheme link as a working destination', () => {
+    // The sanitiser drops these, and has all along — pinned here because it is
+    // the other half of what makes a link in someone else's markdown safe to
+    // render, and nothing else in this suite was holding it.
+    const trap = renderAt('[trap](javascript:alert(1))');
+    expect(screen.getByText('trap')).toBeInTheDocument();
+    expect(trap.container.querySelectorAll('a[href]')).toHaveLength(0);
+    trap.unmount();
+
+    // Control: the same assertion does find a destination for an ordinary link,
+    // so the one above is measuring something.
+    const ordinary = renderAt('[fine](https://example.com)');
+    expect(ordinary.container.querySelectorAll('a[href]')).toHaveLength(1);
+  });
+});
+
+describe('MarkdownRenderer anchor attributes', () => {
+  // react-markdown hands every component the parsed markdown node alongside the
+  // element's own attributes. It is not an HTML attribute, and forwarding the
+  // props object wholesale writes it into the DOM as `node="[object Object]"` —
+  // silently, because React passes an unknown lowercase attribute straight
+  // through without a warning.
+  const withAnchors: Array<[string, string]> = [
+    ['an in-app card link', 'See #28'],
+    ['an in-app link with a title', '[home](/boards/demo "Back to the board")'],
+    ['a link to another site', '[docs](https://example.com/docs)'],
+    ['a mail link', '[write](mailto:someone@example.com)'],
+    ['the anchors GFM generates for a footnote', 'Text with a note[^1]\n\n[^1]: the note body\n'],
+  ];
+
+  test.each(withAnchors)('renders no react-markdown internals on %s', (_label, markdown) => {
+    const { container } = render(
+      <MemoryRouter>
+        <MarkdownRenderer boardSlug="demo" cardNumbers={new Set([28])}>
+          {markdown}
+        </MarkdownRenderer>
+      </MemoryRouter>,
+    );
+
+    // Control: this case does render an anchor, so the assertion below is
+    // measuring something rather than passing over an empty document.
+    expect(container.querySelectorAll('a').length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('[node]')).toHaveLength(0);
+  });
+
+  test('renders no react-markdown internals on a fenced code block', () => {
+    // The other element this renderer takes over. Same defect, same fix — worth
+    // its own case because the anchors above would not have caught it.
+    const { container } = render(
+      <MemoryRouter>
+        <MarkdownRenderer>{'```js\nconst x = 1;\n```'}</MarkdownRenderer>
+      </MemoryRouter>,
+    );
+
+    // Control: the block rendered, so the assertion below has something to see.
+    expect(container.querySelector('pre')).not.toBeNull();
+    expect(container.querySelectorAll('[node]')).toHaveLength(0);
+  });
+
+  test('still renders the attributes an author or a plugin put on the anchor', () => {
+    // The other half of the same change: dropping react-markdown's own prop
+    // must not take the anchor's real attributes with it.
+    const { container } = render(
+      <MemoryRouter>
+        <MarkdownRenderer>{'Text with a note[^1]\n\n[^1]: the note body\n'}</MarkdownRenderer>
+      </MemoryRouter>,
+    );
+
+    const backref = container.querySelector('a[data-footnote-backref]');
+    expect(backref).not.toBeNull();
+    expect(backref).toHaveAttribute('aria-label');
+    expect(backref).toHaveClass('data-footnote-backref');
   });
 });
 
