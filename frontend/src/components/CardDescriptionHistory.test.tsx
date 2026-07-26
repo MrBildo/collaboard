@@ -143,6 +143,32 @@ describe('CardDescriptionHistory', () => {
     expect(screen.getByText('added line')).toBeInTheDocument();
   });
 
+  test('add/remove lines carry a screen-reader-only signal beyond the aria-hidden glyph', async () => {
+    mockedFetchCardHistory.mockResolvedValue(
+      makeTrail([
+        makeEntry({
+          revision: 2,
+          diff: '@@ -1,2 +1,2 @@\n context line\n-removed line\n+added line\n',
+        }),
+      ]),
+    );
+
+    renderPanel();
+
+    await waitFor(() => {
+      expect(screen.getByText('@@ -1,2 +1,2 @@')).toBeInTheDocument();
+    });
+
+    // The visible gutter marker (+/-) is aria-hidden, so colour is the only
+    // sighted-only cue. A screen-reader user needs a spoken equivalent that
+    // does not depend on perceiving colour.
+    expect(screen.getByText('Added:', { selector: '.sr-only' })).toBeInTheDocument();
+    expect(screen.getByText('Removed:', { selector: '.sr-only' })).toBeInTheDocument();
+    // The unchanged context line has no colour-only distinction to replace.
+    const contextRow = screen.getByText('context line').closest('div');
+    expect(contextRow?.querySelector('.sr-only')).toBeNull();
+  });
+
   test('a non-first revision with an empty diff renders the no-visible-change note, not a blank panel', async () => {
     mockedFetchCardHistory.mockResolvedValue(
       makeTrail([makeEntry({ revision: 2, diff: '' }), makeEntry({ revision: 1, diff: '' })]),

@@ -55,6 +55,10 @@ function DiffView({ diff }: { diff: string }) {
           >
             {line.kind === 'add' ? '+' : line.kind === 'remove' ? '-' : ''}
           </span>
+          {/* The gutter glyph above is aria-hidden and colour-coded — a screen-reader
+              user can't perceive either, so add/remove needs a spoken equivalent. */}
+          {line.kind === 'add' && <span className="sr-only">Added: </span>}
+          {line.kind === 'remove' && <span className="sr-only">Removed: </span>}
           <span className="pr-3">{line.text}</span>
         </div>
       ))}
