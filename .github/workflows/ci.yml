@@ -111,11 +111,12 @@ jobs:
       # ONE build, with sourcemaps written as sidecar files. `hidden` emits the
       # .map files without appending a sourceMappingURL trailer to the code, so
       # the emitted JavaScript is exactly what a plain `vite build` produces --
-      # measured over alternating builds of both modes rather than assumed: the
-      # .js/.css came out byte-identical between the two, filenames included, and
-      # the flag's entire effect was the extra .map files beside them. That is
-      # what lets publish.yml keep building without sourcemaps while the
-      # inventory checked here still describes the bundle a release ships.
+      # measured over alternating builds of both modes rather than assumed:
+      # whenever both drew the same chunk variant (below), the .js/.css came
+      # out byte-identical between the two, filenames included, and the flag's
+      # entire effect was the extra .map files beside them. That is what lets
+      # publish.yml keep building without sourcemaps while the inventory
+      # checked here still describes the bundle a release ships.
       #
       # This used to be two builds -- one to ship, one with sourcemaps to read --
       # asserted byte-identical to each other. They are not required to be.
