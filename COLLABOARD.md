@@ -33,7 +33,7 @@ This project deviates from the org-default lane set defined in the `collaboard` 
 
 - Triage walks sub-batch dispositions as **`On Deck / Backlog / Archive`**, not `Ready / Backlog / Archive`.
 - **`HANDOFF.md` "what's next session" is a snapshot of the Ready lane** — no mental subsetting required.
-- When proposing card creation, default destination is Triage for new ideas, **On Deck** if the card surfaces mid-work and the disposition is clearly decided.
+- **All newly-created cards go to Triage** — including ones whose disposition already looks settled. The coordinator does not place a new card straight into On Deck on its own judgment; only the operator can direct otherwise. (Standing order, 2026-06-28, suite-wide. This line previously allowed coordinator discretion and predates that order.)
 - At session-end, glance at On Deck depth — if it's growing past ~10 cards without churn, surface it (it shouldn't quietly become a second Backlog).
 
 This pattern is borrowed from Collabhost. If it proves out across multiple Collabot-org projects, promote the lane definition into the `collaboard` skill at that point.
@@ -111,7 +111,7 @@ During a session:
 
 - Move cards as state changes (Triage → On Deck → Ready → In Progress → Done; coordinator promotes Triage → On Deck or Backlog; operator pulls forward On Deck → Ready).
 - Comment on cards as work progresses — write for a reader with no prior context.
-- Create new cards when gaps or ideas surface — put them in Triage with minimal ceremony (or On Deck if the disposition is clearly decided).
+- Create new cards when gaps or ideas surface — put them in Triage with minimal ceremony. Triage is the destination even when the disposition already seems obvious; promoting out of it is a separate, later step.
 
 ### Cross-project externally-gated cards
 
