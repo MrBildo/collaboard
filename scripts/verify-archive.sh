@@ -22,7 +22,7 @@
 #   (2) required present  — binary, appsettings.json, deps.json, runtimeconfig,
 #                           INSTALL.md, THIRD-PARTY-NOTICES.md, wwwroot/index.html
 #   (3) no excluded leak  — *.pdb, *.xml, appsettings.Development.json,
-#                           *.staticwebassets.endpoints.json (recursive)
+#                           *.staticwebassets.endpoints.json, *.map (recursive)
 #   (4) no top-level drift — every top-level entry matches a known library class
 #                           or the short named set of non-library artifacts
 #
@@ -86,13 +86,27 @@ fi
 # and SDK-added-file drift leaking into a shipped archive. Recursive `find .`
 # mirrors the recursive strip matcher in stage-archive.sh (both halves of the
 # exclusion contract must agree on what they match).
+#
+# *.map is the deliberate exception to that mirroring, and the asymmetry is the
+# point. Every other pattern here is something `dotnet publish` emits that we
+# never want, so staging strips it and this check is the backstop. Sourcemaps are
+# different: the CI contract job builds the frontend WITH sourcemaps on purpose
+# (they are the only ground truth for which npm packages reach the bundle) and
+# then moves them out of the build output before anything copies it into wwwroot.
+# That removal is the load-bearing step. If staging also stripped *.map, a
+# removal that silently matched nothing would be silently repaired here and the
+# archive would pass — we would have traded a noisy gate for a quiet one instead
+# of for a correct one. Leaving the strip out means a surviving sourcemap fails
+# the build and names the real problem. (Sourcemaps expose our source layout and
+# original module paths; they are not something to ship by accident.)
 LEAKED=$(
   cd "${VERIFY_DIR}"
   find . \
     \( -name '*.pdb' \
     -o -name '*.xml' \
     -o -name 'appsettings.Development.json' \
-    -o -name '*.staticwebassets.endpoints.json' \) \
+    -o -name '*.staticwebassets.endpoints.json' \
+    -o -name '*.map' \) \
     -type f | sort
 )
 if [[ -n "${LEAKED}" ]]; then

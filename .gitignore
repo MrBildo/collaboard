@@ -13,11 +13,17 @@
 # Node
 node_modules/
 frontend/node_modules/
-frontend/dist/
-# Throwaway sourcemap build the third-party-notices check reads to learn which
-# npm packages actually reach the browser bundle. Deliberately a separate output
-# directory from frontend/dist/ so sourcemaps can never leak into wwwroot.
-frontend/dist-notices-audit/
+# Vite build output. Deliberately a glob rather than a list of known directories.
+# Tailwind's content scan is rooted at the Vite root (frontend/) and skips
+# whatever git ignores, so ANY unignored build output under frontend/ becomes an
+# input to the NEXT build: the scanner finds class-name-shaped strings in a
+# previous bundle and emits utilities for them, which changes the stylesheet and
+# every chunk hash downstream of it. Two people hit that on this tree in one day,
+# each having added a new output directory and remembered only some of the places
+# that need to know about it. A glob means naming a throwaway output `dist-...`
+# is enough. Mirror any change here in frontend/eslint.config.js, which ignores
+# the same set for the same underlying reason.
+frontend/dist*/
 
 # .NET
 backend/**/bin/
@@ -25,6 +31,10 @@ backend/**/obj/
 backend/**/TestResults/
 # `dotnet publish` output.
 publish/
+# Bundle sourcemaps moved out of the frontend build so the third-party-notices
+# inventory can be read from the same build that ships. Outside frontend/ on
+# purpose -- see the note on the Vite output glob above.
+notices-sourcemaps/
 
 # Aspire local state
 .aspire/
