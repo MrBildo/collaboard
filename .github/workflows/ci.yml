@@ -108,35 +108,39 @@ jobs:
         run: npm ci
         working-directory: frontend
 
-      - name: Build frontend
-        run: npx vite build
-        working-directory: frontend
-
-      # Ordering here is load-bearing, not incidental. Both builds must see the
-      # same inputs, and Tailwind's content scan is one of those inputs: it is
-      # rooted at the Vite root (frontend/) and skips whatever git ignores, so
-      # any unignored file appearing anywhere under frontend/ between these two
-      # steps would be scanned by the second build and not the first --
-      # changing the stylesheet and every chunk hash downstream of it. Keeping
-      # the two builds adjacent means nothing can appear between them. Paths
-      # outside frontend/ (the wwwroot copy, the publish tree) are outside the
-      # scan root and cannot contribute.
+      # ONE build, with sourcemaps written as sidecar files. `hidden` emits the
+      # .map files without appending a sourceMappingURL trailer to the code, so
+      # the emitted JavaScript is exactly what a plain `vite build` produces --
+      # measured over alternating builds of both modes rather than assumed:
+      # whenever both drew the same chunk variant (below), the .js/.css came
+      # out byte-identical between the two, filenames included, and the flag's
+      # entire effect was the extra .map files beside them. That is what lets
+      # publish.yml keep building without sourcemaps while the inventory
+      # checked here still describes the bundle a release ships.
       #
-      # The sourcemap build goes to its own throwaway output directory. Using the
-      # real dist/ would put .map files where the next step copies them into
-      # wwwroot, and the archive contract has no rule that would catch them.
-      - name: Build frontend sourcemaps (notices audit only)
-        run: npx vite build --sourcemap --outDir dist-notices-audit
+      # This used to be two builds -- one to ship, one with sourcemaps to read --
+      # asserted byte-identical to each other. They are not required to be.
+      # Repeated builds of an unchanged tree draw one of two variants of a single
+      # shared chunk, so two independent builds disagree often enough that the
+      # assertion went red on healthy pull requests. Both variants bundle an
+      # identical set of source modules, which is the only thing the notices file
+      # claims: the comparison was strictly stronger than the obligation, and a
+      # gate that fails on differences its own claim does not care about teaches
+      # people to re-run until it passes. Building once makes the audited bundle
+      # the shipped bundle by construction, so there is nothing left to compare.
+      - name: Build frontend
+        run: npx vite build --sourcemap hidden
         working-directory: frontend
 
-      # The notices inventory is derived from the sourcemap build; the archive
-      # ships the build above it. That reasoning only holds while the two compile
-      # the same modules, and nothing required them to. Both trees are already
-      # here, so the check costs a hash pass -- and without it a config change
-      # could make the notices file a precise description of a bundle nobody
-      # receives, which is a failure with no visible symptom.
-      - name: Verify the audit build is the shipped bundle
-        run: bash scripts/verify-bundle-equivalence.sh frontend/dist frontend/dist-notices-audit
+      # Move the sourcemaps out of the build output before anything reads it, so
+      # every step below inherits a tree with none in it. The target sits outside
+      # frontend/ deliberately: Tailwind's content scan is rooted at the Vite root
+      # and skips only what git ignores, so an unignored directory inside it would
+      # become an input to the next build. The script asserts both directions --
+      # sourcemaps were found (an empty set would make the inventory below
+      # describe nothing while looking clean) and none were left behind.
+      - name: Set the bundle sourcemaps aside
+        run: bash scripts/extract-bundle-sourcemaps.sh frontend/dist notices-sourcemaps
 
       - name: Copy frontend to wwwroot
         run: |
@@ -155,7 +159,9 @@ jobs:
       # Re-derive the third-party component inventory from what this build
       # actually produced -- the publish dependency manifest for the server side,
       # and the bundle's own sourcemaps for the browser side -- and fail if it
-      # disagrees with what THIRD-PARTY-NOTICES.md publishes.
+      # disagrees with what THIRD-PARTY-NOTICES.md publishes. The sourcemaps are
+      # the ones set aside above, off the same build whose JavaScript is now in
+      # wwwroot and about to be packaged.
       #
       # Several bundled components (DiffPlex, the OpenTelemetry set, the MCP SDK,
       # SQLitePCLRaw, Polly, highlight.js among them) are licensed on the
@@ -175,7 +181,7 @@ jobs:
             --check THIRD-PARTY-NOTICES.md \
             "publish/${ARTIFACT}/Collaboard.Api.deps.json" \
             frontend \
-            frontend/dist-notices-audit
+            notices-sourcemaps
 
       - name: Stage archive
         run: |

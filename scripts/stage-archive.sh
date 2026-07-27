@@ -25,6 +25,14 @@
 # The strip uses recursive `find ... -delete` so it shares one matcher with the
 # recursive `find .` leaked-file check in verify-archive.sh — the two halves of
 # the exclusion contract must agree on what they match.
+#
+# One deliberate exception: verify-archive.sh also rejects *.map, and this script
+# does NOT strip it. Sourcemaps are not publish output we always discard; the CI
+# contract job generates them on purpose and removes them from the build output
+# itself (extract-bundle-sourcemaps.sh) before anything is copied or staged.
+# Stripping them here would silently repair a removal that failed, which is
+# exactly the failure the archive check exists to make loud. Rationale in full at
+# check (3) in verify-archive.sh.
 
 set -euo pipefail
 

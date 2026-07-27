@@ -7,11 +7,11 @@ import eslintConfigPrettier from 'eslint-config-prettier';
 export default tseslint.config(
   {
     ignores: [
-      'dist/',
-      // Throwaway sourcemap build the third-party-notices check reads to learn
-      // which npm packages actually reach the browser bundle. Build output, same
-      // as dist/ — linting it means linting bundled dependency code.
-      'dist-notices-audit/',
+      // Build output. A glob rather than a list, matching .gitignore: linting a
+      // bundle means linting bundled dependency code (a stray audit output once
+      // produced ~10,000 errors here), and a new output directory should not
+      // have to be remembered in two places to stay out of the way.
+      'dist*/',
       'node_modules/',
       'src/components/ui/',
       '*.js',
