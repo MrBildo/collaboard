@@ -51,6 +51,27 @@ internal static class CardHistoryHelper
             .Where(h => h.CardId == cardId && h.Field == field)
                 .CountAsync(ct);
 
+    // The field's newest recorded revision — its ordinal and who wrote it — or null when the field
+    // has no trail yet. Revisions are dense from one, so the ordinal is also the trail's length: a
+    // caller that read the card's descriptionHistoryCount and passes it back can be told, by comparing
+    // it against this ordinal, whether the field moved on since. Kept apart from the recording path's
+    // own head read (which wants the head value, not its author) so the collision check adds no
+    // coupling to the retry logic. The head of a non-empty trail is always an attributed revision —
+    // a trail holds at least the seed and the first edit — so EditedByUserId is non-null whenever a
+    // head exists.
+    public static Task<HeadRevision?> HeadRevisionAsync
+    (
+        BoardDbContext db,
+        Guid cardId,
+        string field,
+        CancellationToken ct = default
+    ) =>
+        db.CardFieldHistories
+            .Where(h => h.CardId == cardId && h.Field == field)
+            .OrderByDescending(h => h.Revision)
+                .Select(h => new HeadRevision(h.Revision, h.EditedByUserId))
+                    .FirstOrDefaultAsync(ct);
+
     // Returns the staged change so the caller can hand it to SaveWithRevisionRetryAsync, which
     // needs it to rebuild the rows if another editor wins the race for the revision number. Null
     // means nothing was staged and there is no revision to race for.
@@ -250,3 +271,9 @@ internal record StagedDescriptionChange
     string NewValue,
     Guid EditedByUserId
 );
+
+// The newest revision recorded for a field: its ordinal — which, revisions being dense from one, is
+// also the trail's length — and the user who wrote it. The oldest revision of a trail is
+// un-attributed, but a head is never the oldest (a trail holds the seed and at least one edit), so a
+// head that exists carries a non-null editor.
+internal record HeadRevision(int Revision, Guid? EditedByUserId);

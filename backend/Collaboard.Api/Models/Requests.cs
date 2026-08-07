@@ -18,7 +18,11 @@ public record UpdateBoardRequest(string? Name);
 // Card requests
 public record CreateCardRequest(Guid LaneId, string? Name, string? DescriptionMarkdown, int? Position, Guid? SizeId, string? SizeName, Guid[]? LabelIds);
 
-public record UpdateCardRequest(string? Name, string? DescriptionMarkdown, Guid? SizeId, Guid? LaneId, int? Position, Guid[]? LabelIds);
+// ExpectedDescriptionRevision is the optional collision-awareness baseline: the descriptionHistoryCount
+// the caller read before editing. When the description is changed and this is supplied, the update
+// response carries an exact collision notice iff the description moved past that revision meanwhile.
+// Awareness only — it never blocks or fails the save.
+public record UpdateCardRequest(string? Name, string? DescriptionMarkdown, Guid? SizeId, Guid? LaneId, int? Position, Guid[]? LabelIds, int? ExpectedDescriptionRevision = null);
 
 public record ReorderCardRequest(Guid? LaneId, int? Index);
 

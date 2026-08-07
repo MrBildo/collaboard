@@ -121,6 +121,12 @@ internal static class CardEndpoints
             var oldDescription = card.DescriptionMarkdown;
             var oldSizeId = card.SizeId;
 
+            // Snapshot the pre-write last-editor/last-edit too, before this request overwrites them
+            // below — the approximate collision signal reads them to tell whether someone else was
+            // working this card moments ago.
+            var priorEditorId = card.LastUpdatedByUserId;
+            var priorEditedAtUtc = card.LastUpdatedAtUtc;
+
             if (request.Name is not null)
             {
                 if (string.IsNullOrWhiteSpace(request.Name))
@@ -230,6 +236,16 @@ internal static class CardEndpoints
             card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
             card.LastUpdatedByUserId = actor.Id;
 
+            // Collision awareness, computed before the save against the state the caller was racing:
+            // an exact answer when the caller passed the revision it read, a best-effort card-level
+            // signal otherwise. Only when this write sets the description — the one field lit today.
+            // Reports; never blocks (last-write-wins is unchanged).
+            CardCollision? collision = null;
+            if (request.DescriptionMarkdown is not null)
+            {
+                collision = await CardCollisionDetector.DetectAsync(db, card.Id, CardHistoryHelper.DescriptionField, request.ExpectedDescriptionRevision, priorEditorId, priorEditedAtUtc, actor.Id, ct);
+            }
+
             // Staged after all validation and before the single save, so the new description and the
             // record of the old one commit together — a description can never replace an unrecorded
             // one. Shared with the MCP update_card path so the two surfaces cannot drift, including
@@ -250,8 +266,10 @@ internal static class CardEndpoints
             var events = await WebhookEventFactory.BuildCardUpdateEventsAsync(db, card, actor, contentChanged, moveToLane, moveFromLane, moveFromPosition, addedLabelIds, removedLabelIds, ct);
             broadcaster.PublishCoalesced(card.BoardId, events);
 
+            // CardUpdateResult attaches the collision here, at the write site — never through the
+            // shared CardSummaryBuilder — so it cannot appear in list, search or webhook payloads.
             var summaries = await CardSummaryBuilder.BuildAsync(db, [card], ct);
-            return Results.Ok(summaries[0]);
+            return Results.Ok(new CardUpdateResult(summaries[0], collision));
         }).RequireAuth();
 
         group.MapPost("/cards/{id:guid}/reorder", async (BoardDbContext db, HttpContext http, Guid id, ReorderCardRequest request, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
