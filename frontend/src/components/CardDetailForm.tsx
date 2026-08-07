@@ -38,6 +38,7 @@ import {
 import { InlineError } from '@/components/ui/inline-error';
 import { toMessage } from '@/lib/mutation-floor';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { LabelPicker } from '@/components/LabelPicker';
 import { queryKeys } from '@/lib/query-keys';
 import { QUERY_DEFAULTS } from '@/lib/query-config';
@@ -64,8 +65,12 @@ type FieldName = 'name' | 'description' | 'sizeId' | 'laneId' | 'labelIds';
 
 type DescriptionView = 'edit' | 'preview' | 'history';
 
-type ExternalUpdate = { remoteValue: string };
-type ExternalLabelUpdate = { remoteLabelIds: string[] };
+// A remote change to a field the user is editing, tagged with who made it so
+// the warning can name the actor ("Marcus changed the description") rather than
+// count anonymous fields. The actor is the card's lastUpdatedByUserId at the
+// moment the change was observed — resolved to a name at render time.
+type ExternalUpdate = { remoteValue: string; actorId: string };
+type ExternalLabelUpdate = { remoteLabelIds: string[]; actorId: string };
 
 type ExternalUpdates = {
   name?: ExternalUpdate;
@@ -75,6 +80,62 @@ type ExternalUpdates = {
   labelIds?: ExternalLabelUpdate;
 };
 
+// Field names in the operator's vocabulary, not the wire's (sizeId -> "size").
+const FIELD_LABELS: Record<FieldName, string> = {
+  name: 'name',
+  description: 'description',
+  sizeId: 'size',
+  laneId: 'lane',
+  labelIds: 'labels',
+};
+
+// Summarise who changed what while the card was open. The dominant collision is
+// one other editor touching one field, so that case names the person and the
+// field in full; multi-field and multi-actor cases fall back to a count to keep
+// the line short.
+function buildCollisionMessage(entries: { field: string; actor: string }[]): string {
+  if (entries.length === 0) return '';
+  if (entries.length === 1) {
+    return `${entries[0].actor} changed the ${entries[0].field}`;
+  }
+  const actors = new Set(entries.map((e) => e.actor));
+  if (actors.size === 1) {
+    return `${entries[0].actor} changed ${entries.length} fields`;
+  }
+  return `${entries.length} fields changed externally`;
+}
+
+// Preserve the actor recorded when a field's remote value was first seen: only
+// re-attribute a field when its remote value actually changed. Without this, a
+// later edit to a *different* field by a *different* person would silently
+// reassign authorship of an already-flagged field, since the sync effect
+// rebuilds the whole map on every incoming card and stamps the latest editor.
+function reconcileActors(next: ExternalUpdates, prev: ExternalUpdates): ExternalUpdates {
+  const out: ExternalUpdates = {};
+  if (next.name) {
+    out.name = prev.name?.remoteValue === next.name.remoteValue ? prev.name : next.name;
+  }
+  if (next.description) {
+    out.description =
+      prev.description?.remoteValue === next.description.remoteValue
+        ? prev.description
+        : next.description;
+  }
+  if (next.sizeId) {
+    out.sizeId = prev.sizeId?.remoteValue === next.sizeId.remoteValue ? prev.sizeId : next.sizeId;
+  }
+  if (next.laneId) {
+    out.laneId = prev.laneId?.remoteValue === next.laneId.remoteValue ? prev.laneId : next.laneId;
+  }
+  if (next.labelIds) {
+    out.labelIds =
+      prev.labelIds && arraysEqual(prev.labelIds.remoteLabelIds, next.labelIds.remoteLabelIds)
+        ? prev.labelIds
+        : next.labelIds;
+  }
+  return out;
+}
+
 type CardBaseline = {
   name: string;
   description: string;
@@ -83,41 +144,59 @@ type CardBaseline = {
   labelIds: string[];
 };
 
-function ExternalUpdateDot({
+// Per-field collision indicator. The remote value and the "accept" action are
+// load-bearing UI, so they live in a click/keyboard-openable Popover with an
+// accessible name — not a hover-only tooltip, which keyboard and screen-reader
+// users cannot reach and which is the wrong home for an action.
+function ExternalUpdateIndicator({
   field,
+  actorName,
   remoteDisplay,
   onAccept,
 }: {
   field: string;
+  actorName: string;
   remoteDisplay: string;
   onAccept: () => void;
 }) {
+  const [open, setOpen] = useState(false);
   return (
-    <Tooltip>
-      <TooltipTrigger render={<span />}>
-        <span className="inline-flex items-center gap-1">
-          <span className="inline-block h-2 w-2 rounded-full bg-accent" />
-        </span>
-      </TooltipTrigger>
-      <TooltipContent side="top" className="max-w-xs">
-        <div className="flex flex-col gap-1">
-          <span className="text-xs">
-            {field} changed remotely to: <strong>{remoteDisplay}</strong>
-          </span>
-          <button
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        render={
+          <Button
             type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onAccept();
-            }}
-            className="inline-flex items-center gap-1 self-start rounded px-1.5 py-0.5 text-xs font-medium text-accent hover:bg-accent/15"
-          >
-            <RotateCcw className="h-3 w-3" />
-            Accept remote
-          </button>
-        </div>
-      </TooltipContent>
-    </Tooltip>
+            variant="ghost"
+            size="icon-xs"
+            aria-label={`${field} changed by ${actorName}. Review and accept their version.`}
+            className="size-5 rounded-full hover:bg-accent/15"
+          />
+        }
+      >
+        <span className="inline-block size-2.5 rounded-full bg-accent ring-2 ring-accent/40" />
+      </PopoverTrigger>
+      <PopoverContent side="top" align="start" className="w-72">
+        <p className="text-sm text-foreground">
+          <span className="font-medium">{actorName}</span> changed the {field.toLowerCase()} to:
+        </p>
+        <p className="max-h-32 overflow-y-auto rounded bg-muted/50 p-2 text-sm break-words text-foreground">
+          {remoteDisplay}
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="self-start"
+          onClick={() => {
+            onAccept();
+            setOpen(false);
+          }}
+        >
+          <RotateCcw className="mr-1 h-3.5 w-3.5" />
+          Accept their version
+        </Button>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -294,6 +373,10 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
       const remoteSizeId = card.sizeId;
       const remoteLaneId = card.laneId;
       const remoteLabelIds = originalLabelIds;
+      // Whoever most recently wrote the card is the actor behind any field that
+      // now differs from the baseline; reconcileActors keeps an earlier actor
+      // when only an unrelated field changed.
+      const actorId = card.lastUpdatedByUserId;
 
       setBaselineState((base) => {
         const newExternal: ExternalUpdates = {};
@@ -306,7 +389,7 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
             patches.name = remoteName;
           }
         } else if (remoteName !== base.name) {
-          newExternal.name = { remoteValue: remoteName };
+          newExternal.name = { remoteValue: remoteName, actorId };
         }
 
         // Description
@@ -316,7 +399,7 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
             patches.description = remoteDesc;
           }
         } else if (remoteDesc !== base.description) {
-          newExternal.description = { remoteValue: remoteDesc };
+          newExternal.description = { remoteValue: remoteDesc, actorId };
         }
 
         // SizeId
@@ -326,7 +409,7 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
             patches.sizeId = remoteSizeId;
           }
         } else if (remoteSizeId !== base.sizeId) {
-          newExternal.sizeId = { remoteValue: remoteSizeId };
+          newExternal.sizeId = { remoteValue: remoteSizeId, actorId };
         }
 
         // LaneId
@@ -336,7 +419,7 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
             patches.laneId = remoteLaneId;
           }
         } else if (remoteLaneId !== base.laneId) {
-          newExternal.laneId = { remoteValue: remoteLaneId };
+          newExternal.laneId = { remoteValue: remoteLaneId, actorId };
         }
 
         // LabelIds
@@ -346,20 +429,29 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
             patches.labelIds = remoteLabelIds;
           }
         } else if (!arraysEqual(remoteLabelIds, base.labelIds)) {
-          newExternal.labelIds = { remoteLabelIds };
+          newExternal.labelIds = { remoteLabelIds, actorId };
         }
 
-        // Update external updates state
+        // Update external updates state, keeping each field's original actor
+        // when only its actor (not its value) would have changed.
         setExternalUpdates((prev) => {
-          if (JSON.stringify(prev) === JSON.stringify(newExternal)) return prev;
-          return newExternal;
+          const reconciled = reconcileActors(newExternal, prev);
+          if (JSON.stringify(prev) === JSON.stringify(reconciled)) return prev;
+          return reconciled;
         });
 
         // Return updated baseline (or same ref if no changes)
         if (Object.keys(patches).length === 0) return base;
         return { ...base, ...patches };
       });
-    }, [card.name, card.descriptionMarkdown, card.sizeId, card.laneId, originalLabelIds]);
+    }, [
+      card.name,
+      card.descriptionMarkdown,
+      card.sizeId,
+      card.laneId,
+      card.lastUpdatedByUserId,
+      originalLabelIds,
+    ]);
 
     // Accept a remote value for a field: replace local state, update baseline, clear touch
     const acceptRemote = useCallback(
@@ -400,6 +492,14 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
       () => Object.keys(externalUpdates).length,
       [externalUpdates],
     );
+
+    const collisionMessage = useMemo(() => {
+      const entries = (Object.keys(externalUpdates) as FieldName[]).map((f) => ({
+        field: FIELD_LABELS[f],
+        actor: getUserName(externalUpdates[f]!.actorId),
+      }));
+      return buildCollisionMessage(entries);
+    }, [externalUpdates, getUserName]);
 
     const acceptAllRemote = useCallback(() => {
       const fields = Object.keys(externalUpdates) as FieldName[];
@@ -651,8 +751,9 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
                 )}
               />
               {externalUpdates.name && (
-                <ExternalUpdateDot
+                <ExternalUpdateIndicator
                   field="Name"
+                  actorName={getUserName(externalUpdates.name.actorId)}
                   remoteDisplay={externalUpdates.name.remoteValue}
                   onAccept={() => acceptRemote('name')}
                 />
@@ -689,8 +790,9 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
                   <TooltipContent>{sizes.find((s) => s.id === sizeId)?.name ?? '?'}</TooltipContent>
                 </Tooltip>
                 {externalUpdates.sizeId && (
-                  <ExternalUpdateDot
+                  <ExternalUpdateIndicator
                     field="Size"
+                    actorName={getUserName(externalUpdates.sizeId.actorId)}
                     remoteDisplay={
                       sizes.find((s) => s.id === externalUpdates.sizeId?.remoteValue)?.name ?? '?'
                     }
@@ -731,8 +833,9 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
                   </TooltipContent>
                 </Tooltip>
                 {externalUpdates.laneId && (
-                  <ExternalUpdateDot
+                  <ExternalUpdateIndicator
                     field="Lane"
+                    actorName={getUserName(externalUpdates.laneId.actorId)}
                     remoteDisplay={
                       lanes.find((l) => l.id === externalUpdates.laneId?.remoteValue)?.name ?? '?'
                     }
@@ -758,8 +861,9 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
                   }}
                 />
                 {externalUpdates.labelIds && (
-                  <ExternalUpdateDot
+                  <ExternalUpdateIndicator
                     field="Labels"
+                    actorName={getUserName(externalUpdates.labelIds.actorId)}
                     remoteDisplay={`${externalUpdates.labelIds.remoteLabelIds.length} label(s)`}
                     onAccept={() => acceptRemote('labelIds')}
                   />
@@ -825,13 +929,10 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
                     </Button>
                   )}
                   {!isArchived && externalUpdates.description && (
-                    <ExternalUpdateDot
+                    <ExternalUpdateIndicator
                       field="Description"
-                      remoteDisplay={
-                        externalUpdates.description.remoteValue.length > 60
-                          ? externalUpdates.description.remoteValue.slice(0, 60) + '...'
-                          : externalUpdates.description.remoteValue || '(empty)'
-                      }
+                      actorName={getUserName(externalUpdates.description.actorId)}
+                      remoteDisplay={externalUpdates.description.remoteValue || '(empty)'}
                       onAccept={() => acceptRemote('description')}
                     />
                   )}
@@ -1025,19 +1126,22 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
           {!isArchived && !showArchiveActions && (
             <div className="flex items-center gap-2">
               {externalUpdateCount > 0 && (
-                <div className="mr-auto flex items-center gap-2 text-sm text-accent-foreground">
-                  <RefreshCw className="h-3.5 w-3.5" />
-                  <span>
-                    {externalUpdateCount} {externalUpdateCount === 1 ? 'field' : 'fields'} updated
-                    externally
-                  </span>
+                // A solid amber chip (the accent surface paired with its own
+                // foreground) so the warning stays legible in both themes —
+                // text-accent-foreground alone sits on no accent surface and
+                // renders near-invisible on the dark dialog background. Named,
+                // and placed at the Save locus, so it is hard to miss without
+                // blocking the save.
+                <div className="mr-auto flex items-center gap-2 rounded-md bg-accent px-3 py-1.5 text-sm text-accent-foreground">
+                  <RefreshCw className="h-4 w-4 shrink-0" />
+                  <span className="font-medium">{collisionMessage}</span>
                   <Button
                     variant="outline"
                     size="xs"
                     onClick={acceptAllRemote}
-                    className="text-accent-foreground"
+                    className="border-accent-foreground/40 bg-transparent text-accent-foreground hover:bg-accent-foreground/10"
                   >
-                    Accept all
+                    {externalUpdateCount === 1 ? 'Accept their version' : 'Accept all'}
                   </Button>
                 </div>
               )}
