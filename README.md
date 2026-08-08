@@ -257,6 +257,8 @@ On first run, Collaboard creates:
 - An **Admin** user (auth key printed to the console — save this!)
 - A **Default** board with three lanes: Backlog, In Progress, Done
 - Four card sizes: S, M, L, XL
+- Three starter labels: Feature, Bug, Chore
+- A welcome sample card that shows how a card works — delete it once you've looked around
 
 ### Admin Customization
 
@@ -291,6 +293,13 @@ The response includes the new user's `authKey`. Share it — they enter it on th
 ## For Agents
 
 Collaboard exposes an MCP (Model Context Protocol) server so agents can operate the board directly — no custom HTTP client, no REST adapter. If your agent speaks MCP, it speaks Collaboard.
+
+> **Using an agent harness? Drop in the ready-made skill.** Collaboard ships a
+> complete agent skill — [`docs/collaboard/SKILL.md`](docs/collaboard/SKILL.md) — a
+> drop-in `SKILL.md` for Claude Code and any skill-aware harness. It's the full
+> operating reference for the tool surface: how to connect, every tool, the board
+> model, the identifier rules, and the Markdown the board renders. Add it to your
+> harness rather than writing your own from the tool schemas.
 
 ### Endpoint
 
@@ -341,7 +350,7 @@ The bare server name grants the whole tool surface; to allow a single tool inste
 
 Tools are grouped by workflow — discover the board, work cards, then manage the board structure (the last group needs an admin-level key).
 
-- **Discover** — `get_api_info`, `get_boards`, `get_lanes`, `get_sizes`, `get_labels`, `get_cards`, `get_card`, `search_cards`. The agent's starting point: what boards exist, what's on them, and where. `get_cards` and `get_card` return enriched data (labels, sizes, comment and attachment counts) so one call answers most questions. `search_cards` is cross-board; prefix the query with `#` for an exact card-number lookup.
+- **Discover** — `get_api_info`, `get_boards`, `get_lanes`, `get_sizes`, `get_labels`, `get_cards`, `get_card`, `get_card_history`, `search_cards`. The agent's starting point: what boards exist, what's on them, and where. `get_cards` and `get_card` return enriched data (labels, sizes, comment and attachment counts) so one call answers most questions. `get_card_history` returns a card's description edit trail — every past version, with who changed it and when. `search_cards` is cross-board; prefix the query with `#` for an exact card-number lookup.
 - **Work cards** — `create_card`, `move_card`, `update_card`, `archive_card`, `restore_card`. The core loop. `update_card` is a power tool: change fields, move lanes, and replace labels in a single call.
 - **Comment** — `add_comment`, `update_comment`, `delete_comment`. Markdown supported.
 - **Attachments** — `upload_attachment` (up to 5 MB inline as base64; larger files up to 50 MB go through the REST endpoint), `download_attachment`, `delete_attachment`.

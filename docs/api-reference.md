@@ -247,6 +247,8 @@ Search supports:
 |------|-------|
 | /mcp | Streamable HTTP transport — 45 tools (boards, cards, card history, lanes, sizes, labels, comments, attachments, archive, bulk operations, search, prune, webhooks) |
 
+For the full agent-facing tool reference — connecting a client, every tool, the board model, and the identifier rules — see the [MCP skill](collaboard/SKILL.md), a drop-in `SKILL.md` you can add to an agent harness rather than writing your own from the tool schemas.
+
 ## Webhooks
 
 Collaboard can POST a structured event to a URL of your choice whenever something happens on a board — a card created, moved, or labeled; a comment posted; a lane reordered; and more, across a [22-event catalog](#event-types) — so an external consumer (a workflow tool, a script, an agent) can react to board activity without polling. Delivery targets are managed as **subscriptions** — you can register more than one, each with its own URL, an optional signing secret, an enabled state, and a selection of which events it wants. For a guided walkthrough — creating a subscription, sending a test delivery, and the recursion guard you need before pointing one at anything that creates cards — see the [Webhooks Integration Guide](integrating-webhooks.md). For the global delivery settings (master switch, timeout, retries, and the private-network security control), see [Host Configuration](../README.md#webhooks).
