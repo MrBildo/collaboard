@@ -1,3 +1,8 @@
+---
+name: collaboard
+description: Operate a Collaboard kanban board through its Model Context Protocol (MCP) endpoint — connecting, authentication, the board model, identifier rules (board-level reads need a board GUID, not a slug), the Markdown a board renders, and the full tool reference: reading and creating cards, moving and reordering lanes, comments, labels, attachments, sizes, archiving, bulk operations, prune, cross-board search, webhooks, and card description history. Use when an agent needs to read or change a Collaboard board over MCP.
+---
+
 # Operating Collaboard via MCP — Agent Skill
 
 This is a factual, drop-in reference for any AI agent (or team of agents) that
@@ -278,7 +283,10 @@ List a board's labels.
 #### `get_cards`
 List a board's cards as a paged envelope: `{ items, totalCount, offset, limit }`.
 Each card is enriched (labels, `sizeId`, `sizeName`, `commentCount`,
-`attachmentCount`, `isArchived`).
+`attachmentCount`, `isArchived`, and `latestComment` — the card's most recent
+comment as `{ author, isFromAdmin, lastUpdatedAtUtc, preview }`, or `null` when the
+card has none). This enriched shape is the same one `create_card`, `update_card`,
+and `search_cards` return.
 - **Params:** `authKey`, `boardId` (GUID). Optional: `laneId`, `labelId`, `since`
   (ISO-8601 — returns cards with any activity after that time, including new or
   edited comments and new attachments), `search` (text; prefix `#` for an exact
@@ -437,7 +445,7 @@ get it. Pass `full` for the whole text at each revision, or `both`.
   every host, three lines of context, and git's empty-range convention
   (`@@ -0,0 +1,4 @@`). Parse it by line prefix: `@@ ` opens a hunk, `+` adds, `-`
   removes, a single leading space is unchanged context. The full response shape is
-  in the [API Reference](api-reference.md#card-history).
+  in the [API Reference](../api-reference.md#card-history).
 
 ### Archive
 
@@ -454,16 +462,15 @@ Restore an archived card into a named lane. All roles.
 
 #### `add_comment`
 Add a Markdown comment to a card.
-- **Params:** `authKey`, the comment text via `contentMarkdown` (canonical;
-  `content` is a still-accepted alias — `contentMarkdown` wins if both are given),
-  a card ref.
+- **Params:** `authKey`, the comment text via `contentMarkdown` (required — the
+  sole text parameter; there is no `content` alias), a card ref.
 - Archived cards are rejected.
 
 #### `update_comment`
 Edit a comment's text. You may edit your own comment; admin-level roles may edit
 any comment.
-- **Params:** `authKey`, `commentId` (GUID), new text via `contentMarkdown` (or the
-  `content` alias).
+- **Params:** `authKey`, `commentId` (GUID), new text via `contentMarkdown`
+  (required — the sole text parameter; there is no `content` alias).
 - Archived cards are rejected.
 
 #### `delete_comment` *(destructive)*
@@ -650,8 +657,8 @@ For safety, a subscription URL that resolves to a private, internal, loopback, o
 cloud-metadata address is rejected at creation (and blocked at delivery) unless the
 host operator has set `Webhooks:AllowPrivateNetworkTargets`. The exact event catalog,
 payload shapes, and host settings live in the
-[API Reference](api-reference.md#webhooks) and the
-[Webhooks Integration Guide](integrating-webhooks.md).
+[API Reference](../api-reference.md#webhooks) and the
+[Webhooks Integration Guide](../integrating-webhooks.md).
 
 #### `create_webhook` *(admin-level)*
 Create a subscription.

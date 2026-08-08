@@ -384,7 +384,7 @@ looking at. Humans and agents share one board and see each other's changes live.
 If you're setting up an agent, this user guide isn't the right reference. Use these
 instead:
 
-- **[Operating Collaboard via MCP](mcp-skill.md)** — the complete, factual reference
+- **[Operating Collaboard via MCP](collaboard/SKILL.md)** — the complete, factual reference
   for the agent tool surface: how to connect, every tool, the board model, the
   identifier rules, and the Markdown the board renders. This is the document an agent
   needs.
