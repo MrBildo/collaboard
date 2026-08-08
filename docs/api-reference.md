@@ -46,7 +46,7 @@ All endpoints are under `/api/v1/`. Authentication is via the `X-User-Key` heade
 |---|---|---|---|
 | `includeDescription` | `true` \| `false` | `true` | Pass `false` to omit the description body — the single largest field on a heavy card — when you only need metadata or comments. Every other field, including `descriptionHistoryCount`, is unaffected. |
 | `commentsOffset` | integer | `0` | Comments to skip, counting back from the newest. Negative values clamp to `0`. |
-| `commentsLimit` | integer | *(all)* | Page size for comments, newest activity first. **Omitted returns the whole thread** — a browser client is not paying an agent's per-token cost. A given value clamps to `1..200`; `0` omits comment bodies and returns only the count. (The MCP `get_card` tool caps by default at `20` — see the [MCP skill](mcp-skill.md).) |
+| `commentsLimit` | integer | *(all)* | Page size for comments, newest activity first. **Omitted returns the whole thread** — a browser client is not paying an agent's per-token cost. A given value clamps to `1..200`; `0` omits comment bodies and returns only the count. (The MCP `get_card` tool caps by default at `20` — see the [MCP skill](collaboard/SKILL.md).) |
 
 **Comments come back as a paged sub-envelope**: `comments` is `{ items, totalCount, offset, limit }`, newest activity first. `totalCount` is the whole thread regardless of the page, so a capped read is never mistaken for the whole. Each comment carries both `createdAtUtc` (its stamped-once posting time) and `lastUpdatedAtUtc` (bumped on every edit, and the key the thread is ordered by — so an edited comment resurfaces as latest activity).
 
@@ -96,7 +96,7 @@ It is `0` or at least `2`, never `1`: a card's first edit records two revisions,
 | Param | Values | Default | Notes |
 |---|---|---|---|
 | `field` | `description` | `description` | Which field's trail to return; case-insensitive. An unrecognized field is a `400`, not an empty trail — on an audit surface a typo must not read as "this card has no history". |
-| `format` | `diff` \| `full` \| `both` | `both` | Whether each entry carries the unified diff of what that edit changed, the full value at that revision, or both. Case-insensitive; an unrecognized value is a `400`. (The MCP tool defaults to `diff` instead — see the [MCP skill](mcp-skill.md).) |
+| `format` | `diff` \| `full` \| `both` | `both` | Whether each entry carries the unified diff of what that edit changed, the full value at that revision, or both. Case-insensitive; an unrecognized value is a `400`. (The MCP tool defaults to `diff` instead — see the [MCP skill](collaboard/SKILL.md).) |
 | `from`, `to` | revision numbers | — | Supply **both** to compare two arbitrary revisions instead of walking the trail; the response is a different shape (below). One without the other is a `400`, as is a revision this card's trail does not have. |
 | `offset` | integer | `0` | Revisions to skip, counting back from the newest. Negative values clamp to `0`. |
 | `limit` | integer | *(none)* | Maximum revisions to return, `1`–`200`; values outside that range clamp into it. **Omit it to get the whole trail** — that is what a caller written before paging existed sees. |
