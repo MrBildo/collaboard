@@ -84,7 +84,7 @@ internal static class CardEndpoints
         }).RequireAuth();
 
         // By-ID operations (flat)
-        group.MapGet("/cards/{id:guid}", async (BoardDbContext db, Guid id, CancellationToken ct) =>
+        group.MapGet("/cards/{id:guid}", async (BoardDbContext db, Guid id, bool? includeDescription, int? commentsOffset, int? commentsLimit, CancellationToken ct) =>
         {
             var card = await db.Cards.FindAsync([id], ct);
             if (card is null)
@@ -92,7 +92,19 @@ internal static class CardEndpoints
                 return Results.NotFound();
             }
 
-            var detail = await CardDetailBuilder.BuildAsync(db, card, ct);
+            // Same paging contract as the board's card list and the history trail: an omitted limit
+            // returns the whole thread (a browser client is not paying MCP's token cost), a given
+            // limit clamps rather than errors, and commentsLimit = 0 is the count-only read. Field
+            // projection defaults to the full card — includeDescription is the heavy-field opt-out.
+            var effectiveCommentsOffset = Math.Max(commentsOffset ?? 0, 0);
+            int? effectiveCommentsLimit = commentsLimit switch
+            {
+                null => null,
+                0 => 0,
+                _ => Math.Clamp(commentsLimit.Value, 1, 200),
+            };
+
+            var detail = await CardDetailBuilder.BuildAsync(db, card, includeDescription ?? true, effectiveCommentsOffset, effectiveCommentsLimit, ct);
             return Results.Ok(detail);
         }).RequireAuth();
 
