@@ -1,6 +1,6 @@
 ---
 name: collaboard
-description: Operate a Collaboard kanban board through its Model Context Protocol (MCP) endpoint — connecting, authentication, the board model, identifier rules (board-level reads need a board GUID, not a slug), the Markdown a board renders, and the full tool reference: reading and creating cards, moving and reordering lanes, comments, labels, attachments, sizes, archiving, bulk operations, prune, cross-board search, webhooks, and card description history. Use when an agent needs to read or change a Collaboard board over MCP.
+description: "Operate a Collaboard kanban board through its Model Context Protocol (MCP) endpoint — connecting, authentication, the board model, identifier rules (board-level reads need a board GUID, not a slug), the Markdown a board renders, and the full tool reference: reading and creating cards, moving and reordering lanes, comments, labels, attachments, sizes, archiving, bulk operations, prune, cross-board search, webhooks, and card description history. Use when an agent needs to read or change a Collaboard board over MCP."
 ---
 
 # Operating Collaboard via MCP — Agent Skill
