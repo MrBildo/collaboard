@@ -85,6 +85,7 @@ internal sealed class CardCommentConfiguration : IEntityTypeConfiguration<CardCo
         builder.HasIndex(x => new { x.CardId, x.LastUpdatedAtUtc });
         builder.HasIndex(x => x.UserId);
 
+        builder.Property(x => x.CreatedAtUtc).HasConversion(ValueConverters.SortableUtc);
         builder.Property(x => x.LastUpdatedAtUtc).HasConversion(ValueConverters.SortableUtc);
 
         builder

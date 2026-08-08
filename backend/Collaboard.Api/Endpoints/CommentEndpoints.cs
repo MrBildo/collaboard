@@ -37,13 +37,15 @@ internal static class CommentEndpoints
                 return Results.BadRequest("Archived cards cannot be modified. Restore the card first.");
             }
 
+            var now = DateTimeOffset.UtcNow;
             var comment = new CardComment
             {
                 Id = Guid.NewGuid(),
                 CardId = id,
                 UserId = http.CurrentUser().Id,
                 ContentMarkdown = request.ContentMarkdown,
-                LastUpdatedAtUtc = DateTimeOffset.UtcNow,
+                CreatedAtUtc = now,
+                LastUpdatedAtUtc = now,
             };
             db.Comments.Add(comment);
             await db.SaveChangesAsync(ct);

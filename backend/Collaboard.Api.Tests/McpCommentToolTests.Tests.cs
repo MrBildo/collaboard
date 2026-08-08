@@ -120,4 +120,22 @@ public class McpCommentToolTests(CollaboardApiFactory factory) : IClassFixture<C
         result.ShouldStartWith("Error");
         result.ShouldContain("contentMarkdown");
     }
+
+    [Fact]
+    public async Task AddComment_ReturnsCreatedAtUtc_EqualToLastUpdatedAtUtc()
+    {
+        // Arrange
+        var (db, commentTools) = CreateTools();
+        var author = await CreateUserAsync();
+        var cardId = await CreateCardAsync(db, author);
+
+        // Act — assert against the JSON the caller actually sees, not the DB row
+        var result = await commentTools.AddCommentAsync(author.AuthKey, "provenance body", cardId: cardId);
+
+        // Assert — a fresh comment's creation time is present and equal to its last-touched time
+        result.ShouldNotStartWith("Error");
+        using var doc = JsonDocument.Parse(result);
+        var createdAtUtc = doc.RootElement.GetProperty("createdAtUtc").GetDateTimeOffset();
+        createdAtUtc.ShouldBe(doc.RootElement.GetProperty("lastUpdatedAtUtc").GetDateTimeOffset());
+    }
 }

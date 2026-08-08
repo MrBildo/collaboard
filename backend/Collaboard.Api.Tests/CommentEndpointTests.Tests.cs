@@ -302,4 +302,63 @@ public class CommentEndpointTests(CollaboardApiFactory factory) : IClassFixture<
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
+
+    [Fact]
+    public async Task PostComment_SetsCreatedAtUtc_EqualToLastUpdatedAtUtc()
+    {
+        // Arrange
+        var cardId = await CreateCardAsync();
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        // Act
+        var response = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "provenance check" });
+
+        // Assert — a fresh comment's creation time is present and equal to its last-touched time
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
+        json.TryGetProperty("createdAtUtc", out var createdProp).ShouldBeTrue();
+        createdProp.GetDateTimeOffset().ShouldBe(json.GetProperty("lastUpdatedAtUtc").GetDateTimeOffset());
+    }
+
+    [Fact]
+    public async Task PatchComment_PreservesCreatedAtUtc_AndBumpsLastUpdatedAtUtc()
+    {
+        // Arrange
+        var cardId = await CreateCardAsync();
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "before edit" });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
+        var commentId = created.GetProperty("id").GetGuid();
+        var createdAtUtc = created.GetProperty("createdAtUtc").GetDateTimeOffset();
+
+        // Act — an edit resurfaces the comment as latest activity but must not rewrite its creation time
+        var response = await _client.PatchAsJsonAsync($"/api/v1/comments/{commentId}", new { contentMarkdown = "after edit" });
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var updated = await response.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
+        updated.GetProperty("createdAtUtc").GetDateTimeOffset().ShouldBe(createdAtUtc);
+        updated.GetProperty("lastUpdatedAtUtc").GetDateTimeOffset().ShouldBeGreaterThanOrEqualTo(createdAtUtc);
+    }
+
+    [Fact]
+    public async Task GetComments_IncludesCreatedAtUtc()
+    {
+        // Arrange
+        var cardId = await CreateCardAsync();
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "listed comment" });
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/cards/{cardId}/comments");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var comments = await response.Content.ReadFromJsonAsync<JsonElement[]>(TestAuthHelper.JsonOptions);
+        comments.ShouldNotBeNull();
+        comments.ShouldNotBeEmpty();
+        comments[0].TryGetProperty("createdAtUtc", out _).ShouldBeTrue();
+    }
 }

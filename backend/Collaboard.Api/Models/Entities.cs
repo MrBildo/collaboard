@@ -92,6 +92,11 @@ public class CardComment
     public Guid CardId { get; set; }
     public Guid UserId { get; set; }
     public string ContentMarkdown { get; set; } = string.Empty;
+
+    // Set once at posting and never touched again — the comment's provenance on a board whose
+    // comments are a decision ledger. Distinct from LastUpdatedAtUtc, which is bumped on every edit
+    // and is what the UI and triage sort by, so an edited comment resurfaces as the latest activity.
+    public DateTimeOffset CreatedAtUtc { get; set; }
     public DateTimeOffset LastUpdatedAtUtc { get; set; }
 }
 
