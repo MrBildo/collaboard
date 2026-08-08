@@ -132,7 +132,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
     }
 
     [McpServerTool(Name = "update_card", Destructive = false)]
-    [Description("Update a card's name, description, size, lane/position, or labels. All fields are optional — only provided fields are changed. For labelIds, pass either a comma-separated list of label GUIDs ('guid1,guid2') or a JSON array string ('[\"guid1\",\"guid2\"]') to replace all current labels (empty string or empty array clears all). Returns the enriched card summary (with labels, sizeName, commentCount, attachmentCount, isArchived) — no follow-up get_card needed.")]
+    [Description("Update a card's name, description, size, lane/position, or labels. All fields are optional — only provided fields are changed. For labelIds, pass either a comma-separated list of label GUIDs ('guid1,guid2') or a JSON array string ('[\"guid1\",\"guid2\"]') to replace all current labels (empty string or empty array clears all). Returns the enriched card summary (with labels, sizeName, commentCount, attachmentCount, isArchived) — no follow-up get_card needed. COLLISION AWARENESS on description edits: the update always succeeds (last write wins; it is never blocked or refused). To learn whether your description edit landed on top of someone else's, pass expectedDescriptionRevision = the descriptionHistoryCount you read from get_card. If the description moved past that revision meanwhile, the returned card carries a 'collision' field: { kind: 'exact', field: 'description', actor: { userId, name } } — actor is who you overwrote. Omit expectedDescriptionRevision and you still get a best-effort 'collision' with kind 'approximate' (field null) when another user edited this card within a few seconds before your write. No 'collision' field means no overlap was detected.")]
     public async Task<string> UpdateCardAsync
     (
         [Description("Your auth key")] string authKey,
@@ -145,6 +145,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         [Description("Target lane ID to move the card to (optional)")] Guid? laneId = null,
         [Description("0-based index position in the target lane (optional, requires laneId — defaults to top of lane)")] int? index = null,
         [Description("Label GUIDs to replace current labels (optional). Accepts comma-separated ('guid1,guid2') or a JSON array string ('[\"guid1\",\"guid2\"]'). Empty string or empty array clears all.")] string? labelIds = null,
+        [Description("Collision-awareness baseline (optional): the descriptionHistoryCount you read from get_card before editing. Pass it alongside descriptionMarkdown to be told exactly whether your edit overwrote another user's — the returned card's 'collision' field names them. Awareness only; your save is never blocked. Does not itself count as a change (passing only this returns 'No changes specified.').")] int? expectedDescriptionRevision = null,
         [Description("Board ID (required when using cardNumber)")] Guid? boardId = null,
         [Description("Board slug (alternative to boardId when using cardNumber)")] string? boardSlug = null,
         CancellationToken ct = default
@@ -184,6 +185,12 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         var oldName = card.Name;
         var oldDescription = card.DescriptionMarkdown;
         var oldSizeId = card.SizeId;
+
+        // Snapshot the pre-write last-editor/last-edit too, before this request overwrites them below
+        // — the approximate collision signal reads them to tell whether someone else was working this
+        // card moments ago.
+        var priorEditorId = card.LastUpdatedByUserId;
+        var priorEditedAtUtc = card.LastUpdatedAtUtc;
 
         if (name is not null)
         {
@@ -274,6 +281,16 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         card.LastUpdatedByUserId = user!.Id;
         card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
 
+        // Collision awareness, computed before the save against the state the caller was racing: an
+        // exact answer when expectedDescriptionRevision was passed, a best-effort card-level signal
+        // otherwise. Only when this write sets the description — the one field lit today. Reports;
+        // never blocks (last-write-wins is unchanged). Shared detector with the REST PATCH path.
+        CardCollision? collision = null;
+        if (descriptionMarkdown is not null)
+        {
+            collision = await CardCollisionDetector.DetectAsync(db, card.Id, CardHistoryHelper.DescriptionField, expectedDescriptionRevision, priorEditorId, priorEditedAtUtc, user.Id, ct);
+        }
+
         // Staged after all validation and before the single save, so the new description and the
         // record of the old one commit together. Shared with the REST PATCH path so the two
         // surfaces cannot drift on what a description edit records, or on how a concurrent edit
@@ -294,8 +311,12 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         var events = await WebhookEventFactory.BuildCardUpdateEventsAsync(db, card, user, contentChanged, moveToLane, moveFromLane, moveFromPosition, addedLabelIds, removedLabelIds, ct);
         broadcaster.PublishCoalesced(card.BoardId, events);
 
+        // CardUpdateResult attaches the collision here, at the write site — never through the shared
+        // CardSummaryBuilder — so it cannot appear in get_cards, search or webhook payloads. Its
+        // converter flattens the card's fields to the top level with 'collision' beside them, so the
+        // returned shape is the enriched summary plus one optional field.
         var summaries = await CardSummaryBuilder.BuildAsync(db, [card], ct);
-        return JsonSerializer.Serialize(summaries[0], JsonSerializerOptions.Web);
+        return JsonSerializer.Serialize(new CardUpdateResult(summaries[0], collision), JsonSerializerOptions.Web);
     }
 
     [McpServerTool(Name = "get_cards", ReadOnly = true, Destructive = false)]

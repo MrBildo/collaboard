@@ -35,7 +35,7 @@ All endpoints are under `/api/v1/`. Authentication is via the `X-User-Key` heade
 |----------|-----------|
 | Lanes | `GET /lanes/{id}`, `PATCH /lanes/{id}`, `DELETE /lanes/{id}` |
 | Sizes | `GET /sizes/{id}`, `PATCH /sizes/{id}` (name/ordinal), `DELETE /sizes/{id}` (blocked if in use) |
-| Cards | `GET /cards/{id}` (enriched detail, including `descriptionHistoryCount` — see [Card History](#card-history)), `PATCH /cards/{id}`, `DELETE /cards/{id}`, `POST /cards/{id}/reorder`, `POST /cards/{id}/archive`, `POST /cards/{id}/restore` |
+| Cards | `GET /cards/{id}` (enriched detail, including `descriptionHistoryCount` — see [Card History](#card-history)), `PATCH /cards/{id}` (a description edit can carry a [collision notice](#collision-awareness)), `DELETE /cards/{id}`, `POST /cards/{id}/reorder`, `POST /cards/{id}/archive`, `POST /cards/{id}/restore` |
 | Card history | `GET /cards/{id}/history` — the card's description edit trail; see [Card History](#card-history) |
 
 ## Users
@@ -173,10 +173,40 @@ Diffs are computed on read and rendered as a **git-style unified diff**: hunks o
 
 - **No back-fill.** A trail begins at a card's first description edit after this feature shipped; the value in place at that moment is preserved as revision 1. A card whose description has never been edited returns `entries: []`, and its current text remains available from `GET /cards/{id}`.
 - **No-op edits record nothing.** Saving a description identical to the current one adds no revision — including a `PATCH` that changes the lane or labels while carrying an unchanged description.
-- **Simultaneous edits both land, and leave the trail two people editing one after the other would have left.** Two saves racing each other are recorded as two attributed revisions in the order they committed; neither request is rejected and no conflict response exists to handle. If they happen to set the *same* text, the second one records nothing, exactly as it would have if it had arrived a minute later. Note this is not lost-update protection: the card's text is still last-one-wins, as it was before history existed.
+- **Simultaneous edits both land, and leave the trail two people editing one after the other would have left.** Two saves racing each other are recorded as two attributed revisions in the order they committed; neither request is rejected and no conflict response exists to handle. If they happen to set the *same* text, the second one records nothing, exactly as it would have if it had arrived a minute later. Note this is not lost-update protection: the card's text is still last-one-wins, as it was before history existed — a write can, however, tell you *after the fact* when it overwrote someone; see [Collision awareness](#collision-awareness).
 - **Archived cards are frozen.** Their descriptions cannot be edited (`400`), so no history accrues; whatever they already have stays readable.
 - **Retention is unbounded.** History is never pruned — that is the point of an audit trail. It is deleted only with the card.
 - A description edit fires the existing `card.updated` webhook event; recording history adds no new event type.
+
+## Collision awareness
+
+Last write wins on a card, so two people editing the same one can still overwrite each other — the behaviour described under [Card History](#card-history). What a write can now tell you is whether it landed on top of someone else's edit, so a caller — an automated one especially — knows it overwrote a change instead of discovering it later. It never changes the outcome: the save always succeeds and last-write-wins is unchanged. There is no conflict status and nothing to retry.
+
+`PATCH /cards/{id}` — and the MCP `update_card` tool, which answers identically — carries an optional **`collision`** object beside the updated card when a description edit overlapped another user's:
+
+```json
+{
+  "kind": "exact",
+  "field": "description",
+  "actor": { "userId": "52df8c11-2c9a-4d1e-8b3f-7a6e5d4c3b2a", "name": "Bill Wheelock" }
+}
+```
+
+When the write overlapped nothing, the `collision` field is **absent** entirely (not `null`).
+
+### Exact — pass back the revision you read
+
+Read `descriptionHistoryCount` from `GET /cards/{id}` before you edit, then pass it back as **`expectedDescriptionRevision`** in the `PATCH` body. If the description moved past that revision between your read and your write, someone edited it in the meantime — a definite overwrite — and `collision` comes back with `kind: "exact"`, `field: "description"`, and `actor` naming whoever you landed on top of. If nothing changed in between, there is no `collision`. Because it compares the exact revision you read, an intervening edit is reported however long ago the read was; the exact answer carries no time window.
+
+### Approximate — the best-effort fallback
+
+Omit `expectedDescriptionRevision` and you still get a best-effort signal. If someone **else** edited the card within a deliberately short window — ten seconds — just before your write, `collision` comes back with `kind: "approximate"` and `field: null`. Without a baseline there is no way to say which field the other editor touched or whether your write truly replaced theirs, only that another editor was active on this card at about the same time — so the approximate signal is card-level and names no field. The window is short on purpose: it is meant to catch "someone was working this card at the same time as you," not ordinary sequential editing where one person picks up minutes after another left off.
+
+### Scope and confinement
+
+Only the **description** is checked today, because it is the only field with a recorded history to compare a baseline against (see [Card History](#card-history)). The mechanism is field-general — as other fields gain history the same `collision` shape extends to them with no change to its form.
+
+`collision` is **additive and non-breaking**: it appears only on the two write responses (this `PATCH` and MCP `update_card`), beside the card's usual fields, so a consumer already reading the update response keeps working unchanged and simply gains a field when one is present. It is deliberately built into those two responses alone and never into the shared card summary that feeds card lists, [search](#search), and [webhook](#webhooks) payloads, so it cannot appear on any of those surfaces.
 
 ## Search
 
