@@ -62,9 +62,13 @@ internal static class CardCollisionDetector
             return null;
         }
 
-        // The caller racing its own concurrent edit is not an overwrite of someone else. It cannot
-        // arise here in practice — this write's revision is not recorded until after detection runs —
-        // but the check keeps the exact and approximate paths' actor rule identical.
+        // The head is the caller's own earlier edit, not someone else's, so this write overwrote
+        // nobody and there is nothing to report. This is reachable, contrary to how it might read: a
+        // caller that reads the card once and then makes several edits reusing that first baseline
+        // sees the head move past the baseline (the exact check above clears) while the head editor is
+        // still itself — a batching bot caching descriptionHistoryCount is exactly that caller. Without
+        // this guard the detector would name the caller as the user it overwrote. The approximate path
+        // applies the same self-exclusion on priorEditorId.
         if (head?.EditedByUserId == actingUserId)
         {
             return null;

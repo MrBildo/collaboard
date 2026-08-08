@@ -294,7 +294,9 @@ Get one card in full — its fields plus comments, labels, and attachment metada
   before spending a call on the trail: it is `0` for every card whose description
   has not been edited since recording began, which is most of them. It is never
   `1` — a first edit records two revisions, the value that was already there and
-  the one that replaced it.
+  the one that replaced it. It is also the value you pass back as `update_card`'s
+  `expectedDescriptionRevision` to learn whether your next description edit
+  overwrote someone — see `update_card`, below.
 
 #### `search_cards`
 Free-text search across **all** boards. Results are grouped by board; each card
@@ -342,6 +344,19 @@ follow-up `get_card` needed.
   both edits, and the card keeps whichever text was written last — the same
   last-one-wins the card has always had. If you need the value you read to still
   be current when you write, read it back and check.
+- **Learn when you overwrote someone.** Read `descriptionHistoryCount` from
+  `get_card`, then pass it back as `expectedDescriptionRevision` when you edit. If
+  the description moved past that revision in between, the returned card carries a
+  `collision` object — `{ kind: "exact", field: "description", actor: { userId, name } }` —
+  naming who you landed on top of; if nothing changed in between there is no
+  `collision`. Omit `expectedDescriptionRevision` and you still get a best-effort
+  `kind: "approximate"` signal (with `field` null) when another user edited the card
+  within a short window (about ten seconds) before your write. This is awareness only — the save always
+  succeeds exactly as above, it just tells you what your write overlapped.
+  `expectedDescriptionRevision` is not itself a change, so passing only it still
+  returns `No changes specified.` The same `collision` rides the REST
+  `PATCH /cards/{id}` response, and it never appears in list, search, or webhook
+  payloads.
 
 ### History
 

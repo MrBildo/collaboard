@@ -62,6 +62,27 @@ public class CardCollisionTests(CollaboardApiFactory factory) : IClassFixture<Co
     }
 
     [Fact]
+    public async Task Detect_ExactBaselineBehindHead_ButTheHeadEditorIsTheCaller_ReportsNoCollision()
+    {
+        var author = await TestAuthHelper.CreateUserAsync(_client, _factory, "Self Exact Author", UserRole.HumanUser);
+        var cardId = await CreateCardAsync("original");
+
+        // The same user edits twice — its own edits seed revision 2 then revision 3 — so the head is
+        // the caller's own most recent edit. A caller that read at revision 2 and then writes again on
+        // that stale baseline sees the head ahead of its baseline (the exact check clears), but the head
+        // editor is itself: it overwrote nobody. A batching bot that caches descriptionHistoryCount once
+        // and reuses it across several edits is exactly this caller. Deleting the self-exclusion guard
+        // makes this fail — the detector then names the caller as the user it overwrote.
+        await PatchDescriptionAsAsync(author.AuthKey, cardId, "author first");  // trail now at revision 2
+        await PatchDescriptionAsAsync(author.AuthKey, cardId, "author second"); // trail now at revision 3
+
+        var db = ResolveDb();
+        var collision = await CardCollisionDetector.DetectAsync(db, cardId, CardHistoryHelper.DescriptionField, baselineRevision: 2, priorEditorId: Guid.Empty, priorEditedAtUtc: default, actingUserId: author.Id);
+
+        collision.ShouldBeNull();
+    }
+
+    [Fact]
     public async Task Detect_ExactBaselineAtHead_ReportsNoCollision()
     {
         var author = await TestAuthHelper.CreateUserAsync(_client, _factory, "AtHead Author", UserRole.HumanUser);
@@ -225,6 +246,40 @@ public class CardCollisionTests(CollaboardApiFactory factory) : IClassFixture<Co
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         var root = await response.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
         root.TryGetProperty("collision", out _).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task RestPatch_BaselineReadFromTheCardDetail_RoundTripsToAnExactCollision()
+    {
+        // The documented usage is "pass back the descriptionHistoryCount you read from the card." Every
+        // other exact-path test passes a literal baseline; this one reads the count off the read surface
+        // and feeds THAT into the write, pinning that the count a caller reads and the revision ordinal
+        // the detector compares against are one and the same number — the coupling the documented usage
+        // rests on. A drift between the read count and the write baseline would misfire here.
+        var author = await TestAuthHelper.CreateUserAsync(_client, _factory, "RoundTrip Author", UserRole.HumanUser);
+        var rival = await TestAuthHelper.CreateUserAsync(_client, _factory, "RoundTrip Rival", UserRole.HumanUser);
+        var cardId = await CreateCardAsync("original");
+        await PatchDescriptionAsAsync(author.AuthKey, cardId, "author wording"); // history count now 2
+
+        // Read the baseline the way an integrator would — off GET /cards/{id}, not as a literal.
+        TestAuthHelper.SetAuth(_client, author.AuthKey);
+        var detail = await _client.GetFromJsonAsync<JsonElement>($"/api/v1/cards/{cardId}", TestAuthHelper.JsonOptions);
+        var baseline = detail.GetProperty("descriptionHistoryCount").GetInt32();
+
+        // Someone else edits after that read, moving the description a revision on.
+        await PatchDescriptionAsAsync(rival.AuthKey, cardId, "rival wording"); // history count now 3
+
+        // Feed the count that was read straight back as the baseline.
+        TestAuthHelper.SetAuth(_client, author.AuthKey);
+        var response = await _client.PatchAsJsonAsync($"/api/v1/cards/{cardId}", new { descriptionMarkdown = "author final", expectedDescriptionRevision = baseline });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var root = await response.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions);
+
+        var collision = root.GetProperty("collision");
+        collision.GetProperty("kind").GetString().ShouldBe(CardCollisionDetector.ExactKind);
+        collision.GetProperty("actor").GetProperty("userId").GetGuid().ShouldBe(rival.Id);
+        collision.GetProperty("actor").GetProperty("name").GetString().ShouldBe("RoundTrip Rival");
     }
 
     // ── The write surfaces (MCP update_card) ────────────────────────────────
