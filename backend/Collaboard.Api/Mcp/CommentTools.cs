@@ -51,13 +51,15 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
             return "Error: Card not found.";
         }
 
+        var now = DateTimeOffset.UtcNow;
         var comment = new CardComment
         {
             Id = Guid.NewGuid(),
             CardId = card.Id,
             UserId = user!.Id,
             ContentMarkdown = contentMarkdown,
-            LastUpdatedAtUtc = DateTimeOffset.UtcNow,
+            CreatedAtUtc = now,
+            LastUpdatedAtUtc = now,
         };
         db.Comments.Add(comment);
         await db.SaveChangesAsync(ct);

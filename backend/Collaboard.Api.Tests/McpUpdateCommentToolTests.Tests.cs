@@ -252,4 +252,27 @@ public class McpUpdateCommentToolTests(CollaboardApiFactory factory) : IClassFix
         stored.ShouldNotBeNull();
         stored.ContentMarkdown.ShouldBe("original body");
     }
+
+    [Fact]
+    public async Task UpdateComment_PreservesCreatedAtUtc_WhileBumpingLastUpdated()
+    {
+        // Arrange — create through the real add path so CreatedAtUtc is stamped by production code
+        var (db, commentTools) = CreateTools();
+        var author = await CreateUserAsync();
+        var cardId = await CreateCardAsync(db, author);
+
+        var addResult = await commentTools.AddCommentAsync(author.AuthKey, "before edit", cardId: cardId);
+        using var addDoc = JsonDocument.Parse(addResult);
+        var commentId = addDoc.RootElement.GetProperty("id").GetGuid();
+        var createdAtUtc = addDoc.RootElement.GetProperty("createdAtUtc").GetDateTimeOffset();
+
+        // Act — an edit must not rewrite the creation time
+        var editResult = await commentTools.UpdateCommentAsync(author.AuthKey, commentId, contentMarkdown: "after edit");
+
+        // Assert — assert against the JSON the caller actually sees
+        editResult.ShouldNotStartWith("Error");
+        using var editDoc = JsonDocument.Parse(editResult);
+        editDoc.RootElement.GetProperty("createdAtUtc").GetDateTimeOffset().ShouldBe(createdAtUtc);
+        editDoc.RootElement.GetProperty("lastUpdatedAtUtc").GetDateTimeOffset().ShouldBeGreaterThanOrEqualTo(createdAtUtc);
+    }
 }
