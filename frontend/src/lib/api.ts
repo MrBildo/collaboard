@@ -45,7 +45,6 @@ import {
   boardUserSchema,
   cardCommentSchema,
   cardHistoryTrailSchema,
-  cardItemSchema,
   cardSizeSchema,
   cardSummarySchema,
   createTempCardResponseSchema,
@@ -143,11 +142,6 @@ export async function fetchCards(
 ): Promise<PagedCardSummary> {
   const { data } = await api.get(`/boards/${boardId}/cards`, { params });
   return pagedCardSummarySchema.parse(data);
-}
-
-export async function fetchCard(id: string): Promise<CardItem> {
-  const { data } = await api.get(`/cards/${id}`);
-  return cardItemSchema.parse(data);
 }
 
 export async function createCard(
