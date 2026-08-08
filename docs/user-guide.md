@@ -128,7 +128,9 @@ From here you can change everything about the card:
 - **Labels** — the label picker; add or remove color-coded tags.
 - **Description** — written in Markdown. The **Edit** tab is where you type; the
   **Preview** tab shows it rendered (tables, code blocks, checklists, and more — see
-  [Writing with Markdown](#writing-with-markdown)).
+  [Writing with Markdown](#writing-with-markdown)). Once a description has been edited,
+  a **History** tab appears alongside them, showing every past version — what changed
+  at each revision, and who changed it.
 
 Your edits aren't saved until you select **Save** at the bottom of the panel. If you
 try to close the panel with unsaved changes, Collaboard asks before discarding them.
@@ -214,8 +216,8 @@ Three pieces of structure shape how a board reads. Admins configure them in
   how urgent it is. Every card has exactly one size.
 - **Labels** are color-coded tags. A card can carry several. Labels are great for
   marking the *kind* of work (Bug, Feature, Docs) so you can scan or filter for it
-  later. A fresh board starts with **no labels** — an admin adds the ones your team
-  wants.
+  later. A fresh board starts with a small starter set — **Feature**, **Bug**, and
+  **Chore** — and an admin can add, rename, recolor, or remove labels to fit your team.
 
 ---
 
