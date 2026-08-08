@@ -1632,6 +1632,66 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         mcpComments.GetProperty("items")[0].GetProperty("createdAtUtc").GetString().ShouldNotBeNullOrEmpty();
     }
 
+    [Fact]
+    public async Task GetCard_CommentsLimitExceedsMax_ClampedTo200()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "Comment Clamp Card",
+            descriptionMarkdown = "",
+            laneId,
+            position = Random.Shared.Next(10000, 99999)
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        // Act — an over-max commentsLimit clamps to the REST bound; the echoed limit is the
+        // assertable, so no 200-comment thread needs seeding
+        var response = await _client.GetAsync($"/api/v1/cards/{cardId}?commentsLimit=999");
+
+        // Assert
+        response.EnsureSuccessStatusCode();
+        var comments = (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("comments");
+        comments.GetProperty("limit").GetInt32().ShouldBe(200);
+    }
+
+    [Fact]
+    public async Task McpGetCard_CommentsLimitExceedsMax_ClampedTo500()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "MCP Comment Clamp Card",
+            descriptionMarkdown = "",
+            laneId,
+            position = Random.Shared.Next(10000, 99999)
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        // Act — an over-max commentsLimit clamps to the MCP bound; the echoed limit is the assertable
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
+        var authService = scope.ServiceProvider.GetRequiredService<Mcp.McpAuthService>();
+        var broadcaster = scope.ServiceProvider.GetRequiredService<Events.BoardEventBroadcaster>();
+        var cardTools = new Mcp.CardTools(db, authService, broadcaster);
+
+        var result = await cardTools.GetCardAsync(_factory.AdminAuthKey, cardId: cardId, commentsLimit: 999);
+
+        // Assert
+        var comments = JsonSerializer.Deserialize<JsonElement>(result).GetProperty("comments");
+        comments.GetProperty("limit").GetInt32().ShouldBe(500);
+    }
+
     // ── Hardened enrichment tests (query optimization) ───────────────────────
 
     [Fact]

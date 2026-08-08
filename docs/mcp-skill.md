@@ -302,7 +302,10 @@ read that only needs one field or one page of comments does not pay for the rest
   `lastUpdatedAtUtc` (bumped on every edit) is the paging key. `totalCount` is the
   whole thread regardless of the page, so a capped read is never mistaken for the
   whole. Each comment also carries `createdAtUtc`, its stamped-once posting time,
-  distinct from the edit-bumped `lastUpdatedAtUtc`.
+  distinct from the edit-bumped `lastUpdatedAtUtc`. Because that key is bumped on
+  edit, a comment edited concurrently with a paged walk can shift between pages —
+  the usual offset-paging caveat when the sort key is mutable; ties on the key are
+  broken by comment id, so a page is otherwise stable.
   *(Contract change: `comments` was previously a plain array and is now this
   envelope — read `comments.items` for the list. Field projection and comment
   paging are additive: the default read still returns the full description and the

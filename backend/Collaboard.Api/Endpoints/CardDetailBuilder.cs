@@ -29,9 +29,12 @@ internal static class CardDetailBuilder
             // timestamp as a fixed-width, lexically-ordered string, so the ordering and the skip/take
             // translate to SQL and the (CardId, LastUpdatedAtUtc) index serves them. "Newest" is
             // most-recently-touched, not most-recently-created: an edited comment resurfaces, by design.
+            // Comment id breaks ties on the timestamp, so two comments sharing a LastUpdatedAtUtc page
+            // in a stable total order rather than an arbitrary one.
             var pagedQuery = db.Comments
                 .Where(c => c.CardId == card.Id)
                 .OrderByDescending(c => c.LastUpdatedAtUtc)
+                .ThenByDescending(c => c.Id)
                 .Skip(commentsOffset);
 
             // A null limit is REST's omit-for-all; the MCP surface always passes a capped value.
