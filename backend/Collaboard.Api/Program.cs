@@ -434,6 +434,11 @@ await using (var scope = app.Services.CreateAsyncScope())
     );
 }
 
+// Outermost so it observes the final status of every request: fills a bodyless 405 from
+// routing with a readable message naming the allowed methods, leaving the Allow header and
+// every other response untouched.
+app.UseMethodNotAllowedBody();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
