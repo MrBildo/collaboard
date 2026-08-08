@@ -35,8 +35,24 @@ All endpoints are under `/api/v1/`. Authentication is via the `X-User-Key` heade
 |----------|-----------|
 | Lanes | `GET /lanes/{id}`, `PATCH /lanes/{id}`, `DELETE /lanes/{id}` |
 | Sizes | `GET /sizes/{id}`, `PATCH /sizes/{id}` (name/ordinal), `DELETE /sizes/{id}` (blocked if in use) |
-| Cards | `GET /cards/{id}` (enriched detail, including `descriptionHistoryCount` — see [Card History](#card-history)), `PATCH /cards/{id}` (a description edit can carry a [collision notice](#collision-awareness)), `DELETE /cards/{id}`, `POST /cards/{id}/reorder`, `POST /cards/{id}/archive`, `POST /cards/{id}/restore` |
+| Cards | `GET /cards/{id}` (enriched detail with field projection + comment paging — see [Reading a card](#reading-a-card); includes `descriptionHistoryCount`, see [Card History](#card-history)), `PATCH /cards/{id}` (a description edit can carry a [collision notice](#collision-awareness)), `DELETE /cards/{id}`, `POST /cards/{id}/reorder`, `POST /cards/{id}/archive`, `POST /cards/{id}/restore` |
 | Card history | `GET /cards/{id}/history` — the card's description edit trail; see [Card History](#card-history) |
+
+### Reading a card
+
+`GET /cards/{id}` returns the enriched card detail: the card's own fields, its `sizeName`, the creator and last-editor display names, its labels and attachment metadata, `isArchived`, and `descriptionHistoryCount`. On a heavy card the two largest parts — the description body and the comment thread — can be projected away with query parameters, so a read that only needs one field or one page of comments does not pay for the rest.
+
+| Param | Values | Default | Notes |
+|---|---|---|---|
+| `includeDescription` | `true` \| `false` | `true` | Pass `false` to omit the description body — the single largest field on a heavy card — when you only need metadata or comments. Every other field, including `descriptionHistoryCount`, is unaffected. |
+| `commentsOffset` | integer | `0` | Comments to skip, counting back from the newest. Negative values clamp to `0`. |
+| `commentsLimit` | integer | *(all)* | Page size for comments, newest activity first. **Omitted returns the whole thread** — a browser client is not paying an agent's per-token cost. A given value clamps to `1..200`; `0` omits comment bodies and returns only the count. (The MCP `get_card` tool caps by default at `20` — see the [MCP skill](mcp-skill.md).) |
+
+**Comments come back as a paged sub-envelope**: `comments` is `{ items, totalCount, offset, limit }`, newest activity first. `totalCount` is the whole thread regardless of the page, so a capped read is never mistaken for the whole. Each comment carries both `createdAtUtc` (its stamped-once posting time) and `lastUpdatedAtUtc` (bumped on every edit, and the key the thread is ordered by — so an edited comment resurfaces as latest activity).
+
+*(Contract change: `comments` was previously a plain array and is now this envelope — read `comments.items` for the list. Field projection and comment paging are additive: the default read still returns the full description and the whole comment thread.)*
+
+Offset paging runs over `lastUpdatedAtUtc`, which is bumped when a comment is edited, so a comment edited concurrently with a paged walk can shift between pages — the usual offset-paging caveat when the sort key is mutable. Comment id breaks ties on the key, so a page is otherwise stable.
 
 ## Users
 

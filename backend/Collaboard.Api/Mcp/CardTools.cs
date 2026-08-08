@@ -379,7 +379,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
     }
 
     [McpServerTool(Name = "get_card", ReadOnly = true, Destructive = false)]
-    [Description("Get a single card by its ID or card number, including its comments, labels, and attachments (metadata only). Also carries descriptionHistoryCount — how many description revisions get_card_history would return for this card. Zero means there is nothing to show; it is never one, because a card's first edit records both the value that was already there and the value that replaced it. To download attachment content, GET /api/v1/attachments/{id} with X-User-Key header.")]
+    [Description("Get a single card by its ID or card number, including its comments (a paged sub-envelope), labels, and attachments (metadata only). Also carries descriptionHistoryCount — how many description revisions get_card_history would return for this card. Zero means there is nothing to show; it is never one, because a card's first edit records both the value that was already there and the value that replaced it. FIELD PROJECTION for a heavy card: pass includeDescription=false to drop the description body, and page or drop comments with commentsOffset/commentsLimit (commentsLimit=0 returns the comment count with no bodies) — the two heaviest parts of a big card. COMMENTS are a paged envelope { items, totalCount, offset, limit }, newest activity first (default the newest 20; comments.totalCount is the whole thread regardless). Each comment carries createdAtUtc (stamped once at posting) alongside lastUpdatedAtUtc (bumped on edit; the paging key). To download attachment content, GET /api/v1/attachments/{id} with X-User-Key header.")]
     public async Task<string> GetCardAsync
     (
         [Description("Your auth key")] string authKey,
@@ -387,6 +387,9 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         [Description("The card number (provide this or cardId). Requires boardId or boardSlug.")] long? cardNumber = null,
         [Description("Board ID (required when using cardNumber)")] Guid? boardId = null,
         [Description("Board slug (alternative to boardId when using cardNumber)")] string? boardSlug = null,
+        [Description("Include the card's full description body (default true). Pass false to omit it — on a heavy card the description is the largest single field, and this drops it when you only need metadata or comments.")] bool includeDescription = true,
+        [Description("Number of comments to skip, counting from the newest (default 0). Use with commentsLimit to page a long thread.")] int? commentsOffset = null,
+        [Description("Maximum number of comments to return, newest activity first (default 20, max 500). Pass 0 to omit comment bodies entirely and read only comments.totalCount. That total is the whole thread's length regardless of this cap.")] int? commentsLimit = null,
         CancellationToken ct = default
     )
     {
@@ -408,7 +411,18 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             return "Error: Card not found.";
         }
 
-        var detail = await CardDetailBuilder.BuildAsync(db, card, ct);
+        // Capped by default, matching get_cards and get_card_history: this is the surface that pays per
+        // token, and the comment thread is unbounded. commentsLimit = 0 is the count-only read; the cap
+        // is visible, never silent — comments.totalCount always reports the whole thread.
+        var effectiveCommentsOffset = Math.Max(commentsOffset ?? 0, 0);
+        var effectiveCommentsLimit = commentsLimit switch
+        {
+            null => 20,
+            0 => 0,
+            _ => Math.Clamp(commentsLimit.Value, 1, 500),
+        };
+
+        var detail = await CardDetailBuilder.BuildAsync(db, card, includeDescription, effectiveCommentsOffset, effectiveCommentsLimit, ct);
         return JsonSerializer.Serialize(detail, JsonSerializerOptions.Web);
     }
 }

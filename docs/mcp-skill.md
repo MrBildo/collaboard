@@ -287,10 +287,32 @@ Each card is enriched (labels, `sizeId`, `sizeName`, `commentCount`,
 
 #### `get_card`
 Get one card in full — its fields plus comments, labels, and attachment metadata
-(not attachment bytes; download those separately).
-- **Params:** `authKey`, and a card ref.
+(not attachment bytes; download those separately). On a heavy card the two largest
+parts — the description body and the comment thread — can be projected away, so a
+read that only needs one field or one page of comments does not pay for the rest.
+- **Params:** `authKey`, and a card ref. Optional projection levers:
+  - `includeDescription` (default `true`) — pass `false` to omit the description
+    body, the single largest field on a heavy card, when you only need metadata or
+    comments.
+  - `commentsOffset` (default `0`) and `commentsLimit` (default `20`, max `500`) —
+    page the comment thread. Pass `commentsLimit=0` to omit comment bodies entirely
+    and read only `comments.totalCount`.
+- **Comments come back as a paged sub-envelope** `{ items, totalCount, offset,
+  limit }`, newest activity first — an edited comment resurfaces, because
+  `lastUpdatedAtUtc` (bumped on every edit) is the paging key. `totalCount` is the
+  whole thread regardless of the page, so a capped read is never mistaken for the
+  whole. Each comment also carries `createdAtUtc`, its stamped-once posting time,
+  distinct from the edit-bumped `lastUpdatedAtUtc`. Because that key is bumped on
+  edit, a comment edited concurrently with a paged walk can shift between pages —
+  the usual offset-paging caveat when the sort key is mutable; ties on the key are
+  broken by comment id, so a page is otherwise stable.
+  *(Contract change: `comments` was previously a plain array and is now this
+  envelope — read `comments.items` for the list. Field projection and comment
+  paging are additive: the default read still returns the full description and the
+  newest 20 comments.)*
 - Carries **`descriptionHistoryCount`** — how many recorded revisions the description
-  has, the same number `get_card_history` reports as its `totalCount`. Check it
+  has, the same number `get_card_history` reports as its `totalCount`. Present in
+  every projection, including a description-omitted or count-only read. Check it
   before spending a call on the trail: it is `0` for every card whose description
   has not been edited since recording began, which is most of them. It is never
   `1` — a first edit records two revisions, the value that was already there and
