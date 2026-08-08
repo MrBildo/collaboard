@@ -695,10 +695,8 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
         {/* Archived banner */}
         {isArchived && (
           <div className="flex items-center gap-2 border-b bg-accent/10 px-6 py-2">
-            <Archive className="h-4 w-4 text-accent-foreground" />
-            <span className="text-sm font-medium text-accent-foreground">
-              This card is archived
-            </span>
+            <Archive className="h-4 w-4 text-foreground" />
+            <span className="text-sm font-medium text-foreground">This card is archived</span>
           </div>
         )}
 
@@ -706,7 +704,7 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
         <DialogHeader className="border-b px-6 pt-6 pb-4">
           <div className="flex items-center gap-2">
             <DialogDescription className="text-xs">#{card.number}</DialogDescription>
-            {isArchived && <Badge className="bg-accent/20 text-accent-foreground">Archived</Badge>}
+            {isArchived && <Badge className="bg-accent/20 text-foreground">Archived</Badge>}
             {(onNavigatePrev || onNavigateNext) && (
               <div className="flex items-center gap-1 md:hidden">
                 <Button
