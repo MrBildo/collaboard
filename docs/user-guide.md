@@ -139,8 +139,11 @@ card without closing it — handy for reviewing a lane card by card.
 
 > **Someone edited this card while you had it open?** Collaboard handles that
 > gracefully. Fields you *haven't* touched update live to match the latest value.
-> Fields you *are* editing show a small dot so you don't lose your work — hover it to
-> see what changed and choose **Accept remote** if you'd rather take their version.
+> Fields you *are* editing aren't overwritten — instead a banner near **Save** tells
+> you who changed what (for example, *"Marcus changed the description"*), and a marker
+> on the field opens a panel showing their version with an **Accept their version**
+> button. Your save is never blocked; you choose whether to keep your text or take
+> theirs.
 
 ### Moving cards around
 
@@ -269,6 +272,12 @@ Collaboard is **live**. Every change — a card moved, a comment posted, a label
 added, a lane reordered — streams to everyone connected to the board the instant it
 happens. There's no refresh button to hunt for and no "someone else changed this,
 reload?" dialog.
+
+That absence is deliberate, not an omission. A reload prompt would throw away the
+work you have in front of you to hand back a fresh page; instead the board updates in
+place, and the one spot where a reload would matter — two people editing the same card
+at once — is handled without interrupting you (see *"Someone edited this card while you
+had it open?"* above). You are never asked to stop and reload.
 
 This is what makes a shared board work when several people (and agents) are active at
 once: you watch the board update under you in real time. If an agent moves a card
