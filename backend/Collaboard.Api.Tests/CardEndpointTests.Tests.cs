@@ -236,13 +236,13 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         body.GetProperty("createdByUserName").GetString().ShouldNotBeNullOrEmpty();
         body.GetProperty("lastUpdatedByUserName").GetString().ShouldNotBeNullOrEmpty();
 
-        // Comments are a paged sub-envelope { items, totalCount, offset, limit }
+        // v1 restores the legacy plain comments array (the pre-#382 / v2.0.2 shape), whole thread,
+        // each comment carrying the additive-only createdAtUtc a v2.0.2 client ignores.
         var comments = body.GetProperty("comments");
-        comments.GetProperty("totalCount").GetInt32().ShouldBeGreaterThan(0);
-        var commentItems = comments.GetProperty("items");
-        commentItems.GetArrayLength().ShouldBeGreaterThan(0);
-        commentItems[0].TryGetProperty("userName", out _).ShouldBeTrue();
-        commentItems[0].TryGetProperty("createdAtUtc", out _).ShouldBeTrue();
+        comments.ValueKind.ShouldBe(JsonValueKind.Array);
+        comments.GetArrayLength().ShouldBeGreaterThan(0);
+        comments[0].TryGetProperty("userName", out _).ShouldBeTrue();
+        comments[0].TryGetProperty("createdAtUtc", out _).ShouldBeTrue();
 
         // Labels array present
         body.TryGetProperty("labels", out _).ShouldBeTrue();
@@ -1249,7 +1249,9 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         body.GetProperty("createdByUserName").GetString().ShouldBe("DisplayNameUser");
         body.GetProperty("lastUpdatedByUserName").GetString().ShouldBe("DisplayNameUser");
 
-        var comments = body.GetProperty("comments").GetProperty("items");
+        // v1 legacy plain array (no commentsLimit param on v1)
+        var comments = body.GetProperty("comments");
+        comments.ValueKind.ShouldBe(JsonValueKind.Array);
         comments.GetArrayLength().ShouldBe(1);
         comments[0].GetProperty("userName").GetString().ShouldBe("DisplayNameUser");
     }
@@ -1366,8 +1368,9 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         parsed.GetProperty("createdByUserName").GetString().ShouldNotBeNullOrEmpty();
         parsed.GetProperty("lastUpdatedByUserName").GetString().ShouldNotBeNullOrEmpty();
 
-        // Comments with user names (paged sub-envelope)
-        var comments = parsed.GetProperty("comments").GetProperty("items");
+        // Comments with user names — no commentsLimit was passed, so this is the legacy plain array
+        var comments = parsed.GetProperty("comments");
+        comments.ValueKind.ShouldBe(JsonValueKind.Array);
         comments.GetArrayLength().ShouldBe(1);
         comments[0].GetProperty("userName").GetString().ShouldNotBeNullOrEmpty();
 
@@ -1413,7 +1416,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     }
 
     [Fact]
-    public async Task GetCard_CommentsLimitZero_ReturnsCountWithoutBodies()
+    public async Task GetCardV2_CommentsLimitZero_ReturnsCountWithoutBodies()
     {
         // Arrange
         TestAuthHelper.SetAdminAuth(_client, _factory);
@@ -1434,7 +1437,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "two" });
 
         // Act
-        var response = await _client.GetAsync($"/api/v1/cards/{cardId}?commentsLimit=0");
+        var response = await _client.GetAsync($"/api/v2/cards/{cardId}?commentsLimit=0");
 
         // Assert — the true total, no bodies loaded
         response.EnsureSuccessStatusCode();
@@ -1446,7 +1449,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     }
 
     [Fact]
-    public async Task GetCard_CommentsPaged_NewestFirstAcrossOffsets()
+    public async Task GetCardV2_CommentsPaged_NewestFirstAcrossOffsets()
     {
         // Arrange
         TestAuthHelper.SetAdminAuth(_client, _factory);
@@ -1470,7 +1473,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         (await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "Third" })).EnsureSuccessStatusCode();
 
         // Act — first page of two, newest first
-        var firstPage = await _client.GetAsync($"/api/v1/cards/{cardId}?commentsLimit=2");
+        var firstPage = await _client.GetAsync($"/api/v2/cards/{cardId}?commentsLimit=2");
         firstPage.EnsureSuccessStatusCode();
         var firstComments = (await firstPage.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("comments");
 
@@ -1484,7 +1487,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         firstItems[0].GetProperty("createdAtUtc").GetString().ShouldNotBeNullOrEmpty();
 
         // Act — the next page picks up where the first left off
-        var secondPage = await _client.GetAsync($"/api/v1/cards/{cardId}?commentsLimit=2&commentsOffset=2");
+        var secondPage = await _client.GetAsync($"/api/v2/cards/{cardId}?commentsLimit=2&commentsOffset=2");
         secondPage.EnsureSuccessStatusCode();
         var secondItems = (await secondPage.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("comments").GetProperty("items");
 
@@ -1564,7 +1567,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     }
 
     [Fact]
-    public async Task GetCard_RestReturnsAllComments_WhileMcpCapsAtDefaultTwenty()
+    public async Task GetCard_V2RestReturnsAllComments_WhileMcpWithLimitCaps()
     {
         // Arrange — a heavy thread of 21 comments on one card, seeded with ascending
         // timestamps so the newest is deterministic on both surfaces
@@ -1605,8 +1608,8 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
             await seedDb.SaveChangesAsync();
         }
 
-        // Act — REST omits the limit; MCP takes its capped default
-        var restResponse = await _client.GetAsync($"/api/v1/cards/{cardId}");
+        // Act — v2 REST omits the limit (whole thread); MCP passes commentsLimit to cap the page
+        var restResponse = await _client.GetAsync($"/api/v2/cards/{cardId}");
         restResponse.EnsureSuccessStatusCode();
         var restComments = (await restResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("comments");
 
@@ -1615,10 +1618,10 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         var authService = scope.ServiceProvider.GetRequiredService<Mcp.McpAuthService>();
         var broadcaster = scope.ServiceProvider.GetRequiredService<Events.BoardEventBroadcaster>();
         var cardTools = new Mcp.CardTools(db, authService, broadcaster);
-        var mcpResult = await cardTools.GetCardAsync(_factory.AdminAuthKey, cardId: cardId);
+        var mcpResult = await cardTools.GetCardAsync(_factory.AdminAuthKey, cardId: cardId, commentsLimit: 20);
         var mcpComments = JsonSerializer.Deserialize<JsonElement>(mcpResult).GetProperty("comments");
 
-        // Assert — REST returns the whole thread, MCP caps at its default 20, both report the true total
+        // Assert — v2 REST returns the whole thread, MCP caps at commentsLimit=20, both report the true total
         restComments.GetProperty("items").GetArrayLength().ShouldBe(total);
         restComments.GetProperty("totalCount").GetInt32().ShouldBe(total);
 
@@ -1633,7 +1636,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     }
 
     [Fact]
-    public async Task GetCard_CommentsLimitExceedsMax_ClampedTo200()
+    public async Task GetCardV2_CommentsLimitExceedsMax_ClampedTo200()
     {
         // Arrange
         TestAuthHelper.SetAdminAuth(_client, _factory);
@@ -1652,7 +1655,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
 
         // Act — an over-max commentsLimit clamps to the REST bound; the echoed limit is the
         // assertable, so no 200-comment thread needs seeding
-        var response = await _client.GetAsync($"/api/v1/cards/{cardId}?commentsLimit=999");
+        var response = await _client.GetAsync($"/api/v2/cards/{cardId}?commentsLimit=999");
 
         // Assert
         response.EnsureSuccessStatusCode();
@@ -1690,6 +1693,263 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         // Assert
         var comments = JsonSerializer.Deserialize<JsonElement>(result).GetProperty("comments");
         comments.GetProperty("limit").GetInt32().ShouldBe(500);
+    }
+
+    // ── Comments compat pivot: v1 legacy array + deprecation, v2 paged, MCP dual-path ────────
+
+    [Fact]
+    public async Task GetCardV1_CarriesDeprecationHeaders()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "Deprecation Header Card",
+            descriptionMarkdown = "",
+            laneId,
+            position = Random.Shared.Next(10000, 99999)
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/cards/{cardId}");
+
+        // Assert — RFC 9745 Deprecation (a structured-field date, @<epoch>) plus a Link to the paged v2
+        // successor (RFC 8288 / RFC 5829 successor-version relation). No Sunset yet — no removal date.
+        response.EnsureSuccessStatusCode();
+        response.Headers.Contains("Deprecation").ShouldBeTrue();
+        response.Headers.GetValues("Deprecation").Single().ShouldStartWith("@");
+        response.Headers.Contains("Sunset").ShouldBeFalse();
+
+        response.Headers.Contains("Link").ShouldBeTrue();
+        var link = response.Headers.GetValues("Link").Single();
+        link.ShouldContain($"</api/v2/cards/{cardId}>");
+        link.ShouldContain("rel=\"successor-version\"");
+    }
+
+    [Fact]
+    public async Task GetCardV1_NotFound_StillCarriesDeprecationHeaders()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var bogusId = Guid.NewGuid();
+
+        // Act — deprecation is a property of the route, so even a 404 advertises the successor
+        var response = await _client.GetAsync($"/api/v1/cards/{bogusId}");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        response.Headers.Contains("Deprecation").ShouldBeTrue();
+        response.Headers.Contains("Link").ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task GetCardV1_LegacyArrayCarriesAdditiveFields()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "Legacy Additive Card",
+            descriptionMarkdown = "",
+            laneId,
+            position = Random.Shared.Next(10000, 99999)
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "a comment" });
+
+        // Act
+        var response = await _client.GetAsync($"/api/v1/cards/{cardId}");
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+        // Assert — the legacy plain array is a strict SUPERSET of v2.0.2: the array shape is restored,
+        // and the additive-only fields a v2.0.2 client ignores are present (per-comment createdAtUtc,
+        // top-level descriptionHistoryCount).
+        var comments = body.GetProperty("comments");
+        comments.ValueKind.ShouldBe(JsonValueKind.Array);
+        comments[0].TryGetProperty("createdAtUtc", out _).ShouldBeTrue();
+        body.TryGetProperty("descriptionHistoryCount", out _).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task GetCardV2_DoesNotCarryDeprecationHeaders()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "V2 Successor Card",
+            descriptionMarkdown = "",
+            laneId,
+            position = Random.Shared.Next(10000, 99999)
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.GetAsync($"/api/v2/cards/{cardId}");
+
+        // Assert — v2 is the successor; it is not deprecated and carries the paged envelope
+        response.EnsureSuccessStatusCode();
+        response.Headers.Contains("Deprecation").ShouldBeFalse();
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        body.GetProperty("comments").TryGetProperty("items", out _).ShouldBeTrue();
+        body.GetProperty("comments").TryGetProperty("totalCount", out _).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task GetCardV2_IncludeDescriptionFalse_OmitsBodyKeepsEnvelope()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "V2 Projection Card",
+            descriptionMarkdown = "A heavy description body",
+            laneId,
+            position = Random.Shared.Next(10000, 99999)
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        // Act
+        var response = await _client.GetAsync($"/api/v2/cards/{cardId}?includeDescription=false");
+
+        // Assert — the projection lever works on v2, and comments stay a paged envelope
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        body.GetProperty("card").GetProperty("descriptionMarkdown").GetString().ShouldBeEmpty();
+        body.GetProperty("comments").TryGetProperty("items", out _).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task McpGetCard_NoCommentsLimit_ReturnsLegacyPlainArray()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "MCP Legacy Array Card",
+            descriptionMarkdown = "",
+            laneId,
+            position = Random.Shared.Next(10000, 99999)
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        (await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "one" })).EnsureSuccessStatusCode();
+        await Task.Delay(50);
+        (await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "two" })).EnsureSuccessStatusCode();
+
+        // Act — no commentsLimit → the DEPRECATED legacy path
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
+        var authService = scope.ServiceProvider.GetRequiredService<Mcp.McpAuthService>();
+        var broadcaster = scope.ServiceProvider.GetRequiredService<Events.BoardEventBroadcaster>();
+        var cardTools = new Mcp.CardTools(db, authService, broadcaster);
+
+        var result = await cardTools.GetCardAsync(_factory.AdminAuthKey, cardId: cardId);
+
+        // Assert — the whole thread as a plain array, oldest first, with the additive fields present
+        var parsed = JsonSerializer.Deserialize<JsonElement>(result);
+        var comments = parsed.GetProperty("comments");
+        comments.ValueKind.ShouldBe(JsonValueKind.Array);
+        comments.GetArrayLength().ShouldBe(2);
+        comments[0].GetProperty("contentMarkdown").GetString().ShouldBe("one");
+        comments[0].TryGetProperty("createdAtUtc", out _).ShouldBeTrue();
+        parsed.TryGetProperty("descriptionHistoryCount", out _).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task McpGetCard_CommentsOffsetWithoutLimit_ReturnsError()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "MCP Offset Guard Card",
+            descriptionMarkdown = "",
+            laneId,
+            position = Random.Shared.Next(10000, 99999)
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        // Act — commentsOffset without commentsLimit fails loud rather than silently ignoring the offset
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
+        var authService = scope.ServiceProvider.GetRequiredService<Mcp.McpAuthService>();
+        var broadcaster = scope.ServiceProvider.GetRequiredService<Events.BoardEventBroadcaster>();
+        var cardTools = new Mcp.CardTools(db, authService, broadcaster);
+
+        var result = await cardTools.GetCardAsync(_factory.AdminAuthKey, cardId: cardId, commentsOffset: 5);
+
+        // Assert
+        result.ShouldContain("commentsOffset requires commentsLimit");
+    }
+
+    [Fact]
+    public async Task McpGetCard_WithCommentsLimit_ReturnsPagedEnvelopeNewestFirst()
+    {
+        // Arrange
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var laneId = await GetFirstLaneIdAsync();
+
+        var createResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards", new
+        {
+            name = "MCP Paged Card",
+            descriptionMarkdown = "",
+            laneId,
+            position = Random.Shared.Next(10000, 99999)
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var cardId = created.GetProperty("id").GetGuid();
+
+        (await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "First" })).EnsureSuccessStatusCode();
+        await Task.Delay(50);
+        (await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "Second" })).EnsureSuccessStatusCode();
+        await Task.Delay(50);
+        (await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/comments", new { contentMarkdown = "Third" })).EnsureSuccessStatusCode();
+
+        // Act — commentsLimit present → the paged envelope, newest activity first
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
+        var authService = scope.ServiceProvider.GetRequiredService<Mcp.McpAuthService>();
+        var broadcaster = scope.ServiceProvider.GetRequiredService<Events.BoardEventBroadcaster>();
+        var cardTools = new Mcp.CardTools(db, authService, broadcaster);
+
+        var result = await cardTools.GetCardAsync(_factory.AdminAuthKey, cardId: cardId, commentsLimit: 2);
+
+        // Assert
+        var comments = JsonSerializer.Deserialize<JsonElement>(result).GetProperty("comments");
+        comments.GetProperty("totalCount").GetInt32().ShouldBe(3);
+        comments.GetProperty("limit").GetInt32().ShouldBe(2);
+        var items = comments.GetProperty("items");
+        items.GetArrayLength().ShouldBe(2);
+        items[0].GetProperty("contentMarkdown").GetString().ShouldBe("Third");
     }
 
     // ── Hardened enrichment tests (query optimization) ───────────────────────
@@ -1851,7 +2111,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     }
 
     [Fact]
-    public async Task GetCard_CommentsAreNewestFirst()
+    public async Task GetCardV1_CommentsAreOldestFirstPlainArray()
     {
         // Arrange
         TestAuthHelper.SetAdminAuth(_client, _factory);
@@ -1885,24 +2145,27 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
 
-        // Assert
-        var comments = body.GetProperty("comments").GetProperty("items");
+        // Assert — v1 is the restored legacy shape: a plain array, oldest activity first, exactly as
+        // v2.0.2 (production) served it. The newest-first paged order is the v2 surface's — see the
+        // GetCardV2_ paging tests.
+        var comments = body.GetProperty("comments");
+        comments.ValueKind.ShouldBe(JsonValueKind.Array);
         comments.GetArrayLength().ShouldBe(3);
 
         var timestamps = comments.EnumerateArray()
             .Select(c => DateTimeOffset.Parse(c.GetProperty("lastUpdatedAtUtc").GetString()!, CultureInfo.InvariantCulture))
                 .ToList();
 
-        // Newest activity first — timestamps strictly descending down the page
+        // Oldest activity first — timestamps ascending down the array
         for (var i = 1; i < timestamps.Count; i++)
         {
-            timestamps[i].ShouldBeLessThanOrEqualTo(timestamps[i - 1]);
+            timestamps[i].ShouldBeGreaterThanOrEqualTo(timestamps[i - 1]);
         }
 
-        // Content order is the reverse of creation order (newest first)
-        comments[0].GetProperty("contentMarkdown").GetString().ShouldBe("Third comment");
+        // Content order matches creation order (oldest first)
+        comments[0].GetProperty("contentMarkdown").GetString().ShouldBe("First comment");
         comments[1].GetProperty("contentMarkdown").GetString().ShouldBe("Second comment");
-        comments[2].GetProperty("contentMarkdown").GetString().ShouldBe("First comment");
+        comments[2].GetProperty("contentMarkdown").GetString().ShouldBe("Third comment");
     }
 
     [Fact]

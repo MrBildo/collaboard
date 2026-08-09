@@ -502,6 +502,12 @@ api.MapSearchEndpoints();
 api.MapWebhookEndpoints();
 api.MapWebhookSubscriptionEndpoints();
 
+// Sparse versioning: only the card-detail resource has a v2 shape (paged comment sub-envelope +
+// field projection). v1 GET /cards/{id} keeps the pre-#382 plain-array shape and is deprecated in
+// favour of this. No full-surface v2 alias — every other endpoint is v1-only.
+var apiV2 = app.MapGroup("/api/v2");
+apiV2.MapCardV2Endpoints();
+
 app.MapEventEndpoints();
 
 app.MapMcp("/mcp");

@@ -379,7 +379,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
     }
 
     [McpServerTool(Name = "get_card", ReadOnly = true, Destructive = false)]
-    [Description("Get a single card by its ID or card number, including its comments (a paged sub-envelope), labels, and attachments (metadata only). Also carries descriptionHistoryCount — how many description revisions get_card_history would return for this card. Zero means there is nothing to show; it is never one, because a card's first edit records both the value that was already there and the value that replaced it. FIELD PROJECTION for a heavy card: pass includeDescription=false to drop the description body, and page or drop comments with commentsOffset/commentsLimit (commentsLimit=0 returns the comment count with no bodies) — the two heaviest parts of a big card. COMMENTS are a paged envelope { items, totalCount, offset, limit }, newest activity first (default the newest 20; comments.totalCount is the whole thread regardless). Each comment carries createdAtUtc (stamped once at posting) alongside lastUpdatedAtUtc (bumped on edit; the paging key). To download attachment content, GET /api/v1/attachments/{id} with X-User-Key header.")]
+    [Description("Get a single card by its ID or card number — labels, attachments (metadata only), user names, isArchived, and descriptionHistoryCount (how many description revisions get_card_history would return; zero means nothing to show, never one, since a first edit records both the old and new value). ALWAYS PASS commentsLimit. With commentsLimit, comments come back as a paged envelope { items, totalCount, offset, limit } newest activity first (commentsLimit=0 = count only with no bodies; max 500; page further with commentsOffset) — the shape to use on any card whose comment thread may be long. WITHOUT commentsLimit you get the DEPRECATED legacy path: the whole comment thread as a plain array, oldest-first and unbounded, kept only for byte-compatibility with older clients and to be REMOVED at a future major version — do not rely on it, pass commentsLimit. FIELD PROJECTION: includeDescription=false drops the description body (the largest single field on a heavy card). Each comment carries createdAtUtc (stamped once at posting) beside lastUpdatedAtUtc (bumped on edit). To download attachment content, GET /api/v1/attachments/{id} with X-User-Key header.")]
     public async Task<string> GetCardAsync
     (
         [Description("Your auth key")] string authKey,
@@ -388,8 +388,8 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         [Description("Board ID (required when using cardNumber)")] Guid? boardId = null,
         [Description("Board slug (alternative to boardId when using cardNumber)")] string? boardSlug = null,
         [Description("Include the card's full description body (default true). Pass false to omit it — on a heavy card the description is the largest single field, and this drops it when you only need metadata or comments.")] bool includeDescription = true,
-        [Description("Number of comments to skip, counting from the newest (default 0). Use with commentsLimit to page a long thread.")] int? commentsOffset = null,
-        [Description("Maximum number of comments to return, newest activity first (default 20, max 500). Pass 0 to omit comment bodies entirely and read only comments.totalCount. That total is the whole thread's length regardless of this cap.")] int? commentsLimit = null,
+        [Description("Number of comments to skip, counting from the newest, to page a long thread. Requires commentsLimit — passing commentsOffset without commentsLimit is an error.")] int? commentsOffset = null,
+        [Description("ALWAYS PASS THIS. Maximum comments to return, newest activity first (max 500; 0 = count only with no bodies). Passing it selects the paged comment envelope { items, totalCount, offset, limit }. OMITTING it selects the DEPRECATED legacy full comment array (whole thread, oldest-first, unbounded), slated for removal at a future major — so pass a value here even on a small card.")] int? commentsLimit = null,
         CancellationToken ct = default
     )
     {
@@ -405,22 +405,38 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
             return resolveError;
         }
 
+        // commentsOffset is a paging control and means nothing without a page size — fail loud rather
+        // than silently ignore it, so a caller who set the offset but forgot the limit is told, not
+        // handed the whole thread as if they had asked for it.
+        if (commentsLimit is null && commentsOffset is not null)
+        {
+            return "Error: commentsOffset requires commentsLimit. Pass commentsLimit to page the comment thread (the paged envelope), or omit both for the full comment array.";
+        }
+
         var card = await db.Cards.FindAsync([resolvedCardId!.Value], ct);
         if (card is null)
         {
             return "Error: Card not found.";
         }
 
-        // Capped by default, matching get_cards and get_card_history: this is the surface that pays per
-        // token, and the comment thread is unbounded. commentsLimit = 0 is the count-only read; the cap
-        // is visible, never silent — comments.totalCount always reports the whole thread.
-        var effectiveCommentsOffset = Math.Max(commentsOffset ?? 0, 0);
-        var effectiveCommentsLimit = commentsLimit switch
+        // No commentsLimit → the DEPRECATED legacy path: the whole comment thread as a plain array,
+        // oldest activity first, byte-compatible with what production served before comment paging. Kept
+        // for older clients and slated for removal at a future major; the tool description steers callers
+        // to always pass commentsLimit. Shares CardDetailBuilder with REST v1 GET /cards/{id}.
+        if (commentsLimit is null)
         {
-            null => 20,
-            0 => 0,
-            _ => Math.Clamp(commentsLimit.Value, 1, 500),
-        };
+            var legacy = await CardDetailBuilder.BuildLegacyAsync(db, card, includeDescription, ct);
+            return JsonSerializer.Serialize(legacy, JsonSerializerOptions.Web);
+        }
+
+        // commentsLimit present → the paged envelope. Capped like get_cards and get_card_history: this is
+        // the surface that pays per token, and the comment thread is unbounded. commentsLimit = 0 is the
+        // count-only read; comments.totalCount always reports the whole thread so the cap is visible.
+        // Shares CardDetailBuilder with REST v2 GET /api/v2/cards/{id}, so the two paged surfaces can't drift.
+        var effectiveCommentsOffset = Math.Max(commentsOffset ?? 0, 0);
+        var effectiveCommentsLimit = commentsLimit.Value == 0
+            ? 0
+            : Math.Clamp(commentsLimit.Value, 1, 500);
 
         var detail = await CardDetailBuilder.BuildAsync(db, card, includeDescription, effectiveCommentsOffset, effectiveCommentsLimit, ct);
         return JsonSerializer.Serialize(detail, JsonSerializerOptions.Web);
