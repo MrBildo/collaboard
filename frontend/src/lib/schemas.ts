@@ -48,6 +48,7 @@ export const cardCommentSchema = z.object({
   cardId: z.string(),
   userId: z.string(),
   contentMarkdown: z.string(),
+  createdAtUtc: z.string(),
   lastUpdatedAtUtc: z.string(),
 });
 

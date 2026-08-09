@@ -12,6 +12,16 @@ import { useUserDirectory } from '@/hooks/use-user-directory';
 import { useCardLinkContext } from '@/hooks/use-card-links';
 import { ROLES } from '@/lib/roles';
 import { formatDateTime } from '@/lib/utils';
+import type { CardComment } from '@/types';
+
+// A comment's creation time is stamped once at posting and never changes; its
+// last-updated time advances on every edit, so when the two differ the comment
+// has been edited. That same divergence is why an edited comment resurfaces to
+// the top of the thread (the list sorts by last-updated) — the marker makes that
+// reordering legible rather than mysterious.
+function wasEdited(comment: CardComment): boolean {
+  return new Date(comment.createdAtUtc).getTime() !== new Date(comment.lastUpdatedAtUtc).getTime();
+}
 
 type CardCommentsProps = {
   cardId: string;
@@ -294,6 +304,14 @@ export function CardComments({
                     </span>
                     {' · '}
                     {formatDateTime(comment.lastUpdatedAtUtc)}
+                    {wasEdited(comment) && (
+                      <span
+                        className="ml-1 italic"
+                        title={`Originally posted ${formatDateTime(comment.createdAtUtc)}`}
+                      >
+                        (edited)
+                      </span>
+                    )}
                   </span>
                   {!readOnly && (
                     <div className="flex gap-1">
