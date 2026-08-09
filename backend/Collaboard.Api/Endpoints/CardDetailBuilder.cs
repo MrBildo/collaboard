@@ -5,6 +5,9 @@ namespace Collaboard.Api.Endpoints;
 
 internal static class CardDetailBuilder
 {
+    // Paged surface: v2 GET /api/v2/cards/{id} and MCP get_card called WITH commentsLimit. Comments
+    // are a PagedResult sub-envelope, newest activity first (page 0 is the freshest). The two paged
+    // surfaces call this one method, so they cannot drift on the paged contract.
     public static async Task<CardDetail> BuildAsync
     (
         BoardDbContext db,
@@ -37,7 +40,7 @@ internal static class CardDetailBuilder
                 .ThenByDescending(c => c.Id)
                 .Skip(commentsOffset);
 
-            // A null limit is REST's omit-for-all; the MCP surface always passes a capped value.
+            // A null limit is the whole thread; the MCP surface always passes a capped value.
             if (commentsLimit.HasValue)
             {
                 pagedQuery = pagedQuery.Take(commentsLimit.Value);
@@ -46,9 +49,78 @@ internal static class CardDetailBuilder
             pagedComments = await pagedQuery.ToListAsync(ct);
         }
 
-        // Only the paged comments' authors need names — a capped read does not pay to name authors it
+        var shared = await BuildSharedAsync(db, card, includeDescription, pagedComments, ct);
+        var comments = new PagedResult<CardDetailComment>(shared.CommentItems, commentsTotalCount, commentsOffset, commentsLimit);
+
+        return new CardDetail
+        (
+            shared.Card,
+            shared.SizeName,
+            shared.CreatedByUserName,
+            shared.LastUpdatedByUserName,
+            comments,
+            shared.Labels,
+            shared.Attachments,
+            shared.IsArchived,
+            shared.DescriptionHistoryCount
+        );
+    }
+
+    // Legacy surface: v1 GET /api/v1/cards/{id} and MCP get_card called WITHOUT commentsLimit. Restores
+    // the v2.0.2 production shape — comments as a plain array, the whole thread, ordered
+    // OLDEST activity first exactly as v2.0.2 served it — plus the additive-only fields a v2.0.2 client
+    // ignores (per-comment createdAtUtc, descriptionHistoryCount, and the includeDescription
+    // projection). It is deliberately unpaged and oldest-first so the response is byte-compatible with
+    // what production serves an existing consumer today; the paged BuildAsync above is the deprecation
+    // successor. Shares BuildSharedAsync with the paged path, so the two shapes cannot drift on any
+    // field except how the comments are wrapped and ordered.
+    public static async Task<CardDetailLegacy> BuildLegacyAsync
+    (
+        BoardDbContext db,
+        CardItem card,
+        bool includeDescription,
+        CancellationToken ct = default
+    )
+    {
+        var wholeThread = await db.Comments
+            .Where(c => c.CardId == card.Id)
+            .OrderBy(c => c.LastUpdatedAtUtc)
+            .ThenBy(c => c.Id)
+                .ToListAsync(ct);
+
+        var shared = await BuildSharedAsync(db, card, includeDescription, wholeThread, ct);
+
+        return new CardDetailLegacy
+        (
+            shared.Card,
+            shared.SizeName,
+            shared.CreatedByUserName,
+            shared.LastUpdatedByUserName,
+            shared.CommentItems,
+            shared.Labels,
+            shared.Attachments,
+            shared.IsArchived,
+            shared.DescriptionHistoryCount
+        );
+    }
+
+    // Everything on a card detail except how the comments are wrapped: the caller has already loaded
+    // and ordered the comment rows (a page newest-first for the paged surface, or the whole thread
+    // oldest-first for the legacy one), and this resolves user names, maps those rows, and builds the
+    // card core, labels, attachments, size name, archive flag and description-history count identically
+    // for both surfaces — the single seam that keeps the paged and legacy shapes in lockstep.
+    private static async Task<SharedCardDetail> BuildSharedAsync
+    (
+        BoardDbContext db,
+        CardItem card,
+        bool includeDescription,
+        List<CardComment> comments,
+        CancellationToken ct
+    )
+    {
+        // Only the loaded comments' authors need names — a capped read does not pay to name authors it
         // is not returning — plus the card's own creator and last editor.
-        var userIds = pagedComments
+        var userIds = comments
             .Select(c => c.UserId)
             .Append(card.CreatedByUserId)
             .Append(card.LastUpdatedByUserId)
@@ -58,7 +130,7 @@ internal static class CardDetailBuilder
             .Where(u => userIds.Contains(u.Id))
                 .ToDictionaryAsync(u => u.Id, u => u.Name, ct);
 
-        var commentItems = pagedComments
+        var commentItems = comments
             .Select(c => new CardDetailComment
             (
                 c.Id,
@@ -70,8 +142,6 @@ internal static class CardDetailBuilder
                 c.LastUpdatedAtUtc
             ))
                 .ToList();
-
-        var comments = new PagedResult<CardDetailComment>(commentItems, commentsTotalCount, commentsOffset, commentsLimit);
 
         var labels = await db.CardLabels
             .Where(cl => cl.CardId == card.Id)
@@ -120,19 +190,35 @@ internal static class CardDetailBuilder
             card.IsTemp
         );
 
-        return new CardDetail
+        return new SharedCardDetail
         (
             cardResponse,
             sizeName,
             userNames.GetValueOrDefault(card.CreatedByUserId),
             userNames.GetValueOrDefault(card.LastUpdatedByUserId),
-            comments,
+            commentItems,
             labels,
             attachments,
             isArchived,
             descriptionHistoryCount
         );
     }
+
+    // Everything BuildSharedAsync produces — every card-detail field except how the comments collection
+    // is wrapped. Both public builders assemble their final DTO from this, so the shared fields have
+    // exactly one construction site. Private and nested: it never leaves this builder.
+    private sealed record SharedCardDetail
+    (
+        CardResponse Card,
+        string SizeName,
+        string? CreatedByUserName,
+        string? LastUpdatedByUserName,
+        List<CardDetailComment> CommentItems,
+        List<Label> Labels,
+        List<CardDetailAttachment> Attachments,
+        bool IsArchived,
+        int DescriptionHistoryCount
+    );
 }
 
 // The card core as it goes on the wire — a projection of CardItem, never the tracked entity, so a
@@ -157,7 +243,7 @@ internal record CardResponse
 );
 
 // CreatedAtUtc is the comment's stamped-once posting time; LastUpdatedAtUtc is bumped on every edit
-// and is the key the thread is paged by (newest activity first).
+// and is the key the paged thread is sorted by (newest activity first).
 internal record CardDetailComment
 (
     Guid Id,
@@ -179,10 +265,10 @@ internal record CardDetailAttachment
     DateTimeOffset AddedAtUtc
 );
 
-// Comments are a paged sub-envelope (PagedResult): a card's one unbounded collection, so a heavy card
-// no longer forces the whole thread into a single read. Newest activity first; totalCount is the whole
-// thread regardless of the page. commentsLimit = 0 returns an empty page with the true total (count
-// only). REST omits the limit for the whole thread; MCP caps by default (it pays per token).
+// The PAGED card detail (v2 GET /api/v2/cards/{id} and MCP get_card WITH commentsLimit). Comments are
+// a paged sub-envelope (PagedResult): a card's one unbounded collection, so a heavy card no longer
+// forces the whole thread into a single read. Newest activity first; totalCount is the whole thread
+// regardless of the page. commentsLimit = 0 returns an empty page with the true total (count only).
 //
 // DescriptionHistoryCount is the number of recorded revisions of this card's description — the same
 // number the history trail reports as its totalCount, and the length of the trail a caller gets back
@@ -198,6 +284,25 @@ internal record CardDetail
     string? CreatedByUserName,
     string? LastUpdatedByUserName,
     PagedResult<CardDetailComment> Comments,
+    List<Label> Labels,
+    List<CardDetailAttachment> Attachments,
+    bool IsArchived,
+    int DescriptionHistoryCount
+);
+
+// The LEGACY card detail (v1 GET /api/v1/cards/{id} and MCP get_card WITHOUT commentsLimit). Identical
+// to CardDetail in every field except Comments, which is a plain array (the whole thread, oldest
+// activity first) rather than a paged sub-envelope — the v2.0.2 production shape, restored so an
+// existing v2.0.2 consumer deserializes it unchanged. The extra fields it carries over v2.0.2
+// (per-comment CreatedAtUtc, DescriptionHistoryCount) are additive-only; a v2.0.2 client ignores them.
+// This resource is deprecated (RFC 9745) in favour of the paged v2 surface.
+internal record CardDetailLegacy
+(
+    CardResponse Card,
+    string SizeName,
+    string? CreatedByUserName,
+    string? LastUpdatedByUserName,
+    List<CardDetailComment> Comments,
     List<Label> Labels,
     List<CardDetailAttachment> Attachments,
     bool IsArchived,

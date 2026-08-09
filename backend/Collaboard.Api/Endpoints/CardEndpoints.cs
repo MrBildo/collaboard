@@ -1,3 +1,4 @@
+using System.Globalization;
 using Collaboard.Api.Auth;
 using Collaboard.Api.Events;
 using Collaboard.Api.Models;
@@ -84,27 +85,26 @@ internal static class CardEndpoints
         }).RequireAuth();
 
         // By-ID operations (flat)
-        group.MapGet("/cards/{id:guid}", async (BoardDbContext db, Guid id, bool? includeDescription, int? commentsOffset, int? commentsLimit, CancellationToken ct) =>
+        //
+        // v1 card detail is a DEPRECATED resource (RFC 9745): it restores the v2.0.2 production shape —
+        // comments as a plain array (the whole thread, oldest activity first) plus the additive-only
+        // createdAtUtc / descriptionHistoryCount fields — so a consumer written against the last release
+        // deserializes it unchanged. The paged successor is GET /api/v2/cards/{id}; every response here advertises
+        // that with Deprecation + Link headers. includeDescription stays (an additive, never-breaking
+        // projection); commentsOffset/commentsLimit are the paged surface's and live only on v2.
+        group.MapGet("/cards/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, bool? includeDescription, CancellationToken ct) =>
         {
+            // Deprecation is a property of the resource, not of a particular card, so it is advertised on
+            // every response from this route — the 404 as much as the 200.
+            StampV1CardDetailDeprecation(http.Response, id);
+
             var card = await db.Cards.FindAsync([id], ct);
             if (card is null)
             {
                 return Results.NotFound();
             }
 
-            // Same paging contract as the board's card list and the history trail: an omitted limit
-            // returns the whole thread (a browser client is not paying MCP's token cost), a given
-            // limit clamps rather than errors, and commentsLimit = 0 is the count-only read. Field
-            // projection defaults to the full card — includeDescription is the heavy-field opt-out.
-            var effectiveCommentsOffset = Math.Max(commentsOffset ?? 0, 0);
-            int? effectiveCommentsLimit = commentsLimit switch
-            {
-                null => null,
-                0 => 0,
-                _ => Math.Clamp(commentsLimit.Value, 1, 200),
-            };
-
-            var detail = await CardDetailBuilder.BuildAsync(db, card, includeDescription ?? true, effectiveCommentsOffset, effectiveCommentsLimit, ct);
+            var detail = await CardDetailBuilder.BuildLegacyAsync(db, card, includeDescription ?? true, ct);
             return Results.Ok(detail);
         }).RequireAuth();
 
@@ -576,5 +576,23 @@ internal static class CardEndpoints
 
             return (requestedLabelIds, null);
         }
+    }
+
+    // RFC 9745 requires the Deprecation header's value to be a structured-field Date (§2.1) — there is
+    // no "deprecated, date unknown" form — so this is the date v1 card detail was declared deprecated.
+    // It is a fixed point (the ruling date), stable across responses and reading as a past date once
+    // shipped. No Sunset header is emitted: the removal date does not exist yet (a future MAJOR sets
+    // it, and §4 keeps Sunset separate from Deprecation for exactly this "deprecated but no end date"
+    // case). Only this resource is deprecated; the rest of v1 lives on.
+    private static readonly long _v1CardDetailDeprecatedAtUnixSeconds =
+        new DateTimeOffset(2026, 8, 9, 0, 0, 0, TimeSpan.Zero).ToUnixTimeSeconds();
+
+    // Advertises the deprecation of v1 GET /cards/{id} on the response: a Deprecation date and a Link
+    // to the paged successor (v2), the successor-version relation of RFC 8288 / RFC 5829. The successor
+    // target is an absolute-path reference so it resolves correctly behind any host or reverse proxy.
+    private static void StampV1CardDetailDeprecation(HttpResponse response, Guid id)
+    {
+        response.Headers.Append("Deprecation", $"@{_v1CardDetailDeprecatedAtUnixSeconds.ToString(CultureInfo.InvariantCulture)}");
+        response.Headers.Append("Link", $"</api/v2/cards/{id}>; rel=\"successor-version\"");
     }
 }
