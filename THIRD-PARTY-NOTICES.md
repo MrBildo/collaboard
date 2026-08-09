@@ -150,9 +150,6 @@ Compiled into the JavaScript served from `wwwroot`.
 - `@base-ui/react` 1.3.0 — MIT — Copyright (c) 2019 Material-UI SAS
 - `@base-ui/utils` 0.2.6 — MIT — Copyright (c) 2019 Material-UI SAS
 - `@braintree/sanitize-url` 7.1.2 — MIT — Copyright (c) 2017 Braintree
-- `@chevrotain/gast` 11.1.2 — Apache-2.0 — Copyright [yyyy] [name of copyright owner]
-- `@chevrotain/regexp-to-ast` 11.1.2 — Apache-2.0 — Copyright [yyyy] [name of copyright owner]
-- `@chevrotain/utils` 11.1.2 — Apache-2.0 — Copyright [yyyy] [name of copyright owner]
 - `@dnd-kit/accessibility` 3.1.1 — MIT — Copyright (c) 2021, Claudéric Demers
 - `@dnd-kit/core` 6.3.1 — MIT — Copyright (c) 2021, Claudéric Demers
 - `@dnd-kit/sortable` 10.0.0 — MIT — Copyright (c) 2021, Claudéric Demers
@@ -162,7 +159,7 @@ Compiled into the JavaScript served from `wwwroot`.
 - `@floating-ui/react-dom` 2.1.8 — MIT — Copyright (c) 2021-present Floating UI contributors
 - `@floating-ui/utils` 0.2.11 — MIT — Copyright (c) 2021-present Floating UI contributors
 - `@iconify/utils` 3.1.0 — MIT — Copyright (c) 2021-PRESENT Vjacheslav Trushkin
-- `@mermaid-js/parser` 1.0.1 — MIT — Copyright (c) 2023 Yokozuna59
+- `@mermaid-js/parser` 1.2.0 — MIT — Copyright (c) 2023 Yokozuna59
 - `@radix-ui/number` 1.1.1 — MIT — Copyright (c) 2022 WorkOS
 - `@radix-ui/primitive` 1.1.3 — MIT — Copyright (c) 2022 WorkOS
 - `@radix-ui/react-collection` 1.1.7 — MIT — Copyright (c) 2022 WorkOS
@@ -189,14 +186,12 @@ Compiled into the JavaScript served from `wwwroot`.
 - `bail` 2.0.2 — MIT — Copyright (c) 2015 Titus Wormer <tituswormer@gmail.com>
 - `ccount` 2.0.1 — MIT — Copyright (c) 2015 Titus Wormer <tituswormer@gmail.com>
 - `char-regex` 1.0.2 — MIT — Copyright (c) 2019 Richie Bendall
-- `chevrotain` 11.1.2 — Apache-2.0 — Copyright [yyyy] [name of copyright owner]
-- `chevrotain-allstar` 0.3.1 — MIT — Copyright 2022 TypeFox GmbH
 - `class-variance-authority` 0.7.1 — Apache-2.0 — Copyright 2022 Joe Bell
 - `clsx` 2.1.1 — MIT — Copyright (c) Luke Edwards <luke.edwards05@gmail.com> (lukeed.com)
 - `comma-separated-tokens` 2.0.3 — MIT — Copyright (c) 2016 Titus Wormer <tituswormer@gmail.com>
 - `cose-base` 1.0.3 — MIT — Copyright (c) 2019 - present, iVis@Bilkent.
 - `cose-base` 2.2.0 — MIT — Copyright (c) 2019 - present, iVis@Bilkent.
-- `cytoscape` 3.33.1 — MIT — Copyright (c) 2016-2025, The Cytoscape Consortium.
+- `cytoscape` 3.34.0 — MIT — Copyright (c) 2016-2026, The Cytoscape Consortium.
 - `cytoscape-cose-bilkent` 4.1.0 — MIT — Copyright (c) 2016-2018, The Cytoscape Consortium.
 - `cytoscape-fcose` 2.2.0 — MIT — Copyright (c) 2018 - present, iVis-at-Bilkent.
 - `d3-array` 3.2.4 — ISC — Copyright 2010-2023 Mike Bostock
@@ -224,10 +219,11 @@ Compiled into the JavaScript served from `wwwroot`.
 - `dagre-d3-es` 7.0.14 — MIT — Copyright (c) 2022-2024 Thibaut Lassalle, David Newell, Alois Klink, Sidharth Vinod and dagre-es contributors
 - `dayjs` 1.11.20 — MIT — Copyright (c) 2018-present, iamkun
 - `decode-named-character-reference` 1.3.0 — MIT — Copyright (c) Titus Wormer <tituswormer@gmail.com>
-- `dompurify` 3.3.3 — (MPL-2.0 OR Apache-2.0) — Copyright 2025 Dr.-Ing. Mario Heiderich, Cure53
+- `dompurify` 3.4.13 — (MPL-2.0 OR Apache-2.0) — Copyright [yyyy] [name of copyright owner]
 - `emojilib` 2.4.0 — MIT — Copyright (c) 2014 Mu-An Chiou
 - `emoticon` 4.1.0 — MIT — Copyright (c) 2014 Titus Wormer <tituswormer@gmail.com>
 - `entities` 6.0.1 — BSD-2-Clause — Copyright (c) Felix Böhm
+- `es-toolkit` 1.50.0 — MIT — Copyright (c) 2024 Viva Republica, Inc.
 - `escape-string-regexp` 5.0.0 — MIT — Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
 - `estree-util-is-identifier-name` 3.0.0 — MIT — Copyright (c) 2020 Titus Wormer <tituswormer@gmail.com>
 - `extend` 3.0.2 — MIT — Copyright (c) 2014 Stefan Thomas
@@ -248,12 +244,11 @@ Compiled into the JavaScript served from `wwwroot`.
 - `internmap` 2.0.3 — ISC — Copyright 2021 Mike Bostock
 - `is-absolute-url` 4.0.1 — MIT — Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
 - `is-plain-obj` 4.1.0 — MIT — Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
-- `katex` 0.16.44 — MIT — Copyright (c) 2013-2020 Khan Academy and other contributors
+- `katex` 0.16.47 — MIT — Copyright (c) 2013-2020 Khan Academy and other contributors
 - `khroma` 2.1.0 — MIT — Copyright (c) 2019-present Fabio Spampinato, Andrew Maney
-- `langium` 4.2.1 — MIT — Copyright 2021 TypeFox GmbH
 - `layout-base` 2.0.1 — MIT — Copyright (c) 2019 iVis@Bilkent
 - `layout-base` 1.0.2 — MIT — Copyright (c) 2019 iVis@Bilkent
-- `lodash-es` 4.17.23 — MIT — Copyright OpenJS Foundation and other contributors <https://openjsf.org/>
+- `lodash-es` 4.18.1 — MIT — Copyright OpenJS Foundation and other contributors <https://openjsf.org/>
 - `longest-streak` 3.1.0 — MIT — Copyright (c) 2015 Titus Wormer <mailto:tituswormer@gmail.com>
 - `lowlight` 3.3.0 — MIT — Copyright (c) Titus Wormer <tituswormer@gmail.com>
 - `lucide-react` 0.577.0 — ISC — Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2026 as part of Feather (MIT). All other copyright (c) for Lucide are held by Lucide Contributors 2026.
@@ -271,7 +266,7 @@ Compiled into the JavaScript served from `wwwroot`.
 - `mdast-util-to-hast` 13.2.1 — MIT — Copyright (c) 2016 Titus Wormer <tituswormer@gmail.com>
 - `mdast-util-to-markdown` 2.1.2 — MIT — Copyright (c) Titus Wormer <tituswormer@gmail.com>
 - `mdast-util-to-string` 4.0.0 — MIT — Copyright (c) 2015 Titus Wormer <tituswormer@gmail.com>
-- `mermaid` 11.13.0 — MIT — Copyright (c) 2014 - 2022 Knut Sveidqvist
+- `mermaid` 11.16.1 — MIT — Copyright (c) 2014 - 2022 Knut Sveidqvist
 - `micromark` 4.0.2 — MIT — Copyright (c) Titus Wormer <tituswormer@gmail.com>
 - `micromark-core-commonmark` 2.0.3 — MIT — Copyright (c) Titus Wormer <tituswormer@gmail.com>
 - `micromark-extension-gfm` 3.0.0 — MIT — Copyright (c) 2020 Titus Wormer <tituswormer@gmail.com>
@@ -333,15 +328,10 @@ Compiled into the JavaScript served from `wwwroot`.
 - `unist-util-visit` 5.1.0 — MIT — Copyright (c) 2015 Titus Wormer <tituswormer@gmail.com>
 - `unist-util-visit-parents` 6.0.2 — MIT — Copyright (c) 2016 Titus Wormer <tituswormer@gmail.com>
 - `use-sync-external-store` 1.6.0 — MIT — Copyright (c) Meta Platforms, Inc. and affiliates.
-- `uuid` 11.1.0 — MIT — Copyright (c) 2010-2020 Robert Kieffer and other contributors
+- `uuid` 14.0.1 — MIT — Copyright (c) 2010-2020 Robert Kieffer and other contributors
 - `vfile` 6.0.3 — MIT — Copyright (c) 2015 Titus Wormer <tituswormer@gmail.com>
 - `vfile-location` 5.0.3 — MIT — Copyright (c) 2016 Titus Wormer <tituswormer@gmail.com>
 - `vfile-message` 4.0.3 — MIT — Copyright (c) Titus Wormer <tituswormer@gmail.com>
-- `vscode-jsonrpc` 8.2.0 — MIT — Copyright (c) Microsoft Corporation
-- `vscode-languageserver-protocol` 3.17.5 — MIT — Copyright (c) Microsoft Corporation
-- `vscode-languageserver-textdocument` 1.0.12 — MIT — Copyright (c) Microsoft Corporation
-- `vscode-languageserver-types` 3.17.5 — MIT — Copyright (c) Microsoft Corporation
-- `vscode-uri` 3.1.0 — MIT — Copyright (c) Microsoft
 - `web-namespaces` 2.0.1 — MIT — Copyright (c) 2016 Titus Wormer <tituswormer@gmail.com>
 - `zod` 4.3.6 — MIT — Copyright (c) 2025 Colin McDonnell
 - `zwitch` 2.0.4 — MIT — Copyright (c) 2016 Titus Wormer <tituswormer@gmail.com>
