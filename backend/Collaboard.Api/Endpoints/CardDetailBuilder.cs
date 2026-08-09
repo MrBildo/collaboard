@@ -67,7 +67,7 @@ internal static class CardDetailBuilder
     }
 
     // Legacy surface: v1 GET /api/v1/cards/{id} and MCP get_card called WITHOUT commentsLimit. Restores
-    // the pre-#382 (v2.0.2, production) shape — comments as a plain array, the whole thread, ordered
+    // the v2.0.2 production shape — comments as a plain array, the whole thread, ordered
     // OLDEST activity first exactly as v2.0.2 served it — plus the additive-only fields a v2.0.2 client
     // ignores (per-comment createdAtUtc, descriptionHistoryCount, and the includeDescription
     // projection). It is deliberately unpaged and oldest-first so the response is byte-compatible with
@@ -292,7 +292,7 @@ internal record CardDetail
 
 // The LEGACY card detail (v1 GET /api/v1/cards/{id} and MCP get_card WITHOUT commentsLimit). Identical
 // to CardDetail in every field except Comments, which is a plain array (the whole thread, oldest
-// activity first) rather than a paged sub-envelope — the pre-#382 production shape, restored so an
+// activity first) rather than a paged sub-envelope — the v2.0.2 production shape, restored so an
 // existing v2.0.2 consumer deserializes it unchanged. The extra fields it carries over v2.0.2
 // (per-comment CreatedAtUtc, DescriptionHistoryCount) are additive-only; a v2.0.2 client ignores them.
 // This resource is deprecated (RFC 9745) in favour of the paged v2 surface.

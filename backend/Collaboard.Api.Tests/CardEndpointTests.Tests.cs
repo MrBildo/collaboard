@@ -236,7 +236,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         body.GetProperty("createdByUserName").GetString().ShouldNotBeNullOrEmpty();
         body.GetProperty("lastUpdatedByUserName").GetString().ShouldNotBeNullOrEmpty();
 
-        // v1 restores the legacy plain comments array (the pre-#382 / v2.0.2 shape), whole thread,
+        // v1 restores the legacy plain comments array (the v2.0.2 production shape), whole thread,
         // each comment carrying the additive-only createdAtUtc a v2.0.2 client ignores.
         var comments = body.GetProperty("comments");
         comments.ValueKind.ShouldBe(JsonValueKind.Array);

@@ -86,10 +86,10 @@ internal static class CardEndpoints
 
         // By-ID operations (flat)
         //
-        // v1 card detail is a DEPRECATED resource (RFC 9745): it restores the pre-#382 shape — comments
-        // as a plain array (the whole thread, oldest activity first) plus the additive-only createdAtUtc
-        // / descriptionHistoryCount fields — so a consumer written against the last release deserializes
-        // it unchanged. The paged successor is GET /api/v2/cards/{id}; every response here advertises
+        // v1 card detail is a DEPRECATED resource (RFC 9745): it restores the v2.0.2 production shape —
+        // comments as a plain array (the whole thread, oldest activity first) plus the additive-only
+        // createdAtUtc / descriptionHistoryCount fields — so a consumer written against the last release
+        // deserializes it unchanged. The paged successor is GET /api/v2/cards/{id}; every response here advertises
         // that with Deprecation + Link headers. includeDescription stays (an additive, never-breaking
         // projection); commentsOffset/commentsLimit are the paged surface's and live only on v2.
         group.MapGet("/cards/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, bool? includeDescription, CancellationToken ct) =>

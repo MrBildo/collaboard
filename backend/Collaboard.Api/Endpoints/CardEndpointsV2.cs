@@ -5,7 +5,7 @@ namespace Collaboard.Api.Endpoints;
 // Sparse versioning: v2 exists ONLY for this one resource — GET /api/v2/cards/{id} — because the card
 // detail is the only endpoint whose shape changed in a breaking way (comments array → paged
 // sub-envelope). This surface carries the paged comment envelope and the field-projection levers;
-// v1 GET /cards/{id} keeps the pre-#382 plain-array shape and is deprecated in favour of this one.
+// v1 GET /cards/{id} keeps the v2.0.2 plain-array shape and is deprecated in favour of this one.
 // There is no full-surface v2 alias and no other v2 route — every other endpoint stays v1.
 internal static class CardEndpointsV2
 {
