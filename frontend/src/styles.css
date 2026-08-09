@@ -167,25 +167,6 @@
     --sidebar-ring: hsl(195, 90%, 55%);
   }
 
-  /* Prose overrides scoped to .prose inside dark mode — must be a separate rule
-     so it has higher specificity than the base .prose class which sets its own vars */
-  [data-theme='dark'] .prose {
-    --tw-prose-body: hsl(210, 15%, 85%);
-    --tw-prose-headings: hsl(210, 15%, 95%);
-    --tw-prose-links: hsl(195, 90%, 55%);
-    --tw-prose-bold: hsl(210, 15%, 95%);
-    --tw-prose-code: hsl(195, 80%, 70%);
-    --tw-prose-pre-bg: hsl(222, 20%, 14%);
-    --tw-prose-pre-code: hsl(210, 15%, 85%);
-    --tw-prose-quotes: hsl(210, 15%, 70%);
-    --tw-prose-quote-borders: hsl(195, 90%, 55%);
-    --tw-prose-counters: hsl(210, 15%, 60%);
-    --tw-prose-bullets: hsl(210, 15%, 50%);
-    --tw-prose-hr: hsl(222, 15%, 25%);
-    --tw-prose-th-borders: hsl(222, 15%, 30%);
-    --tw-prose-td-borders: hsl(222, 12%, 22%);
-  }
-
   * {
     @apply border-border;
   }
@@ -219,6 +200,33 @@
   *::-webkit-scrollbar-thumb:hover {
     background-color: var(--muted-foreground);
   }
+}
+
+/* Dark-mode prose override — deliberately UNLAYERED (outside any @layer block).
+   The typography plugin ships its own .prose defaults in a Tailwind cascade layer,
+   and cascade layers resolve by layer order before selector specificity: a rule in
+   a later-declared layer wins over a rule in an earlier one regardless of how much
+   more specific the earlier rule's selector is. A same-layer or explicitly-later-
+   layer override would only stay correct as long as the plugin keeps using the same
+   layer, which is not a contract it publishes. An unlayered rule sits outside that
+   ordering entirely and always wins over every layered rule, so this override can't
+   be silently out-cascaded by a future plugin or Tailwind version choosing a
+   different layer. */
+[data-theme='dark'] .prose {
+  --tw-prose-body: hsl(210, 15%, 85%);
+  --tw-prose-headings: hsl(210, 15%, 95%);
+  --tw-prose-links: hsl(195, 90%, 55%);
+  --tw-prose-bold: hsl(210, 15%, 95%);
+  --tw-prose-code: hsl(195, 80%, 70%);
+  --tw-prose-pre-bg: hsl(222, 20%, 14%);
+  --tw-prose-pre-code: hsl(210, 15%, 85%);
+  --tw-prose-quotes: hsl(210, 15%, 70%);
+  --tw-prose-quote-borders: hsl(195, 90%, 55%);
+  --tw-prose-counters: hsl(210, 15%, 60%);
+  --tw-prose-bullets: hsl(210, 15%, 50%);
+  --tw-prose-hr: hsl(222, 15%, 25%);
+  --tw-prose-th-borders: hsl(222, 15%, 30%);
+  --tw-prose-td-borders: hsl(222, 12%, 22%);
 }
 
 /* Mermaid text fix — SVG <text> uses fill, but mindmap/timeline nodes use
