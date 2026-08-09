@@ -1,6 +1,6 @@
 # API Reference
 
-All endpoints are under `/api/v1/`. Authentication is via the `X-User-Key` header.
+All endpoints are under `/api/v1/`, with one exception: the card-detail read also has a second version at `GET /api/v2/cards/{id}` — see [Reading a card](#reading-a-card). Authentication is via the `X-User-Key` header.
 
 ## Boards
 
@@ -35,24 +35,34 @@ All endpoints are under `/api/v1/`. Authentication is via the `X-User-Key` heade
 |----------|-----------|
 | Lanes | `GET /lanes/{id}`, `PATCH /lanes/{id}`, `DELETE /lanes/{id}` |
 | Sizes | `GET /sizes/{id}`, `PATCH /sizes/{id}` (name/ordinal), `DELETE /sizes/{id}` (blocked if in use) |
-| Cards | `GET /cards/{id}` (enriched detail with field projection + comment paging — see [Reading a card](#reading-a-card); includes `descriptionHistoryCount`, see [Card History](#card-history)), `PATCH /cards/{id}` (a description edit can carry a [collision notice](#collision-awareness)), `DELETE /cards/{id}`, `POST /cards/{id}/reorder`, `POST /cards/{id}/archive`, `POST /cards/{id}/restore` |
+| Cards | `GET /cards/{id}` (enriched detail; comments as a plain array — **deprecated** in favour of `GET /api/v2/cards/{id}`; see [Reading a card](#reading-a-card); includes `descriptionHistoryCount`, see [Card History](#card-history)), `GET /api/v2/cards/{id}` (the recommended read — field projection + paged comments; see [Reading a card](#reading-a-card)), `PATCH /cards/{id}` (a description edit can carry a [collision notice](#collision-awareness)), `DELETE /cards/{id}`, `POST /cards/{id}/reorder`, `POST /cards/{id}/archive`, `POST /cards/{id}/restore` |
 | Card history | `GET /cards/{id}/history` — the card's description edit trail; see [Card History](#card-history) |
 
 ### Reading a card
 
-`GET /cards/{id}` returns the enriched card detail: the card's own fields, its `sizeName`, the creator and last-editor display names, its labels and attachment metadata, `isArchived`, and `descriptionHistoryCount`. On a heavy card the two largest parts — the description body and the comment thread — can be projected away with query parameters, so a read that only needs one field or one page of comments does not pay for the rest.
+There are two versions of the card-detail read. Both return the enriched card detail — the card's own fields, its `sizeName`, the creator and last-editor display names, its labels and attachment metadata, `isArchived`, `descriptionHistoryCount`, and per-comment `createdAtUtc` (its stamped-once posting time) beside `lastUpdatedAtUtc` (bumped on every edit) — and both accept the `includeDescription` projection. They differ only in how the comment thread is shaped, and which one is recommended.
+
+**Sparse versioning:** `v2` exists **only** for this one endpoint. Every other endpoint in this reference stays `v1`; there is no full-surface `v2` alias.
+
+#### `GET /api/v2/cards/{id}` — the recommended read
+
+The card detail with field projection and the comment thread as a **paged sub-envelope**. Reach for this in any new integration.
 
 | Param | Values | Default | Notes |
 |---|---|---|---|
 | `includeDescription` | `true` \| `false` | `true` | Pass `false` to omit the description body — the single largest field on a heavy card — when you only need metadata or comments. Every other field, including `descriptionHistoryCount`, is unaffected. |
 | `commentsOffset` | integer | `0` | Comments to skip, counting back from the newest. Negative values clamp to `0`. |
-| `commentsLimit` | integer | *(all)* | Page size for comments, newest activity first. **Omitted returns the whole thread** — a browser client is not paying an agent's per-token cost. A given value clamps to `1..200`; `0` omits comment bodies and returns only the count. (The MCP `get_card` tool caps by default at `20` — see the [MCP skill](collaboard/SKILL.md).) |
+| `commentsLimit` | integer | *(all)* | Page size for comments, newest activity first. **Omitted returns the whole thread, still enveloped** — a browser client is not paying an agent's per-token cost. A given value clamps to `1..200`; `0` omits comment bodies and returns only the count. |
 
-**Comments come back as a paged sub-envelope**: `comments` is `{ items, totalCount, offset, limit }`, newest activity first. `totalCount` is the whole thread regardless of the page, so a capped read is never mistaken for the whole. Each comment carries both `createdAtUtc` (its stamped-once posting time) and `lastUpdatedAtUtc` (bumped on every edit, and the key the thread is ordered by — so an edited comment resurfaces as latest activity).
+`comments` comes back as `{ items, totalCount, offset, limit }`, **newest activity first** (page 0 is the freshest). `totalCount` is the whole thread regardless of the page, so a capped read is never mistaken for the whole. Offset paging runs over `lastUpdatedAtUtc`, which is bumped when a comment is edited, so a comment edited concurrently with a paged walk can shift between pages — the usual offset-paging caveat when the sort key is mutable; comment id breaks ties on the key, so a page is otherwise stable.
 
-*(Contract change: `comments` was previously a plain array and is now this envelope — read `comments.items` for the list. Field projection and comment paging are additive: the default read still returns the full description and the whole comment thread.)*
+#### `GET /cards/{id}` — deprecated
 
-Offset paging runs over `lastUpdatedAtUtc`, which is bumped when a comment is edited, so a comment edited concurrently with a paged walk can shift between pages — the usual offset-paging caveat when the sort key is mutable. Comment id breaks ties on the key, so a page is otherwise stable.
+The `v1` read returns `comments` as a **plain array** — the whole thread, **oldest activity first** — the shape prior releases served, so a client written against an earlier release deserializes it unchanged. It carries the same additive `createdAtUtc`, `descriptionHistoryCount`, and `includeDescription` projection as `v2`, and it takes **no** comment-paging parameters — `commentsOffset` and `commentsLimit` live only on `v2`.
+
+This resource is **deprecated** in favour of `GET /api/v2/cards/{id}`. Every response — success **and** `404` — carries a `Deprecation` header and a `Link` header with `rel="successor-version"` pointing at the `v2` URL. There is no `Sunset` header yet: removal is planned for a future major release, and no date is set. Until then the endpoint keeps working exactly as it does now. Nothing else in `v1` is deprecated.
+
+To read comments on their own — untouched by this deprecation — use `GET /cards/{id}/comments` (below); that endpoint was not changed.
 
 ## Users
 

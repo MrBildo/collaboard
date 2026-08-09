@@ -302,22 +302,26 @@ read that only needs one field or one page of comments does not pay for the rest
   - `includeDescription` (default `true`) — pass `false` to omit the description
     body, the single largest field on a heavy card, when you only need metadata or
     comments.
-  - `commentsOffset` (default `0`) and `commentsLimit` (default `20`, max `500`) —
-    page the comment thread. Pass `commentsLimit=0` to omit comment bodies entirely
-    and read only `comments.totalCount`.
-- **Comments come back as a paged sub-envelope** `{ items, totalCount, offset,
-  limit }`, newest activity first — an edited comment resurfaces, because
-  `lastUpdatedAtUtc` (bumped on every edit) is the paging key. `totalCount` is the
-  whole thread regardless of the page, so a capped read is never mistaken for the
-  whole. Each comment also carries `createdAtUtc`, its stamped-once posting time,
+  - `commentsLimit` (max `500`) — **always pass this.** With it, comments come back
+    as a paged envelope (below); `commentsLimit=0` omits comment bodies entirely and
+    reads only `comments.totalCount`. **Omitting it** selects the deprecated legacy
+    path (below).
+  - `commentsOffset` (default `0`) — comments to skip, counting back from the
+    newest. It requires `commentsLimit`; passing it alone is an error.
+- **With `commentsLimit`, comments come back as a paged sub-envelope** `{ items,
+  totalCount, offset, limit }`, newest activity first — an edited comment resurfaces,
+  because `lastUpdatedAtUtc` (bumped on every edit) is the paging key. `totalCount`
+  is the whole thread regardless of the page, so a capped read is never mistaken for
+  the whole. Each comment also carries `createdAtUtc`, its stamped-once posting time,
   distinct from the edit-bumped `lastUpdatedAtUtc`. Because that key is bumped on
   edit, a comment edited concurrently with a paged walk can shift between pages —
   the usual offset-paging caveat when the sort key is mutable; ties on the key are
   broken by comment id, so a page is otherwise stable.
-  *(Contract change: `comments` was previously a plain array and is now this
-  envelope — read `comments.items` for the list. Field projection and comment
-  paging are additive: the default read still returns the full description and the
-  newest 20 comments.)*
+- **Omitting `commentsLimit` is the deprecated legacy path:** `comments` comes back
+  as a plain array — the whole thread, oldest activity first — the shape prior
+  releases served, kept only for byte-compatibility with older clients. It is slated
+  for removal at a future major version, so pass `commentsLimit` even on a small
+  card.
 - Carries **`descriptionHistoryCount`** — how many recorded revisions the description
   has, the same number `get_card_history` reports as its `totalCount`. Present in
   every projection, including a description-omitted or count-only read. Check it
