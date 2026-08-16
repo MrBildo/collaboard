@@ -12,10 +12,10 @@ export type CardLinkContext = {
   cardPreviews: Map<number, CardLinkPreviewData>;
 };
 
-// Supplies the `MarkdownRenderer` autolinking inputs (card #273) and the
-// hover-preview data (card #283): the current board slug (from the route, for
-// the relative link href), the set of live (non-archived) card numbers on the
-// board (for fork-3a validation), and a per-number preview map (CardSummary +
+// Supplies the `MarkdownRenderer` autolinking inputs and the hover-preview
+// data: the current board slug (from the route, for the relative link href),
+// the set of live (non-archived) card numbers on the board (only live cards
+// linkify), and a per-number preview map (CardSummary +
 // lane name). All come from data already loaded by the board view — the slug
 // from the URL, the rest from the composite board-data cache. Subscribing to
 // the same query key dedupes against the parent's existing subscription, so

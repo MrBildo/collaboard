@@ -63,7 +63,7 @@ export function EditableListContainer({ children, error }: EditableListContainer
   return (
     <>
       <div className="flex flex-col divide-y divide-border rounded-lg border">{children}</div>
-      {/* Inline error (card #203, spec §2d) — formalizes the bare
+      {/* Inline error — formalizes the bare
           text-destructive paragraph this list hand-rolled into the shared,
           accessible <InlineError> (icon + role=alert, color-not-alone). Every
           admin tab passing `error` here surfaces uniformly. */}

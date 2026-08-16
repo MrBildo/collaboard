@@ -12,7 +12,7 @@ export function useRestoreCard({ cardId, boardId, onSuccess }: UseRestoreCardOpt
   const queryClient = useQueryClient();
 
   return useMutation({
-    // Board action — the floor toasts it (card #203, spec §2b / §5 Rule 1).
+    // Board action (no inline surface to attach to) — the global error floor toasts a failure.
     meta: { errorMessage: "Couldn't restore card" },
     mutationFn: (laneId: string) => restoreCard(cardId, laneId),
     onSuccess: () => {

@@ -31,7 +31,7 @@ export function useBoardDnd(
 ) {
   const queryClient = useQueryClient();
 
-  // Drag-and-drop is desktop-only (#312). On mobile we register NO sensors, so
+  // Drag-and-drop is desktop-only. On mobile we register NO sensors, so
   // the shared board <DndContext> can never start a drag — neither cards nor
   // lanes (both concerns ride this one sensor set). Hooks must run unconditionally,
   // so the sensors are always created; `useSensors` is given an empty list on
@@ -77,10 +77,10 @@ export function useBoardDnd(
   const localCards = dragPhase === 'idle' ? sortedServerCards : (dragCards ?? sortedServerCards);
 
   const reorderMutation = useMutation({
-    // Fork A (ratified, card #203 spec §7): a failed drag toasts ON TOP of the
-    // optimistic snap-back. The snap is the primary self-evident signal; the
-    // toast adds the "why" — disambiguating a server error from a misdrop,
-    // which matters on a multi-user board (spec §2b). The onError below still
+    // A failed drag toasts ON TOP of the optimistic snap-back. The snap is the
+    // primary self-evident signal; the toast adds the "why" — disambiguating a
+    // server error from a misdrop, which matters on a multi-user board where
+    // another user could be the cause. The onError below still
     // performs the rollback; the floor reads this meta and toasts.
     meta: { errorMessage: "Couldn't move card — try again" },
     mutationFn: (vars: { cardId: string; laneId: string; index: number }) =>
@@ -99,7 +99,7 @@ export function useBoardDnd(
       // authoritative. The reorder endpoint also returns archive lanes
       // (unlike the composite board endpoint which filters them out), so
       // accepting `data.lanes` verbatim would briefly flash the archive
-      // lane into the rendered lane list during the drop transition (#242).
+      // lane into the rendered lane list during the drop transition.
       queryClient.setQueryData<BoardData>(queryKeys.boards.data(boardId), (old) => {
         if (!old) return old;
         const updatedMap = new Map(data.cards.map((c) => [c.id, c]));

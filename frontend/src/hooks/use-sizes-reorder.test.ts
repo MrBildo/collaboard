@@ -55,7 +55,7 @@ describe('useSizesReorder optimistic reorder', () => {
   test('exposes configured sensors for mouse and touch', () => {
     const queryClient = setupClient();
     const { result } = renderReorder(queryClient);
-    // Mouse + touch sensor descriptors registered (the touch path is the point of #306).
+    // Mouse + touch sensor descriptors registered (the touch path is the point).
     expect(result.current.sensors).toHaveLength(2);
   });
 

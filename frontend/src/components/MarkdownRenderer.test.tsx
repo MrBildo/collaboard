@@ -154,7 +154,7 @@ describe('MarkdownRenderer', () => {
   });
 });
 
-describe('MarkdownRenderer card-link autolinking (#273)', () => {
+describe('MarkdownRenderer card-link autolinking', () => {
   // Card-link autolinking emits relative `/boards/...` hrefs that render as a
   // React Router <Link>, so these cases mount under a router. Fork 3a: a `#N`
   // is linkified only when N is in the live (non-archived) card-number set.
@@ -431,7 +431,7 @@ describe('MarkdownRenderer anchor attributes', () => {
   });
 });
 
-describe('MarkdownRenderer card-link hover preview (#283)', () => {
+describe('MarkdownRenderer card-link hover preview', () => {
   // The preview reads from cache (no fetch-on-hover) via a cardPreviews map keyed
   // by card number. The link still renders as a router <Link>; hovering/focusing
   // it opens a Base UI PreviewCard with the card summary.

@@ -1,7 +1,7 @@
 import { findAndReplace } from 'mdast-util-find-and-replace';
 import type { Link, Root, Text } from 'mdast';
 
-// Autolinks `#NNN` card references to their card-detail route (card #273).
+// Autolinks `#NNN` card references to their card-detail route.
 //
 // Mechanism: a remark (mdast) plugin running before any rehype phase. Operating
 // on the parse tree gives us the two hardest false-positive suppressions for
@@ -10,7 +10,7 @@ import type { Link, Root, Text } from 'mdast';
 // links DO carry `Text` children, so we explicitly `ignore` them — matching how
 // GFM's own autolink-literal extension suppresses re-linking inside links.
 //
-// Scope is "live-only" (card #273, fork 3a): a `#N` is linkified only when `N`
+// Scope is "live-only": a `#N` is linkified only when `N`
 // is a known non-archived card number on the current board. A reference to an
 // archived or nonexistent card stays plain text — no dangling links, no 404s.
 

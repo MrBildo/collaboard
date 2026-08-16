@@ -66,7 +66,7 @@ export function SearchCommand() {
 
   // currentBoardId fills two distinct backend params: boardId ranks this board's
   // non-archived matches first (priority); archiveBoardId keeps this board's archived
-  // cards eligible so they still render under the Archived header (#276).
+  // cards eligible so they still render under the Archived header.
   const searchQuery = useQuery({
     queryKey: queryKeys.search.cards(effectiveQuery, currentBoardId, currentBoardId),
     queryFn: () => searchAllCards(effectiveQuery, 20, currentBoardId, currentBoardId),

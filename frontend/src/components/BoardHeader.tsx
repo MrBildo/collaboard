@@ -39,7 +39,7 @@ export function BoardHeader({
       {/* Left region — logo + board switcher. Grows equally with the right
           region but never shrinks below its own content, so the center region
           is the genuine free space between the two side clusters and the search
-          can page-center without overlapping the logo/switcher (#176). */}
+          can page-center without overlapping the logo/switcher. */}
       <div className="flex flex-1 items-center gap-x-3">
         {/* Logo — shrink-0 so it never clips */}
         <img src="/collaboard-logo.svg" alt="Collaboard" className="w-32 shrink-0 xs:w-48" />
@@ -58,14 +58,14 @@ export function BoardHeader({
       {/* Center region — search, hidden on mobile, visible at xs+. Takes the
           free space between the side clusters and centers the search within it;
           SearchCommand keeps its own w-full max-w-md cap, so it shrinks (never
-          overlaps) when the free space is tighter than its cap (#176). */}
+          overlaps) when the free space is tighter than its cap. */}
       <div className="flex min-w-0 flex-1 basis-0 justify-center xs:px-4">
         <div className="hidden w-full xs:flex xs:justify-center">
           <SearchCommand />
         </div>
       </div>
       {/* Right region — actions. Mirrors the left region: grows equally but
-          never shrinks below its content, justified to the end (#176). */}
+          never shrinks below its content, justified to the end. */}
       <div className="flex flex-1 items-center justify-end gap-2">
         {/* + New Card: xs+ only */}
         <Button onClick={onNewCard} className="hidden xs:inline-flex">

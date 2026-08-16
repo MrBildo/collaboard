@@ -4,7 +4,7 @@ type LaneOverlayProps = {
   lane: Lane;
 };
 
-// Card #278: the drag ghost for a lane reorder — a column-header ghost reusing
+// The drag ghost for a lane reorder — a column-header ghost reusing
 // the board's existing DragOverlay slot. Same visual language as CardOverlay
 // (rounded card surface, primary top-accent, shadow); no new design tokens.
 export function LaneOverlay({ lane }: LaneOverlayProps) {

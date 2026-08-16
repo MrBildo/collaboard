@@ -13,9 +13,9 @@ export function useArchiveCard({ cardId, boardId, onSuccess }: UseArchiveCardOpt
   const queryClient = useQueryClient();
 
   return useMutation({
-    // Board action — operator's attention has moved; the floor toasts it
-    // (card #203, spec §2b). Success is silent: the card leaves the lane,
-    // which is self-evident (spec §3).
+    // Board action — the operator's attention has moved, so the global error
+    // floor toasts a failure rather than showing it inline. Success is silent:
+    // the card visibly leaves the lane, which is confirmation enough.
     meta: { errorMessage: "Couldn't archive card" },
     mutationFn: () => archiveCard(cardId),
     onSuccess: () => {
@@ -27,6 +27,6 @@ export function useArchiveCard({ cardId, boardId, onSuccess }: UseArchiveCardOpt
       }
       onSuccess?.();
     },
-    // No onError: the floor handles the toast (spec §5 Rule 1 — console.error retired).
+    // No onError: the global mutation-error floor handles the toast and the developer log.
   });
 }

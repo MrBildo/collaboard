@@ -37,7 +37,7 @@ export function LabelsTab({ boardId }: LabelsTabProps) {
     ...QUERY_DEFAULTS.labels,
   });
 
-  // Admin-tab mutations are inline tier (card #203, spec §2d) — failures surface
+  // Admin-tab mutations are inline tier — failures surface
   // inline via `list.setDeleteError` → <EditableListContainer>. Previously all
   // three paths went silent (console.error only); this brings them in line with
   // the other admin tabs. skipToast keeps the floor quiet; the call site owns
@@ -120,7 +120,7 @@ export function LabelsTab({ boardId }: LabelsTabProps) {
       {/* Scroll zone — fills remaining height, scrolls internally on long lists. */}
       <div className="min-h-0 flex-1 overflow-y-auto">
         {!labelsQuery.isLoading && labels.length === 0 && (
-          // Empty labels (card #292, spec §3.1): teach what labels are before the
+          // Empty labels: teach what labels are before the
           // Add form below, instead of rendering a blank list area. Self-disposing
           // — gone the moment the first label exists. Description-only (no action):
           // the Add form is right below, so the affordance is already in view.
@@ -177,7 +177,7 @@ export function LabelsTab({ boardId }: LabelsTabProps) {
         </EditableListContainer>
       </div>
 
-      {/* Pinned footer — never scrolls; the Add form stays reachable (#310). */}
+      {/* Pinned footer — never scrolls; the Add form stays reachable. */}
       <div className="shrink-0">
         <Separator className="mb-4" />
         <h3 className="mb-3 text-sm font-medium">Add Label</h3>

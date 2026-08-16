@@ -1,4 +1,4 @@
-// Card #278: the board's single <DndContext> hosts two drag concerns — card
+// The board's single <DndContext> hosts two drag concerns — card
 // reorder (use-board-dnd) and lane reorder (use-lane-dnd). Each drag handler is
 // routed to the right hook by the active draggable's data.type. Lanes tag
 // themselves 'lane' (LaneColumn's useSortable data); cards carry no type, so

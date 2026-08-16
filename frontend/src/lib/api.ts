@@ -91,7 +91,7 @@ export async function fetchVersion(): Promise<{ version: string }> {
   return versionSchema.parse(data);
 }
 
-// #303: current-vs-latest update status. The backend throttles the actual GitHub poll, so the
+// Current-vs-latest update status. The backend throttles the actual GitHub poll, so the
 // client need not poll hard — the query that consumes this uses a long staleTime.
 export async function fetchVersionStatus(): Promise<VersionStatus> {
   const { data } = await api.get('/version/status');
@@ -326,7 +326,7 @@ export async function deleteLane(id: string): Promise<void> {
   await api.delete(`/lanes/${id}`);
 }
 
-// Card #278: whole-board lane reorder. `laneIds` is the complete desired
+// Whole-board lane reorder. `laneIds` is the complete desired
 // left-to-right order of the board's non-archive lanes; the server owns all
 // position math (two-phase renumber under the unique (BoardId, Position) index,
 // see backend LaneReorderHelper). Returns the lanes in their new dense order.
@@ -359,7 +359,7 @@ export async function deleteSize(id: string): Promise<void> {
   await api.delete(`/sizes/${id}`);
 }
 
-// Card #306: whole-board size reorder. `sizeIds` is the complete desired
+// Whole-board size reorder. `sizeIds` is the complete desired
 // ascending-ordinal order of the board's sizes; the server owns all ordinal
 // math (assigns dense ordinals 0..n-1 in the order sent, see backend
 // SizeReorderHelper). Mirrors reorderLanes. Returns the sizes in their new
@@ -405,7 +405,7 @@ export async function pruneCards(boardId: string, filters: PruneFilters): Promis
 // Search
 // boardId ranks the current board's matches first (priority); archiveBoardId controls
 // which board's archived cards are eligible to appear. They are distinct params even
-// when both carry the current board id (#276 — the SPA used to conflate them, which
+// when both carry the current board id (the SPA once conflated them, which
 // left the priority sort dead and leaked the current board's archived cards up).
 export async function searchAllCards(
   q: string,
@@ -424,7 +424,7 @@ export async function searchAllCards(
   return z.array(searchResultSchema).parse(data);
 }
 
-// Webhooks (#326) — admin-level subscription registry + delivery observability.
+// Webhooks — admin-level subscription registry + delivery observability.
 // The list endpoint returns secret-free rows with on-read metrics; the secret is
 // never returned by any read (only the `signed` boolean).
 export async function fetchWebhookSubscriptions(): Promise<WebhookSubscription[]> {
@@ -477,7 +477,7 @@ export async function fetchWebhookStatus(): Promise<WebhookStatus> {
 }
 
 // The full selectable event catalog — the server-side source of truth the
-// subscription picker renders (#336). Static within a session; the form groups
+// subscription picker renders. Static within a session; the form groups
 // render in array order (no client-side sort).
 export async function fetchWebhookEventCatalog(): Promise<WebhookEventGroup[]> {
   const { data } = await api.get('/webhooks/event-types');

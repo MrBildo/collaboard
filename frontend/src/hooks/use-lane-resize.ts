@@ -46,7 +46,7 @@ export function useLaneResize(boardId: string, laneIds: string[]) {
     const positions: number[] = [];
     children.forEach((child, i) => {
       // One handle per lane, sitting at that lane's right edge. Handle `i` resizes
-      // lane `i`. Card #319 (v2): the LAST lane gets a handle too — without it the
+      // lane `i`. The LAST lane gets a handle too — without it the
       // right-most lane had no resize affordance and was stuck (every interior lane
       // could be widened by grabbing the boundary on its right; the last lane's
       // right edge had no handle). For interior handles the right edge is the gap
@@ -88,7 +88,7 @@ export function useLaneResize(boardId: string, laneIds: string[]) {
 
   // Pre-computed grid string.
   // Every lane is a fixed-width track (its resized px, or MIN_LANE_WIDTH at
-  // default) — no track is `1fr`. Card #319: the old rightmost-lane `1fr`
+  // default) — no track is `1fr`. The old rightmost-lane `1fr`
   // anchored the last lane to the viewport, so widening the window inflated it.
   // With every track fixed, the grid is exactly as wide as its lanes; the
   // section's `justify-start` (App.tsx) parks any leftover viewport width to the
@@ -157,7 +157,7 @@ export function useLaneResize(boardId: string, laneIds: string[]) {
       const minDelta = -(startLeftRef.current - MIN_LANE_WIDTH);
       const delta = Math.max(minDelta, rawDelta);
 
-      // Card #300: the resize is NOT zero-sum-clamped to the neighbor's slack.
+      // The resize is NOT zero-sum-clamped to the neighbor's slack.
       // On a board with enough lanes to overflow horizontally every lane sits at
       // MIN, so the neighbor had zero slack and the old `maxDelta` clamp pinned the
       // drag to zero movement — resize "stopped working". Now the left lane always
@@ -168,10 +168,10 @@ export function useLaneResize(boardId: string, laneIds: string[]) {
       setWidths((prev) => {
         const next = { ...prev, [leftId]: Math.round(startLeftRef.current + delta) };
 
-        // Card #319 (v2): the last lane's handle has no right neighbor. The lane
-        // simply grows or shrinks against the board background — exactly the
-        // missing affordance that left the right-most lane stuck. Interior handles
-        // keep the #300 neighbor-donation feel (the neighbor donates down to MIN).
+        // The last lane's handle has no right neighbor. The lane simply grows or
+        // shrinks against the board background — exactly the missing affordance
+        // that left the right-most lane stuck. Interior handles keep the
+        // neighbor-donation feel (the neighbor donates down to MIN).
         if (rightId) {
           next[rightId] = Math.round(Math.max(MIN_LANE_WIDTH, startRightRef.current - delta));
         }

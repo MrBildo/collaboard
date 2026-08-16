@@ -282,6 +282,7 @@ The skills carry universal patterns. The sections below name only Collaboard-spe
 - **Backend:** xUnit + Shouldly via `WebApplicationFactory` + in-memory SQLite. No mocking. Arrange-Act-Assert. Test classes per resource: `*EndpointTests.Tests.cs`. Shared infrastructure: `Infrastructure/CollaboardApiFactory.cs`, `TestAuthHelper.cs`.
 - **Frontend:** TypeScript typecheck + Vite build + `npm run test` cover correctness; lint + format:check cover style.
 - **Visual / browser testing is bot-discretionary via the `browser-verify` skill.** Reach for it when a behavioral question can only be answered in a real browser (e.g., transient drag-drop animation frames, SSE cross-context delivery). For routine correctness, tsc + Vite + backend tests still cover the bar.
+- **CSS whose effect depends on build-time minification must be verified against the production build (`vite build` + `vite preview`), not the dev server.** Tailwind v4's Lightning CSS pass (which the dev server and jsdom both skip) folds `transform` + `translate` + `scale` declared in one rule into a single `transform` shorthand and drops the standalone `translate`/`scale` resets — so a fix that relies on individual `transform`-family longhand resets can pass dev + tests + lint and still be a no-op in production. Corollary antipattern to avoid: don't reset `transform` alongside a `-translate-*` / `scale-*` / `rotate-*` utility expecting the longhand resets to survive — they get folded.
 
 ### Git
 

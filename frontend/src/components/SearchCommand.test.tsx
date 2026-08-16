@@ -158,7 +158,7 @@ describe('SearchCommand — clear on selection', () => {
   });
 });
 
-describe('SearchCommand — boardId wiring (#276)', () => {
+describe('SearchCommand — boardId wiring', () => {
   test('passes the current board id as the priority boardId arg', async () => {
     const user = userEvent.setup();
     renderSearch();

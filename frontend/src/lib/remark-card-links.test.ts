@@ -3,7 +3,7 @@ import { remark } from 'remark';
 import remarkGfm from 'remark-gfm';
 import { remarkCardLinks } from './remark-card-links';
 
-// Unit-level coverage of the mdast transform in isolation (card #273). The
+// Unit-level coverage of the mdast transform in isolation. The
 // component test (MarkdownRenderer.test.tsx) covers the rendered output and the
 // router-link wiring; here we assert the tree-level linkify/suppress decisions
 // directly, which is the precise place to pin the regex and live-set validation.
