@@ -75,9 +75,11 @@ which, so this file does not claim a coverage it does not have.
 
 By construction, these are identical across all five:
 
-- The **browser bundle** and the **CSS toolchain** come from a single `vite build`
-  whose output is copied unchanged into every archive — byte-for-byte the same
-  everywhere.
+- The **browser bundle** and the **CSS toolchain** contribute the same set of
+  third-party components on every platform. The frontend is built the same way for
+  each archive; two independent builds of an unchanged tree are not byte-for-byte
+  identical — they can differ in how modules are initialized — but they bundle the
+  same set of source modules, which is exactly what this inventory records.
 - The **.NET runtime packs** and the **native SQLite library** are normalized to a
   platform-neutral identity when this inventory is generated. Only their file
   *names* differ between platforms (`.so` / `.dylib` / `.dll`, and the launcher
