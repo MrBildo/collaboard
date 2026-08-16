@@ -22,10 +22,10 @@ type LanesTabProps = {
   boardId: string;
 };
 
-// A static (non-draggable) lane row for mobile view. Drag-and-drop is desktop-only
-// (#312), so on mobile the row has no grip handle at all — no dead affordance that
+// A static (non-draggable) lane row for mobile view. Drag-and-drop is desktop-only,
+// so on mobile the row has no grip handle at all — no dead affordance that
 // invites a drag it won't honor. The edit/delete actions stay; only reordering is
-// gone (it has no non-drag alternative, the accepted trade per #312).
+// gone (it has no non-drag alternative, an accepted trade).
 type StaticLaneRowProps = {
   children: ReactNode;
 };
@@ -42,7 +42,7 @@ function StaticLaneRow({ children }: StaticLaneRowProps) {
 // listeners; the rest of the row keeps its edit/delete affordances. While a row
 // is in edit mode the handle is disabled so a name-edit drag can't fire. The
 // handle sets `touch-action: none` so a touch-press on it yields the gesture to
-// the drag (TouchSensor delay) instead of scrolling the dialog panel (#305).
+// the drag (TouchSensor delay) instead of scrolling the dialog panel.
 type SortableLaneRowProps = {
   lane: Lane;
   isEditing: boolean;
@@ -76,7 +76,7 @@ function SortableLaneRow({ lane, isEditing, children }: SortableLaneRowProps) {
         aria-label={`Reorder ${lane.name}`}
         disabled={isEditing}
         // size-11 (44px) overrides the icon size's 32px so the handle is a
-        // finger-sized touch target (#305 is the mobile path); touch-none yields
+        // finger-sized touch target (the admin dialog is the mobile path); touch-none yields
         // the gesture to the TouchSensor drag instead of scrolling the panel.
         className="size-11 shrink-0 cursor-grab touch-none text-muted-foreground active:cursor-grabbing disabled:opacity-30"
         {...attributes}
@@ -108,12 +108,12 @@ export function LanesTab({ boardId }: LanesTabProps) {
     queryClient.invalidateQueries({ queryKey: queryKeys.boards.data(boardId) });
   };
 
-  // Admin-tab mutations are inline tier (card #203, spec §2d) — the operator is
+  // Admin-tab mutations are inline tier — the operator is
   // looking at the list, so create/update/delete failures surface inline via
   // `list.setDeleteError` → <EditableListContainer>. skipToast keeps the floor
   // quiet; the call site owns the surface.
-  // Reordering is available here (drag the grip handle — #305) and on the board
-  // (drag a lane header — #278); a new lane is appended at the end (max
+  // Reordering is available here (drag the grip handle) and on the board
+  // (drag a lane header); a new lane is appended at the end (max
   // position + 1). Drag it into place after creating.
   const createMutation = useMutation({
     meta: { skipToast: true },
@@ -230,7 +230,7 @@ export function LanesTab({ boardId }: LanesTabProps) {
       <div className="min-h-0 flex-1 overflow-y-auto">
         <EditableListContainer error={list.deleteError}>
           {isMobile ? (
-            // Mobile: drag-drop is desktop-only (#312). Render a static list — no
+            // Mobile: drag-drop is desktop-only. Render a static list — no
             // DndContext, no sensors, no grip handle. Reordering is unavailable
             // here; edit/delete stay.
             <div className="flex flex-col divide-y divide-border">
@@ -277,7 +277,7 @@ export function LanesTab({ boardId }: LanesTabProps) {
         </EditableListContainer>
       </div>
 
-      {/* Pinned footer — never scrolls; the Add form stays reachable (#310). */}
+      {/* Pinned footer — never scrolls; the Add form stays reachable. */}
       <div className="shrink-0">
         <Separator className="mb-4" />
         <h3 className="mb-1 text-sm font-medium">Add Lane</h3>

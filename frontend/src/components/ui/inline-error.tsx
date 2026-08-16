@@ -6,11 +6,11 @@ type InlineErrorProps = {
   className?: string;
 };
 
-// Inline form/field error surface (card #203, spec §2 inline tier). Formalizes
+// Inline form/field error surface. Formalizes
 // the bare `text-destructive` paragraph the admin tabs hand-roll today
 // (editable-list.tsx) into a single accessible primitive.
 //
-// Accessibility (spec §9 / facet2):
+// Accessibility:
 //   - role="alert" + aria-live="assertive": this is a true error the operator
 //     must act on, attached to the form they're looking at, so it interrupts.
 //   - color-not-alone: an icon pairs with the text, so the error is legible

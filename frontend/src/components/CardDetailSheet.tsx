@@ -187,7 +187,7 @@ export function CardDetailSheet({
           style={{ overflow: 'visible' }}
         >
           {/* Floating nav buttons — desktop only, positioned outside the dialog.
-              Two distinct pointer-hit hazards are guarded here (card #302):
+              Two distinct pointer-hit hazards are guarded here:
 
               1. Press-feedback transform clobber (the operative bug). The base
                  Button carries `active:translate-y-px`, which sets the WHOLE CSS

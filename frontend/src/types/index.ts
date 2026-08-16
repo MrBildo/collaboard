@@ -79,7 +79,7 @@ export type SearchResult = z.infer<typeof searchResultSchema>;
 
 export type RuntimeConfig = z.infer<typeof runtimeConfigSchema>;
 
-// Webhooks (#326)
+// Webhooks
 export type WebhookSubscription = z.infer<typeof webhookSubscriptionSchema>;
 export type WebhookDelivery = z.infer<typeof webhookDeliverySchema>;
 export type WebhookDeliveriesPage = z.infer<typeof webhookDeliveriesPageSchema>;

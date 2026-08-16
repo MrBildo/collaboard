@@ -256,8 +256,8 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
     const [showRestorePicker, setShowRestorePicker] = useState(false);
     const [pasteStatus, setPasteStatus] = useState<string | null>(null);
     const [saveStatus, setSaveStatus] = useState<string | null>(null);
-    // Inline error for the card-update path (card #203, spec §2a). The operator
-    // is looking at this form, so a save failure belongs here, not in a toast.
+    // Inline error for the card-update path. The operator is looking at this
+    // form, so a save failure belongs here, not in a toast.
     const [saveError, setSaveError] = useState<string | null>(null);
 
     // Touch tracking: fields the user has edited since mount/last save
@@ -522,15 +522,15 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
     }, [isDirty, isDirtyRef]);
 
     const updateMutation = useMutation({
-      // Inline tier (card #203, spec §1 discriminator): the operator is looking
-      // at this form, so the failure belongs in the form, not a toast. Opt out
-      // of the floor's toast and render <InlineError> at the form footer. This
-      // is the app's biggest current silent-loss gap (spec §2a).
+      // Inline tier: the operator is looking at this form, so the failure belongs
+      // in the form, not a toast. Opt out of the floor's toast and render
+      // <InlineError> at the form footer. This is the app's biggest current
+      // silent-loss gap.
       meta: { skipToast: true },
       mutationFn: (patch: UpdateCardPatch) => updateCard(card.id, patch),
       onSuccess: (updatedCard, patch) => {
         if (boardId) {
-          // PATCH /cards/{id} now returns the enriched CardSummary (#209), so the
+          // PATCH /cards/{id} now returns the enriched CardSummary, so the
           // mutation response carries everything the board cache needs — labels,
           // sizeName, commentCount, attachmentCount, isArchived. No re-fetch needed.
           queryClient.setQueryData<BoardData>(queryKeys.boards.data(boardId), (old) =>
@@ -576,7 +576,7 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
     });
 
     const deleteMutation = useMutation({
-      // Board action (no form to attach to) — the floor toasts it (spec §2a).
+      // Board action (no form to attach to) — the floor toasts it.
       meta: { errorMessage: "Couldn't delete card" },
       mutationFn: () => deleteCard(card.id),
       onSuccess: () => {
@@ -589,7 +589,7 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
         isDirtyRef.current = false;
         onClose();
       },
-      // No onError: the floor handles the toast (spec §5 Rule 1).
+      // No onError: the floor handles the toast.
     });
 
     const archiveMutation = useArchiveCard({
@@ -1022,7 +1022,7 @@ export const CardDetailForm = forwardRef<CardDetailFormHandle, CardDetailFormPro
           </div>
         </div>
 
-        {/* Inline save error (card #203, spec §2a) — the card-update path is
+        {/* Inline save error — the card-update path is
             the biggest current silent-loss gap; the error stays in the form so
             the draft is intact. Archive/restore failures are board-action tier
             and now surface via the global toast floor (use-archive-card /

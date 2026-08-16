@@ -14,8 +14,8 @@ import { reorderLanes } from '@/lib/api';
 import { queryKeys } from '@/lib/query-keys';
 import type { BoardData, Lane } from '@/types';
 
-// Card #305: lane drag-drop reorder inside the Board Settings admin dialog — the
-// touch fallback #277 deferred (use-lane-dnd.ts owns the board-page desktop path;
+// Lane drag-drop reorder inside the Board Settings admin dialog — the touch-
+// reachable fallback for reordering (use-lane-dnd.ts owns the board-page desktop path;
 // its grab target is the lane header, which has no touch listeners). This hook is
 // the vertical-list sibling for the admin tab: same proven optimistic shape, one
 // axis down, but it is NOT folded into use-lane-dnd because that hook lives in the
@@ -32,7 +32,7 @@ import type { BoardData, Lane } from '@/types';
 export function useLanesReorder(boardId: string, serverLanes: Lane[]) {
   const queryClient = useQueryClient();
 
-  // Touch-sensor arbitration is the real new surface for #305 (the admin dialog
+  // Touch-sensor arbitration is the real new surface here (the admin dialog
   // is the mobile-reachable path). Reuse the board hook's proven thresholds: a
   // MouseSensor distance gate so a click on the handle isn't a drag, and a
   // TouchSensor delay+tolerance so a touch-press that turns into a scroll inside
@@ -73,9 +73,9 @@ export function useLanesReorder(boardId: string, serverLanes: Lane[]) {
   };
 
   const reorderMutation = useMutation({
-    // #203 convention: the operator is looking at the list when they drag, so a
-    // failed reorder snaps back via the onError invalidate (the self-evident
-    // signal) and a toast adds the "why" — same disposition use-lane-dnd uses.
+    // The operator is looking at the list when they drag, so a failed reorder
+    // snaps back via the onError invalidate (the self-evident signal) and a
+    // toast adds the "why" — same disposition use-lane-dnd uses.
     meta: { errorMessage: "Couldn't reorder lanes — try again" },
     mutationFn: (orderedLaneIds: string[]) => reorderLanes(boardId, orderedLaneIds),
     onMutate: async () => {

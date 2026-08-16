@@ -71,7 +71,7 @@ export function App() {
     refetchOnWindowFocus: true,
   });
 
-  // #303: update status. The backend throttles the real GitHub poll, so the client polls
+  // Update status. The backend throttles the real GitHub poll, so the client polls
   // softly — a long staleTime plus refetch-on-focus is plenty to surface a newly-available
   // version without per-client fan-out.
   const versionStatusQuery = useQuery({
@@ -89,7 +89,7 @@ export function App() {
 
   const laneIds = useMemo(() => new Set(lanes.map((l) => l.id)), [lanes]);
 
-  // Drag-and-drop is a desktop-only feature (#312). One breakpoint hook gates
+  // Drag-and-drop is a desktop-only feature. One breakpoint hook gates
   // every drag surface; on the board page it drives the shared <DndContext>'s
   // sensor set (empty on mobile → cards and lanes are both inert).
   const isMobile = useIsMobile();
@@ -114,7 +114,7 @@ export function App() {
   } = useLaneDnd(boardId, lanes);
 
   // Two drag concerns share one DndContext (card reorder + lane reorder). Route
-  // each handler to the right hook by the active draggable's data.type (#278).
+  // each handler to the right hook by the active draggable's data.type.
   const handleDragStart = (event: DragStartEvent) =>
     isLaneDragEvent(event) ? onLaneDragStart(event) : onCardDragStart(event);
   const handleDragOver = (event: DragOverEvent) =>
@@ -248,7 +248,7 @@ export function App() {
       >
         <section
           ref={sectionRef}
-          // Card #319: when lanes exist, justify-start packs the fixed-width lane
+          // When lanes exist, justify-start packs the fixed-width lane
           // tracks from the left so leftover viewport width sits to the right of
           // the last lane as plain board background, instead of an `1fr` last lane
           // inflating to fill it. With no lanes the grid keeps its default stretch
@@ -283,7 +283,7 @@ export function App() {
               />
             ))}
           </SortableContext>
-          {/* Board with no lanes (card #292, spec §3.1): a freshly created board
+          {/* Board with no lanes: a freshly created board
               seeds only the hidden Archive lane, so the visible board is blank.
               Role-aware — an admin gets a real action into Board Settings → Lanes;
               a non-admin gets explanatory text and no dead button. Gated on the

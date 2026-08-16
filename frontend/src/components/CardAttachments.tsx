@@ -58,9 +58,9 @@ function LiveAttachments({ cardId, currentUserId, currentUserRole, readOnly }: L
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  // Inline error for the upload path AND the 5MB pre-flight guard (card #203,
-  // spec §2a/§2c). The operator just picked a file; the error belongs in the
-  // attachments zone where their attention is, not in a toast.
+  // Inline error for the upload path AND the 5MB pre-flight guard. The operator
+  // just picked a file; the error belongs in the attachments zone where their
+  // attention is, not in a toast.
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   const { getUserName } = useUserDirectory();
@@ -72,7 +72,7 @@ function LiveAttachments({ cardId, currentUserId, currentUserRole, readOnly }: L
   });
 
   const uploadMutation = useMutation({
-    // Inline tier (spec §2a) — error stays in the attachments zone.
+    // Inline tier — error stays in the attachments zone.
     meta: { skipToast: true },
     mutationFn: (file: File) => uploadAttachment(cardId, file),
     onSuccess: () => {
@@ -88,8 +88,7 @@ function LiveAttachments({ cardId, currentUserId, currentUserRole, readOnly }: L
   });
 
   const deleteMutation = useMutation({
-    // Board action — no input surface, attachment persists; the floor toasts
-    // it (card #203, spec §2a).
+    // Board action — no input surface, attachment persists; the floor toasts it.
     meta: { errorMessage: "Couldn't delete attachment" },
     mutationFn: (id: string) => deleteAttachment(id),
     onSuccess: () => {
@@ -103,7 +102,7 @@ function LiveAttachments({ cardId, currentUserId, currentUserRole, readOnly }: L
     setUploadError(null);
     for (const file of files) {
       if (file.size > MAX_FILE_SIZE_BYTES) {
-        // Client-side pre-flight guard (spec §2c) — not a mutation error, so it
+        // Client-side pre-flight guard — not a mutation error, so it
         // bypasses the floor; surface it inline like an upload failure.
         setUploadError(`File "${file.name}" exceeds 5MB limit (${formatFileSize(file.size)})`);
         continue;

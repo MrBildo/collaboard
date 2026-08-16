@@ -73,7 +73,7 @@ export function GlobalAdminPanel({ open, onOpenChange }: GlobalAdminPanelProps) 
             pinned `shrink-0` Add footer reaches the dialog's true bottom. Without
             it the Tabs are only as tall as their content — on a short boards/users
             list the footer floats mid-dialog with dead space below it instead of
-            pinning (#310 UAT-4). `min-h-0` keeps the inner list's `overflow-y-auto`
+            pinning. `min-h-0` keeps the inner list's `overflow-y-auto`
             engaging when the list is long. */}
         <Tabs defaultValue="boards" className="mt-2 flex min-h-0 flex-1 flex-col gap-4">
           <TabsList variant="line" className="w-full justify-start gap-2 border-b pb-2">
@@ -85,7 +85,7 @@ export function GlobalAdminPanel({ open, onOpenChange }: GlobalAdminPanelProps) 
           {/* `data-[hidden]:hidden` lets the inactive (keepMounted) panel's
               `display:none` win over `flex` — without it both mounted panels
               flex-grow and the active panel collapses, breaking the inner
-              scroll (#310). */}
+              scroll. */}
           <TabsContent
             value="boards"
             keepMounted
@@ -125,7 +125,7 @@ function BoardsTab() {
     ...QUERY_DEFAULTS.boards,
   });
 
-  // Admin-tab mutations are inline tier (card #203, spec §2d) — failures surface
+  // Admin-tab mutations are inline tier — failures surface
   // inline via `list.setDeleteError` → <EditableListContainer>. skipToast keeps
   // the floor quiet; the call site owns the surface.
   const createMutation = useMutation({
@@ -238,7 +238,7 @@ function BoardsTab() {
         </EditableListContainer>
       </div>
 
-      {/* Pinned footer — never scrolls; the Add form stays reachable (#310). */}
+      {/* Pinned footer — never scrolls; the Add form stays reachable. */}
       <div className="shrink-0">
         <Separator className="mb-4" />
         <h3 className="mb-3 text-sm font-medium">Add Board</h3>
@@ -283,7 +283,7 @@ function UsersTab() {
     ...QUERY_DEFAULTS.userDirectory,
   });
 
-  // Admin-tab mutations are inline tier (card #203, spec §2d) — failures surface
+  // Admin-tab mutations are inline tier — failures surface
   // inline via `setEditError` → <EditableListContainer>. skipToast keeps the
   // floor quiet; the call site owns the surface. (Update was already inline;
   // create and deactivate previously went silent — now uniform.)
@@ -468,7 +468,7 @@ function UsersTab() {
       </div>
 
       {/* Pinned footer — never scrolls; the created-key callout and the Add form
-          stay reachable (#310). The callout is pinned with Add so a freshly
+          stay reachable. The callout is pinned with Add so a freshly
           created auth key isn't scrolled off when the user list is long. */}
       <div className="shrink-0">
         <Separator className="mb-4" />

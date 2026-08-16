@@ -14,7 +14,7 @@ import type { VersionStatus } from '@/types';
 import { compareVersionCores } from '@/lib/semver';
 import { cn } from '@/lib/utils';
 
-// Per-version dismissal (#303): the operator dismisses a specific available version, not all
+// Per-version dismissal: the operator dismisses a specific available version, not all
 // future updates. The dot reappears when a newer version than the dismissed one is detected,
 // because the dismissed value is an exact string match against the current `latest`.
 const DISMISSED_VERSION_KEY = 'collaboard-dismissed-update';

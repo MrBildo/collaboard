@@ -89,7 +89,7 @@ export function CreateCardDialog({
   });
 
   const createMutation = useMutation({
-    // Inline tier (card #203, spec §1): the operator is in this dialog filling
+    // Inline tier: the operator is in this dialog filling
     // fields, so a create failure stays in the dialog (draft preserved), not a
     // toast. Opt out of the floor's toast; render <InlineError> in the dialog.
     meta: { skipToast: true },
@@ -374,9 +374,9 @@ export function CreateCardDialog({
               )}
             </div>
 
-            {/* Size — explain the absence instead of silently hiding it (card
-                #292 fork 4, spec §3.1a "explain"): a new user comparing against
-                the docs/screenshots shouldn't wonder where the Size field went. */}
+            {/* Size — explain the absence instead of silently hiding it: a new
+                user comparing against the docs/screenshots shouldn't wonder where
+                the Size field went. */}
             {sizes.length > 0 ? (
               <div className="flex flex-col gap-1.5">
                 <Label>Size</Label>
@@ -433,9 +433,9 @@ export function CreateCardDialog({
               </Select>
             </div>
 
-            {/* Labels — explain the absence instead of silently hiding it (card
-                #292 fork 4, spec §3.1a "explain"). Wait for the labels query to
-                settle so the hint doesn't flash before a populated board loads. */}
+            {/* Labels — explain the absence instead of silently hiding it. Wait
+                for the labels query to settle so the hint doesn't flash before a
+                populated board loads. */}
             {(allLabelsQuery.data ?? []).length > 0 ? (
               <div className="flex flex-col gap-1.5">
                 <Label>Labels</Label>
@@ -472,7 +472,7 @@ export function CreateCardDialog({
             </div>
           </div>
 
-          {/* Inline error (card #203, spec §2a) — stays in the dialog, draft
+          {/* Inline error — stays in the dialog, draft
               preserved. Covers both the create-card mutation failure and the
               client-side attachment/finalize validation paths. */}
           {createError && (
