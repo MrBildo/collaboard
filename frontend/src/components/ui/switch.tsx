@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 // Toggle switch primitive (base-ui), house style. base-ui's Switch.Root renders
 // a <span> plus a hidden <input> and emits data-checked / data-unchecked state
 // attributes — the same v4 bare-data-attribute idiom the Checkbox uses (the on
-// fill must be `data-checked:`, not the v4-dead bare form; see card #327/#328).
+// fill must be `data-checked:`, not the v4-dead bare form).
 // Reads by thumb POSITION (left/right) and track COLOR (muted/primary) so it
 // stays legible in both themes without a `dark:` variant.
 function Switch({ className, ...props }: SwitchPrimitive.Root.Props) {

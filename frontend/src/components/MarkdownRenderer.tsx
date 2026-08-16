@@ -23,12 +23,12 @@ import '@/styles/highlight.css';
 
 type MarkdownRendererProps = {
   children: string;
-  // Card-link autolinking context (card #273). Both must be present to enable
+  // Card-link autolinking context. Both must be present to enable
   // `#NNN` → card-link rewriting; omit them and the renderer behaves exactly as
   // before (plain markdown, no autolinking — e.g. board-less render contexts).
   boardSlug?: string;
   cardNumbers?: Set<number>;
-  // Per-card preview data for the hover/focus card-link preview (card #283),
+  // Per-card preview data for the hover/focus card-link preview,
   // keyed by card number. Sourced from the same board-data cache the autolink
   // gate uses, so no fetch-on-hover. Omit (or omit a given number) and the
   // `#NNN` link renders with no preview — never a hanging or empty tooltip.

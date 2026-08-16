@@ -4,7 +4,7 @@ import { getContrastColor } from '@/lib/utils';
 import type { CardSummary } from '@/types';
 
 // Data the preview renders. Sourced entirely from the board-data cache the
-// autolink (#273) already subscribes to — no fetch-on-hover (card #283).
+// autolink already subscribes to — no fetch-on-hover.
 export type CardLinkPreviewData = {
   card: CardSummary;
   laneName: string;

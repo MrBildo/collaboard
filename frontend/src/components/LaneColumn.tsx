@@ -34,7 +34,7 @@ export function LaneColumn({
   isCollapsed,
   onToggleCollapse,
 }: LaneColumnProps) {
-  // Card #278: the lane is both a card-drop target (over.id === lane.id, used by
+  // The lane is both a card-drop target (over.id === lane.id, used by
   // use-board-dnd) and a sortable lane item (use-lane-dnd). useSortable supplies
   // both the droppable node ref the card hook needs AND the draggable behavior
   // for lane reordering — data.type lets App.tsx route the shared DndContext
@@ -95,7 +95,7 @@ export function LaneColumn({
           variant="ghost"
           size="icon-xs"
           // Stop the pointer-down from reaching the header's drag listeners so a
-          // press on the add button never starts a lane drag (#278).
+          // press on the add button never starts a lane drag.
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();

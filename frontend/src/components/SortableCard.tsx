@@ -92,7 +92,7 @@ export function SortableCard({
        * change when labels are added or removed. Mid-drop, the drag overlay
        * (which renders without the label row) and the landed card (which may
        * have labels) would otherwise differ in height — producing a 1-frame
-       * reflow flash on every drop (#242). aria-hidden when empty so screen
+       * reflow flash on every drop. aria-hidden when empty so screen
        * readers don't announce a vacant region.
        */}
       <div

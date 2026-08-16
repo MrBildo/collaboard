@@ -108,7 +108,7 @@ describe('createMutationFloor onSuccess', () => {
 // toMessage feeds the inline-error surfaces (the webhook form, card comments,
 // attachments, prune, etc.). The contract that matters: an axios error shows the
 // server's actionable body, NOT axios's generic status-code string — that
-// generic string is what buried the webhook SSRF diagnosis (#339).
+// generic string is what buried the webhook SSRF diagnosis.
 describe('toMessage', () => {
   function axiosErrorWith(body: unknown): AxiosError {
     const response = {

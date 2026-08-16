@@ -23,7 +23,9 @@
 #                           INSTALL.md, THIRD-PARTY-NOTICES.md, wwwroot/index.html
 #   (3) no excluded leak  — *.pdb, *.xml, appsettings.Development.json,
 #                           *.staticwebassets.endpoints.json, *.map (recursive)
-#   (4) no top-level drift — every top-level entry matches a known library class
+#   (4) no sourcemap ref  — no shipped .js/.css still points at a sourcemap
+#                           (a sourceMappingURL comment), even with no .map present
+#   (5) no top-level drift — every top-level entry matches a known library class
 #                           or the short named set of non-library artifacts
 #
 # Exit 0 on a clean contract; exit 1 with diagnostics on any violation.
@@ -115,7 +117,42 @@ if [[ -n "${LEAKED}" ]]; then
   FAILED=1
 fi
 
-# (4) Top-level allow-list drift check. The exclusion list (3) only rejects
+# (4) No shipped file may still POINT AT a sourcemap. Check (3) rejects .map
+# *files*; this rejects a lingering `sourceMappingURL` *reference* in a shipped
+# .js/.css even when the map itself is absent. The two frontend build paths differ
+# exactly here, which is why it is worth a cheap "should never" assertion:
+#
+#   * The PR-CI contract job builds with `--sourcemap hidden` (which writes the
+#     .map sidecars but NO sourceMappingURL comment), then moves the sidecars out;
+#     extract-bundle-sourcemaps.sh asserts no reference is left behind -- but that
+#     assertion runs only on that build.
+#   * The release path builds a plain `vite build` (no sourcemaps at all), so there
+#     should likewise never be a reference -- and nothing re-checked it, because
+#     the reference assertion lived in the CI-only extract step.
+#
+# verify-archive.sh runs on BOTH paths, so asserting it here backstops the release
+# archive too. If a build ever emitted `--sourcemap true` (which writes the
+# comment) or otherwise left a reference, a browser would 404 fetching a map that
+# was correctly never shipped -- cosmetic, but exactly the unasserted asymmetry the
+# archive contract exists to make loud.
+#
+# grep -rl exits 1 when nothing matches (the good case); a mapfile over a process
+# substitution does not propagate that under `set -e`, so an empty result is clean.
+declare -a MAP_REFS=()
+mapfile -t MAP_REFS < <(
+  grep -rl 'sourceMappingURL=' "${VERIFY_DIR}" --include='*.js' --include='*.css' \
+    | LC_ALL=C sort
+)
+if [[ "${#MAP_REFS[@]}" -ne 0 ]]; then
+  echo "SOURCEMAP REF (a shipped file points at a sourcemap that is not — and must not be — in the archive):" >&2
+  printf '%s\n' "${MAP_REFS[@]}" >&2
+  echo "A release build should produce no sourcemaps and no references to them. A" >&2
+  echo "shipped file naming a sourceMappingURL means the build emitted one; build" >&2
+  echo "with no sourcemap (release) or --sourcemap hidden (the inventory path)." >&2
+  FAILED=1
+fi
+
+# (5) Top-level allow-list drift check. The exclusion list (3) only rejects
 # KNOWN-bad patterns; an exclusion list passes unknown files by default. This
 # check restores allow-list-grade detection: every entry at the archive top
 # level must match a recognized library class or the short named set of

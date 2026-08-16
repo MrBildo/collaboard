@@ -67,22 +67,42 @@ exists because a dependency was once added without anyone noticing, and a static
 list with nothing checking it would go quietly stale the same way — including by
 naming a license and never printing it.
 
-The component set is identical across all five published platforms
-(`win-x64`, `linux-x64`, `linux-arm64`, `osx-x64`, `osx-arm64`). Only file *names*
-differ between them: the native SQLite library and the launcher both carry a
-platform-specific extension. That was established by generating this inventory
-from each platform's own dependency manifest and comparing all five, at the commit
-this file was last regenerated. The CI check above re-derives it from a single
-platform build, so a dependency that arrives on only some platforms is not
-something that check would catch.
+The generated inventory below is re-derived and gated on every pull request, but
+from **one** platform's build (`win-x64`) rather than all five (`win-x64`,
+`linux-x64`, `linux-arm64`, `osx-x64`, `osx-arm64`). Most of the inventory cannot
+differ between platforms; one part could. It is worth being exact about which is
+which, so this file does not claim a coverage it does not have.
+
+By construction, these are identical across all five:
+
+- The **browser bundle** and the **CSS toolchain** contribute the same set of
+  third-party components on every platform. The frontend is built the same way for
+  each archive; two independent builds of an unchanged tree are not byte-for-byte
+  identical — they can differ in how modules are initialized — but they bundle the
+  same set of source modules, which is exactly what this inventory records.
+- The **.NET runtime packs** and the **native SQLite library** are normalized to a
+  platform-neutral identity when this inventory is generated. Only their file
+  *names* differ between platforms (`.so` / `.dylib` / `.dll`, and the launcher
+  likewise), and the inventory deliberately does not record the name; the
+  component is the same.
+
+The one part that *could* differ across platforms is the **server NuGet package
+set**: a package could be referenced only on some runtime identifiers, or pull a
+platform-specific transitive dependency. That set was generated from each
+platform's own dependency manifest and confirmed identical across all five at the
+commit this file was last regenerated — but the pull-request check re-derives it
+from `win-x64` alone, so a dependency arriving on only some platforms would leave
+this file wrong for those archives without the check catching it. No such
+divergence is known today; this records what is and is not machine-verified, not a
+report of drift.
 
 <!-- BEGIN GENERATED INVENTORY -->
 ### .NET runtime and shared framework
 
 Redistributed in full by the self-contained publish.
 
-- `Microsoft.AspNetCore.App.Runtime` 10.0.10 — MIT — Copyright (c) .NET Foundation and Contributors
-- `Microsoft.NETCore.App.Runtime` 10.0.10 — MIT — Copyright (c) .NET Foundation and Contributors
+- `Microsoft.AspNetCore.App.Runtime` 10.0.11 — MIT — Copyright (c) .NET Foundation and Contributors
+- `Microsoft.NETCore.App.Runtime` 10.0.11 — MIT — Copyright (c) .NET Foundation and Contributors
 - `Microsoft.NETCore.App.Host` — MIT — Copyright (c) .NET Foundation and Contributors
   Shipped as the `Collaboard.Api` executable (`Collaboard.Api.exe` on Windows): the
   .NET SDK's native launcher, patched with the application name. It comes from

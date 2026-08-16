@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { Inbox } from 'lucide-react';
 import { EmptyState } from './empty-state';
 
-// <EmptyState> is the onboarding teaching surface (card #292). The contract that
+// <EmptyState> is the onboarding teaching surface. The contract that
 // is silent-and-expensive to regress is the role-aware action gate: a non-admin
 // surface passes no `action` and must NOT render a button (a dead button telling
 // a non-admin to "create a board" they can't create is the failure this guards).

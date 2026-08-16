@@ -156,6 +156,30 @@ jobs:
             --self-contained \
             -o "publish/${ARTIFACT}"
 
+      # Check the bundled .NET runtime against the current servicing release. A
+      # self-contained archive carries the entire runtime inside it, so when a
+      # runtime security patch ships an operator gets whatever we packaged, not a
+      # fix from their own machine -- we own that patch window for them. Nothing
+      # else in the pipeline looks at the runtime for currency: the dependency
+      # scanners read the packages the project references, not the runtime pack the
+      # publish bundles. The version is read from the same deps.json the notices
+      # check uses (ground truth about what ships), compared to Microsoft's
+      # published latest-runtime, and the step fails if we would ship one that is
+      # behind. It runs here on a real representative publish, so a green PR proves
+      # the whole check -- fetch, parse, compare -- rather than deferring it to a
+      # release the way a publish-only step would.
+      #
+      # The build deliberately floats ("latest 10.0.x") rather than pinning, which
+      # tracks servicing in lockstep (setup-dotnet installs the latest patch SDK,
+      # whose self-contained publish bundles the co-released runtime). The exact
+      # runtime is recorded inside every archive (deps.json, and the notices file),
+      # so a published archive is self-identifying; this check is what turns
+      # "current because that is what the SDK gave us" into "current, and verified."
+      - name: Check .NET runtime currency
+        run: |
+          bash scripts/check-runtime-currency.sh \
+            "publish/${ARTIFACT}/Collaboard.Api.deps.json"
+
       # Re-derive the third-party component inventory from what this build
       # actually produced -- the publish dependency manifest for the server side,
       # and the bundle's own sourcemaps for the browser side -- and fail if it

@@ -38,7 +38,7 @@ export function BoardRedirect() {
 
   const boards = boardsQuery.data ?? [];
   if (boards.length === 0) {
-    // Zero boards (card #292, spec §3.1): upgrade the dead-end line into a
+    // Zero boards: upgrade the dead-end line into a
     // teaching empty-state. An admin gets a real action into the Admin Panel
     // (Boards tab is its default) instead of being told an admin must act; a
     // non-admin keeps warmed explanatory text and no dead button.

@@ -49,8 +49,8 @@ export function CardComments({
   const [editText, setEditText] = useState('');
   const [isPreviewingEdit, setIsPreviewingEdit] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  // Inline errors (card #203, spec §2a) — the operator is composing/editing in
-  // place, so create/update failures belong next to the text, not in a toast.
+  // Inline errors — the operator is composing/editing in place, so create/update
+  // failures belong next to the text, not in a toast.
   const [createError, setCreateError] = useState<string | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
   const newCommentRef = useRef<HTMLTextAreaElement>(null);
@@ -62,7 +62,7 @@ export function CardComments({
   });
 
   const createMutation = useMutation({
-    // Inline tier (spec §2a) — error stays below the composer, draft preserved.
+    // Inline tier — error stays below the composer, draft preserved.
     meta: { skipToast: true },
     mutationFn: (content: string) => createComment(cardId, content),
     onSuccess: () => {
@@ -77,7 +77,7 @@ export function CardComments({
   });
 
   const updateMutation = useMutation({
-    // Inline tier (spec §2a) — error stays on the editing row.
+    // Inline tier — error stays on the editing row.
     meta: { skipToast: true },
     mutationFn: ({ id, content }: { id: string; content: string }) =>
       updateComment(id, { contentMarkdown: content }),
@@ -93,8 +93,7 @@ export function CardComments({
   });
 
   const deleteMutation = useMutation({
-    // Board action — no input surface, comment persists; the floor toasts it
-    // (card #203, spec §2a).
+    // Board action — no input surface, comment persists; the floor toasts it.
     meta: { errorMessage: "Couldn't delete comment" },
     mutationFn: (id: string) => deleteComment(id),
     onSuccess: () => {

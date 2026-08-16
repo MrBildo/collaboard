@@ -14,8 +14,8 @@ import { reorderSizes } from '@/lib/api';
 import { queryKeys } from '@/lib/query-keys';
 import type { BoardData, CardSize } from '@/types';
 
-// Card #306: size drag-drop reorder inside the Board Settings admin dialog — the
-// vertical-list sibling of use-lanes-reorder (#305), one resource over. Same
+// Size drag-drop reorder inside the Board Settings admin dialog — the
+// vertical-list sibling of use-lanes-reorder, one resource over. Same
 // proven optimistic shape, its own self-contained <DndContext> scoped to the
 // SizesTab (the admin dialog is the mobile-reachable reorder path, so the touch
 // sensor is the point). It is deliberately symmetric with the lane reorder hook;
@@ -70,9 +70,9 @@ export function useSizesReorder(boardId: string, serverSizes: CardSize[]) {
   };
 
   const reorderMutation = useMutation({
-    // #203 convention: the operator is looking at the list when they drag, so a
-    // failed reorder snaps back via the onError invalidate (the self-evident
-    // signal) and a toast adds the "why" — same disposition use-lanes-reorder uses.
+    // The operator is looking at the list when they drag, so a failed reorder
+    // snaps back via the onError invalidate (the self-evident signal) and a
+    // toast adds the "why" — same disposition use-lanes-reorder uses.
     meta: { errorMessage: "Couldn't reorder sizes — try again" },
     mutationFn: (orderedSizeIds: string[]) => reorderSizes(boardId, orderedSizeIds),
     onMutate: async () => {
