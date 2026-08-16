@@ -156,7 +156,7 @@ describe('MarkdownRenderer', () => {
 
 describe('MarkdownRenderer card-link autolinking', () => {
   // Card-link autolinking emits relative `/boards/...` hrefs that render as a
-  // React Router <Link>, so these cases mount under a router. Fork 3a: a `#N`
+  // React Router <Link>, so these cases mount under a router. A `#N`
   // is linkified only when N is in the live (non-archived) card-number set.
   const slug = 'demo';
   const liveCards = new Set([28, 273]);
