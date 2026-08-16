@@ -13,7 +13,7 @@ import { createMutationFloor } from './lib/mutation-floor';
 import './styles.css';
 
 const queryClient = new QueryClient({
-  // The global mutation-error floor (card #203, spec §5). Wired once here so
+  // The global mutation-error floor. Wired once here so
   // every mutation surfaces through it — no mutation can fail silently. Call
   // sites declare their surface via `meta` (see lib/mutation-floor.ts).
   mutationCache: createMutationFloor(),
@@ -59,7 +59,7 @@ async function boot() {
           persistOptions={{ persister, buster: __BUILD_VERSION__ }}
         >
           <RouterProvider router={router} />
-          {/* The toast tier of the mutation-error floor (card #203). Lives once
+          {/* The toast tier of the mutation-error floor. Lives once
               at the app root; the floor (lib/mutation-floor.ts) drives it. */}
           <Toaster richColors position="bottom-center" />
         </PersistQueryClientProvider>

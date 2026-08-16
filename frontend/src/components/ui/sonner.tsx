@@ -8,7 +8,7 @@ import { CircleCheck, Info, TriangleAlert, OctagonX, Loader2 } from 'lucide-reac
 // for free without a theme prop. This keeps the toast surface on the same
 // semantic-token model as the rest of the design system.
 //
-// Accessibility floor (card #203, spec §9 / facet2): sonner renders an
+// Accessibility floor: sonner renders an
 // aria-live region. Error toasts are announced assertively (role="alert");
 // success/info toasts are announced politely. Every toast pairs an icon with
 // its text so the channel is never color-alone. Sonner's own stylesheet damps

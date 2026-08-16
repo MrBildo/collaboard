@@ -2,7 +2,7 @@ import axios from 'axios';
 import { MutationCache, type Mutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
-// The global mutation-error floor (card #203, spec §5). MutationCache.onError
+// The global mutation-error floor. MutationCache.onError
 // fires once per failed mutation, reads the call-site `meta`, and shows a
 // generic toast unless the call site opted out (`skipToast: true`). This is the
 // floor that makes silent mutation failure structurally impossible — every
@@ -13,10 +13,10 @@ import { toast } from 'sonner';
 // carries `console.error` as its only operator-facing behavior again.
 //
 // onSuccess reads `meta.successMessage` for the rare success toast. Nothing
-// populates it today (successes in Collaboard are self-evident — see spec §3);
+// populates it today (successes in this app are self-evident from the UI);
 // the plumbing exists so a future "did that work?" gap is a one-line meta add.
 
-// The typed `meta` shape (spec §5). Module augmentation keeps it off `any`.
+// The typed `meta` shape. Module augmentation keeps it off `any`.
 declare module '@tanstack/react-query' {
   interface Register {
     mutationMeta: {
@@ -77,7 +77,7 @@ export function createMutationFloor(): MutationCache {
       const meta = mutation.options.meta;
 
       // Central developer log — the floor does this once, replacing every
-      // per-call console.error site (spec §5 Rule 1).
+      // per-call console.error site.
       console.error('[mutation]', meta?.errorMessage ?? 'mutation failed', error);
 
       // The call site handles its own surface inline (skipToast: true) — the

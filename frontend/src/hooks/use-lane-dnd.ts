@@ -6,9 +6,10 @@ import { reorderLanes } from '@/lib/api';
 import { queryKeys } from '@/lib/query-keys';
 import type { BoardData, Lane } from '@/types';
 
-// Card #278: lane drag-drop. Sibling to use-board-dnd.ts — deliberately a
-// separate hook rather than folding lane logic into the dense card hook (which
-// carries #242 scar tissue). The two hooks share one board <DndContext>; App.tsx
+// Lane drag-drop. Sibling to use-board-dnd.ts — deliberately a separate hook
+// rather than folding lane logic into the dense card hook (which carries
+// scar tissue from prior regressions we don't want to destabilize). The two
+// hooks share one board <DndContext>; App.tsx
 // discriminates by the active draggable's data.type ('lane' vs card) and routes
 // each context handler to the right hook. This hook owns only the lane path.
 //
@@ -16,7 +17,7 @@ import type { BoardData, Lane } from '@/types';
 // drag, reconcile on drop via POST /boards/{boardId}/lanes/reorder (server owns
 // all position math), merge-not-overwrite on success, invalidate-rollback on
 // error. Desktop-only (the grab target is the lane header, which has no touch
-// listeners — the Lanes admin tab is the touch fallback per the #277 ruling).
+// listeners — the Lanes admin tab is the touch fallback).
 export function useLaneDnd(boardId: string | undefined, serverLanes: Lane[]) {
   const queryClient = useQueryClient();
 
@@ -41,9 +42,9 @@ export function useLaneDnd(boardId: string | undefined, serverLanes: Lane[]) {
   const localLanes = dragLanes ?? sortedServerLanes;
 
   const reorderMutation = useMutation({
-    // #203 convention: the operator is looking at the board when they drag, so a
-    // failed reorder snaps back via the onError invalidate (the self-evident
-    // signal) and a toast adds the "why" — same disposition the card hook uses.
+    // The operator is looking at the board when they drag, so a failed reorder
+    // snaps back via the onError invalidate (the self-evident signal) and a
+    // toast adds the "why" — same disposition the card hook uses.
     meta: { errorMessage: "Couldn't reorder lanes — try again" },
     mutationFn: (orderedLaneIds: string[]) => reorderLanes(boardId as string, orderedLaneIds),
     onMutate: async () => {

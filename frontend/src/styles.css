@@ -10,7 +10,7 @@
    modifiers (bg-destructive/10, ring-ring/50, bg-muted/30, …) resolve. Under Tailwind
    v4 a /NN opacity modifier is applied via native color-mix, so every tinted utility
    works without the v3 <alpha-value> channel-triple form — this is what lights up the
-   ~64 previously-dead opacity tints (#328). */
+   ~64 previously-dead opacity tints. */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

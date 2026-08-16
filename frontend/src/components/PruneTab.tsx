@@ -45,7 +45,7 @@ export function PruneTab({ boardId }: PruneTabProps) {
   const [resultCount, setResultCount] = useState<{ count: number; action: PruneAction } | null>(
     null,
   );
-  // Inline error for the prune preview/execute paths (card #203, spec §2d).
+  // Inline error for the prune preview/execute paths.
   // The operator is working in this panel; the error belongs here, not a toast.
   const [pruneError, setPruneError] = useState<string | null>(null);
 
@@ -62,7 +62,7 @@ export function PruneTab({ boardId }: PruneTabProps) {
   });
 
   const previewMutation = useMutation({
-    // Inline tier (spec §2d) — error stays in the prune panel.
+    // Inline tier — error stays in the prune panel.
     meta: { skipToast: true },
     mutationFn: (filters: PruneFilters) => prunePreview(boardId, filters),
     onSuccess: (data) => {
@@ -77,7 +77,7 @@ export function PruneTab({ boardId }: PruneTabProps) {
   });
 
   const pruneMutation = useMutation({
-    // Inline tier (spec §2d) — error stays in the prune panel.
+    // Inline tier — error stays in the prune panel.
     meta: { skipToast: true },
     mutationFn: (filters: PruneFilters) => pruneCards(boardId, filters),
     onSuccess: (data) => {
@@ -178,15 +178,15 @@ export function PruneTab({ boardId }: PruneTabProps) {
   const isDelete = action === 'delete';
 
   return (
-    // Two-zone tab (#313): the filter stack + preview list scroll within the
+    // Two-zone tab: the filter stack + preview list scroll within the
     // panel, while the action zone (Preview / execute) is pinned to a `shrink-0`
     // footer so the archive/delete button stays reachable regardless of how tall
     // the filters or the preview list grow. Matches the Lanes/Sizes/Labels tabs.
     // The lane/label Popovers portal out, so they float above the dialog edge
-    // unaffected by this overflow (#310 / UAT-1).
+    // unaffected by this overflow.
     <div className="flex h-full min-h-0 flex-col gap-4 p-1">
       {/* Scroll zone — fills remaining height, scrolls internally on long
-          filter stacks / preview lists (#313). */}
+          filter stacks / preview lists. */}
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
         {/* Action toggle */}
         <div className="flex flex-col gap-2">
@@ -197,7 +197,7 @@ export function PruneTab({ boardId }: PruneTabProps) {
               size="sm"
               onClick={() => {
                 setAction('archive');
-                // The "Include archived cards" filter is delete-only (#314); reset it
+                // The "Include archived cards" filter is delete-only; reset it
                 // when switching to Archive so a hidden filter can't silently apply.
                 setIncludeArchived(false);
                 clearResults();
@@ -228,7 +228,7 @@ export function PruneTab({ boardId }: PruneTabProps) {
 
         {/* Card status filter — only meaningful for Delete. Archiving an already
           archived card is a no-op, so the filter renders only when Delete is the
-          selected action (#314). */}
+          selected action. */}
         {isDelete && (
           <div className="flex flex-col gap-2">
             <span className="text-sm font-medium">Card status</span>
@@ -275,7 +275,7 @@ export function PruneTab({ boardId }: PruneTabProps) {
 
         {/* In lanes — Popover portals out of the dialog overflow so the checkbox
           list floats above the dialog edge and collision-flips near the viewport
-          bottom instead of clipping (#310 / UAT-1). */}
+          bottom instead of clipping. */}
         <div className="flex flex-col gap-2">
           <span className="text-sm font-medium">In lanes</span>
           <Popover open={isLaneDropdownOpen} onOpenChange={setIsLaneDropdownOpen}>
@@ -306,7 +306,7 @@ export function PruneTab({ boardId }: PruneTabProps) {
           </Popover>
         </div>
 
-        {/* With labels — same portaled Popover as In lanes (#310 / UAT-1). */}
+        {/* With labels — same portaled Popover as In lanes. */}
         <div className="flex flex-col gap-2">
           <span className="text-sm font-medium">With labels</span>
           <Popover open={isLabelDropdownOpen} onOpenChange={setIsLabelDropdownOpen}>
@@ -354,7 +354,7 @@ export function PruneTab({ boardId }: PruneTabProps) {
         </p>
 
         {/* Preview results — count + matched-card list stay in the scroll zone;
-            the execute button is pinned in the footer below (#313). */}
+            the execute button is pinned in the footer below. */}
         {preview && (
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2">
@@ -391,7 +391,7 @@ export function PruneTab({ boardId }: PruneTabProps) {
 
       {/* Pinned action footer — never scrolls; the Preview and archive/delete
           buttons stay reachable regardless of filter-stack or preview-list
-          length (#313). Matches the Lanes/Sizes/Labels pinned footers. */}
+          length. Matches the Lanes/Sizes/Labels pinned footers. */}
       <div className="flex shrink-0 flex-col gap-3">
         <Separator />
 

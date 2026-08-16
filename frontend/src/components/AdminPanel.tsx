@@ -45,7 +45,7 @@ export function AdminPanel({ boardId, open, onOpenChange }: AdminPanelProps) {
           {/* `data-[hidden]:hidden` lets the inactive (keepMounted) panels'
               `display:none` win over `flex` — without it every mounted panel
               flex-grows and the active panel collapses to a fraction of its
-              height, breaking the inner scroll (#310). */}
+              height, breaking the inner scroll. */}
           <TabsContent
             value="lanes"
             keepMounted

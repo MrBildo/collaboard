@@ -4,7 +4,7 @@ import { useSyncExternalStore } from 'react';
 // breakpoint is Tailwind's `md` (768px) — the same one the responsive CSS uses
 // (`max-md:` / `md:` variants that collapse the board header into the gear menu
 // and turn lanes into collapsible stacks). Drag-and-drop is a desktop-only
-// feature (#312); every dnd-kit surface gates off this one hook so the rule has
+// feature; every dnd-kit surface gates off this one hook so the rule has
 // a single definition.
 //
 // `max-width: 767.98px` mirrors Tailwind's `md` boundary: `md:` styles apply at

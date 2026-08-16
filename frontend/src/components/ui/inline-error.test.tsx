@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { InlineError } from './inline-error';
 
 // <InlineError> is the inline tier's surface — the regression that is silent and
-// expensive here is the accessibility contract (spec §9): if the alert role or
+// expensive here is the accessibility contract: if the alert role or
 // the icon (color-not-alone) regresses, a screen-reader user or a colour-blind
 // user loses the error with no visible test failure elsewhere.
 

@@ -12,7 +12,7 @@ class ResizeObserverStub {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (globalThis as any).ResizeObserver = ResizeObserverStub;
 
-// jsdom does not implement matchMedia. useIsMobile (#312, gates all drag-drop)
+// jsdom does not implement matchMedia. useIsMobile (gates all drag-drop)
 // subscribes to a media query via useSyncExternalStore, so any component that
 // mounts a drag surface needs this. Default `matches: false` = desktop, which is
 // the default drag-enabled state — tests that need to assert the mobile path

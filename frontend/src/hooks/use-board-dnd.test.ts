@@ -89,7 +89,7 @@ beforeEach(() => {
 });
 
 describe('useBoardDnd reorder cache merge', () => {
-  test('does not introduce the archive lane into the cached lane list (#242)', async () => {
+  test('does not introduce the archive lane into the cached lane list', async () => {
     const initialLanes = [makeLane(LANE_BACKLOG, 'Backlog', 0), makeLane(LANE_DONE, 'Done', 1)];
     const initialData: BoardData = {
       lanes: initialLanes,
@@ -174,7 +174,7 @@ describe('useBoardDnd reorder cache merge', () => {
   });
 });
 
-describe('useBoardDnd sensor gating (#312, drag is desktop-only)', () => {
+describe('useBoardDnd sensor gating (drag is desktop-only)', () => {
   test('registers drag sensors on desktop', () => {
     const queryClient = setupClient({
       lanes: [makeLane(LANE_BACKLOG, 'Backlog', 0)],

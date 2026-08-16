@@ -148,7 +148,7 @@ export const versionSchema = z.object({
   version: z.string(),
 });
 
-// #303: current-vs-latest update status from GET /version/status. latest/releaseUrl are null
+// Current-vs-latest update status from GET /version/status. latest/releaseUrl are null
 // until the backend's first successful poll (offline/air-gap/disabled stays null forever, the
 // honest degraded state). lastChecked is the timestamp of the last successful poll.
 export const versionStatusSchema = z.object({
@@ -211,7 +211,7 @@ export const runtimeConfigSchema = z.object({
   apiBaseUrl: z.string().min(1),
 });
 
-// Webhooks (#326) — subscription registry + delivery observability.
+// Webhooks — subscription registry + delivery observability.
 // The signing secret is WRITE-ONLY: it never appears in any read shape, only as
 // the `signed` boolean. `events` carries the exact event-type strings or the
 // single `"*"` wildcard. The metric fields are computed on-read from the
@@ -273,7 +273,7 @@ export const webhookTestResultSchema = z.object({
 });
 
 // The selectable event catalog (GET /webhooks/event-types) — the single
-// server-side source of truth the subscription picker renders (#336). A list of
+// server-side source of truth the subscription picker renders. A list of
 // family groups, each carrying its display `label` and ordered events. An event's
 // `type` is the value a subscription selects; `label` is the display token (the
 // machine event-type string — what an integrator picks by), with the prose in
