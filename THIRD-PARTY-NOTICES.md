@@ -99,8 +99,8 @@ report of drift.
 
 Redistributed in full by the self-contained publish.
 
-- `Microsoft.AspNetCore.App.Runtime` 10.0.10 — MIT — Copyright (c) .NET Foundation and Contributors
-- `Microsoft.NETCore.App.Runtime` 10.0.10 — MIT — Copyright (c) .NET Foundation and Contributors
+- `Microsoft.AspNetCore.App.Runtime` 10.0.11 — MIT — Copyright (c) .NET Foundation and Contributors
+- `Microsoft.NETCore.App.Runtime` 10.0.11 — MIT — Copyright (c) .NET Foundation and Contributors
 - `Microsoft.NETCore.App.Host` — MIT — Copyright (c) .NET Foundation and Contributors
   Shipped as the `Collaboard.Api` executable (`Collaboard.Api.exe` on Windows): the
   .NET SDK's native launcher, patched with the application name. It comes from
