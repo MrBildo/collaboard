@@ -99,7 +99,28 @@ jobs:
         run: npx tsc -b
         working-directory: frontend
 
-      # Build frontend and copy to wwwroot so dotnet publish picks it up.
+      # Build the frontend for the release archive, then copy it to wwwroot so
+      # dotnet publish picks it up. This is a plain build with NO sourcemaps --
+      # deliberately, so a sourcemap can never reach a release archive by
+      # construction.
+      #
+      # It is a SEPARATE build from the one PR CI checks. The PR contract job
+      # (ci.yml) builds with `--sourcemap hidden`, derives the THIRD-PARTY-NOTICES
+      # inventory from those sourcemaps, moves them out, and ships that build. So
+      # for a release the guarantee is "same recipe," not "same bytes": CI verifies
+      # the inventory against a hidden-sourcemap build, and this plain build is
+      # trusted to bundle the same set of source modules.
+      #
+      # That trust rests on a measured property, not a per-build comparison.
+      # `--sourcemap hidden` leaves the emitted .js/.css byte-identical to a plain
+      # build -- its whole effect is the extra .map sidecars -- verified over
+      # alternating builds of both modes. A byte-for-byte comparison of the two
+      # builds is deliberately NOT done: repeated builds of an unchanged tree draw
+      # one of two variants of a shared chunk, so that comparison fails on healthy
+      # trees, and it is strictly stronger than the "same source modules"
+      # obligation it stood in for. What IS enforced on this path is the archive
+      # contract: verify-archive.sh rejects both sourcemap files and any lingering
+      # sourceMappingURL reference in the packaged archive.
       - name: Build frontend
         run: npx vite build
         working-directory: frontend
