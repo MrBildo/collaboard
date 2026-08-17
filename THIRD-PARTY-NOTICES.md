@@ -202,7 +202,7 @@ Compiled into the JavaScript served from `wwwroot`.
 - `@tanstack/react-query-persist-client` 5.90.24 — MIT — Copyright (c) 2021-present Tanner Linsley
 - `@ungap/structured-clone` 1.3.0 — ISC — Copyright (c) 2021, Andrea Giammarchi, @WebReflection
 - `@upsetjs/venn.js` 2.0.0 — MIT — Copyright (c) 2013 Ben Frederickson
-- `axios` 1.13.6 — MIT — Copyright (c) 2014-present Matt Zabriskie & Collaborators
+- `axios` 1.19.0 — MIT — Copyright (c) 2014-present Matt Zabriskie & Collaborators
 - `bail` 2.0.2 — MIT — Copyright (c) 2015 Titus Wormer <tituswormer@gmail.com>
 - `ccount` 2.0.1 — MIT — Copyright (c) 2015 Titus Wormer <tituswormer@gmail.com>
 - `char-regex` 1.0.2 — MIT — Copyright (c) 2019 Richie Bendall

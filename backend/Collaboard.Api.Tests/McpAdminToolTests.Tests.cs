@@ -72,6 +72,12 @@ public class McpAdminToolTests(CollaboardApiFactory factory) : IClassFixture<Col
     private static int _nextLanePosition = 10_000;
     private static int NextLanePosition() => Interlocked.Increment(ref _nextLanePosition);
 
+    // Card numbers are unique per board. A monotonic counter guarantees distinct values; a random
+    // pick collided on the (BoardId, Number) index (birthday paradox), which read as an intermittent
+    // CI failure on unchanged code.
+    private static int _nextCardNumber = 500_000;
+    private static int NextCardNumber() => Interlocked.Increment(ref _nextCardNumber);
+
     private async Task<CardItem> AddCardAsync(BoardDbContext db, Guid laneId, Guid sizeId)
     {
         var adminId = await db.Users.Where(u => u.Role == UserRole.Administrator).Select(u => u.Id).FirstAsync();
@@ -82,7 +88,7 @@ public class McpAdminToolTests(CollaboardApiFactory factory) : IClassFixture<Col
             LaneId = laneId,
             SizeId = sizeId,
             Name = "Fixture Card",
-            Number = Random.Shared.Next(100_000, 999_999),
+            Number = NextCardNumber(),
             Position = 0,
             CreatedByUserId = adminId,
             CreatedAtUtc = DateTimeOffset.UtcNow,
