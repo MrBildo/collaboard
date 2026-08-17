@@ -17,6 +17,10 @@ internal static class CardHistoryHelper
 {
     public const string DescriptionField = "description";
 
+    // The number of attempts SaveWithRevisionRetryAsync makes before giving up on a revision-ordinal
+    // collision. Named rather than a local literal so a test can drive exactly one collision past it.
+    public const int MaxRevisionRetryAttempts = 5;
+
     // The store is field-general, but only description is captured today. An unrecognised field is
     // rejected rather than answered with an empty trail: on an audit surface, a typo that reads as
     // "this card has no history" is worse than an error.
@@ -137,15 +141,14 @@ internal static class CardHistoryHelper
         // eight-way concurrent editing of one description: no retry at all loses most of the
         // edits, immediate lockstep retries still lose a couple of percent, and pausing first
         // clears them — through thirty-two-way, with no loss.
-        const int maxAttempts = 5;
-        for (var attempt = 0; attempt < maxAttempts; attempt++)
+        for (var attempt = 0; attempt < MaxRevisionRetryAttempts; attempt++)
         {
             try
             {
                 await db.SaveChangesAsync(ct);
                 return;
             }
-            catch (DbUpdateException ex) when (attempt < maxAttempts - 1 && IsRevisionCollision(ex))
+            catch (DbUpdateException ex) when (attempt < MaxRevisionRetryAttempts - 1 && IsRevisionCollision(ex))
             {
                 // Rebuild the rows against the trail's new head rather than renumbering the ones
                 // already staged: the winning edit has by now written the seed row holding the

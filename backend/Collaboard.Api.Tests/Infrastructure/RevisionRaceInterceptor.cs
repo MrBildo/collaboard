@@ -1,3 +1,4 @@
+using System.Globalization;
 using Collaboard.Api.Endpoints;
 using Collaboard.Api.Models;
 using Microsoft.EntityFrameworkCore;
@@ -6,13 +7,15 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Collaboard.Api.Tests.Infrastructure;
 
-// Forces a description-revision collision from inside a real request.
+// Forces description-revision collisions from inside a real request.
 //
 // The collision lives in the gap between a write path reading the trail's head and the save that
 // inserts the row it allocated. Two genuinely parallel requests cannot open that gap on demand, and
 // the harness's single shared connection makes racing them fail on connection contention instead.
 // This opens it deterministically: when an armed card's save is about to run, a rival edit commits
-// first on its own scope, so the request that follows finds its revision taken.
+// first on its own scope, so the request that follows finds its revision taken. Arming for more than
+// one collision injects a fresh rival on each of the request's retries, which is how the retry loop
+// is exercised past a single attempt — and, armed for the whole attempt budget, driven to exhaustion.
 //
 // What that buys is coverage of the wiring rather than the mechanism. A test that calls the history
 // helper directly proves the retry works; it says nothing about whether the endpoints still reach
@@ -25,25 +28,33 @@ public class RevisionRaceInterceptor(IServiceScopeFactory scopeFactory) : SaveCh
 
     private Guid _armedCardId;
     private Guid _rivalUserId;
-    private string _rivalValue = string.Empty;
-    private int _fired;
+    private int _remainingFires;
+    private int _firedCount;
+    private bool _injectingRival;
 
-    public bool HasFired => Volatile.Read(ref _fired) > 0;
+    public int FiredCount => Volatile.Read(ref _firedCount);
 
-    // Armed per test rather than per factory: the fixture is shared across the class, and a latch
-    // left set would let the second test pass without ever meeting a collision.
-    public void Arm(Guid cardId, Guid rivalUserId, string rivalValue)
+    public bool HasFired => FiredCount > 0;
+
+    // Armed per test rather than per factory: the fixture is shared across the class, and leftover
+    // arming would let a later test pass without ever meeting a collision. `collisions` is how many
+    // rival edits to inject before letting the request through — one for the wiring tests, the retry
+    // budget or one past it for the tests that drive the loop to its last attempt and to exhaustion.
+    public void Arm(Guid cardId, Guid rivalUserId, int collisions = 1)
     {
         _armedCardId = cardId;
         _rivalUserId = rivalUserId;
-        _rivalValue = rivalValue;
-        Volatile.Write(ref _fired, 0);
+        _remainingFires = collisions;
+        Volatile.Write(ref _firedCount, 0);
+        _injectingRival = false;
     }
 
     public void Disarm()
     {
         _armedCardId = Guid.Empty;
-        Volatile.Write(ref _fired, 0);
+        _remainingFires = 0;
+        Volatile.Write(ref _firedCount, 0);
+        _injectingRival = false;
     }
 
     public override async ValueTask<InterceptionResult<int>> SavingChangesAsync
@@ -63,7 +74,9 @@ public class RevisionRaceInterceptor(IServiceScopeFactory scopeFactory) : SaveCh
 
     private bool ShouldFire(DbContext? context)
     {
-        if (context is null || _armedCardId == Guid.Empty)
+        // The rival commits through this same interceptor; without the injecting guard its own save,
+        // which also stages a revision on the armed card, would arm a collision against itself.
+        if (context is null || _armedCardId == Guid.Empty || _injectingRival || _remainingFires <= 0)
         {
             return false;
         }
@@ -72,35 +85,51 @@ public class RevisionRaceInterceptor(IServiceScopeFactory scopeFactory) : SaveCh
             .Entries<CardFieldHistory>()
                 .Any(e => e.State == EntityState.Added && e.Entity.CardId == _armedCardId);
 
-        // Claiming the latch here is also what stops the rival's own save from re-entering: it
-        // stages a revision on the same card and would otherwise arm a race against itself.
-        return stagesARevision && Interlocked.Exchange(ref _fired, 1) == 0;
+        if (!stagesARevision)
+        {
+            return false;
+        }
+
+        _remainingFires--;
+        Interlocked.Increment(ref _firedCount);
+
+        return true;
     }
 
     private async Task CommitRivalEditAsync(CancellationToken ct)
     {
-        using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
+        _injectingRival = true;
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
 
-        // Read the committed description, not the one the intercepted request is holding: the rival
-        // is a separate editor who never saw it.
-        var card = await db.Cards.FirstAsync(c => c.Id == _armedCardId, ct);
-        var oldValue = card.DescriptionMarkdown;
+            // Read the committed description, not the one the intercepted request is holding: the
+            // rival is a separate editor who never saw it. A distinct value per fire keeps each
+            // injected edit a real change rather than a no-op the helper would decline to record.
+            var card = await db.Cards.FirstAsync(c => c.Id == _armedCardId, ct);
+            var oldValue = card.DescriptionMarkdown;
+            var rivalValue = $"rival edit {FiredCount.ToString(CultureInfo.InvariantCulture)}";
 
-        card.DescriptionMarkdown = _rivalValue;
-        card.LastUpdatedByUserId = _rivalUserId;
-        card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
+            card.DescriptionMarkdown = rivalValue;
+            card.LastUpdatedByUserId = _rivalUserId;
+            card.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
 
-        var change = await CardHistoryHelper.StageDescriptionChangeAsync
-        (
-            db,
-            _armedCardId,
-            oldValue,
-            _rivalValue,
-            _rivalUserId,
-            ct
-        );
+            var change = await CardHistoryHelper.StageDescriptionChangeAsync
+            (
+                db,
+                _armedCardId,
+                oldValue,
+                rivalValue,
+                _rivalUserId,
+                ct
+            );
 
-        await CardHistoryHelper.SaveWithRevisionRetryAsync(db, change, ct);
+            await CardHistoryHelper.SaveWithRevisionRetryAsync(db, change, ct);
+        }
+        finally
+        {
+            _injectingRival = false;
+        }
     }
 }
