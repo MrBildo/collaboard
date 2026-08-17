@@ -14,6 +14,13 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
     private readonly CollaboardApiFactory _factory = factory;
     private readonly HttpClient _client = factory.CreateClient();
 
+    // Lane positions are unique per board; this class creates a lane on the shared default board, so
+    // a random position could collide on the unique (BoardId, Position) index across the class run.
+    // A monotonic counter avoids that. The many random positions elsewhere in this file are CARD
+    // positions, which carry no unique index and are fine as-is.
+    private static int _nextLanePosition = 10_000;
+    private static int NextLanePosition() => Interlocked.Increment(ref _nextLanePosition);
+
     private async Task<Guid> GetFirstLaneIdAsync()
         => await TestDataHelper.GetFirstLaneIdAsync(_client, _factory.DefaultBoardId);
 
@@ -806,7 +813,7 @@ public class CardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         var laneResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/lanes", new
         {
             name = $"Empty Lane {Guid.NewGuid()}",
-            position = Random.Shared.Next(10000, 99999)
+            position = NextLanePosition()
         });
         laneResponse.EnsureSuccessStatusCode();
         var lane = await laneResponse.Content.ReadFromJsonAsync<JsonElement>();
