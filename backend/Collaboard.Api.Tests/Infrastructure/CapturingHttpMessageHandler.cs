@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Net;
+using System.Threading.Channels;
 
 namespace Collaboard.Api.Tests.Infrastructure;
 
@@ -12,6 +13,11 @@ namespace Collaboard.Api.Tests.Infrastructure;
 public sealed class CapturingHttpMessageHandler : HttpMessageHandler
 {
     private readonly ConcurrentQueue<CapturedRequest> _requests = new();
+
+    // Signals each captured request so a test can await the next delivery instead of polling a wall
+    // clock. Unbounded so a delivery that lands before the test starts waiting is retained, not
+    // dropped — the read then returns it immediately with no lost-wakeup race.
+    private readonly Channel<CapturedRequest> _signal = Channel.CreateUnbounded<CapturedRequest>();
 
     // The status code each request returns. Default 200 (success). Flip to 500 to exercise retry,
     // or use a hanging delay to exercise timeout. Read on each Send so a test can change it mid-run
@@ -30,7 +36,20 @@ public sealed class CapturingHttpMessageHandler : HttpMessageHandler
 
     public int RequestCount => _requests.Count;
 
-    public void Clear() => _requests.Clear();
+    public void Clear()
+    {
+        _requests.Clear();
+        while (_signal.Reader.TryRead(out _))
+        {
+        }
+    }
+
+    // Completes when the next request is captured (or with OperationCanceledException if the token
+    // fires first). The caller drives the delivery — the running dispatcher POSTs asynchronously —
+    // so this replaces a wall-clock poll: the wait ends the instant the delivery lands, and a
+    // caller-supplied timeout token is a backstop against a genuine non-delivery, not a race deadline.
+    public async Task<CapturedRequest> WaitForNextRequestAsync(CancellationToken cancellationToken) =>
+        await _signal.Reader.ReadAsync(cancellationToken);
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
@@ -53,7 +72,9 @@ public sealed class CapturingHttpMessageHandler : HttpMessageHandler
             }
         }
 
-        _requests.Enqueue(new CapturedRequest(request.Method.Method, request.RequestUri, headers, body));
+        var captured = new CapturedRequest(request.Method.Method, request.RequestUri, headers, body);
+        _requests.Enqueue(captured);
+        _signal.Writer.TryWrite(captured);
 
         if (ResponseDelay > TimeSpan.Zero)
         {
