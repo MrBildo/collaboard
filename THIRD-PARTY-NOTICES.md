@@ -134,7 +134,7 @@ Shipped as managed assemblies alongside the executable.
 - `Microsoft.Extensions.ServiceDiscovery.Abstractions` 10.4.0 — MIT — © Microsoft Corporation. All rights reserved.
 - `Microsoft.Extensions.Telemetry` 10.4.0 — MIT — © Microsoft Corporation. All rights reserved.
 - `Microsoft.Extensions.Telemetry.Abstractions` 10.4.0 — MIT — © Microsoft Corporation. All rights reserved.
-- `Microsoft.OpenApi` 2.0.0 — MIT — © Microsoft Corporation. All rights reserved.
+- `Microsoft.OpenApi` 2.7.5 — MIT — © Microsoft Corporation. All rights reserved.
 - `ModelContextProtocol` 1.1.0 — Apache-2.0 — © Model Context Protocol a Series of LF Projects, LLC.
 - `ModelContextProtocol.AspNetCore` 1.1.0 — Apache-2.0 — © Model Context Protocol a Series of LF Projects, LLC.
 - `ModelContextProtocol.Core` 1.1.0 — Apache-2.0 — © Model Context Protocol a Series of LF Projects, LLC.
