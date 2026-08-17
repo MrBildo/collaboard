@@ -124,9 +124,7 @@ public class McpOwnOrAdminWideningTests(CollaboardApiFactory factory) : IClassFi
         return attachment.Id;
     }
 
-    // ---------------------------------------------------------------------
     // delete_comment
-    // ---------------------------------------------------------------------
 
     [Theory]
     [InlineData(UserRole.Administrator)]
@@ -187,9 +185,7 @@ public class McpOwnOrAdminWideningTests(CollaboardApiFactory factory) : IClassFi
         (await db.Comments.FindAsync(commentId)).ShouldNotBeNull();
     }
 
-    // ---------------------------------------------------------------------
     // delete_attachment
-    // ---------------------------------------------------------------------
 
     [Theory]
     [InlineData(UserRole.Administrator)]
