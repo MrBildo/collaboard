@@ -53,7 +53,7 @@ public record RestoreCardRequest(Guid LaneId);
 // Prune requests
 public record PruneRequest(DateTimeOffset? OlderThan, Guid[]? LaneIds, Guid[]? LabelIds, string? Action, bool? IncludeArchived);
 
-// Webhook subscription requests (#326). Events is the event-selection (validated non-empty / known /
+// Webhook subscription requests. Events is the event-selection (validated non-empty / known /
 // wildcard in the shared store). Secret is write-only (set on create, replaced on PATCH only when
 // present; ClearSecret clears it). Enabled defaults to true on create when omitted.
 public record CreateWebhookSubscriptionRequest(string Url, string[]? Events, string? Secret, bool? Enabled, string? Name);

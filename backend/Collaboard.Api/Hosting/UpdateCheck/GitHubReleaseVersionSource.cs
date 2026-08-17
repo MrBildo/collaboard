@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 
 namespace Collaboard.Api.Hosting.UpdateCheck;
 
-// A1 (#303 §2A): the latest stable release is whatever GitHub's /releases/latest reports for
+// The latest stable release is whatever GitHub's /releases/latest reports for
 // our own repo — the same repo publish.yml cuts releases against. /releases/latest excludes
 // drafts AND pre-releases server-side, which is exactly "the latest stable an operator should
 // run", so no client-side filtering is needed. Consumes only a version string and a URL over

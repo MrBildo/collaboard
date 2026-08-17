@@ -10,13 +10,13 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// Card #269: the MCP search_cards tool closes the gap where REST had the
+// The MCP search_cards tool closes the gap where REST had the
 // cross-board GET /search/cards but MCP search was single-board only (get_cards).
 // Both surfaces route through the shared SearchHelper.SearchCardsAsync + the
-// CardSummaryBuilder projection (#274), so these tests pin the MCP tool's
+// CardSummaryBuilder projection, so these tests pin the MCP tool's
 // cross-board grouping, the enriched CardSummary return shape, the boardId
 // priority ordering, limit clamping, archive exclusion, and auth gating — by
-// direct tool-class invocation (#206 convention).
+// direct tool-class invocation.
 public class McpSearchToolTests(CollaboardApiFactory factory) : IClassFixture<CollaboardApiFactory>, IDisposable
 {
     private readonly CollaboardApiFactory _factory = factory;
@@ -322,7 +322,7 @@ public class McpSearchToolTests(CollaboardApiFactory factory) : IClassFixture<Co
         // Act
         var result = await searchTools.SearchCardsAsync(user.AuthKey, "McpFieldCheck269");
 
-        // Assert — the shared CardSummary projection (#274) shape rides through MCP
+        // Assert — the shared CardSummary projection shape rides through MCP
         var results = ParseResults(result);
         var card = results
             .Single(g => g.GetProperty("boardId").GetGuid() == _factory.DefaultBoardId)

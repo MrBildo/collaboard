@@ -10,9 +10,9 @@ using ModelContextProtocol.Server;
 
 namespace Collaboard.Api.Mcp;
 
-// Card #196 / #243 Phase 5: bulk card tools. Three all-roles tools that batch the
+// Bulk card tools. Three all-roles tools that batch the
 // per-card archive_card / restore_card / update_card analogs over N cards in one
-// call. Each follows the two-phase contract from agent-admin-mcp.md Part 3:
+// call. Each follows the two-phase contract:
 //
 //   Phase 1 — pre-validation (fail loud, single "Error: ..." string, NO mutations):
 //     ref shape/parse, card existence (one round-trip), and operation premises
@@ -84,7 +84,7 @@ public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardE
         });
 
         // card.archived per succeeded card — one webhook event each, one SSE bell per board
-        // (the BulkExecution coalesce); built in one batch pass off the after-save hook. (#329.)
+        // (the BulkExecution coalesce); built in one batch pass off the after-save hook.
         return await execution.SaveAndSerializeAsync(ct, async succeededCards =>
         {
             foreach (var archived in await WebhookEventFactory.BuildCardArchivedBatchAsync(db, succeededCards, user!, ct))
@@ -158,7 +158,7 @@ public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardE
             return null;
         });
 
-        // card.restored per succeeded card — NOT card.moved (#329). One SSE bell per board.
+        // card.restored per succeeded card — NOT card.moved. One SSE bell per board.
         return await execution.SaveAndSerializeAsync(ct, async succeededCards =>
         {
             foreach (var restored in await WebhookEventFactory.BuildCardRestoredBatchAsync(db, succeededCards, user!, ct))
@@ -262,7 +262,7 @@ public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardE
             desiredLabelIds = parsed;
         }
 
-        // card.moved fires per actually-moved card (#320). The bulk SSE side coalesces to
+        // card.moved fires per actually-moved card. The bulk SSE side coalesces to
         // ONE board-bell per board (BulkExecution's existing contract — the safety
         // property), but the webhook projection must see N distinct card.moved events. So
         // the move snapshots are captured per-card here (before MoveCardToLaneAsync
@@ -272,8 +272,8 @@ public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardE
         // change (laneId resolves to a different lane than the card's current).
         var moveSnapshots = new Dictionary<Guid, CardMoveSnapshot>();
 
-        // card.updated fires per card whose SIZE actually changed (size is a content axis,
-        // #329); card.labeled / card.unlabeled fire per actual add/remove. Both captured
+        // card.updated fires per card whose SIZE actually changed (size is a content axis);
+        // card.labeled / card.unlabeled fire per actual add/remove. Both captured
         // per-card here and emitted in the after-save hook, mirroring the move coalesce — N
         // webhook events, one SSE bell per board.
         var sizeChangedCardIds = new HashSet<Guid>();
@@ -385,7 +385,7 @@ public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardE
     private readonly record struct CardMoveSnapshot(Lane FromLane, int FromPosition, Lane ToLane);
 
     // Returns the actually-added and actually-removed label ids so the after-save hook can
-    // emit card.labeled / card.unlabeled per change (#329).
+    // emit card.labeled / card.unlabeled per change.
     private async Task<(List<Guid> Added, List<Guid> Removed)> ApplyLabelSetAsync(Guid cardId, List<Guid> desiredLabelIds, CancellationToken ct)
     {
         var desired = desiredLabelIds.ToHashSet();
@@ -410,7 +410,7 @@ public sealed class BulkCardTools(BoardDbContext db, McpAuthService auth, BoardE
 // stamp the actor/timestamp on cards that mutated, then a SINGLE SaveChangesAsync
 // and ONE deduplicated broadcast per affected board. A SaveChanges throw collapses
 // the whole batch to a single error string (the only place "all-or-nothing"
-// genuinely applies — at the persistence layer, per the spec).
+// genuinely applies — at the persistence layer).
 file sealed class BulkExecution(BoardDbContext db, BoardEventBroadcaster broadcaster, Guid userId, DateTimeOffset now)
 {
     private readonly List<BulkCardResult> _results = [];
@@ -448,14 +448,14 @@ file sealed class BulkExecution(BoardDbContext db, BoardEventBroadcaster broadca
     // afterSave (optional) runs only after a successful save, with the cards that
     // succeeded — the hook bulk_update_cards uses to enqueue one card.moved per
     // actually-moved card to the webhook sink, without disturbing the single
-    // SSE-bell-per-board coalesce above (#320). It is not reached on a save failure.
+    // SSE-bell-per-board coalesce above. It is not reached on a save failure.
     public async Task<string> SaveAndSerializeAsync(CancellationToken ct, Func<IReadOnlyList<CardItem>, Task>? afterSave = null)
     {
         try
         {
             await db.SaveChangesAsync(ct);
         }
-#pragma warning disable CA1031 // A SaveChanges failure collapses the whole batch — report it as a single error string per the spec.
+#pragma warning disable CA1031 // A SaveChanges failure collapses the whole batch — report it as a single error string.
         catch (Exception ex)
         {
             return $"Error: Failed to persist bulk operation; no changes were saved. {ex.Message}";
@@ -478,7 +478,7 @@ file sealed class BulkExecution(BoardDbContext db, BoardEventBroadcaster broadca
     }
 }
 
-// Error is omitted on "ok" results so the envelope matches the spec example shape
+// Error is omitted on "ok" results so the envelope matches the documented shape
 // ({ cardId, number, status } for ok; + error for non-ok).
 file record BulkCardResult
 (

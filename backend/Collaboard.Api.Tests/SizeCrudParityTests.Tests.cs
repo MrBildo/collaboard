@@ -10,8 +10,8 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// Cross-surface parity tests for card-size CRUD (#268 drift backstop, #206 testing
-// convention). Per the #158 audit (Q2 #1), SizeEndpoints.cs and SizeTools.cs
+// Cross-surface parity tests for card-size CRUD.
+// SizeEndpoints.cs and SizeTools.cs
 // re-encode auto-ordinal assignment, ordinal-collision, and size-in-use-before-delete
 // independently with no shared service. These tests feed the same input to both
 // surfaces and assert identical outcomes — both the accept path (auto-ordinal lands on

@@ -10,7 +10,7 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// Card #243 Phase 4: the two prune MCP tools (prune_preview, prune). Both gate
+// The two prune MCP tools (prune_preview, prune). Both gate
 // via RequireAdminLevelAsync and share PruneFilter with the REST PruneEndpoints,
 // so this file exercises:
 //   - the role-gate matrix per tool (Administrator + AgentAdministrator succeed on
@@ -129,9 +129,7 @@ public class McpPruneToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         return card;
     }
 
-    // ---------------------------------------------------------------------
     // prune_preview — role gate (positive: both admin roles)
-    // ---------------------------------------------------------------------
 
     [Theory]
     [InlineData(UserRole.Administrator)]
@@ -179,9 +177,7 @@ public class McpPruneToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         (await db.Cards.FindAsync(card.Id))!.LaneId.ShouldBe(laneId, "preview must not move cards");
     }
 
-    // ---------------------------------------------------------------------
     // prune — role gate (positive: both admin roles; archives, never deletes)
-    // ---------------------------------------------------------------------
 
     [Theory]
     [InlineData(UserRole.Administrator)]
@@ -240,9 +236,7 @@ public class McpPruneToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         (await db.Cards.FindAsync(unmatched.Id))!.LaneId.ShouldBe(otherLane.Id, "non-matching cards stay put");
     }
 
-    // ---------------------------------------------------------------------
     // Filter semantics — mirrored from REST PruneFilter
-    // ---------------------------------------------------------------------
 
     [Fact]
     public async Task Prune_NoFilter_ReturnsError()
@@ -315,9 +309,7 @@ public class McpPruneToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         JsonSerializer.Deserialize<JsonElement>(resultIncluded).GetProperty("matchCount").GetInt32().ShouldBe(2);
     }
 
-    // ---------------------------------------------------------------------
     // CSV / JSON-array GUID parsing + malformed rejection
-    // ---------------------------------------------------------------------
 
     [Fact]
     public async Task PrunePreview_JsonArrayLaneIds_Matches()
@@ -361,14 +353,12 @@ public class McpPruneToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         (await db.Cards.FindAsync(card.Id))!.LaneId.ShouldBe(laneId);
     }
 
-    // ---------------------------------------------------------------------
-    // Non-UTC olderThan normalisation (#103 bonus fix)
-    // ---------------------------------------------------------------------
+    // Non-UTC olderThan normalisation
 
     [Fact]
     public async Task PrunePreview_NonUtcOlderThan_NormalisesToUtcBeforeComparing()
     {
-        // The #234 model-wide DateTimeOffset value converter writes every
+        // The model-wide DateTimeOffset value converter writes every
         // DateTimeOffset as a normalised-UTC ISO-8601 string (.ToUniversalTime()).
         // A non-UTC olderThan value must therefore also be normalised before the
         // TEXT comparison, which the LINQ form achieves automatically (the converter
@@ -399,9 +389,7 @@ public class McpPruneToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         JsonSerializer.Deserialize<JsonElement>(result).GetProperty("matchCount").GetInt32().ShouldBe(1);
     }
 
-    // ---------------------------------------------------------------------
     // Board existence
-    // ---------------------------------------------------------------------
 
     [Fact]
     public async Task PrunePreview_UnknownBoard_ReturnsError()

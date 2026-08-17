@@ -10,7 +10,7 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// Cross-surface parity tests for the onboarding seed (card #294, #289 bundle).
+// Cross-surface parity tests for the onboarding seed.
 //
 // Three board-creation front doors seed boards: the install-time first-run seed
 // (Program.cs EnsureSeed), REST POST /boards, and the MCP create_board tool. The
@@ -114,7 +114,7 @@ public class OnboardingSeedParityTests(CollaboardApiFactory factory) : IClassFix
     [Fact]
     public async Task StarterLabels_AreNonEmpty_SoFirstCardIsLabelable()
     {
-        // A fresh board with zero labels is the exact gap card #294 closes — the
+        // A fresh board with zero labels is the exact gap the starter-label seed closes — the
         // create-card Labels section would be hidden. Guard the floor explicitly.
         _expectedStarterLabels.ShouldNotBeEmpty();
         _expectedStarterLabels.Length.ShouldBeInRange(3, 4);

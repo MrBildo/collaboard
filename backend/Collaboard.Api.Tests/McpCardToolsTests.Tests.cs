@@ -98,7 +98,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
     {
         // Arrange — parity with create_card: the JSON payload carries sizeName,
         // labels, commentCount, attachmentCount, isArchived so the caller has
-        // everything without a follow-up get_card. (#209)
+        // everything without a follow-up get_card.
         var (db, tools, authKey) = CreateTools();
         var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
         var cardId = await CreateCardInLaneAsync(tools, authKey, lanes[0]);
@@ -416,14 +416,14 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
         result.ShouldNotContain("Error");
     }
 
-    // ── labelIds JSON-array shape (regression cover for #241) ───────────────
+    // ── labelIds JSON-array shape (regression cover) ───────────────
 
     [Fact]
     public async Task CreateCard_WithLabelIdsAsJsonArrayString_AssignsLabels()
     {
         // Regression: some MCP-host clients forward array-typed tool args as a JSON-string
         // (e.g. '["guid1","guid2"]') instead of unwrapping to the documented CSV shape.
-        // The handler must accept both. See card #241.
+        // The handler must accept both.
         var (db, tools, authKey) = CreateTools();
         var lanes = await db.Lanes.Where(l => l.BoardId == _factory.DefaultBoardId).Select(l => l.Id).ToListAsync();
         var label1 = new Label { Id = Guid.NewGuid(), BoardId = _factory.DefaultBoardId, Name = $"JA1-{Guid.NewGuid()}", Color = "red" };
@@ -810,7 +810,7 @@ public class McpCardToolsTests(CollaboardApiFactory factory) : IClassFixture<Col
         json.RootElement.GetProperty("offset").GetInt32().ShouldBe(0);
     }
 
-    // ── get_cards since filter (#234 regression) ─────────────────────────
+    // ── get_cards since filter (regression) ─────────────────────────
     //
     // Pre-fix, the `since` filter composed top-level db.Comments/db.Attachments
     // projections via .Contains(x.Id) inside an ||, which the SQLite provider

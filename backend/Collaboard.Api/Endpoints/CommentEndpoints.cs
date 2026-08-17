@@ -50,7 +50,7 @@ internal static class CommentEndpoints
             db.Comments.Add(comment);
             await db.SaveChangesAsync(ct);
 
-            // comment.created — same single board bell, plus one webhook event. (#329.)
+            // comment.created — same single board bell, plus one webhook event.
             await WebhookEventFactory.PublishCommentCreatedAsync(db, broadcaster, comment, http.CurrentUser(), ct);
             return Results.Created($"/api/v1/cards/{id}/comments/{comment.Id}", comment);
         }).RequireAuth();
@@ -71,7 +71,7 @@ internal static class CommentEndpoints
             var user = http.CurrentUser();
 
             // Own-or-admin-level: Administrator or AgentAdministrator may delete
-            // another user's comment, matching the MCP delete_comment tool (#266 / #243).
+            // another user's comment, matching the MCP delete_comment tool.
             if (comment.UserId != user.Id && !McpAuthService.IsAdminLevel(user))
             {
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
@@ -81,7 +81,7 @@ internal static class CommentEndpoints
             await db.SaveChangesAsync(ct);
 
             // comment.deleted — published from the captured comment after the row is gone; the
-            // card it belonged to still exists, so the card ref resolves. (#329.)
+            // card it belonged to still exists, so the card ref resolves.
             await WebhookEventFactory.PublishCommentDeletedAsync(db, broadcaster, comment, user, ct);
             return Results.NoContent();
         }).RequireAuth();
@@ -102,7 +102,7 @@ internal static class CommentEndpoints
             var user = http.CurrentUser();
 
             // Own-or-admin-level: Administrator or AgentAdministrator may edit
-            // another user's comment, matching the MCP update_comment tool (#275 / #243).
+            // another user's comment, matching the MCP update_comment tool.
             if (comment.UserId != user.Id && !McpAuthService.IsAdminLevel(user))
             {
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
@@ -121,7 +121,7 @@ internal static class CommentEndpoints
             comment.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
             await db.SaveChangesAsync(ct);
 
-            // comment.updated — same single board bell, plus one webhook event. (#329.)
+            // comment.updated — same single board bell, plus one webhook event.
             await WebhookEventFactory.PublishCommentUpdatedAsync(db, broadcaster, comment, user, ct);
             return Results.Ok(comment);
         }).RequireAuth();

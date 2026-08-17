@@ -15,8 +15,6 @@ public class ArchiveGuardTests(CollaboardApiFactory factory) : IClassFixture<Col
 
     private static JsonSerializerOptions JsonOptions => TestAuthHelper.JsonOptions;
 
-    // --- Card mutations ---
-
     [Fact]
     public async Task PatchCard_OnArchivedCard_Returns400()
     {
@@ -70,8 +68,6 @@ public class ArchiveGuardTests(CollaboardApiFactory factory) : IClassFixture<Col
         var body = await response.Content.ReadAsStringAsync();
         body.ShouldContain("Use archive_card to archive cards");
     }
-
-    // --- Comment mutations ---
 
     [Fact]
     public async Task PostComment_OnArchivedCard_Returns400()
@@ -129,8 +125,6 @@ public class ArchiveGuardTests(CollaboardApiFactory factory) : IClassFixture<Col
         body.ShouldContain("Archived cards cannot be modified");
     }
 
-    // --- Label mutations ---
-
     [Fact]
     public async Task PostLabel_OnArchivedCard_Returns400()
     {
@@ -169,8 +163,6 @@ public class ArchiveGuardTests(CollaboardApiFactory factory) : IClassFixture<Col
         var body = await response.Content.ReadAsStringAsync();
         body.ShouldContain("Archived cards cannot be modified");
     }
-
-    // --- Attachment mutations ---
 
     [Fact]
     public async Task PostAttachment_OnArchivedCard_Returns400()
@@ -211,8 +203,6 @@ public class ArchiveGuardTests(CollaboardApiFactory factory) : IClassFixture<Col
         body.ShouldContain("Archived cards cannot be modified");
     }
 
-    // --- NOT guarded ---
-
     [Fact]
     public async Task DownloadAttachment_OnArchivedCard_Returns200()
     {
@@ -245,8 +235,6 @@ public class ArchiveGuardTests(CollaboardApiFactory factory) : IClassFixture<Col
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
     }
-
-    // --- Helpers ---
 
     private async Task<Guid> GetFirstLaneIdAsync()
         => await TestDataHelper.GetFirstLaneIdAsync(_client, _factory.DefaultBoardId);
@@ -310,8 +298,6 @@ public class ArchiveGuardTests(CollaboardApiFactory factory) : IClassFixture<Col
         var json = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         return json.GetProperty("id").GetGuid();
     }
-
-    // --- Archive lane bypass guards ---
 
     [Fact]
     public async Task CreateCard_InArchiveLane_Returns400()

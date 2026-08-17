@@ -44,8 +44,8 @@ public class CollaboardApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
             builder.UseEnvironment(EnvironmentName);
         }
 
-        // ConnectionStrings:Board is required configuration with no fallback
-        // (#233 G-3b); Program.cs hard-fails at host-build time if it is unset.
+        // ConnectionStrings:Board is required configuration with no fallback;
+        // Program.cs hard-fails at host-build time if it is unset.
         // That eager read happens before ConfigureServices swaps in the shared
         // in-memory connection, so the value must be visible to
         // builder.Configuration — i.e. injected via UseSetting, not
@@ -101,10 +101,10 @@ public class CollaboardApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
             });
 
             // Remove the webhook dispatcher hosted service by default. It queries WebhookSubscriptions
-            // on every drained card event (Webhooks:Enabled defaults true, #326 — IsConfigured no
+            // on every drained card event (Webhooks:Enabled defaults true — IsConfigured no
             // longer gates on a configured endpoint), and the WAF's single shared in-memory SQLite
             // connection is not concurrency-safe across threads — that background query races a test
-            // thread's card SaveChanges under suite load (the S50 "a BackgroundService must do no DB
+            // thread's card SaveChanges under suite load (the "a BackgroundService must do no DB
             // work the test thread can race" discipline, extended from startup to per-drain work).
             // The webhook DELIVERY tests opt back in via WebhookDeliveryFactory (RunDispatcher).
             var dispatcher = services.SingleOrDefault(d =>
