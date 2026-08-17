@@ -504,8 +504,19 @@ public sealed class WebhookDeliveryTests
 
     private static async Task<CapturedRequest> WaitForOneRequestAsync(CapturingHttpMessageHandler handler)
     {
-        await WaitUntilAsync(() => handler.RequestCount >= 1);
-        return handler.Requests[0];
+        // Await the dispatcher's actual delivery rather than polling a wall clock — the capture
+        // signals the instant the POST lands, so a loaded runner can no longer beat a fixed deadline
+        // (the flake this replaces). The timeout is a backstop against a genuine non-delivery hang,
+        // not a race deadline: on success the wait ends in milliseconds.
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        try
+        {
+            return await handler.WaitForNextRequestAsync(cts.Token);
+        }
+        catch (OperationCanceledException ex)
+        {
+            throw new TimeoutException("Expected a webhook delivery POST to be captured within 30s, but none arrived.", ex);
+        }
     }
 
     private static async Task<int> CountDeliveryAttemptsAsync(WebhookDeliveryFactory factory)
@@ -524,22 +535,4 @@ public sealed class WebhookDeliveryTests
                 .ToListAsync();
     }
 
-    // Poll until the condition holds or a generous timeout elapses (the running dispatcher polls
-    // the queue every 500ms; a delivery POST is captured well inside this window). Used by the
-    // end-to-end (RunDispatcher = true) tests that assert on the capturing handler.
-    private static async Task WaitUntilAsync(Func<bool> condition, int timeoutMs = 10_000)
-    {
-        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
-        while (DateTime.UtcNow < deadline)
-        {
-            if (condition())
-            {
-                return;
-            }
-
-            await Task.Delay(50);
-        }
-
-        condition().ShouldBeTrue("condition not met within timeout");
-    }
 }

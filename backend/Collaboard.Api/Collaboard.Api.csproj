@@ -21,7 +21,23 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.5" />
+    <!-- Transitive pin: EF Core's Sqlite provider pulls SQLitePCLRaw.lib.e_sqlite3 2.1.11,
+         whose bundled SQLite is 3.49.1 — before the 3.50.2 fix for a memory-corruption bug
+         (High, CVE-2025-6965). 2.1.13 is the same-line native-binary build carrying SQLite
+         3.53.3; it drops in against the 2.1.11 managed provider (the native e_sqlite3 C ABI
+         is stable across the line) and clears the advisory. Reachable only via attacker-shaped
+         SQL text, of which there is none (two constant PRAGMAs), so this is scan hygiene.
+         A direct reference is the pinning mechanism in the absence of Central Package Management.
+         https://github.com/advisories/GHSA-2m69-gcr7-jv3q -->
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.13" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.5" />
+    <!-- Transitive pin: Microsoft.AspNetCore.OpenApi pulls Microsoft.OpenApi 2.0.0, whose reader
+         stack-overflows on a circular schema reference (High, CVE-2026-49451). Collaboard only
+         generates OpenAPI and MapOpenApi is registered Development-only, so the parser is never
+         reached — this pin clears the advisory from the release scan. A direct reference is the
+         pinning mechanism here in the absence of Central Package Management.
+         https://github.com/advisories/GHSA-v5pm-xwqc-g5wc -->
+    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
     <PackageReference Include="ModelContextProtocol" Version="1.1.0" />
     <PackageReference Include="ModelContextProtocol.AspNetCore" Version="1.1.0" />
     <PackageReference Include="Ulid" Version="1.4.1" />

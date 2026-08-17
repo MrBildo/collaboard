@@ -134,7 +134,7 @@ Shipped as managed assemblies alongside the executable.
 - `Microsoft.Extensions.ServiceDiscovery.Abstractions` 10.4.0 — MIT — © Microsoft Corporation. All rights reserved.
 - `Microsoft.Extensions.Telemetry` 10.4.0 — MIT — © Microsoft Corporation. All rights reserved.
 - `Microsoft.Extensions.Telemetry.Abstractions` 10.4.0 — MIT — © Microsoft Corporation. All rights reserved.
-- `Microsoft.OpenApi` 2.0.0 — MIT — © Microsoft Corporation. All rights reserved.
+- `Microsoft.OpenApi` 2.7.5 — MIT — © Microsoft Corporation. All rights reserved.
 - `ModelContextProtocol` 1.1.0 — Apache-2.0 — © Model Context Protocol a Series of LF Projects, LLC.
 - `ModelContextProtocol.AspNetCore` 1.1.0 — Apache-2.0 — © Model Context Protocol a Series of LF Projects, LLC.
 - `ModelContextProtocol.Core` 1.1.0 — Apache-2.0 — © Model Context Protocol a Series of LF Projects, LLC.
@@ -151,7 +151,7 @@ Shipped as managed assemblies alongside the executable.
 - `Polly.RateLimiting` 8.4.2 — BSD-3-Clause — Copyright (c) 2024, App vNext
 - `SQLitePCLRaw.bundle_e_sqlite3` 2.1.11 — Apache-2.0 — Copyright 2014-2024 SourceGear, LLC
 - `SQLitePCLRaw.core` 2.1.11 — Apache-2.0 — Copyright 2014-2024 SourceGear, LLC
-- `SQLitePCLRaw.lib.e_sqlite3` 2.1.11 — Apache-2.0 — Copyright 2014-2024 SourceGear, LLC
+- `SQLitePCLRaw.lib.e_sqlite3` 2.1.13 — Apache-2.0 — Copyright 2014-2024 SourceGear, LLC
 - `SQLitePCLRaw.provider.e_sqlite3` 2.1.11 — Apache-2.0 — Copyright 2014-2024 SourceGear, LLC
 - `Ulid` 1.4.1 — MIT — © Cysharp, Inc.
 
@@ -202,7 +202,7 @@ Compiled into the JavaScript served from `wwwroot`.
 - `@tanstack/react-query-persist-client` 5.90.24 — MIT — Copyright (c) 2021-present Tanner Linsley
 - `@ungap/structured-clone` 1.3.0 — ISC — Copyright (c) 2021, Andrea Giammarchi, @WebReflection
 - `@upsetjs/venn.js` 2.0.0 — MIT — Copyright (c) 2013 Ben Frederickson
-- `axios` 1.13.6 — MIT — Copyright (c) 2014-present Matt Zabriskie & Collaborators
+- `axios` 1.19.0 — MIT — Copyright (c) 2014-present Matt Zabriskie & Collaborators
 - `bail` 2.0.2 — MIT — Copyright (c) 2015 Titus Wormer <tituswormer@gmail.com>
 - `ccount` 2.0.1 — MIT — Copyright (c) 2015 Titus Wormer <tituswormer@gmail.com>
 - `char-regex` 1.0.2 — MIT — Copyright (c) 2019 Richie Bendall

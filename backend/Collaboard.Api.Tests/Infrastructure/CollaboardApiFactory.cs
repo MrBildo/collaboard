@@ -140,7 +140,14 @@ public class CollaboardApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
 
     public new async Task DisposeAsync()
     {
-        await _connection.DisposeAsync();
+        // Stop the host — and every hosted BackgroundService — BEFORE disposing the shared
+        // connection. The dispatcher and sweep services run DB work against this one connection;
+        // disposing it while a service is mid-SaveChanges throws "Collection was modified" out of
+        // the connection's own command bookkeeping. Base disposal awaits hosted-service shutdown,
+        // so once it returns nothing can still touch the connection. (Disposing the connection first
+        // was a latent teardown race, rare until a test proceeds to disposal the instant delivery
+        // lands — before the dispatcher has finished persisting its attempt row.)
         await base.DisposeAsync();
+        await _connection.DisposeAsync();
     }
 }
