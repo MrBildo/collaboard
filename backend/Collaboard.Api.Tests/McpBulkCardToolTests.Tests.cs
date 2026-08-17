@@ -53,6 +53,12 @@ public class McpBulkCardToolTests(CollaboardApiFactory factory) : IClassFixture<
     private static int _nextLanePosition = 70_000;
     private static int NextLanePosition() => Interlocked.Increment(ref _nextLanePosition);
 
+    // Card numbers are unique per board. A monotonic counter guarantees distinct values; a random
+    // pick collided on the (BoardId, Number) index at ~0.2% per 50-card seed (birthday paradox),
+    // which read as an intermittent CI failure on unchanged code.
+    private static int _nextCardNumber = 500_000;
+    private static int NextCardNumber() => Interlocked.Increment(ref _nextCardNumber);
+
     // Each test gets its own board so broadcast counts and card-state assertions
     // are isolated from the shared default board and from parallel siblings.
     private async Task<TestBoard> CreateBoardAsync(BoardDbContext db)
@@ -85,7 +91,7 @@ public class McpBulkCardToolTests(CollaboardApiFactory factory) : IClassFixture<
             LaneId = laneId ?? board.LaneId,
             SizeId = board.SizeId,
             Name = "Fixture Card",
-            Number = Random.Shared.Next(100_000, 999_999),
+            Number = NextCardNumber(),
             Position = 0,
             CreatedByUserId = adminId,
             CreatedAtUtc = now,
