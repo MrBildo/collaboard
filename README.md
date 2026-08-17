@@ -442,6 +442,39 @@ dotnet publish backend/Collaboard.Api/Collaboard.Api.csproj \
   -o publish/
 ```
 
+### Releasing
+
+Releases are cut from `main` with the `/release` skill — it waits for CI, creates
+the GitHub Release, and monitors the publish workflow that builds and uploads the
+per-platform archives. The runtime those archives bundle is not decided at cut
+time; it is a pinned dependency, maintained on its own cadence below.
+
+#### Bumping the bundled .NET runtime
+
+Each release archive is a self-contained publish that carries the entire .NET
+runtime, so the runtime version is **pinned** — by `<RuntimeFrameworkVersion>` in
+`backend/Collaboard.Api/Collaboard.Api.csproj` — rather than floating to whatever
+runtime the build SDK happens to ship. Pinning makes a tag rebuild to the same
+runtime and makes a servicing update a deliberate, reviewed change. Two records
+track that one version: the pin, and `THIRD-PARTY-NOTICES.md`, which names the
+runtime pack it redistributes. They must move together, so one script does both:
+
+```bash
+scripts/bump-runtime.sh 10.0.12    # the new .NET servicing version to pin
+```
+
+It rewrites the pin, regenerates the notices inventory from a real self-contained
+publish and the frontend bundle, verifies the result against the same check CI
+runs, and leaves exactly those two files changed. Review the diff, then open a
+one-commit PR (`build:`). Run it in a Linux-like shell (Linux, macOS, or WSL) with
+`dotnet`, `npm`, and `jq` on `PATH` — the toolchain the release build uses.
+
+**When to bump:** the `publish-contract` CI check compares the pinned runtime
+against Microsoft's current servicing release on every PR and goes **red when the
+pin has fallen behind** — that red is the prompt. .NET servicing releases are
+roughly monthly and usually carry security fixes, so keeping the pin current is the
+point; the gate makes falling behind visible instead of silent.
+
 ## Credits
 
 Collaboard is built by a human-AI collaborative team. The bots are autonomous AI agents on the Collabot platform — they design, write code, review each other's work, and ship features alongside their human teammate.

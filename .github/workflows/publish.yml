@@ -134,6 +134,10 @@ jobs:
       # keeps the no-runtime-needed property; dropping single-file removes the
       # runtime native-lib self-extraction step entirely, which is the precondition
       # that fails under hardened/read-only-cwd hosting (Collaboard #231).
+      #
+      # The bundled runtime version is not floating: it is pinned by
+      # RuntimeFrameworkVersion in Collaboard.Api.csproj (bumped via
+      # scripts/bump-runtime.sh), so a tag rebuilds to the same runtime it shipped.
       - name: Publish
         env:
           VER: ${{ needs.extract-version.outputs.version }}

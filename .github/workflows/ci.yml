@@ -169,12 +169,12 @@ jobs:
       # the whole check -- fetch, parse, compare -- rather than deferring it to a
       # release the way a publish-only step would.
       #
-      # The build deliberately floats ("latest 10.0.x") rather than pinning, which
-      # tracks servicing in lockstep (setup-dotnet installs the latest patch SDK,
-      # whose self-contained publish bundles the co-released runtime). The exact
-      # runtime is recorded inside every archive (deps.json, and the notices file),
-      # so a published archive is self-identifying; this check is what turns
-      # "current because that is what the SDK gave us" into "current, and verified."
+      # The build pins the runtime (RuntimeFrameworkVersion in Collaboard.Api.csproj),
+      # so a rebuild from a given source revision reproduces the same runtime and a
+      # servicing update is a deliberate, reviewed change rather than one that lands
+      # silently. This check reads what the publish ACTUALLY bundled (deps.json, not
+      # the csproj declaration) and fails if the pin has fallen behind the current
+      # servicing release -- the prompt to run scripts/bump-runtime.sh.
       - name: Check .NET runtime currency
         run: |
           bash scripts/check-runtime-currency.sh \
