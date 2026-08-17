@@ -3,7 +3,7 @@
 # publishes, from the two artifacts that actually determine what a release archive
 # contains:
 #
-#   * the server's `dotnet publish` dependency manifest (Collaboard.Api.deps.json)
+#   * the server's `dotnet publish` dependency manifest (Collabot.Collattice.Api.deps.json)
 #   * the browser bundle's sourcemaps (which npm packages contributed code to the
 #     JavaScript Vite emitted into wwwroot)
 #
@@ -452,7 +452,7 @@ license_text_sections() {
     BSD-2-Clause) echo "BSD 2-Clause License" ;;
     BSD-3-Clause) echo "BSD 3-Clause License" ;;
     Apache-2.0)   echo "Apache License 2.0" ;;
-    # dompurify is offered under either license. Collaboard receives and
+    # dompurify is offered under either license. Collattice receives and
     # redistributes it under Apache-2.0, so the document owes two things: the
     # section recording which arm was taken, and the Apache-2.0 text it points
     # at. Naming both here is what stops the dual entry from being discharged by
