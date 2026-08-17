@@ -1,4 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <!-- Pin the .NET runtime this project's self-contained publish bundles into
+         every release archive. The archive carries the entire runtime, so an
+         operator runs whatever version we packaged and cannot patch it from their
+         own machine; pinning (rather than floating to whatever runtime the build
+         SDK happens to ship) makes a rebuild from a given source revision produce
+         the same runtime, and turns a servicing update into a deliberate, reviewed
+         change instead of one that lands silently. This one value drives both the
+         base runtime and the ASP.NET Core shared-framework packs. Bump it with
+         scripts/bump-runtime.sh, which rewrites this line and regenerates
+         THIRD-PARTY-NOTICES.md together; the CI runtime-currency gate goes red
+         when it falls behind the current .NET servicing release. -->
+    <RuntimeFrameworkVersion>10.0.11</RuntimeFrameworkVersion>
+  </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="DiffPlex" Version="1.9.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.5" />

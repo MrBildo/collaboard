@@ -11,15 +11,15 @@
 # the runtime pack the publish BUNDLES, so the runtime sits outside every other
 # check we run.
 #
-# The build floats ("latest 10.0.x" via setup-dotnet) rather than pinning a
-# version, which tracks .NET servicing releases in lockstep -- setup-dotnet
-# installs the latest patch SDK, whose self-contained publish bundles the
-# co-released runtime. That is a good default for staying current, but "current
-# because that is what the SDK happened to hand us" is not the same as "current,
-# and we checked." This is the check. It reads the runtime the build ACTUALLY
-# produced -- from deps.json, which is ground truth about what ships, not a
-# declaration of intent -- and compares it to Microsoft's published latest-runtime
-# for that channel.
+# The build PINS the runtime (RuntimeFrameworkVersion in Collaboard.Api.csproj)
+# rather than floating to whatever the build SDK ships, so a rebuild from a given
+# source revision reproduces the same runtime and a servicing update is a
+# deliberate, reviewed change. That makes staying current a choice the team makes
+# rather than one the SDK makes for it -- which is why this check exists. It reads
+# the runtime the build ACTUALLY produced -- from deps.json, which is ground truth
+# about what ships, not the csproj's declaration of intent -- and compares it to
+# Microsoft's published latest-runtime for that channel, so the pin cannot fall
+# behind a servicing (often security) release without the gate going red.
 #
 # It is meant to run on a real representative publish in pull-request CI, so a
 # green PR proves the whole check -- fetch, parse, compare -- rather than deferring
@@ -178,10 +178,10 @@ if [[ "${verdict}" == "behind" ]]; then
   echo "check-runtime-currency: the self-contained archive would ship a .NET runtime" >&2
   echo "behind the current servicing release, which typically carries security fixes." >&2
   echo "Because the archive bundles the runtime, operators receive whatever we package" >&2
-  echo "-- they cannot patch it themselves. Rebuild against the current SDK (setup-dotnet" >&2
-  echo "with the latest ${CHANNEL}.x installs it), or, if the SDK's default runtime is" >&2
-  echo "lagging the servicing release, pin <RuntimeFrameworkVersion>${LATEST}</RuntimeFrameworkVersion>" >&2
-  echo "on the publish until the SDK catches up." >&2
+  echo "-- they cannot patch it themselves. Bump the pin to the current release with" >&2
+  echo "  scripts/bump-runtime.sh ${LATEST}" >&2
+  echo "which rewrites <RuntimeFrameworkVersion> in Collaboard.Api.csproj and regenerates" >&2
+  echo "THIRD-PARTY-NOTICES.md together, then open that one-commit PR." >&2
   exit 1
 fi
 
