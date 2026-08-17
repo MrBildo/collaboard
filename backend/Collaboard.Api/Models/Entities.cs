@@ -128,7 +128,7 @@ public class CardAttachment
 public record CardLabelSummary(Guid Id, string Name, string? Color);
 
 // Lane-scan projection of a card's most-recent comment, so a consumer can spot
-// an unaddressed operator ruling without a second per-card fetch (#274).
+// an unaddressed operator ruling without a second per-card fetch.
 // LastUpdatedAtUtc is the comment's only timestamp — set on create, bumped on edit —
 // so an edited comment correctly surfaces as the latest activity.
 public record LatestCommentSummary

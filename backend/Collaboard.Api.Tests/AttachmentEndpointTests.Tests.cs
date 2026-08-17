@@ -117,7 +117,7 @@ public class AttachmentEndpointTests(CollaboardApiFactory factory) : IClassFixtu
     public async Task PostAttachment_SixMb_OverMcpCapUnderRestCap_Succeeds()
     {
         // Arrange — 6MB exceeds the 5MB MCP cap but is well under the 50MB REST cap;
-        // the REST path must accept it (the doc'd 5MB-MCP / 50MB-REST split, #265).
+        // the REST path must accept it (the doc'd 5MB-MCP / 50MB-REST split).
         var cardId = await CreateCardAsync();
         TestAuthHelper.SetAdminAuth(_client, _factory);
         var sixMb = new byte[6 * 1024 * 1024];
@@ -193,9 +193,9 @@ public class AttachmentEndpointTests(CollaboardApiFactory factory) : IClassFixtu
     public async Task GetAttachment_Unauthenticated_Returns401()
     {
         // Arrange — a real attachment exists; the auth gate must fire before it is served.
-        // This locks the documented posture (#296): GET /attachments/{id} requires auth.
+        // This locks the documented posture: GET /attachments/{id} requires auth.
         // The endpoint is consumed only via the authenticated download path, never a
-        // browser-native <img> tag, so the SSE-unauth precedent (#217) does not apply.
+        // browser-native <img> tag, so the SSE-unauth precedent does not apply.
         var cardId = await CreateCardAsync();
         var attachmentId = await UploadAttachmentAsync(cardId);
         _client.DefaultRequestHeaders.Remove("X-User-Key");

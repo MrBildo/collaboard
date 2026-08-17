@@ -16,8 +16,6 @@ public class ArchiveLaneTests(CollaboardApiFactory factory) : IClassFixture<Coll
 
     private static JsonSerializerOptions JsonOptions => TestAuthHelper.JsonOptions;
 
-    // --- Seeded board has archive lane (hidden from listings) ---
-
     [Fact]
     public async Task GetLanes_ExcludesArchiveLane()
     {
@@ -113,8 +111,6 @@ public class ArchiveLaneTests(CollaboardApiFactory factory) : IClassFixture<Coll
         cardIds.ShouldNotContain(archivedCardId);
     }
 
-    // --- New board gets archive lane ---
-
     [Fact]
     public async Task CreateBoard_AutoCreatesArchiveLane()
     {
@@ -141,8 +137,6 @@ public class ArchiveLaneTests(CollaboardApiFactory factory) : IClassFixture<Coll
         deleteResponse.StatusCode.ShouldBe(HttpStatusCode.NoContent);
     }
 
-    // --- Lane create rejects int.MaxValue position ---
-
     [Fact]
     public async Task CreateLane_RejectsMaxValuePosition()
     {
@@ -159,8 +153,6 @@ public class ArchiveLaneTests(CollaboardApiFactory factory) : IClassFixture<Coll
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
-
-    // --- Lane update rejects int.MaxValue position ---
 
     [Fact]
     public async Task PatchLane_RejectsMaxValuePosition()
@@ -187,8 +179,6 @@ public class ArchiveLaneTests(CollaboardApiFactory factory) : IClassFixture<Coll
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
-    // --- Archive lane cannot be deleted ---
-
     [Fact]
     public async Task DeleteArchiveLane_Returns400()
     {
@@ -209,8 +199,6 @@ public class ArchiveLaneTests(CollaboardApiFactory factory) : IClassFixture<Coll
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
-
-    // --- Archive lane cannot be modified ---
 
     [Fact]
     public async Task PatchArchiveLane_Returns400()
@@ -236,8 +224,6 @@ public class ArchiveLaneTests(CollaboardApiFactory factory) : IClassFixture<Coll
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
-    // --- Board deletion works when only archive lane remains ---
-
     [Fact]
     public async Task DeleteBoard_WithOnlyArchiveLane_Succeeds()
     {
@@ -259,8 +245,6 @@ public class ArchiveLaneTests(CollaboardApiFactory factory) : IClassFixture<Coll
         var getResponse = await _client.GetAsync($"/api/v1/boards/{boardId}");
         getResponse.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
-
-    // --- Board deletion with archived cards returns count ---
 
     [Fact]
     public async Task DeleteBoard_WithArchivedCards_ReturnsCount()
@@ -316,8 +300,6 @@ public class ArchiveLaneTests(CollaboardApiFactory factory) : IClassFixture<Coll
         json.GetProperty("archivedCardsDeleted").GetInt32().ShouldBe(2);
     }
 
-    // --- Get lane by ID still works for archive lanes ---
-
     [Fact]
     public async Task GetLaneById_ArchiveLane_Returns200()
     {
@@ -341,8 +323,6 @@ public class ArchiveLaneTests(CollaboardApiFactory factory) : IClassFixture<Coll
         lane.GetProperty("name").GetString().ShouldBe("Archive");
         lane.GetProperty("position").GetInt32().ShouldBe(int.MaxValue);
     }
-
-    // --- Helpers ---
 
     private async Task<Guid> GetArchiveLaneIdAsync(Guid boardId)
     {

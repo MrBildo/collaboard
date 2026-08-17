@@ -9,7 +9,7 @@ namespace Collaboard.Api.Endpoints;
 //   3. default  — the board's lowest-ordinal size
 //
 // Folds the triplicated MCP ResolveSizeAsync (CardTools + BulkCardTools) and gives
-// REST card-create the by-name capability it previously lacked (#267 D2/D4). The
+// REST card-create the by-name capability it previously lacked. The
 // error message is bare (no "Error: " prefix) so each front door applies its own
 // idiom: REST maps it to Results.BadRequest verbatim; MCP prefixes "Error: " at the
 // call site, matching the rest of the MCP surface. Callers that always supply an

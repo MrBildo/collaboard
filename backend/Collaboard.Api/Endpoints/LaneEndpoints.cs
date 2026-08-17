@@ -37,12 +37,12 @@ internal static class LaneEndpoints
             db.Lanes.Add(lane);
             await db.SaveChangesAsync(ct);
 
-            // lane.created — same single board bell, plus one webhook event. (#329.)
+            // lane.created — same single board bell, plus one webhook event.
             await WebhookEventFactory.PublishLaneCreatedAsync(db, broadcaster, lane, http.CurrentUser(), ct);
             return Results.Created($"/api/v1/lanes/{lane.Id}", lane);
         }).RequireAdminOrAgentAdmin();
 
-        // Card #277: whole-board lane reorder. Client sends the complete desired
+        // Whole-board lane reorder. Client sends the complete desired
         // left-to-right order of the board's non-archive lanes; server owns all
         // position math (two-phase renumber under the unique (BoardId, Position)
         // index — see LaneReorderHelper).
@@ -62,7 +62,7 @@ internal static class LaneEndpoints
             var ordered = await LaneReorderHelper.ReorderAsync(db, lanes!, request.LaneIds!, ct);
 
             // lane.reordered — ONE event carrying the board's full new order (never N), same single
-            // board bell the reorder always rang. (#329, #277 coalesce contract.)
+            // board bell the reorder always rang.
             await WebhookEventFactory.PublishLaneReorderedAsync(db, broadcaster, boardId, http.CurrentUser(), ct);
             return Results.Ok(ordered);
         }).RequireAdminOrAgentAdmin();
@@ -96,7 +96,7 @@ internal static class LaneEndpoints
             await db.SaveChangesAsync(ct);
 
             // lane.deleted — published from the captured lane after the row is gone; the board still
-            // exists, so the slug resolves. (#329.)
+            // exists, so the slug resolves.
             await WebhookEventFactory.PublishLaneDeletedAsync(db, broadcaster, lane, http.CurrentUser(), ct);
             return Results.NoContent();
         }).RequireAdminOrAgentAdmin();
@@ -114,7 +114,7 @@ internal static class LaneEndpoints
                 return Results.BadRequest("Archive lanes cannot be modified.");
             }
 
-            // Capture the pre-mutation values for the per-axis no-op guard (#329).
+            // Capture the pre-mutation values for the per-axis no-op guard.
             var oldName = lane.Name;
             var oldPosition = lane.Position;
 
@@ -147,7 +147,7 @@ internal static class LaneEndpoints
 
             await db.SaveChangesAsync(ct);
 
-            // Split by axis (#329): a name change → lane.renamed; a position change → lane.reordered
+            // Split by axis: a name change → lane.renamed; a position change → lane.reordered
             // (the board's full new order). Both can co-fire from one PATCH; PublishCoalesced rings
             // EXACTLY ONE SSE bell (byte-for-byte unchanged) and enqueues one webhook per changed axis.
             var nameChanged = request.Name is not null && request.Name != oldName;

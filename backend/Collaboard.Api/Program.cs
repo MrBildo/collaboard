@@ -27,7 +27,7 @@ if (args.Contains("--version"))
 
 // Installer-invoked subcommand: merge a freshly-shipped appsettings.json against the operator's
 // on-disk file (preserve edits, refresh untouched defaults, add new keys). Runs before any host
-// setup so this path never touches the database, the host, or the network (#235).
+// setup so this path never touches the database, the host, or the network.
 if (args.Length > 0 && args[0] == "--merge-appsettings")
 {
     Environment.Exit(AppSettingsMergeCli.Run(args[1..], Console.Out, Console.Error));
@@ -37,9 +37,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 // WebApplication.CreateBuilder adds an env-var provider at builder-construction time. The
 // re-add below ensures env vars sit at the top of the provider chain even if a future JSON
-// source is added after construction (ConfigPrecedenceTests locks the ordering). Post-#235
+// source is added after construction (ConfigPrecedenceTests locks the ordering). The
 // resolved precedence: env (Section__Key) > appsettings.json > hardcoded default — the
-// .Local.json overlay channel was retired by #235.
+// .Local.json overlay channel was retired.
 builder.Configuration.AddEnvironmentVariables();
 
 // Listen-address dual-pattern: `urls` / `ASPNETCORE_URLS` wins (Aspire dev, hosting-injected,
@@ -87,9 +87,9 @@ builder.Services.AddCors(options =>
 // configuration with no fallback; an absolute path is required. Misconfiguration
 // fails loud and early here, naming the key and the offending value, rather than
 // degrading to a cwd-relative guess that lands unpredictably under a hardened
-// deployment (#233). Each actionable failure carries a copy-paste-ready remedy in
+// deployment. Each actionable failure carries a copy-paste-ready remedy in
 // both forms a user might use — environment variable and appsettings.json — so a
-// manual-download user can fix it in one step (#233 follow-up, updated by #235).
+// manual-download user can fix it in one step.
 static string ExampleDbConnectionString() =>
     OperatingSystem.IsWindows()
         ? @"Data Source=C:\collaboard\data\collaboard.db"
@@ -106,7 +106,7 @@ static string ConfigRemedy()
           - Environment variable:
               ConnectionStrings__Board={{example}}
 
-          - appsettings.json (next to the executable; edits survive upgrades via #235 smart-merge):
+          - appsettings.json (next to the executable; edits survive upgrades via the smart-merge):
               {
                 "ConnectionStrings": {
                   "Board": "{{jsonValue}}"
@@ -172,7 +172,7 @@ builder.Services.Configure<AttachmentSettings>(builder.Configuration.GetSection(
 builder.Services.Configure<TempCardSweepSettings>(builder.Configuration.GetSection(TempCardSweepSettings.SectionName));
 builder.Services.AddHttpContextAccessor();
 
-// Webhooks (#320) — the in-memory sink the broadcaster's typed Publish path enqueues to;
+// Webhooks — the in-memory sink the broadcaster's typed Publish path enqueues to;
 // the dispatcher drains it. Registered as IWebhookSink (the durable-outbox swap-point) AND
 // as the concrete WebhookQueue so the dispatcher can drain via TryDequeue. Both resolve the
 // same singleton instance.
@@ -180,7 +180,7 @@ builder.Services.AddSingleton<WebhookQueue>();
 builder.Services.AddSingleton<IWebhookSink>(sp => sp.GetRequiredService<WebhookQueue>());
 builder.Services.AddSingleton<BoardEventBroadcaster>();
 
-// Webhook delivery (#320): the dispatcher (a singleton BackgroundService) drains the queue and
+// Webhook delivery: the dispatcher (a singleton BackgroundService) drains the queue and
 // hands each enriched event to IWebhookSender — a typed HttpClient behind a seam (mirroring the
 // UpdateCheck ILatestVersionSource shape) so the HTTP send is stubbable in tests and the slow-
 // GitHub timeout pattern carries over. The sender serializes once, signs (HMAC) when a secret is
@@ -208,14 +208,14 @@ builder.Services
     })
     .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
     {
-        // #326 SSRF floor controls 3-4: refuse redirects (a 302-to-internal would walk around the
+        // SSRF floor controls 3-4: refuse redirects (a 302-to-internal would walk around the
         // IP checks) and pin every connection to a validated IP (the DNS-rebind defense). The
         // allowPrivate flag is read from the startup-bound settings so it agrees with the store's
-        // registration validator (S2).
+        // registration validator.
         AllowAutoRedirect = false,
         ConnectCallback = SsrfGuard.CreateConnectCallback(webhookSettings.AllowPrivateNetworkTargets),
     })
-    // #326 — opt this client OUT of ServiceDefaults' standard resilience handler. AddServiceDefaults
+    // Opt this client OUT of ServiceDefaults' standard resilience handler. AddServiceDefaults
     // wires AddStandardResilienceHandler onto EVERY typed client via ConfigureHttpClientDefaults; for
     // webhook delivery that handler is both redundant and harmful. Redundant: WebhookDispatcherService
     // already owns the bounded retry loop (its MaxAttempts loop is the single retry authority), so the
@@ -229,21 +229,21 @@ builder.Services
     .RemoveAllResilienceHandlers();
 #pragma warning restore EXTEXP0001
 
-// #326 — the shared CRUD/validation core both the REST endpoints and MCP tools delegate to, so the
+// The shared CRUD/validation core both the REST endpoints and MCP tools delegate to, so the
 // SSRF validation and the write-only-secret projection are un-bypassable. WebhookTester is the
 // shared test-delivery (ping) seam both surfaces delegate to — it dials through the same
 // SSRF-guarded IWebhookSender, so a ping cannot bypass the delivery guard.
 builder.Services.AddScoped<WebhookSubscriptionStore>();
 builder.Services.AddScoped<WebhookTester>();
 builder.Services.AddHostedService<WebhookDispatcherService>();
-// #326 D4 — ages out old WebhookDeliveryAttempt rows (Webhooks:DeliveryLogRetentionDays; dormant
+// Ages out old WebhookDeliveryAttempt rows (Webhooks:DeliveryLogRetentionDays; dormant
 // when 0). The catalog × subscription fan-out makes the log grow faster than v1's single endpoint.
 builder.Services.AddHostedService<WebhookDeliveryLogSweepService>();
 builder.Services.AddScoped<IUserResolver, UserResolver>();
 builder.Services.AddScoped<McpAuthService>();
 builder.Services.AddHostedService<TempCardSweepService>();
 
-// Update check (#303): a single backend poll of the GitHub Releases API per instance feeds a
+// Update check: a single backend poll of the GitHub Releases API per instance feeds a
 // server-side cache that the /version/status endpoint reads. The kill switch
 // (UpdateCheck:Enabled = false) gates the hosted service off entirely so no outbound call is
 // ever made. The cache is a singleton (shared between the writer hosted service and the reader
@@ -257,8 +257,8 @@ builder.Services
         // The unauthenticated GitHub REST API requires a User-Agent and an explicit API
         // version header. The client owns its own short timeout so a slow GitHub never holds
         // up the poll loop (the timer cadence, not retries, governs re-checks).
-        // api.github.com is the fixed egress target; the mirror/Source seam is deferred to
-        // spec §4 A2. S1075 is suppressed here because the URL is deliberate and correct.
+        // api.github.com is the fixed egress target; the mirror/Source seam is deferred.
+        // S1075 is suppressed here because the URL is deliberate and correct.
 #pragma warning disable S1075 // URIs should not be hardcoded
         client.BaseAddress = new Uri("https://api.github.com/");
 #pragma warning restore S1075
@@ -286,7 +286,7 @@ builder.Services
     .WithToolsFromAssembly()
     .WithRequestFilters(filters =>
     {
-        // #202: Default SDK behaviour swallows non-McpException tool failures
+        // Default SDK behaviour swallows non-McpException tool failures
         // as "An error occurred invoking '<tool>'." with no detail — a typo'd
         // parameter name then drives multi-step false-alarm investigations.
         // McpErrorTranslator.WrapForCallTool catches the input-validation
@@ -367,7 +367,7 @@ await using (var scope = app.Services.CreateAsyncScope())
             new Lane { Id = Guid.NewGuid(), BoardId = defaultBoard.Id, Name = "Done", Position = 2 }
         );
 
-        // Welcome sample card — install-only first-run onboarding (card #294). A real,
+        // Welcome sample card — install-only first-run onboarding. A real,
         // openable card in Backlog that teaches how a card works (markdown body + a
         // label in situ), explicitly a deletable sample. Install-only by design: a
         // programmatic create_board (used by admins/agents who already know the
@@ -421,7 +421,7 @@ await using (var scope = app.Services.CreateAsyncScope())
         app.Logger.LogInformation("Admin auth key: {AuthKey}", admin.AuthKey);
     }
 
-    // #326 — migrate the v1 single configured webhook endpoint into the subscription registry on
+    // Migrate the v1 single configured webhook endpoint into the subscription registry on
     // first v2 boot. DELIBERATELY independent of the !Users.AnyAsync() fresh-install block above:
     // production already has users, so reusing that gate would never fire on upgrade and would
     // silently drop the working prod webhook. Gated instead on an empty subscription table.
@@ -476,7 +476,7 @@ api.MapGet("/version", (HttpContext context) =>
     return Results.Ok(new { version });
 });
 
-// #303: current-vs-latest update status. Served from the server-side cache the
+// Current-vs-latest update status. Served from the server-side cache the
 // UpdateCheckService refreshes out-of-band — never blocks on a live GitHub call. Kept as a
 // separate endpoint from /version so the existing /version contract (consumed by tooling)
 // stays unchanged. Unauthenticated, consistent with /version: the running version is already

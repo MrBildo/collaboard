@@ -11,7 +11,7 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// Card #277: the reorder_lanes MCP tool. The tool is a thin wrapper over the
+// The reorder_lanes MCP tool. The tool is a thin wrapper over the
 // same LaneReorderHelper the REST endpoint uses, so this file focuses on the
 // MCP-specific surface (CSV parsing, the admin-level role gate, the "Error: …"
 // loud-failure shape) plus the two correctness properties that matter on both

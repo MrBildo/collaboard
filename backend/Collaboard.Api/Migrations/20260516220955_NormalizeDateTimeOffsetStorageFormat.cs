@@ -7,7 +7,7 @@ namespace Collaboard.Api.Migrations;
 /// <inheritdoc />
 public partial class NormalizeDateTimeOffsetStorageFormat : Migration
 {
-    // #234: DateTimeOffset columns now persist via a value converter that
+    // DateTimeOffset columns now persist via a value converter that
     // writes the round-trippable "O" UTC format (T-separated). Rows written
     // before this change used the SQLite provider's default format
     // (space-separated). Both parse back correctly, but the get_cards `since`

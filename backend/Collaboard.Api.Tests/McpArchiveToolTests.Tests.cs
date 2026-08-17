@@ -152,14 +152,14 @@ public class McpArchiveToolTests(CollaboardApiFactory factory) : IClassFixture<C
         result.ShouldContain("Use archive_card to archive cards.");
     }
 
-    // ── update_card to archive lane → error (REST/MCP parity, #322) ───────────
+    // ── update_card to archive lane → error (REST/MCP parity) ───────────
 
     [Fact]
     public async Task UpdateCard_ToArchiveLane_ReturnsErrorAndDoesNotMove()
     {
         // Arrange — update_card must reject an archive-lane target just like move_card
         // and REST PATCH /cards/{id} do; otherwise it's a back-door archive that also
-        // emits a wrong card.moved webhook event (#322).
+        // emits a wrong card.moved webhook event.
         var (db, _, cardTools, _, _, _, _, authKey) = CreateAllTools();
         var laneId = await GetFirstLaneIdAsync(db);
         var archiveLaneId = await GetArchiveLaneIdAsync(db);

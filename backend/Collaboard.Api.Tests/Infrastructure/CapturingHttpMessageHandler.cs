@@ -5,11 +5,11 @@ using System.Threading.Channels;
 namespace Collaboard.Api.Tests.Infrastructure;
 
 // A stub HttpMessageHandler that captures every outbound webhook POST (method, URI, headers,
-// the EXACT raw body bytes) and returns a programmable response. The Phase 2 webhook delivery
+// the EXACT raw body bytes) and returns a programmable response. The webhook delivery
 // tests point the dispatcher's typed HttpClient at this so they assert on the precise bytes and
 // headers sent — no real socket, no flake. The raw body is captured ONCE per request so the
 // HMAC-signature round-trip can run both the signature-check and the body-assert against the
-// SAME captured array (D3 — the footgun hides in re-serializing the parsed body). (#320.)
+// SAME captured array (the footgun hides in re-serializing the parsed body).
 public sealed class CapturingHttpMessageHandler : HttpMessageHandler
 {
     private readonly ConcurrentQueue<CapturedRequest> _requests = new();
@@ -24,7 +24,7 @@ public sealed class CapturingHttpMessageHandler : HttpMessageHandler
     // (e.g. scenario 8: 500 until exhausted, then 200 on a fresh create).
     public HttpStatusCode ResponseStatusCode { get; set; } = HttpStatusCode.OK;
 
-    // Optional per-request-URI status selector (#326 fan-out isolation tests — one subscription's
+    // Optional per-request-URI status selector (fan-out isolation tests — one subscription's
     // URL returns 500 while another returns 200). When set it overrides ResponseStatusCode.
     public Func<Uri?, HttpStatusCode>? ResponseSelector { get; set; }
 

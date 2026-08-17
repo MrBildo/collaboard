@@ -8,7 +8,7 @@ using ModelContextProtocol.Server;
 
 namespace Collaboard.Api.Mcp;
 
-// Card #243 Phase 3: admin-level MCP tools for lane CRUD. Mirrors the REST
+// Admin-level MCP tools for lane CRUD. Mirrors the REST
 // surface in LaneEndpoints.cs (POST /boards/{boardId}/lanes, PATCH /lanes/{id},
 // DELETE /lanes/{id}). All three gate via RequireAdminLevelAsync.
 [McpServerToolType]
@@ -50,7 +50,7 @@ public sealed class LaneTools(BoardDbContext db, McpAuthService auth, BoardEvent
         db.Lanes.Add(lane);
         await db.SaveChangesAsync(ct);
 
-        // lane.created — REST/MCP emit the identical event through the shared factory. (#329.)
+        // lane.created — REST/MCP emit the identical event through the shared factory.
         await WebhookEventFactory.PublishLaneCreatedAsync(db, broadcaster, lane, user!, ct);
         return JsonSerializer.Serialize(lane, JsonSerializerOptions.Web);
     }
@@ -83,7 +83,7 @@ public sealed class LaneTools(BoardDbContext db, McpAuthService auth, BoardEvent
             return "Error: Archive lanes cannot be modified.";
         }
 
-        // Capture the pre-mutation values for the per-axis no-op guard (#329).
+        // Capture the pre-mutation values for the per-axis no-op guard.
         var oldName = lane.Name;
         var oldPosition = lane.Position;
 
@@ -116,7 +116,7 @@ public sealed class LaneTools(BoardDbContext db, McpAuthService auth, BoardEvent
 
         await db.SaveChangesAsync(ct);
 
-        // Split by axis (#329): name → lane.renamed; position → lane.reordered (board's full new
+        // Split by axis: name → lane.renamed; position → lane.reordered (board's full new
         // order). Co-fire through PublishCoalesced — one SSE bell, identical to the REST PATCH.
         var nameChanged = name is not null && name != oldName;
         var positionChanged = position is not null && position.Value != oldPosition;
@@ -168,7 +168,7 @@ public sealed class LaneTools(BoardDbContext db, McpAuthService auth, BoardEvent
         var ordered = await LaneReorderHelper.ReorderAsync(db, lanes!, ids, ct);
 
         // lane.reordered — ONE event carrying the board's full new order (never N), same single board
-        // bell the reorder always rang, identical to the REST reorder. (#329, #277 coalesce contract.)
+        // bell the reorder always rang, identical to the REST reorder.
         await WebhookEventFactory.PublishLaneReorderedAsync(db, broadcaster, boardId, user!, ct);
         return JsonSerializer.Serialize(ordered, JsonSerializerOptions.Web);
     }
@@ -208,7 +208,7 @@ public sealed class LaneTools(BoardDbContext db, McpAuthService auth, BoardEvent
         await db.SaveChangesAsync(ct);
 
         // lane.deleted — published from the captured lane after the row is gone; REST/MCP identical
-        // through the shared factory. (#329.)
+        // through the shared factory.
         await WebhookEventFactory.PublishLaneDeletedAsync(db, broadcaster, lane, user!, ct);
         return "Lane deleted.";
     }

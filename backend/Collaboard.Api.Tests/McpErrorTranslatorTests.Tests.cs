@@ -5,7 +5,7 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// #202 — Allowlist-policy unit tests for the McpErrorTranslator. End-to-end
+// Allowlist-policy unit tests for the McpErrorTranslator. End-to-end
 // wiring (CallToolFilter → McpException → SDK wrapper) is exercised by
 // McpServerErrorWrapperTests; this file owns the allowlist decision matrix.
 public class McpErrorTranslatorTests

@@ -15,9 +15,9 @@ public class ServeSpaTests
 
     // Default ServeSpa=true is not positively assertable here: no SPA bundle is built
     // into wwwroot in the test host, so MapFallbackToFile has no index.html to serve and
-    // returns 404 — indistinguishable from the route-absent 404. Spec §3.9.2 explicitly
+    // returns 404 — indistinguishable from the route-absent 404. The design explicitly
     // accepts parity-with-today: the full existing suite (all green under default
-    // ServeSpa=true) is the default-behavior-preserved guarantee (acceptance #1). These
+    // ServeSpa=true) is the default-behavior-preserved guarantee. These
     // tests pin the deterministic half — the ServeSpa=false headless contract.
 
     [Fact]

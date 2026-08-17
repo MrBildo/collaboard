@@ -35,7 +35,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         // MCP create_card takes a laneId and derives the board from it; the shared
         // helper is board-scoped, so resolve the lane's board up front. Lane-not-found
         // keeps the MCP wording here; archive-lane / size / name validation lives in
-        // the shared CardCreateHelper both surfaces route through (#267 D2).
+        // the shared CardCreateHelper both surfaces route through.
         var lane = await db.Lanes.FirstOrDefaultAsync(l => l.Id == laneId, ct);
         if (lane is null)
         {
@@ -61,7 +61,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
 
         // The webhook fan-out already rings the SSE bell (the typed event downsamples to the
         // same "board-updated" signal), so a separate board broadcast here would double-ring
-        // SSE. (#320 — don't double-broadcast.)
+        // SSE.
         await WebhookEventFactory.PublishCardCreatedAsync(db, broadcaster, card!, user!, ct);
         var summaries = await CardSummaryBuilder.BuildAsync(db, [card!], ct);
         return JsonSerializer.Serialize(summaries[0], JsonSerializerOptions.Web);
@@ -119,7 +119,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         }
 
         // Snapshot source lane/position BEFORE MoveCardToLaneAsync mutates + renumbers
-        // both lanes (#320). sourceLane is resolved above (the archive-lane guard).
+        // both lanes. sourceLane is resolved above (the archive-lane guard).
         var fromPosition = card.Position;
 
         var resolvedIndex = await CardReorderHelper.MoveCardToLaneAsync(db, card, laneId, index, ct);
@@ -181,7 +181,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         }
 
         // Snapshot the content axes BEFORE mutating, so card.updated fires only on a real
-        // change (#329 — the per-axis no-op guard).
+        // change (the per-axis no-op guard).
         var oldName = card.Name;
         var oldDescription = card.DescriptionMarkdown;
         var oldSizeId = card.SizeId;
@@ -215,7 +215,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         }
 
         // Lane move: if laneId provided, move card to that lane with optional index.
-        // card.moved fires only on a real lane change (#320 — the coverage rule: a
+        // card.moved fires only on a real lane change (the coverage rule: a
         // size/label/name-only update raises no move event). Snapshot source lane/position
         // before MoveCardToLaneAsync mutates + renumbers both lanes.
         Lane? moveFromLane = null;
@@ -232,7 +232,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
 
             // Block moving TO an archive lane — archiving must go through archive_card.
             // Mirrors move_card and REST PATCH /cards/{id}; without it update_card was a
-            // back-door archive that also emitted a wrong card.moved webhook event (#322).
+            // back-door archive that also emitted a wrong card.moved webhook event.
             if (targetLane.IsArchiveLane)
             {
                 return "Use archive_card to archive cards.";
@@ -249,7 +249,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
         }
 
         // Label replace: diff against current assignments. The added/removed sets drive
-        // card.labeled / card.unlabeled (#329 — one event per add/remove).
+        // card.labeled / card.unlabeled (one event per add/remove).
         List<Guid> addedLabelIds = [];
         List<Guid> removedLabelIds = [];
         if (labelIds is not null)
@@ -299,7 +299,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
 
         await CardHistoryHelper.SaveWithRevisionRetryAsync(db, descriptionChange, ct);
 
-        // Multi-axis co-fire (#329): one webhook event per changed axis (content / lane /
+        // Multi-axis co-fire: one webhook event per changed axis (content / lane /
         // labels), all riding ONE coalesced SSE bell. Routed through the shared factory seam so
         // REST PATCH and update_card emit the identical event set by construction. Size is a
         // content axis here (alongside name/description); compare post-resolution.
@@ -348,7 +348,7 @@ public sealed class CardTools(BoardDbContext db, McpAuthService auth, BoardEvent
 
         // Board scope + temp exclusion + archive-lane exclusion via the shared helper
         // REST's GET /cards already uses — the same 3-clause exclusion both surfaces
-        // must keep identical (#267 D3).
+        // must keep identical.
         var query = CardQueryHelper.BoardCards(db.Cards, db.Lanes, boardId, includeArchived is true);
 
         if (laneId.HasValue)

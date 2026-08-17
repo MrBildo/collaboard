@@ -325,8 +325,8 @@ public class SearchEndpointTests(CollaboardApiFactory factory) : IClassFixture<C
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
-    // ── Over-limit priority (#276): the current board's non-archived matches must win
-    //    the limit budget BEFORE the cut, not after — the case #198's under-limit tests
+    // ── Over-limit priority: the current board's non-archived matches must win
+    //    the limit budget BEFORE the cut, not after — the case earlier under-limit tests
     //    never exercised. ──
 
     [Fact]
@@ -370,7 +370,7 @@ public class SearchEndpointTests(CollaboardApiFactory factory) : IClassFixture<C
     [Fact]
     public async Task SearchCards_OverLimit_AllNonArchivedCurrentBoardMatchesPrecedeOtherBoards()
     {
-        // Arrange — Bill's binding contract: no other-board card outranks any
+        // Arrange — the binding contract: no other-board card outranks any
         // non-archived current-board match, even when total matches exceed the limit.
         TestAuthHelper.SetAdminAuth(_client, _factory);
         const string term = "OverLimitPrecede_Wkz852";
@@ -422,7 +422,7 @@ public class SearchEndpointTests(CollaboardApiFactory factory) : IClassFixture<C
     [Fact]
     public async Task SearchCards_OverLimit_ArchivedCurrentBoardCardsDoNotDisplaceNonArchivedMatches()
     {
-        // Arrange — the #276 Bug-1 side-effect fix: archived current-board cards must not
+        // Arrange — the side-effect fix: archived current-board cards must not
         // consume the limit budget ahead of non-archived matches (their own or others').
         // archiveBoardId names the priority board so its archived cards are eligible to
         // appear — but they must rank behind the priority board's non-archived matches.

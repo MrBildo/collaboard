@@ -13,7 +13,7 @@ namespace Collaboard.Api.Endpoints;
 // input — so the caller resolves labels its own way and passes the validated list.
 //
 // Promoted from a file-scoped helper in CardEndpoints to its own internal static
-// file (#267 D2) so the MCP assembly can route through it, on the PruneFilter /
+// file so the MCP assembly can route through it, on the PruneFilter /
 // CardQueryHelper precedent. The return channel is the neutral (CardItem?, string?)
 // idiom (McpLabelParsing / McpCardResolver). The error message is bare (no "Error: "
 // prefix) so each front door applies its own idiom: REST maps the string? error to

@@ -57,7 +57,7 @@ internal static class AttachmentEndpoints
             db.Attachments.Add(attachment);
             await db.SaveChangesAsync(ct);
 
-            // attachment.created — metadata only, same single board bell plus one webhook. (#329.)
+            // attachment.created — metadata only, same single board bell plus one webhook.
             await WebhookEventFactory.PublishAttachmentCreatedAsync(db, broadcaster, attachment, http.CurrentUser(), ct);
             return Results.Created($"/api/v1/cards/{id}/attachments/{attachment.Id}", new { attachment.Id, attachment.FileName });
         }).DisableAntiforgery().RequireAuth();
@@ -84,7 +84,7 @@ internal static class AttachmentEndpoints
             var user = http.CurrentUser();
 
             // Own-or-admin-level: Administrator or AgentAdministrator may delete
-            // another user's attachment, matching the MCP delete_attachment tool (#266 / #243).
+            // another user's attachment, matching the MCP delete_attachment tool.
             if (attachment.AddedByUserId != user.Id && !McpAuthService.IsAdminLevel(user))
             {
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
@@ -93,7 +93,7 @@ internal static class AttachmentEndpoints
             db.Attachments.Remove(attachment);
             await db.SaveChangesAsync(ct);
 
-            // attachment.deleted — published from the captured attachment after the row is gone. (#329.)
+            // attachment.deleted — published from the captured attachment after the row is gone.
             await WebhookEventFactory.PublishAttachmentDeletedAsync(db, broadcaster, attachment, user, ct);
             return Results.NoContent();
         }).RequireAuth();

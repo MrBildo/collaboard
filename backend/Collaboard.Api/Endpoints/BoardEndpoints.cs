@@ -51,7 +51,7 @@ internal static class BoardEndpoints
             await db.SaveChangesAsync(ct);
 
             // board.created — WEBHOOK-ONLY: enqueue straight to the sink, NO board bell (board CRUD
-            // has no SSE broadcast, so the SSE wire stays byte-for-byte unchanged). (#329.)
+            // has no SSE broadcast, so the SSE wire stays byte-for-byte unchanged).
             WebhookEventFactory.PublishBoardCreated(sink, board, http.CurrentUser());
             return Results.Created($"/api/v1/boards/{board.Id}", board);
         }).RequireAdminOrAgentAdmin();
@@ -79,7 +79,7 @@ internal static class BoardEndpoints
             await db.SaveChangesAsync(ct);
 
             // board.renamed — WEBHOOK-ONLY (no board bell), only on an actual name change (no-op
-            // guard; the slug is immutable so a rename is the board's only mutation). (#329.)
+            // guard; the slug is immutable so a rename is the board's only mutation).
             if (request.Name is not null && request.Name != oldName)
             {
                 WebhookEventFactory.PublishBoardRenamed(sink, board, http.CurrentUser());
@@ -107,7 +107,7 @@ internal static class BoardEndpoints
             await db.SaveChangesAsync(ct);
 
             // board.deleted — WEBHOOK-ONLY (no board bell), enqueued from the captured board after the
-            // row is gone (state at occurrence; the event is self-contained). (#329.)
+            // row is gone (state at occurrence; the event is self-contained).
             WebhookEventFactory.PublishBoardDeleted(sink, board, http.CurrentUser());
             return archivedCardsDeleted > 0 ? Results.Ok(new { deleted = true, archivedCardsDeleted }) : Results.NoContent();
         }).RequireAdmin();
@@ -122,7 +122,7 @@ internal static class BoardEndpoints
 
             var lanes = await db.Lanes.Where(x => x.BoardId == boardId && !x.IsArchiveLane).OrderBy(x => x.Position).ToListAsync();
 
-            // Composite view reuses the paginated cards-query path with no limit (#162): same
+            // Composite view reuses the paginated cards-query path with no limit: same
             // board scope, temp/archive exclusion, and canonical ordering as GET /cards.
             var cardsQuery = CardQueryHelper.BoardCards(db.Cards, db.Lanes, boardId, includeArchived: false);
             var rawCards = await CardQueryHelper.OrderForBoard(cardsQuery).ToListAsync();

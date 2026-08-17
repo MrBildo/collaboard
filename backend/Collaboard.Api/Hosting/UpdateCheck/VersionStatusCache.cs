@@ -2,7 +2,7 @@ using System.Reflection;
 
 namespace Collaboard.Api.Hosting.UpdateCheck;
 
-// Server-side cache for the update check (#303 §3). The hosted service refreshes this
+// Server-side cache for the update check. The hosted service refreshes this
 // out-of-band on its timer; the /version/status endpoint reads from it and never blocks on a
 // live GitHub call. Single-writer (only UpdateCheckService writes) / many-reader (request
 // threads), so a volatile reference swap of an immutable snapshot is sufficient — readers

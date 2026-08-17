@@ -7,7 +7,7 @@ namespace Collaboard.Api.Persistence;
 // for every property it maps so the storage shape stays uniform model-wide.
 internal static class ValueConverters
 {
-    // #234: SQLite's default DateTimeOffset mapping cannot be translated when the comparison appears
+    // SQLite's default DateTimeOffset mapping cannot be translated when the comparison appears
     // in a nested query position (correlated sub-query, set operation), which broke the get_cards
     // `since` activity filter. Storing DateTimeOffset as a normalized-UTC round-trippable ISO-8601
     // string keeps the column TEXT (no column-type migration) while making `>=` a plain string

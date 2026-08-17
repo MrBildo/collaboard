@@ -11,7 +11,7 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// Card #243 Phase 3: the 11 new admin-level MCP tools (lane/label/size CRUD +
+// The 11 new admin-level MCP tools (lane/label/size CRUD +
 // board create/update). Each tool gates via McpAuthService.RequireAdminLevelAsync,
 // which admits Administrator and AgentAdministrator but rejects HumanUser and
 // AgentUser. This file exercises:
@@ -99,9 +99,7 @@ public class McpAdminToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         return card;
     }
 
-    // ---------------------------------------------------------------------
     // create_lane
-    // ---------------------------------------------------------------------
 
     [Theory]
     [InlineData(UserRole.Administrator)]
@@ -155,9 +153,7 @@ public class McpAdminToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         result.ShouldBe("Error: Board not found.");
     }
 
-    // ---------------------------------------------------------------------
     // update_lane
-    // ---------------------------------------------------------------------
 
     [Theory]
     [InlineData(UserRole.Administrator)]
@@ -221,9 +217,7 @@ public class McpAdminToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         result.ShouldBe(_adminPrivilegeError);
     }
 
-    // ---------------------------------------------------------------------
     // delete_lane
-    // ---------------------------------------------------------------------
 
     [Theory]
     [InlineData(UserRole.Administrator)]
@@ -291,9 +285,7 @@ public class McpAdminToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         (await db.Lanes.FindAsync(laneId)).ShouldNotBeNull();
     }
 
-    // ---------------------------------------------------------------------
     // create_label / update_label / delete_label
-    // ---------------------------------------------------------------------
 
     [Theory]
     [InlineData(UserRole.Administrator)]
@@ -405,9 +397,7 @@ public class McpAdminToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         (await db.Labels.FindAsync(labelId)).ShouldNotBeNull();
     }
 
-    // ---------------------------------------------------------------------
     // create_size / update_size / delete_size
-    // ---------------------------------------------------------------------
 
     [Theory]
     [InlineData(UserRole.Administrator)]
@@ -522,9 +512,7 @@ public class McpAdminToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         (await db.CardSizes.FindAsync(sizeId)).ShouldNotBeNull();
     }
 
-    // ---------------------------------------------------------------------
     // create_board / update_board
-    // ---------------------------------------------------------------------
 
     [Theory]
     [InlineData(UserRole.Administrator)]
