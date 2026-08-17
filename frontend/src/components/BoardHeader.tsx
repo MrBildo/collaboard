@@ -1,4 +1,5 @@
 import { BoardSwitcher } from '@/components/BoardSwitcher';
+import { CollatticeLogo } from '@/components/CollatticeLogo';
 import { GearMenu } from '@/components/GearMenu';
 import { SearchCommand } from '@/components/SearchCommand';
 import { Button } from '@/components/ui/button';
@@ -42,7 +43,7 @@ export function BoardHeader({
           can page-center without overlapping the logo/switcher. */}
       <div className="flex flex-1 items-center gap-x-3">
         {/* Logo — shrink-0 so it never clips */}
-        <img src="/collaboard-logo.svg" alt="Collaboard" className="w-32 shrink-0 xs:w-48" />
+        <CollatticeLogo className="w-32 shrink-0 xs:w-48" />
         {/* Board switcher — always inline */}
         {boards.length > 1 && (
           <div className="shrink min-w-0">
