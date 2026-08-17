@@ -70,7 +70,7 @@ public sealed class WebhookDeliveryTests
         {
             Timeout = settings.Value.DeliveryTimeout,
         };
-        httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Collaboard-Webhooks");
+        httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Collattice-Webhooks");
         var sender = new HttpWebhookSender(httpClient);
 
         var delivered = 0;
@@ -104,9 +104,9 @@ public sealed class WebhookDeliveryTests
         request.Method.ShouldBe("POST");
         request.Uri!.ToString().ShouldBe(_testEndpoint);
         request.Headers["Content-Type"].ShouldStartWith("application/json");
-        request.Headers["User-Agent"].ShouldContain("Collaboard-Webhooks");
-        request.Headers["X-Collaboard-Event"].ShouldBe("card.created");
-        request.Headers.ContainsKey("X-Collaboard-Signature").ShouldBeFalse();   // no secret → unsigned
+        request.Headers["User-Agent"].ShouldContain("Collattice-Webhooks");
+        request.Headers["X-Collattice-Event"].ShouldBe("card.created");
+        request.Headers.ContainsKey("X-Collattice-Signature").ShouldBeFalse();   // no secret → unsigned
 
         var wire = JsonDocument.Parse(request.Body).RootElement;
         wire.GetProperty("event").GetString().ShouldBe("card.created");
@@ -114,8 +114,8 @@ public sealed class WebhookDeliveryTests
         wire.GetProperty("actor").GetProperty("role").GetString().ShouldBe("Administrator");
         wire.GetProperty("data").GetProperty("card").GetProperty("name").GetString().ShouldBe("Delivered Card");
 
-        // X-Collaboard-Delivery-Id == the envelope eventId (dedup correlation).
-        request.Headers["X-Collaboard-Delivery-Id"].ShouldBe(wire.GetProperty("eventId").GetString());
+        // X-Collattice-Delivery-Id == the envelope eventId (dedup correlation).
+        request.Headers["X-Collattice-Delivery-Id"].ShouldBe(wire.GetProperty("eventId").GetString());
     }
 
     // ── Scenario 6: dark by default — no Endpoint → no outbound calls, no rows ────
@@ -175,7 +175,7 @@ public sealed class WebhookDeliveryTests
 
         var request = await WaitForOneRequestAsync(factory.Handler);
 
-        var signature = request.Headers["X-Collaboard-Signature"];
+        var signature = request.Headers["X-Collattice-Signature"];
         signature.ShouldStartWith("sha256=");
 
         // The footgun guard: recompute HMAC over the SAME captured raw bytes the handler received
@@ -199,7 +199,7 @@ public sealed class WebhookDeliveryTests
         response.EnsureSuccessStatusCode();
 
         var request = await WaitForOneRequestAsync(factory.Handler);
-        request.Headers.ContainsKey("X-Collaboard-Signature").ShouldBeFalse();
+        request.Headers.ContainsKey("X-Collattice-Signature").ShouldBeFalse();
     }
 
     // ── Scenario 8: retry + persisted attempts + loud drop; the mutation still succeeded ──

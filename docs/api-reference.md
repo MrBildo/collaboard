@@ -548,17 +548,17 @@ Every POST carries these headers (signed or not):
 | Header | Value |
 |--------|-------|
 | `Content-Type` | `application/json` |
-| `User-Agent` | `Collaboard-Webhooks` |
-| `X-Collaboard-Event` | The event type (`card.created`) — lets a consumer route without parsing the body. |
-| `X-Collaboard-Delivery-Id` | The `eventId`. The delivery id is the event id, so every retry of one event carries the same value (which is what you want for dedup). |
-| `X-Collaboard-Signature` | Present only when the subscription has a secret configured. |
+| `User-Agent` | `Collattice-Webhooks` |
+| `X-Collattice-Event` | The event type (`card.created`) — lets a consumer route without parsing the body. |
+| `X-Collattice-Delivery-Id` | The `eventId`. The delivery id is the event id, so every retry of one event carries the same value (which is what you want for dedup). |
+| `X-Collattice-Signature` | Present only when the subscription has a secret configured. |
 
 ### Signing
 
 When a subscription has a secret set, every delivery to it carries:
 
 ```
-X-Collaboard-Signature: sha256=<hex-lowercase-digest>
+X-Collattice-Signature: sha256=<hex-lowercase-digest>
 ```
 
 The digest is HMAC-SHA256 over the **exact raw bytes of the request body**, keyed by the shared secret. To verify, compute HMAC-SHA256 over the body you received (as received, before any re-parsing or re-serialization) with the same secret, and compare against the header value using a constant-time comparison. The `sha256=` prefix names the algorithm so a future scheme can change it without changing the header name.

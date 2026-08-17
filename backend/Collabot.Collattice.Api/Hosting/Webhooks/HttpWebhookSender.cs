@@ -36,17 +36,17 @@ internal sealed class HttpWebhookSender(HttpClient httpClient) : IWebhookSender
                 Content = content,
             };
 
-            // X-Collaboard-Event lets a consumer route without parsing the body. The delivery-id
+            // X-Collattice-Event lets a consumer route without parsing the body. The delivery-id
             // header carries the envelope eventId, so every retry of one event carries the same
             // dedup value.
-            request.Headers.TryAddWithoutValidation("X-Collaboard-Event", boardEvent.EventType);
-            request.Headers.TryAddWithoutValidation("X-Collaboard-Delivery-Id", boardEvent.EventId);
+            request.Headers.TryAddWithoutValidation("X-Collattice-Event", boardEvent.EventType);
+            request.Headers.TryAddWithoutValidation("X-Collattice-Delivery-Id", boardEvent.EventId);
 
             if (!string.IsNullOrWhiteSpace(target.Secret))
             {
                 request.Headers.TryAddWithoutValidation
                 (
-                    "X-Collaboard-Signature",
+                    "X-Collattice-Signature",
                     WebhookSigner.Sign(body, target.Secret)
                 );
             }
