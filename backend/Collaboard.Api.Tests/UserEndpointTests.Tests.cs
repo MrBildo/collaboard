@@ -247,8 +247,6 @@ public class UserEndpointTests(CollaboardApiFactory factory) : IClassFixture<Col
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
-    // --- /auth/me tests ---
-
     [Fact]
     public async Task GetAuthMe_AsAdmin_ReturnsCurrentUser()
     {

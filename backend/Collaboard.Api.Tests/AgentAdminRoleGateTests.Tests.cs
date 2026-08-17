@@ -46,9 +46,7 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         return client;
     }
 
-    // ---------------------------------------------------------------------
     // Lanes — POST, PATCH, DELETE all widen to AdminOrAgentAdmin.
-    // ---------------------------------------------------------------------
 
     [Theory]
     [InlineData(UserRole.Administrator, HttpStatusCode.Created)]
@@ -111,9 +109,7 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         response.StatusCode.ShouldBe(expected);
     }
 
-    // ---------------------------------------------------------------------
     // Labels — POST, PATCH, DELETE all widen to AdminOrAgentAdmin.
-    // ---------------------------------------------------------------------
 
     [Theory]
     [InlineData(UserRole.Administrator, HttpStatusCode.Created)]
@@ -176,9 +172,7 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         response.StatusCode.ShouldBe(expected);
     }
 
-    // ---------------------------------------------------------------------
     // Sizes — POST, PATCH, DELETE all widen to AdminOrAgentAdmin.
-    // ---------------------------------------------------------------------
 
     [Theory]
     [InlineData(UserRole.Administrator, HttpStatusCode.Created)]
@@ -241,9 +235,7 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         response.StatusCode.ShouldBe(expected);
     }
 
-    // ---------------------------------------------------------------------
     // Boards — POST and PATCH widen; DELETE stays strict.
-    // ---------------------------------------------------------------------
 
     [Theory]
     [InlineData(UserRole.Administrator, HttpStatusCode.Created)]
@@ -306,9 +298,7 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
-    // ---------------------------------------------------------------------
     // Prune — preview + action=archive widen; action=delete stays Administrator-only.
-    // ---------------------------------------------------------------------
 
     [Theory]
     [InlineData(UserRole.Administrator, HttpStatusCode.OK)]
@@ -388,9 +378,7 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
-    // ---------------------------------------------------------------------
     // Users — all admin user endpoints stay strict; AgentAdministrator is 403.
-    // ---------------------------------------------------------------------
 
     [Fact]
     public async Task PostUser_AsAgentAdministrator_Returns403()
@@ -472,11 +460,9 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
-    // ---------------------------------------------------------------------
     // Moderation — DELETE comment/attachment is own-or-admin-level (card #266).
     // AgentAdministrator may delete another user's content over REST, matching
     // the MCP delete_comment / delete_attachment tools. Plain non-owners cannot.
-    // ---------------------------------------------------------------------
 
     // Admin-level roles can delete a comment they did not author.
     [Theory]
@@ -546,9 +532,7 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
-    // ---------------------------------------------------------------------
     // Helpers
-    // ---------------------------------------------------------------------
 
     private async Task<Guid> CreateLaneAsAdminAsync(string namePrefix, int position)
     {

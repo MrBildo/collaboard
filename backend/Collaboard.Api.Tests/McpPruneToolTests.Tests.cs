@@ -129,9 +129,7 @@ public class McpPruneToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         return card;
     }
 
-    // ---------------------------------------------------------------------
     // prune_preview — role gate (positive: both admin roles)
-    // ---------------------------------------------------------------------
 
     [Theory]
     [InlineData(UserRole.Administrator)]
@@ -179,9 +177,7 @@ public class McpPruneToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         (await db.Cards.FindAsync(card.Id))!.LaneId.ShouldBe(laneId, "preview must not move cards");
     }
 
-    // ---------------------------------------------------------------------
     // prune — role gate (positive: both admin roles; archives, never deletes)
-    // ---------------------------------------------------------------------
 
     [Theory]
     [InlineData(UserRole.Administrator)]
@@ -240,9 +236,7 @@ public class McpPruneToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         (await db.Cards.FindAsync(unmatched.Id))!.LaneId.ShouldBe(otherLane.Id, "non-matching cards stay put");
     }
 
-    // ---------------------------------------------------------------------
     // Filter semantics — mirrored from REST PruneFilter
-    // ---------------------------------------------------------------------
 
     [Fact]
     public async Task Prune_NoFilter_ReturnsError()
@@ -315,9 +309,7 @@ public class McpPruneToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         JsonSerializer.Deserialize<JsonElement>(resultIncluded).GetProperty("matchCount").GetInt32().ShouldBe(2);
     }
 
-    // ---------------------------------------------------------------------
     // CSV / JSON-array GUID parsing + malformed rejection
-    // ---------------------------------------------------------------------
 
     [Fact]
     public async Task PrunePreview_JsonArrayLaneIds_Matches()
@@ -361,9 +353,7 @@ public class McpPruneToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         (await db.Cards.FindAsync(card.Id))!.LaneId.ShouldBe(laneId);
     }
 
-    // ---------------------------------------------------------------------
     // Non-UTC olderThan normalisation (#103 bonus fix)
-    // ---------------------------------------------------------------------
 
     [Fact]
     public async Task PrunePreview_NonUtcOlderThan_NormalisesToUtcBeforeComparing()
@@ -399,9 +389,7 @@ public class McpPruneToolTests(CollaboardApiFactory factory) : IClassFixture<Col
         JsonSerializer.Deserialize<JsonElement>(result).GetProperty("matchCount").GetInt32().ShouldBe(1);
     }
 
-    // ---------------------------------------------------------------------
     // Board existence
-    // ---------------------------------------------------------------------
 
     [Fact]
     public async Task PrunePreview_UnknownBoard_ReturnsError()
