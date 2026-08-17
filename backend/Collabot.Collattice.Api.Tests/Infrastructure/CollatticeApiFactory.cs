@@ -114,6 +114,20 @@ public class CollatticeApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
             {
                 services.Remove(dispatcher);
             }
+
+            // Same hazard, second source: the temp-card sweep runs an immediate startup sweep
+            // (a DB query) before entering its timer loop, so under suite load that startup query
+            // races a test thread's query on the single shared in-memory connection. WebhookDeliveryLogSweep
+            // avoids this by deferring its first sweep one interval; the temp-card sweep does not, so
+            // remove its hosted service here. Its logic is exercised directly through the static
+            // TempCardSweepService.SweepAsync in its own tests, so this costs no coverage.
+            var tempSweep = services.SingleOrDefault(d =>
+                d.ServiceType == typeof(IHostedService) &&
+                d.ImplementationType == typeof(TempCardSweepService));
+            if (tempSweep is not null)
+            {
+                services.Remove(tempSweep);
+            }
         });
     }
 

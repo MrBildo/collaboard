@@ -49,7 +49,10 @@ public class ArchiveLaneTests(CollatticeApiFactory factory) : IClassFixture<Coll
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         var json = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         var lanes = json.GetProperty("lanes");
-        lanes.GetArrayLength().ShouldBe(3);
+        var laneNames = lanes.EnumerateArray()
+            .Select(lane => lane.GetProperty("name").GetString())
+            .ToList();
+        lanes.GetArrayLength().ShouldBe(3, $"seed board composite lanes: [{string.Join(", ", laneNames)}]");
         foreach (var lane in lanes.EnumerateArray())
         {
             lane.GetProperty("isArchiveLane").GetBoolean().ShouldBeFalse();
@@ -157,11 +160,20 @@ public class ArchiveLaneTests(CollatticeApiFactory factory) : IClassFixture<Coll
     [Fact]
     public async Task PatchLane_RejectsMaxValuePosition()
     {
-        // Arrange
+        // Arrange — create the lane on a dedicated board, not the shared seed board.
+        // GetLanes_ExcludesArchiveLane / GetBoardComposite_ExcludesArchiveLane assert an
+        // exact lane count on DefaultBoardId, so adding a persistent lane there makes those
+        // reads depend on test-method ordering within the class.
         TestAuthHelper.SetAdminAuth(_client, _factory);
+        var boardName = $"PatchMaxVal Test {Guid.NewGuid()}";
+        var boardResponse = await _client.PostAsJsonAsync("/api/v1/boards", new { name = boardName });
+        boardResponse.EnsureSuccessStatusCode();
+        var board = await boardResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        var boardId = board.GetProperty("id").GetGuid();
+
         var createResponse = await _client.PostAsJsonAsync
         (
-            $"/api/v1/boards/{_factory.DefaultBoardId}/lanes",
+            $"/api/v1/boards/{boardId}/lanes",
             new { name = "PatchMaxVal", position = 600 }
         );
         createResponse.EnsureSuccessStatusCode();
