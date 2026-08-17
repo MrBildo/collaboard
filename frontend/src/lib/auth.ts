@@ -1,5 +1,5 @@
-const AUTH_KEY = 'collaboard-user-key';
-const LAST_BOARD_KEY = 'collaboard-last-board';
+const AUTH_KEY = 'collattice-user-key';
+const LAST_BOARD_KEY = 'collattice-last-board';
 
 export function findUserKey(): string | null {
   return localStorage.getItem(AUTH_KEY);

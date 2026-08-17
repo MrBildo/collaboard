@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Collattice"><rect width="64" height="64" rx="14" fill="#101725"/><g transform="translate(32 32) scale(0.78) rotate(45) translate(-32 -32)">
+<rect x="9" y="19.5" width="46" height="9" rx="4.5" fill="#ff9900"/>
+<rect x="9" y="35.5" width="46" height="9" rx="4.5" fill="#ff9900"/>
+<rect x="19.5" y="9" width="9" height="46" rx="4.5" fill="#00a2d6"/>
+<rect x="35.5" y="9" width="9" height="46" rx="4.5" fill="#00a2d6"/>
+<rect x="17" y="35.5" width="14" height="9" rx="4.5" fill="#ff9900"/>
+<rect x="33" y="19.5" width="14" height="9" rx="4.5" fill="#ff9900"/></g></svg>

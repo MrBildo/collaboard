@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
-const STORAGE_PREFIX = 'collaboard-lane-widths-';
+const STORAGE_PREFIX = 'collattice-lane-widths-';
 const MIN_LANE_WIDTH = 280;
 const HANDLE_HIT_WIDTH = 16; // px — invisible hit area width for drag handles
 

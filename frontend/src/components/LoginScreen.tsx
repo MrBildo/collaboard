@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { CollatticeLogo } from '@/components/CollatticeLogo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,7 +26,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
     <main className="flex min-h-screen items-center justify-center bg-background p-4 text-foreground">
       <div className="w-full max-w-sm rounded-xl border border-border bg-card p-8 shadow-lg">
         <div className="text-center">
-          <img src="/collaboard-logo.svg" alt="Collaboard" className="mx-auto w-80" />
+          <CollatticeLogo className="mx-auto w-80" />
           <p className="mt-3 text-sm text-muted-foreground">Enter your auth key to continue</p>
         </div>
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-const STORAGE_KEY = 'collaboard-comments-width';
+const STORAGE_KEY = 'collattice-comments-width';
 const DEFAULT_WIDTH = 340;
 const MIN_COMMENTS_WIDTH = 280;
 const MIN_DETAILS_WIDTH = 300;

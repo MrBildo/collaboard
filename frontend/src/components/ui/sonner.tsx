@@ -2,7 +2,7 @@ import { Toaster as Sonner, type ToasterProps } from 'sonner';
 import { CircleCheck, Info, TriangleAlert, OctagonX, Loader2 } from 'lucide-react';
 
 // Themed off the project's CSS custom properties rather than next-themes.
-// Collaboard switches light/dark via the `data-theme` attribute on the root
+// Collattice switches light/dark via the `data-theme` attribute on the root
 // element (see styles.css), and the --popover / --border / --foreground tokens
 // already cascade through that selector — so sonner inherits the correct theme
 // for free without a theme prop. This keeps the toast surface on the same

@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 
-const STORAGE_KEY_PREFIX = 'collaboard-collapsed-lanes-';
+const STORAGE_KEY_PREFIX = 'collattice-collapsed-lanes-';
 
 type CollapseMap = Record<string, boolean>;
 

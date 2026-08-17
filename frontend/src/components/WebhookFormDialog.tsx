@@ -198,7 +198,7 @@ function WebhookForm({ subscription, onDone }: WebhookFormProps) {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             className="font-mono text-xs"
-            placeholder="https://example.com/webhooks/collaboard"
+            placeholder="https://example.com/webhooks/collattice"
           />
           <p className="text-xs text-muted-foreground">
             <code className="font-mono">http</code>/<code className="font-mono">https</code> only.
