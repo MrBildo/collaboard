@@ -10,11 +10,11 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// Card #269: the MCP update_comment tool closes the gap where REST had
+// The MCP update_comment tool closes the gap where REST had
 // PATCH /comments/{id} but MCP could only add and delete a comment. These tests
-// exercise it by direct tool-class invocation (#206 convention): the canonical
-// contentMarkdown body param (#334 removed the deprecated `content` alias),
-// own-or-admin-level gating (mirrors delete_comment, #243 Phase 2), empty-content
+// exercise it by direct tool-class invocation: the canonical
+// contentMarkdown body param (the deprecated `content` alias was removed),
+// own-or-admin-level gating (mirrors delete_comment), empty-content
 // rejection, the archive freeze, and the JSON return shape.
 public class McpUpdateCommentToolTests(CollaboardApiFactory factory) : IClassFixture<CollaboardApiFactory>, IDisposable
 {
@@ -128,7 +128,7 @@ public class McpUpdateCommentToolTests(CollaboardApiFactory factory) : IClassFix
         var cardId = await CreateCardAsync(db, author);
         var commentId = await CreateCommentAsync(db, cardId, author);
 
-        // Act — assert against the JSON the caller actually sees (#206)
+        // Act — assert against the JSON the caller actually sees
         var result = await commentTools.UpdateCommentAsync(author.AuthKey, commentId, contentMarkdown: "json shape body");
 
         // Assert

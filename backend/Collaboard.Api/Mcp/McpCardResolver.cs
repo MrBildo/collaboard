@@ -6,7 +6,7 @@ namespace Collaboard.Api.Mcp;
 
 internal static class McpCardResolver
 {
-    // Card #196 / #243 Phase 5: bulk card-ref resolution for the bulk tools.
+    // Bulk card-ref resolution for the bulk tools.
     // Accepts the same CSV-XOR shape the bulk-tool contract specifies:
     //   cardIds (CSV of GUIDs)  XOR  cardNumbers (CSV) + boardId/boardSlug.
     // This is the Phase-1 pre-validation entry point — it fails loud with a

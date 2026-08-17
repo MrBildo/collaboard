@@ -25,7 +25,7 @@ namespace Collaboard.Api.Endpoints;
 // save).
 internal static class BoardSeeder
 {
-    // Starter labels seeded on every new board (card #294). Three is the minimal
+    // Starter labels seeded on every new board. Three is the minimal
     // set that makes the first card creatable with a label and the create-card
     // Labels section appear; names + colors mirror the team's conventional-commit
     // label convention (the `collaboard` skill). Single source of truth — both

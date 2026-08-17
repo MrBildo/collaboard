@@ -8,9 +8,9 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// Role-gate matrix coverage for the AgentAdministrator role (card #243, Phase 1).
+// Role-gate matrix coverage for the AgentAdministrator role.
 //
-// Role-gate behavior for card #243, Phase 1 — see the umbrella card for the per-endpoint disposition table.
+// Role-gate behavior: admin-level endpoints widen to AgentAdministrator; strict-admin endpoints stay Administrator-only.
 //
 // Each widened endpoint is exercised with three role classes:
 //   - Administrator         → expected success (status quo)
@@ -353,7 +353,7 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
     }
 
     // action=delete is rejected in-body for AgentAdministrator (the only
-    // in-body role check the design admits — see PruneEndpoints.cs for the enforcement and card #243 for the rationale).
+    // in-body role check the design admits — see PruneEndpoints.cs for the enforcement).
     [Fact]
     public async Task PruneDelete_AsAgentAdministrator_Returns403()
     {
@@ -473,7 +473,7 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
     }
 
     // ---------------------------------------------------------------------
-    // Moderation — DELETE comment/attachment is own-or-admin-level (card #266).
+    // Moderation — DELETE comment/attachment is own-or-admin-level.
     // AgentAdministrator may delete another user's content over REST, matching
     // the MCP delete_comment / delete_attachment tools. Plain non-owners cannot.
     // ---------------------------------------------------------------------

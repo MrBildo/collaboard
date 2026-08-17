@@ -11,7 +11,7 @@ namespace Collaboard.Api.Mcp;
 //
 // Default SDK behaviour: any non-McpException becomes the body-less
 // "An error occurred invoking '<tool>'." — useful for the server log, useless
-// for the bot trying to fix a typo (Collaboard #202; csharp-sdk issue #635).
+// for the bot trying to fix a typo.
 // McpException messages flow through as
 // "An error occurred invoking '<tool>': <Message>".
 //

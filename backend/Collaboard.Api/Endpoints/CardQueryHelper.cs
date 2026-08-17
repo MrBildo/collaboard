@@ -5,7 +5,7 @@ namespace Collaboard.Api.Endpoints;
 internal static class CardQueryHelper
 {
     // Board-scoped card query shared by the paginated /cards endpoint and the composite
-    // /board endpoint (#162). Applies the board scope, the temp-card exclusion, and —
+    // /board endpoint. Applies the board scope, the temp-card exclusion, and —
     // unless includeArchived is true — the archive-lane exclusion. Callers layer their
     // own optional filters (lane, since, label, search) and ordering/pagination on top.
     public static IQueryable<CardItem> BoardCards
@@ -30,11 +30,11 @@ internal static class CardQueryHelper
     }
 
     // Canonical card ordering: grouped by lane, then by intra-lane position. Shared so the
-    // paginated and composite paths return cards in the same order (#162).
+    // paginated and composite paths return cards in the same order.
     public static IOrderedQueryable<CardItem> OrderForBoard(IQueryable<CardItem> query) =>
         query.OrderBy(x => x.LaneId).ThenBy(x => x.Position);
 
-    // #234: "recent activity" = the card itself changed, OR it gained a
+    // "recent activity" = the card itself changed, OR it gained a
     // recent comment/attachment. The comment/attachment clauses are
     // correlated EXISTS sub-queries. These translate to SQL only because
     // the DateTimeOffset columns are stored as a sortable normalized-UTC

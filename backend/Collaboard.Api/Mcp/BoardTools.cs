@@ -11,7 +11,7 @@ namespace Collaboard.Api.Mcp;
 // Board create/update mirror the REST surface in BoardEndpoints.cs (board delete is intentionally
 // absent from MCP). board.created / board.renamed are WEBHOOK-ONLY: board CRUD has no SSE broadcast,
 // so they enqueue straight to IWebhookSink with no board bell, keeping the SSE wire byte-for-byte
-// unchanged (#329).
+// unchanged.
 [McpServerToolType]
 public sealed class BoardTools(BoardDbContext db, McpAuthService auth, IWebhookSink webhookSink)
 {
@@ -96,7 +96,7 @@ public sealed class BoardTools(BoardDbContext db, McpAuthService auth, IWebhookS
         return JsonSerializer.Serialize(sizes, JsonSerializerOptions.Web);
     }
 
-    // Card #243 Phase 3: admin-level board create/update. Mirrors the REST
+    // Admin-level board create/update. Mirrors the REST
     // surface in BoardEndpoints.cs (POST /boards, PATCH /boards/{id}). Both gate
     // via RequireAdminLevelAsync. Board delete is intentionally absent from MCP.
     [McpServerTool(Name = "create_board", Destructive = false)]
@@ -139,7 +139,7 @@ public sealed class BoardTools(BoardDbContext db, McpAuthService auth, IWebhookS
 
         await db.SaveChangesAsync(ct);
 
-        // board.created — WEBHOOK-ONLY (no board bell); REST/MCP enqueue the identical event. (#329.)
+        // board.created — WEBHOOK-ONLY (no board bell); REST/MCP enqueue the identical event.
         WebhookEventFactory.PublishBoardCreated(webhookSink, board, user!);
         return JsonSerializer.Serialize(board, JsonSerializerOptions.Web);
     }
@@ -149,7 +149,7 @@ public sealed class BoardTools(BoardDbContext db, McpAuthService auth, IWebhookS
     // This is deliberate: MCP tools operate on explicit intent — a rename call without a name
     // is always a mistake; REST allows partial-update no-ops as a general contract. Do not
     // "fix" the asymmetry — the two surfaces serve different callers and the difference is
-    // intentional per card #243 spec Part 2.
+    // intentional.
     [McpServerTool(Name = "update_board", Destructive = false)]
     [Description("Rename a board. Requires Administrator or AgentAdministrator role. Only the name can be changed; the slug is immutable. Name is required — a blank name is rejected.")]
     public async Task<string> UpdateBoardAsync
@@ -181,7 +181,7 @@ public sealed class BoardTools(BoardDbContext db, McpAuthService auth, IWebhookS
         board.Name = name;
         await db.SaveChangesAsync(ct);
 
-        // board.renamed — WEBHOOK-ONLY (no board bell), only on an actual name change. (#329.)
+        // board.renamed — WEBHOOK-ONLY (no board bell), only on an actual name change.
         if (name != oldName)
         {
             WebhookEventFactory.PublishBoardRenamed(webhookSink, board, user!);

@@ -10,8 +10,8 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// Cross-surface parity tests for the card-create write path (#267 D2/D4, #206
-// testing convention). Both front doors — REST POST /cards and the MCP create_card
+// Cross-surface parity tests for the card-create write path.
+// Both front doors — REST POST /cards and the MCP create_card
 // tool — now route through the shared CardCreateHelper + SizeResolver, so the same
 // invalid input must be rejected identically on both surfaces. These tests prove the
 // dedup preserved behavior and pin the formerly-divergent cases closed:
@@ -96,7 +96,7 @@ public class CardCreateParityTests(CollaboardApiFactory factory) : IClassFixture
         mcpResult.ShouldContain("Name is required");
 
         // Assert — the 400 BODY carries each surface's own idiom: REST returns the bare
-        // message (no "Error: " prefix — the pre-#252 REST contract); MCP keeps its
+        // message (no "Error: " prefix — the prior REST contract); MCP keeps its
         // "Error: ..." form. Pins the contract so the shared helper's MCP idiom can't
         // re-bleed into the REST body.
         var restBody = await restResponse.Content.ReadAsStringAsync();
@@ -171,7 +171,7 @@ public class CardCreateParityTests(CollaboardApiFactory factory) : IClassFixture
         var laneId = await GetFirstLaneIdAsync();
         var (_, tools, authKey) = CreateMcpTools();
 
-        // Act — REST now exposes sizeName on the create contract (ratified decision #1)
+        // Act — REST now exposes sizeName on the create contract
         var restResponse = await _client.PostAsJsonAsync
         (
             $"/api/v1/boards/{_factory.DefaultBoardId}/cards",

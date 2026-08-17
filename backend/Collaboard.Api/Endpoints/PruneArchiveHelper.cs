@@ -6,15 +6,15 @@ namespace Collaboard.Api.Endpoints;
 // Shared prune archive-loop orchestration for the REST PruneEndpoints and the MCP
 // PruneTools. PruneFilter already shares the match query; the mutation loop that
 // archives the matched cards (archive-lane lookup -> foreach MoveCardToLaneAsync ->
-// save) was duplicated across both surfaces (#267 D6). Extracted on the PruneFilter
+// save) was duplicated across both surfaces. Extracted on the PruneFilter
 // precedent so the archive mutation cannot drift either.
 //
-// Archive only — the REST delete branch is REST-only by design (#243 exclusion) and
+// Archive only — the REST delete branch is REST-only by design and
 // stays inline at its call site. The caller owns the post-save broadcast.
 internal static class PruneArchiveHelper
 {
     // Returns the cards it archived (not just a count) so the caller can emit one
-    // card.archived webhook event per card while ringing a single SSE bell (#329 — prune
+    // card.archived webhook event per card while ringing a single SSE bell (prune
     // is a card.archived emit surface). The count is the list's Count.
     public static async Task<(IReadOnlyList<CardItem> ArchivedCards, string? Error)> ArchiveMatchedAsync
     (

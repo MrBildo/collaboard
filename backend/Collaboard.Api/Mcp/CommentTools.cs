@@ -64,7 +64,7 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
         db.Comments.Add(comment);
         await db.SaveChangesAsync(ct);
 
-        // comment.created — REST/MCP emit the identical event through the shared factory. (#329.)
+        // comment.created — REST/MCP emit the identical event through the shared factory.
         await WebhookEventFactory.PublishCommentCreatedAsync(db, broadcaster, comment, user!, ct);
         return JsonSerializer.Serialize(comment, JsonSerializerOptions.Web);
     }
@@ -101,7 +101,7 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
             return "Archived cards cannot be modified.";
         }
 
-        // Own-or-admin-level, matching delete_comment (#243 Phase 2): the author edits
+        // Own-or-admin-level, matching delete_comment: the author edits
         // their own comment; Administrator and AgentAdministrator may edit any comment.
         if (comment.UserId != user!.Id && !McpAuthService.IsAdminLevel(user))
         {
@@ -112,7 +112,7 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
         comment.LastUpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
 
-        // comment.updated — REST/MCP emit the identical event through the shared factory. (#329.)
+        // comment.updated — REST/MCP emit the identical event through the shared factory.
         await WebhookEventFactory.PublishCommentUpdatedAsync(db, broadcaster, comment, user!, ct);
         return JsonSerializer.Serialize(comment, JsonSerializerOptions.Web);
     }
@@ -143,7 +143,7 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
             return "Archived cards cannot be modified.";
         }
 
-        // Card #243 Phase 2: own-or-admin widens to own-or-admin-or-agent-admin —
+        // Own-or-admin widens to own-or-admin-or-agent-admin —
         // AgentAdministrator inherits the admin's "delete others'" privilege.
         if (comment.UserId != user!.Id && !McpAuthService.IsAdminLevel(user))
         {
@@ -153,7 +153,7 @@ public sealed class CommentTools(BoardDbContext db, McpAuthService auth, BoardEv
         db.Comments.Remove(comment);
         await db.SaveChangesAsync(ct);
 
-        // comment.deleted — published from the captured comment after the row is gone. (#329.)
+        // comment.deleted — published from the captured comment after the row is gone.
         await WebhookEventFactory.PublishCommentDeletedAsync(db, broadcaster, comment, user!, ct);
         return "Comment deleted.";
     }

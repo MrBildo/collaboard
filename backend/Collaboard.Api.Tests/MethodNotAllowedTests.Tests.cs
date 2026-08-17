@@ -9,8 +9,8 @@ public class MethodNotAllowedTests(CollaboardApiFactory factory) : IClassFixture
     private readonly HttpClient _client = factory.CreateClient();
 
     // The card description route (/cards/{id}) allows GET, PATCH, DELETE — a PUT is a method
-    // mismatch, which is exactly the friction the KindKatch integrator hit: a bare 405 that read
-    // like a permissions failure. No card need exist: routing produces the 405 before the endpoint
+    // mismatch that produces a bare 405, which reads to an integrator like a permissions failure
+    // rather than a wrong-method error. No card need exist: routing produces the 405 before the endpoint
     // (or its auth filter) runs.
     private static readonly string _methodRestrictedRoute = $"/api/v1/cards/{Guid.NewGuid()}";
 

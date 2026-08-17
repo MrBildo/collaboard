@@ -3,7 +3,7 @@ using Collaboard.Api.Models;
 namespace Collaboard.Api.Endpoints;
 
 // Shared prune-filter logic for the REST PruneEndpoints and the MCP PruneTools.
-// Card #243 Phase 4 extracted this out of PruneEndpoints so both surfaces build
+// Extracted out of PruneEndpoints so both surfaces build
 // the filtered card query from a single source — REST/MCP drift is the top bug
 // class on this codebase, and prune's match semantics (archive exclusion,
 // olderThan DateTimeOffset comparison, lane/label filters) must stay identical
@@ -49,7 +49,7 @@ internal static class PruneFilter
 
         if (request.OlderThan.HasValue)
         {
-            // #234's model-wide DateTimeOffset value converter stores every
+            // The model-wide DateTimeOffset value converter stores every
             // DateTimeOffset column as a normalized-UTC ISO-8601 string, so this
             // LINQ comparison translates natively to a TEXT < TEXT comparison in
             // SQLite. The converter calls .ToUniversalTime() on write, so a

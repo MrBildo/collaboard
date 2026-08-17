@@ -288,9 +288,9 @@ public class AppSettingsMergeCliTests : IDisposable
         stderr.ToString().ShouldContain("ignoring corrupt baseline");
     }
 
-    // T-10 — gate-targeted #213 regression (AC-3).
+    // Regression: guards against a silent failed-closed invocation gate.
     //
-    // The Collabhost #213 bug lived in a *silent failed-closed* invocation gate (a bash
+    // The Collabhost bug lived in a *silent failed-closed* invocation gate (a bash
     // version-regex that skipped the merge silently on every upgrade). The invariant under
     // test here is "every skip path is loud + non-zero", not any merge-engine property. If a
     // future refactor introduces a code path that returns ExitOk without performing the merge,
@@ -320,7 +320,7 @@ public class AppSettingsMergeCliTests : IDisposable
     public void ProgramCs_DoesNotGateMergeOnVersionOutput()
     {
         // Structural guarantee that Collaboard never reintroduces a version-coupled gate around
-        // the merge subcommand (the #213 root cause was such a gate in Collabhost's bash). Read
+        // the merge subcommand (the root cause was such a gate in Collabhost's bash). Read
         // the Program.cs source and assert the --merge-appsettings branch does not branch on
         // --version output.
         var programPath = Path.Combine
@@ -343,7 +343,7 @@ public class AppSettingsMergeCliTests : IDisposable
         // start and the next 200 characters -- the merge code path is structurally separate
         // from --version handling.
         var mergeBranchScope = source.Substring(mergeBranchIndex, Math.Min(400, source.Length - mergeBranchIndex));
-        mergeBranchScope.ShouldNotContain("--version", Case.Sensitive, "merge-appsettings code path must not branch on --version output (no version-coupled gate, #235 C-4)");
+        mergeBranchScope.ShouldNotContain("--version", Case.Sensitive, "merge-appsettings code path must not branch on --version output (no version-coupled gate)");
     }
 
     public enum SkipCause

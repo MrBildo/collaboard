@@ -127,7 +127,7 @@ internal static class CardEndpoints
             }
 
             // Snapshot the content axes BEFORE mutating, so card.updated fires only on a real
-            // change (#329 — the per-axis no-op guard). Name/description/size are the content
+            // change (the per-axis no-op guard). Name/description/size are the content
             // axes; lane → card.moved, labels → card.labeled/unlabeled, each guarded separately.
             var oldName = card.Name;
             var oldDescription = card.DescriptionMarkdown;
@@ -166,7 +166,7 @@ internal static class CardEndpoints
                 card.SizeId = newSizeId;
             }
 
-            // card.moved fires only when the PATCH actually changes the lane (#320 — the
+            // card.moved fires only when the PATCH actually changes the lane (the
             // coverage rule: a name/size/label-only update raises no move event). This
             // site mutates LaneId/Position INLINE (it does not route through
             // MoveCardToLaneAsync), so the source lane/position must be snapshotted before
@@ -215,7 +215,7 @@ internal static class CardEndpoints
                 card.Position = request.Position.Value;
             }
 
-            // Label diff captured for card.labeled / card.unlabeled (#329 — one event per
+            // Label diff captured for card.labeled / card.unlabeled (one event per
             // add/remove). Computed against the current assignments before the replace.
             List<Guid> addedLabelIds = [];
             List<Guid> removedLabelIds = [];
@@ -266,7 +266,7 @@ internal static class CardEndpoints
 
             await CardHistoryHelper.SaveWithRevisionRetryAsync(db, descriptionChange, ct);
 
-            // Multi-axis co-fire (#329): a single PATCH can change content + lane + labels and
+            // Multi-axis co-fire: a single PATCH can change content + lane + labels and
             // emits one webhook event per CHANGED axis, while ringing EXACTLY ONE SSE bell via
             // PublishCoalesced (the byte-for-byte-unchanged safety property). Unchanged axes emit
             // nothing; an all-no-op PATCH still rings the one bell (empty event list).
@@ -334,7 +334,7 @@ internal static class CardEndpoints
             }
 
             // Snapshot source lane/position BEFORE MoveCardToLaneAsync mutates + renumbers
-            // both lanes — once it runs, the card's source position is gone (#320).
+            // both lanes — once it runs, the card's source position is gone.
             var fromPosition = card.Position;
 
             await CardReorderHelper.MoveCardToLaneAsync(db, card, targetLaneId, targetIndex, ct);
@@ -411,7 +411,7 @@ internal static class CardEndpoints
             await db.SaveChangesAsync(ct);
 
             // card.archived — emitted at the call-site, NOT card.moved (the shared move
-            // helper stays emission-free). One webhook event + the same SSE bell. (#329.)
+            // helper stays emission-free). One webhook event + the same SSE bell.
             await WebhookEventFactory.PublishCardArchivedAsync(db, broadcaster, card, http.CurrentUser(), ct);
 
             return Results.NoContent();
@@ -454,7 +454,7 @@ internal static class CardEndpoints
 
             await db.SaveChangesAsync(ct);
 
-            // card.restored — emitted at the call-site, NOT card.moved. (#329.)
+            // card.restored — emitted at the call-site, NOT card.moved.
             await WebhookEventFactory.PublishCardRestoredAsync(db, broadcaster, card, http.CurrentUser(), ct);
 
             return Results.NoContent();
@@ -519,7 +519,7 @@ internal static class CardEndpoints
 
             // card.created fires here, on finalize — never at temp-insert (a temp card is
             // invisible pre-creation limbo and may be cancelled). The cancel site emits
-            // nothing. (#320 — the temp-card create wrinkle.)
+            // nothing. (the temp-card create wrinkle.)
             await WebhookEventFactory.PublishCardCreatedAsync(db, broadcaster, card, http.CurrentUser(), ct);
             return Results.Ok(new { card.Id, card.Number });
         }).RequireAuth();
@@ -553,7 +553,7 @@ internal static class CardEndpoints
         // Validates that every requested label belongs to the board, returning the
         // validated list (empty when none requested) or a REST-worded error. The
         // REST create paths own their own label-error wording; CardCreateHelper stages
-        // the already-validated list (#267 D2). Shared by the standard and temp create
+        // the already-validated list. Shared by the standard and temp create
         // endpoints so the rule lives in one place.
         static async Task<(IReadOnlyList<Guid> LabelIds, string? Error)> ValidateCreateLabelsAsync
         (
