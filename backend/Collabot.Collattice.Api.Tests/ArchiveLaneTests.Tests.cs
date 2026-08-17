@@ -51,7 +51,7 @@ public class ArchiveLaneTests(CollatticeApiFactory factory) : IClassFixture<Coll
         var lanes = json.GetProperty("lanes");
         var laneNames = lanes.EnumerateArray()
             .Select(lane => lane.GetProperty("name").GetString())
-            .ToList();
+                .ToList();
         lanes.GetArrayLength().ShouldBe(3, $"seed board composite lanes: [{string.Join(", ", laneNames)}]");
         foreach (var lane in lanes.EnumerateArray())
         {
