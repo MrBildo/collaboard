@@ -24,5 +24,5 @@ public class UpdateCheckSettings
     // UpdateCheck__Repository. Note: this does NOT enable mirror routing — api.github.com is
     // fixed (the mirror/Source seam is deferred). The real air-gap kill switch
     // is UpdateCheck__Enabled=false, which prevents all outbound egress.
-    public string Repository { get; init; } = "MrBildo/collaboard";
+    public string Repository { get; init; } = "MrBildo/collattice";
 }

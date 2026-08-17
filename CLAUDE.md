@@ -1,4 +1,4 @@
-# Collaboard
+# Collattice
 
 Kanban board web application — .NET Minimal API backend + React SPA frontend. Designed for both human users and AI agent collaboration via MCP tooling.
 
@@ -10,9 +10,9 @@ These rules are non-negotiable. They apply to every agent, every dispatch, every
 
    **Harness gotcha — editing `.claude/*` files:** the harness Edit/Write tools deny paths under `.claude/*` (e.g. a local skill file like `.claude/skills/release/SKILL.md`). This is a built-in Claude Code protection on the `.claude/` directory (same class as `.git/`), enforced above the settings allow/deny precedence chain — it is **not** a project rule and **cannot** be overridden by a `permissions.allow` glob. The filesystem allows the write; only the tools refuse. The canonical workaround is shell-level file I/O, which is outside the tool boundary: PowerShell `[System.IO.File]::WriteAllText($path, $content)` (Windows), or the platform equivalent. For surgical changes to an existing `.claude/*` file, the **Edit** tool is friendlier than **Write** — try it first. This applies to `.claude/*` only; `.agents/*` workspace files edit normally through the standard tools. (Investigated card #245.)
 
-2. **Specs live under `.agents/specs/` and are NOT part of the published source.** Source code comments must not reference spec documents (e.g., `// per .agents/specs/multi-board.md §6.2`) — nor card numbers (`// Card #N`, bare `#N`), session or work-item shorthand, or bot-name attributions: none of these are resolvable by an external reader of the published source. Cross-reference internal design via **inline rationale** (the *why*, written into the comment) or a **full GitHub issue URL** (resolvable by anyone). Card numbers, spec paths, and dispatch shorthand belong to internal artifacts — cards, commit messages, dispatch logs — never to shipped source comments. *(Collaboard publishes its source; this matches the suite-wide source-comment convention now in the `dotnet-dev` / `typescript-dev` skills.)*
+2. **Specs live under `.agents/specs/` and are NOT part of the published source.** Source code comments must not reference spec documents (e.g., `// per .agents/specs/multi-board.md §6.2`) — nor card numbers (`// Card #N`, bare `#N`), session or work-item shorthand, or bot-name attributions: none of these are resolvable by an external reader of the published source. Cross-reference internal design via **inline rationale** (the *why*, written into the comment) or a **full GitHub issue URL** (resolvable by anyone). Card numbers, spec paths, and dispatch shorthand belong to internal artifacts — cards, commit messages, dispatch logs — never to shipped source comments. *(Collattice publishes its source; this matches the suite-wide source-comment convention now in the `dotnet-dev` / `typescript-dev` skills.)*
 
-3. **Persistence: project decisions live in tracked infra docs, not in auto-memory.** Auto-memory (`.claude/projects/.../memory/`) is ONLY for soft personal preferences. All project decisions, conventions, workflows, and hard rules go in `CLAUDE.md`, `COLLABOARD.md`, specs under `.agents/specs/`, or the `collaboard` skill (board protocol). If it's about how the project works, update the relevant infra doc — not memory.
+3. **Persistence: project decisions live in tracked infra docs, not in auto-memory.** Auto-memory (`.claude/projects/.../memory/`) is ONLY for soft personal preferences. All project decisions, conventions, workflows, and hard rules go in `CLAUDE.md`, `COLLATTICE.md`, specs under `.agents/specs/`, or the `collaboard` skill (board protocol). If it's about how the project works, update the relevant infra doc — not memory.
 
 4. **Every bot loads `.agents/GLOSSARY.md` at session start, alongside this file and per-bot workspace files.** The glossary is the central hub for team terms, conventions, and operator-anchored rules — including the audience-determines-mode communication rule (human-facing plain English vs bot-internal dialect). Load it before doing work, not after needing it. The file is gitignored; bots read it from their own checkout. Concise by design — bots may extend or prune entries on their own terms.
 
@@ -62,12 +62,12 @@ Starts the API, frontend Vite dev server, and Aspire dashboard with OpenTelemetr
 Equivalent without the CLI:
 
 ```powershell
-dotnet run --project backend/Collaboard.AppHost
+dotnet run --project backend/Collabot.Collattice.AppHost
 ```
 
 The API gets a dynamic port (no more hardcoded 58343). The frontend gets a dynamic port. Aspire handles service discovery between them.
 
-Optionally configure `Admin:AuthKey` in `appsettings.Development.json` in `backend/Collaboard.Api/` — otherwise a random key is generated and logged on first run.
+Optionally configure `Admin:AuthKey` in `appsettings.Development.json` in `backend/Collabot.Collattice.Api/` — otherwise a random key is generated and logged on first run.
 
 Aspire does NOT run workloads natively on Linux. Use standalone `dotnet run` for Linux testing.
 
@@ -83,7 +83,7 @@ Use the Aspire skill and MCP tools to manage the Aspire lifecycle (start, stop, 
 
 **Hot reload:** Don't restart Aspire for frontend-only changes — the frontend dev server picks up changes automatically via hot reload. Only restart when backend code changes need to be picked up. Unnecessary restarts waste time and change the port.
 
-**File lock gotcha:** If Aspire is running and you need to build or test, kill the Aspire process first. The running API locks DLLs (e.g., `Collaboard.ServiceDefaults.dll`) and causes MSB3027 file copy errors. Before `dotnet test` or `dotnet build`, check for and kill any running Aspire/Collaboard.Api processes if the build fails with file lock errors.
+**File lock gotcha:** If Aspire is running and you need to build or test, kill the Aspire process first. The running API locks DLLs (e.g., `Collabot.Collattice.ServiceDefaults.dll`) and causes MSB3027 file copy errors. Before `dotnet test` or `dotnet build`, check for and kill any running Aspire/Collabot.Collattice.Api processes if the build fails with file lock errors.
 
 ### Frontend Only (no Aspire)
 ```powershell
@@ -255,7 +255,7 @@ Workspace governance lives in the `agent-workspace` skill — not in this doc. P
 - **C# / .NET work:** invoke the `dotnet-dev` skill. Universal conventions live there.
 - **TypeScript / React work:** invoke the `typescript-dev` skill. Universal conventions live there.
 
-The skills carry universal patterns. The sections below name only Collaboard-specific overrides, project structure, and conventions that don't fit cleanly in skill scope.
+The skills carry universal patterns. The sections below name only Collattice-specific overrides, project structure, and conventions that don't fit cleanly in skill scope.
 
 ### .NET overrides
 
@@ -265,7 +265,7 @@ The skills carry universal patterns. The sections below name only Collaboard-spe
 
 ### Endpoint structure
 
-- Endpoints live in static classes under `backend/Collaboard.Api/Endpoints/`, one file per resource (`BoardEndpoints.cs`, `UserEndpoints.cs`, etc.).
+- Endpoints live in static classes under `backend/Collabot.Collattice.Api/Endpoints/`, one file per resource (`BoardEndpoints.cs`, `UserEndpoints.cs`, etc.).
 - Extension methods on `RouteGroupBuilder` map to `api.MapXxxEndpoints()`.
 - `Program.cs` is a thin composition root (builder + services + middleware + endpoint registration).
 
@@ -279,7 +279,7 @@ The skills carry universal patterns. The sections below name only Collaboard-spe
 
 ### Testing
 
-- **Backend:** xUnit + Shouldly via `WebApplicationFactory` + in-memory SQLite. No mocking. Arrange-Act-Assert. Test classes per resource: `*EndpointTests.Tests.cs`. Shared infrastructure: `Infrastructure/CollaboardApiFactory.cs`, `TestAuthHelper.cs`.
+- **Backend:** xUnit + Shouldly via `WebApplicationFactory` + in-memory SQLite. No mocking. Arrange-Act-Assert. Test classes per resource: `*EndpointTests.Tests.cs`. Shared infrastructure: `Infrastructure/CollatticeApiFactory.cs`, `TestAuthHelper.cs`.
 - **Frontend:** TypeScript typecheck + Vite build + `npm run test` cover correctness; lint + format:check cover style.
 - **Visual / browser testing is bot-discretionary via the `browser-verify` skill.** Reach for it when a behavioral question can only be answered in a real browser (e.g., transient drag-drop animation frames, SSE cross-context delivery). For routine correctness, tsc + Vite + backend tests still cover the bar.
 - **CSS whose effect depends on build-time minification must be verified against the production build (`vite build` + `vite preview`), not the dev server.** Tailwind v4's Lightning CSS pass (which the dev server and jsdom both skip) folds `transform` + `translate` + `scale` declared in one rule into a single `transform` shorthand and drops the standalone `translate`/`scale` resets — so a fix that relies on individual `transform`-family longhand resets can pass dev + tests + lint and still be a no-op in production. Corollary antipattern to avoid: don't reset `transform` alongside a `-translate-*` / `scale-*` / `rotate-*` utility expecting the longhand resets to survive — they get folded.
@@ -391,9 +391,9 @@ When designing UI features, create self-contained HTML mockup files for user rev
 - Upload as card attachments when working on the board
 - Save to `.agents/temp/` as working files
 
-## Collaboard (Kanban)
+## Collattice (Kanban)
 
-See [[COLLABOARD]] for board conventions, lanes, labels, sizes, and workflow.
+See [[COLLATTICE]] for board conventions, lanes, labels, sizes, and workflow.
 
 Releases are cut from `main` (trunk-based — see Branch strategy). Use `/release` to cut a new version — it waits for CI to pass on `main`, creates a GitHub Release, monitors the publish workflow, and reports when artifacts are ready.
 
@@ -424,7 +424,7 @@ npm run lint
 npm run format:check
 ```
 
-**Runtime observation:** Feature must be observable in the running application. Launch full stack via `dotnet run --project backend/Collaboard.AppHost`. Backend changes must respond correctly via API. Frontend changes must render in the browser. MCP changes must be callable and return expected results. Aspire Dashboard provides structured logs, traces, and metrics.
+**Runtime observation:** Feature must be observable in the running application. Launch full stack via `dotnet run --project backend/Collabot.Collattice.AppHost`. Backend changes must respond correctly via API. Frontend changes must render in the browser. MCP changes must be callable and return expected results. Aspire Dashboard provides structured logs, traces, and metrics.
 
 **Capability work defines its "done" upfront — and "done" is the demonstration, not green CI.** *(Standing rule, 2026-06-27.)* When a card or milestone delivers a **user-facing capability** — the operator or an integrator can now *do* something new (not a pure refactor, internal cleanup, or mechanical fix) — its Definition of Done includes a concrete, demonstrable **user-facing outcome, written at scope time in the spec/card and ratified by the operator before the work is dispatched.** "Done" then means that outcome has been *demonstrated in the running app* — CI green is necessary but not sufficient. For work split across front and back (or across milestones), the DoD names **where the integration is demonstrated**, so the UI-meets-new-backend step cannot fall in the seam between the halves. Origin: webhooks M2 shipped its backend event catalog "complete" while the admin UI exposed 2 of 22 events — "selectable" was verified at the backend and never demonstrated end-to-end, and the UI-exposure task lived in no card because the front/back split never named it.
 
@@ -495,13 +495,13 @@ Bots sign commits with `Co-Authored-By: <Name> <name>@collabot.dev>`. Cora's fir
 
 | Project | Path | Relationship |
 |---|---|---|
-| **Collabhost** | `../collabhost` | Peer project. Hosts the production deployment of Collaboard (and itself). Its own work is tracked on the `collabhost` Collaboard board. |
-| **Ecosystem** | `../ecosystem` | Cross-project tooling, shared skills/conventions, and suite-wide scripts. Its own work is tracked on the `ecosystem` Collaboard board. |
-| **Scout** | `../scout` | Peer Collabhost-hosted app — the suite's web-tooling MCP (`fetch_*` / `search_*`); Collaboard bots use it for web research. Its own work is tracked on the `scout` Collaboard board. |
+| **Collabhost** | `../collabhost` | Peer project. Hosts the production deployment of Collattice (and itself). Its own work is tracked on the `collabhost` Collattice board. |
+| **Ecosystem** | `../ecosystem` | Cross-project tooling, shared skills/conventions, and suite-wide scripts. Its own work is tracked on the `ecosystem` Collattice board. |
+| **Scout** | `../scout` | Peer Collabhost-hosted app — the suite's web-tooling MCP (`fetch_*` / `search_*`); Collattice bots use it for web research. Its own work is tracked on the `scout` Collattice board. |
 
-> **Retired (2026-06):** Collabot, Collabot TUI, Knowledge Base, and Research Lab were sunset in the suite consolidation — their repos are archived under `collab/archived/`, so the `../collabot`, `../collabot-tui`, `../kb`, and `../lab` paths no longer resolve. (Collabot was Collaboard's original external MCP consumer.)
+> **Retired (2026-06):** Collabot, Collabot TUI, Knowledge Base, and Research Lab were sunset in the suite consolidation — their repos are archived under `collab/archived/`, so the `../collabot`, `../collabot-tui`, `../kb`, and `../lab` paths no longer resolve. (Collabot was Collattice's original external MCP consumer.)
 
-Cross-project work that spans Collaboard + a peer (e.g., Collabhost) coordinates between named operations coordinators on each side (Cora here, Nolan on Collabhost). Externally-gated cards stay in Backlog with an explicit gate-and-trigger comment; the `Blocked` label is reserved for in-Triage gating.
+Cross-project work that spans Collattice + a peer (e.g., Collabhost) coordinates between named operations coordinators on each side (Cora here, Nolan on Collabhost). Externally-gated cards stay in Backlog with an explicit gate-and-trigger comment; the `Blocked` label is reserved for in-Triage gating.
 
 ## Skills
 

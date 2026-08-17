@@ -1,8 +1,8 @@
-# Collaboard — Setup Guide
+# Collattice — Setup Guide
 
 ## Deployment Shapes
 
-Collaboard supports two production deployment shapes. Pick the one that matches your environment, then follow the matching section below.
+Collattice supports two production deployment shapes. Pick the one that matches your environment, then follow the matching section below.
 
 - **(a) LAN single-process.** One self-contained executable serves both the API and the embedded React Portal from the same origin. SQLite next to the binary, no reverse proxy, no CORS. Recommended for small teams on a trusted network. → **[Quick Start](#quick-start)** + **[Configuration](#configuration)** below.
 - **(b) Portal + API hosted separately.** The headless API runs as one process (`Hosting:ServeSpa=false`); the React Portal is built and served by any static-file host on its own origin. [Collabhost](https://github.com/MrBildo/collabhost) is one worked example; any static-site host paired with any .NET process supervisor works. → **[Hosted separately (Portal + API)](#hosted-separately-portal--api)** below.
@@ -14,7 +14,7 @@ The same executable serves both shapes — the difference is configuration (`Hos
 If you used the one-line installer (see [Installation Guide](docs/installation.md)),
 `appsettings.json` is already seeded with an absolute database path — skip to step 2.
 
-1. **Set the database path (required before first run).** Collaboard requires
+1. **Set the database path (required before first run).** Collattice requires
    `ConnectionStrings:Board` to be an absolute path and does not derive one from
    the working or binary directory — startup fails loud if it is unset. Edit
    `appsettings.json` next to the executable to set an absolute path:
@@ -48,12 +48,12 @@ If you used the one-line installer (see [Installation Guide](docs/installation.m
 
    **macOS / Linux:**
    ```bash
-   ./Collaboard.Api
+   ./Collabot.Collattice.Api
    ```
 
    **Windows:**
    ```powershell
-   .\Collaboard.Api.exe
+   .\Collabot.Collattice.Api.exe
    ```
 
 3. Open **http://localhost:8080** in your browser.
@@ -62,7 +62,7 @@ If you used the one-line installer (see [Installation Guide](docs/installation.m
 
 ## Configuration
 
-Collaboard uses `appsettings.json` for configuration. Edit it directly next to
+Collattice uses `appsettings.json` for configuration. Edit it directly next to
 the executable; your edits are preserved across upgrades via the smart-merge
 performed by the installer.
 
@@ -100,6 +100,11 @@ Environment variables win over `appsettings.json`.
 - Schema migrations run automatically on startup
 - The database file is backed up automatically before applying new migrations
 - Backups are saved as `collaboard.db.bak-{timestamp}` in the same directory
+- The database file (`collaboard.db`) and the default install directory
+  (`~/.collaboard`, `%LOCALAPPDATA%\Collaboard`, `/var/lib/collaboard`) keep their
+  previous name in this release — deliberately, not a leftover. Renaming them safely
+  needs a data-migration step that lands in a later release; the app, binary, and
+  release archive are all named Collattice.
 
 ## Hosted separately (Portal + API)
 
@@ -107,7 +112,7 @@ In this shape the API runs headless (no embedded Portal); a static-file host ser
 
 ### API process — disable the embedded Portal, allow the Portal's origin
 
-Run the same `Collaboard.Api` binary you would for the LAN shape, but flip `Hosting:ServeSpa` off and tell the API which Portal origin(s) to allow. Either edit `appsettings.json` next to the executable:
+Run the same `Collabot.Collattice.Api` binary you would for the LAN shape, but flip `Hosting:ServeSpa` off and tell the API which Portal origin(s) to allow. Either edit `appsettings.json` next to the executable:
 
 ```jsonc
 // appsettings.json
@@ -119,7 +124,7 @@ Run the same `Collaboard.Api` binary you would for the LAN shape, but flip `Host
   },
   "Cors": {
     "AllowedOrigins": [
-      "https://collaboard.example.com"
+      "https://collattice.example.com"
     ]
   },
   "ConnectionStrings": {
@@ -134,7 +139,7 @@ Run the same `Collaboard.Api` binary you would for the LAN shape, but flip `Host
 export Hosting__ServeSpa=false
 export Hosting__ListenAddress=127.0.0.1
 export Hosting__ListenPort=5000
-export Cors__AllowedOrigins__0=https://collaboard.example.com
+export Cors__AllowedOrigins__0=https://collattice.example.com
 export ConnectionStrings__Board="Data Source=/srv/collaboard/data/collaboard.db"
 ```
 
@@ -153,7 +158,7 @@ Place a `config.json` file at the root of the static-site bundle (next to `index
 
 ```json
 {
-  "apiBaseUrl": "https://api.collaboard.example.com/api/v1"
+  "apiBaseUrl": "https://api.collattice.example.com/api/v1"
 }
 ```
 
@@ -176,7 +181,7 @@ If `/config.json` is absent, malformed, or returns a non-2xx status, the Portal 
    shipped keys. The merge writes a baseline sidecar `appsettings.shipped.json`
    next to your `appsettings.json` so the next merge knows what shipped last time.
 3. Or, for a manual install: download the new release, extract it, and run
-   `./Collaboard.Api --merge-appsettings <shipped-appsettings.json> ./appsettings.json --baseline ./appsettings.shipped.json`
+   `./Collabot.Collattice.Api --merge-appsettings <shipped-appsettings.json> ./appsettings.json --baseline ./appsettings.shipped.json`
    from the install directory.
 4. Start the app — migrations run automatically.
 
@@ -185,5 +190,5 @@ If `/config.json` is absent, malformed, or returns a non-2xx status, the Portal 
 Check the installed version:
 
 ```bash
-./Collaboard.Api --version
+./Collabot.Collattice.Api --version
 ```

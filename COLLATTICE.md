@@ -1,6 +1,12 @@
-# Collaboard Board
+# Collattice Board
 
-Collaboard development is tracked on its own production instance — Collaboard runs on Collabhost, the board the team uses to track Collaboard work IS a Collaboard board. Self-hosted dogfooding.
+Collattice development is tracked on its own production instance — Collattice runs on Collabhost, the board the team uses to track Collattice work IS a Collattice board. Self-hosted dogfooding.
+
+> **Board slug + skill name still read `collaboard`.** The board's own slug and the
+> `collaboard` MCP skill are suite-wide identifiers renamed on a separate track (the
+> Collabhost deploy, the ecosystem skill, and every bot's config move together); until
+> that lands, the working slug is `collaboard` and the skill is invoked as `collaboard`.
+> Use the values as written below.
 
 | Field | Value |
 |---|---|
@@ -115,7 +121,7 @@ During a session:
 
 ### Cross-project externally-gated cards
 
-When a Collaboard card is gated on a sibling project's deliverable (e.g., something Collabhost ships first), keep the card in Backlog and add an explicit gate-and-trigger comment naming what's blocking and what unblocks it. Do **not** apply the `Blocked` label — that label is reserved for in-Triage gating; Backlog is the right home for externally-gated cards by design.
+When a Collattice card is gated on a sibling project's deliverable (e.g., something Collabhost ships first), keep the card in Backlog and add an explicit gate-and-trigger comment naming what's blocking and what unblocks it. Do **not** apply the `Blocked` label — that label is reserved for in-Triage gating; Backlog is the right home for externally-gated cards by design.
 
 ### Card addressing
 

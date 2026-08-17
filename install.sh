@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO="MrBildo/collaboard"
+REPO="MrBildo/collattice"
 INSTALL_DIR="${HOME}/.collaboard"
 
 # Detect platform and architecture

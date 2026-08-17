@@ -45,7 +45,7 @@ internal sealed class WebhookTester
             Guid.Empty,                 // a ping is not board-scoped
             string.Empty,
             new BoardEventActor(actor.Id, actor.Name, actor.Role.ToString()),
-            new WebhookPingData(subscription.Id, "Collaboard webhook test delivery.")
+            new WebhookPingData(subscription.Id, "Collattice webhook test delivery.")
         );
 
         var target = new WebhookTarget(subscription.Url, subscription.Secret);

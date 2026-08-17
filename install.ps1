@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 
-$Repo = 'MrBildo/collaboard'
+$Repo = 'MrBildo/collattice'
 $InstallDir = Join-Path $env:LOCALAPPDATA 'Collaboard'
 $ArtifactName = 'collattice-win-x64'
 

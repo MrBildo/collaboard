@@ -7,7 +7,7 @@ namespace Collabot.Collattice.Api.Hosting.Webhooks;
 
 // The typed-HttpClient realization of IWebhookSender. Serializes the enriched event
 // ONCE with the project's REST JSON config (camelCase / Web defaults — a consumer that already
-// reads Collaboard's REST shapes sees identical field names), signs THOSE bytes when the target
+// reads Collattice's REST shapes sees identical field names), signs THOSE bytes when the target
 // carries a secret (never re-serialize for the signature, or the signed bytes would differ from the
 // sent bytes), and POSTs with the delivery headers. The per-POST timeout is the typed client's
 // Timeout (configured in Program.cs from Webhooks:DeliveryTimeout) so a slow endpoint is a failed
