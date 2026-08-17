@@ -117,7 +117,7 @@ public class CommentEndpointTests(CollaboardApiFactory factory) : IClassFixture<
     [Fact]
     public async Task PatchComment_OtherUser_AsAgentAdministrator_Returns200()
     {
-        // Arrange — proves card #275: AgentAdministrator can edit another user's comment
+        // Arrange — AgentAdministrator can edit another user's comment
         // over REST (previously only Administrator was admitted; MCP update_comment was
         // already own-or-admin-level via McpAuthService.IsAdminLevel).
         var cardId = await CreateCardAsync();

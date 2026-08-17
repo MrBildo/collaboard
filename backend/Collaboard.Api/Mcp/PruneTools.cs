@@ -8,14 +8,14 @@ using ModelContextProtocol.Server;
 
 namespace Collaboard.Api.Mcp;
 
-// Card #243 Phase 4: admin-level MCP tools for prune. Mirrors the REST surface
+// Admin-level MCP tools for prune. Mirrors the REST surface
 // in PruneEndpoints.cs (POST /boards/{boardId}/prune/preview, POST .../prune).
 // Both gate via RequireAdminLevelAsync and share PruneFilter with REST so the
 // match semantics (archive exclusion, the olderThan TEXT comparison, lane/label
 // filters) cannot drift between the two surfaces.
 //
 // Security-critical: the prune tool archives only. There is no delete action and
-// no prune_delete tool — bulk delete is named in card #243's exclusion list
+// no prune_delete tool — bulk delete is deliberately excluded
 // (archive is reversible, delete is not). The tool does not expose an `action`
 // parameter at all, so "delete" is not a value the MCP surface can ever carry.
 [McpServerToolType]
@@ -100,7 +100,7 @@ public sealed class PruneTools(BoardDbContext db, McpAuthService auth, BoardEven
             return $"Error: {archiveError}";
         }
 
-        // card.archived per pruned card — N webhook events, one SSE bell. (#329.)
+        // card.archived per pruned card — N webhook events, one SSE bell.
         foreach (var archived in await WebhookEventFactory.BuildCardArchivedBatchAsync(db, archivedCards, user!, ct))
         {
             webhookSink.Enqueue(archived);
@@ -151,7 +151,7 @@ public sealed class PruneTools(BoardDbContext db, McpAuthService auth, BoardEven
         return (request, null);
     }
 
-    // Accepts the same two shapes as create_card's labelIds (#241): comma-separated
+    // Accepts the same two shapes as create_card's labelIds: comma-separated
     // GUIDs ("guid1,guid2") or a JSON-string array ('["guid1","guid2"]'). MCP tool
     // params don't bind native arrays cleanly via the SDK, so CSV is the convention.
     // Null/blank input yields a null array (no filter on that axis). A malformed

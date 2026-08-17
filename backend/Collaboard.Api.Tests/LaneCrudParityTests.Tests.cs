@@ -10,14 +10,14 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// Cross-surface parity tests for lane CRUD (#268 drift backstop, #206 testing
-// convention). The #158 audit (Q2 #1) named Lane/Label/Size CRUD the HIGHEST
+// Cross-surface parity tests for lane CRUD.
+// The REST/MCP parity audit named Lane/Label/Size CRUD the HIGHEST
 // drift-risk surface: the rules are typed twice — once in LaneEndpoints.cs, once
 // in LaneTools.cs — with no shared service and no test asserting the copies agree.
 // These tests feed the same invalid input to both front doors and assert both
 // reject by the same rule with the same diagnostic message.
 //
-// Parity claim shape (matches #267): the two surfaces speak different idioms — REST
+// Parity claim shape: the two surfaces speak different idioms — REST
 // returns an HTTP status + a bare message body; MCP returns an "Error: ..." string
 // with no status. The HTTP status is REST's own internal categorization (400 for
 // validation, 409 Conflict for conflict-class rejections); MCP has no status. So the

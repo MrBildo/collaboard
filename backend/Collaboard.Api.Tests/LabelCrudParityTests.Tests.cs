@@ -10,8 +10,8 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// Cross-surface parity tests for label CRUD (#268 drift backstop, #206 testing
-// convention). Per the #158 audit (Q2 #1), LabelEndpoints.cs and LabelTools.cs
+// Cross-surface parity tests for label CRUD.
+// LabelEndpoints.cs and LabelTools.cs
 // re-encode the same name-uniqueness-per-board rule independently, with no shared
 // service. These tests feed the same invalid input to both surfaces and assert both
 // reject identically; the delete-cleanup case asserts both surfaces un-assign the

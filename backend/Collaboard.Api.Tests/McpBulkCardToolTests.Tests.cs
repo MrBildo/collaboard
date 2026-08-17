@@ -11,10 +11,10 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// Card #196 / #243 Phase 5: the three bulk card tools (bulk_archive_cards,
+// The three bulk card tools (bulk_archive_cards,
 // bulk_restore_cards, bulk_update_cards). All three are all-roles (gate via
 // RequireUserAsync, like the per-card analogs they batch) and follow the
-// two-phase contract from agent-admin-mcp.md Part 3:
+// two-phase contract:
 //   - Phase 1 pre-validation fails loud with a single "Error: ..." string and
 //     performs NO mutations (invalid GUID, cross-board restore, archive-lane
 //     update target, cross-board label, ref-shape edge cases).

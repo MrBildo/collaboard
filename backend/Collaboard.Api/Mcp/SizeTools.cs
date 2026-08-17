@@ -8,10 +8,10 @@ using ModelContextProtocol.Server;
 
 namespace Collaboard.Api.Mcp;
 
-// Card #243 Phase 3: admin-level MCP tools for card-size CRUD. Mirrors the REST
+// Admin-level MCP tools for card-size CRUD. Mirrors the REST
 // surface in SizeEndpoints.cs (POST /boards/{boardId}/sizes, PATCH /sizes/{id},
 // DELETE /sizes/{id}). All three gate via RequireAdminLevelAsync.
-// Card #308: reorder_sizes added, mirroring reorder_lanes (#277).
+// reorder_sizes added, mirroring reorder_lanes.
 [McpServerToolType]
 public sealed class SizeTools(BoardDbContext db, McpAuthService auth, BoardEventBroadcaster broadcaster)
 {

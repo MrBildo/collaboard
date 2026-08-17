@@ -8,7 +8,7 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// #202 — End-to-end wiring proof for the CallToolFilter that translates
+// End-to-end wiring proof for the CallToolFilter that translates
 // allowlisted exceptions into McpException so the SDK wrapper surfaces the
 // underlying detail instead of the body-less "An error occurred invoking
 // '<tool>'.". The McpErrorTranslator allowlist matrix is owned by
@@ -36,7 +36,7 @@ public class McpServerErrorWrapperTests(CollaboardApiFactory factory) : IClassFi
     {
         // Arrange — wrap an inner handler that throws the kind of
         // ArgumentException the SDK's AIFunction binder produces on missing
-        // required parameters (Nolan-bot's add_comment typo incident).
+        // required parameters (as happens when an integrator mistypes a parameter name).
         var pipeline = McpErrorTranslator.WrapForCallTool(static (_, _) =>
             throw new ArgumentException
             (

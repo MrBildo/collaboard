@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 
 namespace Collaboard.Api;
 
-// Sweeps orphaned temp cards (#193). Temp cards (IsTemp = true, Number = 0) are created
+// Sweeps orphaned temp cards. Temp cards (IsTemp = true, Number = 0) are created
 // by the interactive create-temp → finalize/cancel flow; a browser closing mid-flow leaves
 // the card stranded in temp state, filtered out of every read path and never cleaned up.
 // This periodic sweep deletes temp cards older than the configured TTL. Children

@@ -1,6 +1,6 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
-// ConnectionStrings:Board is required configuration with no fallback (#233 G-3b);
+// ConnectionStrings:Board is required configuration with no fallback;
 // the API hard-fails at startup if it is unset. The orchestrator is the "told
 // input" for the dev run: an absolute path anchored on the AppHost's binary
 // directory (stable per build, independent of the cwd `aspire start` is invoked
