@@ -174,7 +174,7 @@ public sealed class WebhookRegistryDeliveryTests
         {
             Timeout = settings.DeliveryTimeout,
         };
-        httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Collaboard-Webhooks");
+        httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Collattice-Webhooks");
         var sender = new HttpWebhookSender(httpClient);
 
         await using var scope = factory.Services.CreateAsyncScope();

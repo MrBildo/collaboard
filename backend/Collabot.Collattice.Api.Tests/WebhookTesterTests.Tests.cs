@@ -24,7 +24,7 @@ public sealed class WebhookTesterTests
 
         using var handler = new CapturingHttpMessageHandler();
         using var httpClient = new HttpClient(handler, disposeHandler: false) { Timeout = TimeSpan.FromSeconds(5) };
-        httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Collaboard-Webhooks");
+        httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Collattice-Webhooks");
 
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<BoardDbContext>();
@@ -41,8 +41,8 @@ public sealed class WebhookTesterTests
         // event — not a side channel).
         handler.Requests.Count.ShouldBe(1);
         handler.Requests[0].Uri!.ToString().ShouldBe("https://sink.test/hook");
-        handler.Requests[0].Headers["X-Collaboard-Event"].ShouldBe(WebhookEventTypes.Ping);
-        handler.Requests[0].Headers.ShouldContainKey("X-Collaboard-Signature");
+        handler.Requests[0].Headers["X-Collattice-Event"].ShouldBe(WebhookEventTypes.Ping);
+        handler.Requests[0].Headers.ShouldContainKey("X-Collattice-Signature");
 
         // Exactly one attempt row, tagged with the subscription + the ping type.
         var attempts = await db.WebhookDeliveryAttempts.Where(a => a.SubscriptionId == subId).ToListAsync();

@@ -203,7 +203,7 @@ var webhookSettings = builder.Configuration
 builder.Services
     .AddHttpClient<IWebhookSender, HttpWebhookSender>(client =>
     {
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("Collaboard-Webhooks");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("Collattice-Webhooks");
         client.Timeout = webhookSettings.DeliveryTimeout;
     })
     .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
@@ -262,7 +262,7 @@ builder.Services
 #pragma warning disable S1075 // URIs should not be hardcoded
         client.BaseAddress = new Uri("https://api.github.com/");
 #pragma warning restore S1075
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("Collaboard-UpdateCheck");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("Collattice-UpdateCheck");
         client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
         client.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28");
         client.Timeout = TimeSpan.FromSeconds(10);

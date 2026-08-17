@@ -302,7 +302,7 @@ If a subscription has a `secret`, every delivery to it is signed so your endpoin
 confirm it really came from Collaboard. The signature rides in a header:
 
 ```
-X-Collaboard-Signature: sha256=<hex-lowercase-digest>
+X-Collattice-Signature: sha256=<hex-lowercase-digest>
 ```
 
 The digest is HMAC-SHA256 over the **exact raw bytes of the request body**, keyed by
