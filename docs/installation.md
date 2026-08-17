@@ -5,20 +5,27 @@
 ### macOS / Linux
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/MrBildo/collaboard/main/install.sh | bash
-~/.collaboard/Collaboard.Api
+curl -sSL https://raw.githubusercontent.com/MrBildo/collattice/main/install.sh | bash
+~/.collaboard/Collabot.Collattice.Api
 ```
 
 ### Windows (PowerShell)
 
 ```powershell
-irm https://raw.githubusercontent.com/MrBildo/collaboard/main/install.ps1 | iex
-& "$env:LOCALAPPDATA\Collaboard\Collaboard.Api.exe"
+irm https://raw.githubusercontent.com/MrBildo/collattice/main/install.ps1 | iex
+& "$env:LOCALAPPDATA\Collaboard\Collabot.Collattice.Api.exe"
 ```
+
+> **A note on the install paths.** The install directory (`~/.collaboard` on
+> macOS/Linux, `%LOCALAPPDATA%\Collaboard` on Windows) and the database file
+> (`collaboard.db`) keep their previous name in this release — that is deliberate,
+> not a typo. Renaming them safely needs a data-migration step, which lands in a
+> later release. Everything else — the app, the binary, and the download — is
+> Collattice.
 
 ## Manual Download
 
-Download the latest release for your platform from [GitHub Releases](https://github.com/MrBildo/collaboard/releases/latest):
+Download the latest release for your platform from [GitHub Releases](https://github.com/MrBildo/collattice/releases/latest):
 
 | Platform | Artifact |
 |----------|----------|
@@ -29,7 +36,7 @@ Download the latest release for your platform from [GitHub Releases](https://git
 | Linux ARM64 | `collattice-linux-arm64.tar.gz` |
 
 Extract the archive. Before the first run, edit `appsettings.json` next to the
-executable to set an absolute database path — Collaboard requires
+executable to set an absolute database path — Collattice requires
 `ConnectionStrings:Board` and does not derive a path from the working or binary
 directory (the one-line installers above do this for you):
 
@@ -52,7 +59,7 @@ Then run the executable. No runtime or framework installation required.
 On macOS, you may need to remove the quarantine attribute after downloading:
 
 ```bash
-xattr -d com.apple.quarantine ./Collaboard.Api
+xattr -d com.apple.quarantine ./Collabot.Collattice.Api
 ```
 
 ## First Run
@@ -71,6 +78,6 @@ The admin key is printed once on first startup. To set a persistent key, see [Ho
    edits via smart-merge, refreshes untouched shipped defaults, and adds any new
    shipped keys. The `data/` directory is left untouched.
 3. For a manual install: extract the new release and run
-   `./Collaboard.Api --merge-appsettings <new-appsettings.json> ./appsettings.json --baseline ./appsettings.shipped.json`
+   `./Collabot.Collattice.Api --merge-appsettings <new-appsettings.json> ./appsettings.json --baseline ./appsettings.shipped.json`
    from the install directory.
 4. Start the app — migrations run automatically, database is backed up first.

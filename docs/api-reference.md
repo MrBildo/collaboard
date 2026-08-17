@@ -106,7 +106,7 @@ It is `0` or at least `2`, never `1`: a card's first edit records two revisions,
 | Param | Values | Default | Notes |
 |---|---|---|---|
 | `field` | `description` | `description` | Which field's trail to return; case-insensitive. An unrecognized field is a `400`, not an empty trail — on an audit surface a typo must not read as "this card has no history". |
-| `format` | `diff` \| `full` \| `both` | `both` | Whether each entry carries the unified diff of what that edit changed, the full value at that revision, or both. Case-insensitive; an unrecognized value is a `400`. (The MCP tool defaults to `diff` instead — see the [MCP skill](collaboard/SKILL.md).) |
+| `format` | `diff` \| `full` \| `both` | `both` | Whether each entry carries the unified diff of what that edit changed, the full value at that revision, or both. Case-insensitive; an unrecognized value is a `400`. (The MCP tool defaults to `diff` instead — see the [MCP skill](collattice/SKILL.md).) |
 | `from`, `to` | revision numbers | — | Supply **both** to compare two arbitrary revisions instead of walking the trail; the response is a different shape (below). One without the other is a `400`, as is a revision this card's trail does not have. |
 | `offset` | integer | `0` | Revisions to skip, counting back from the newest. Negative values clamp to `0`. |
 | `limit` | integer | *(none)* | Maximum revisions to return, `1`–`200`; values outside that range clamp into it. **Omit it to get the whole trail** — that is what a caller written before paging existed sees. |
@@ -257,11 +257,11 @@ Search supports:
 |------|-------|
 | /mcp | Streamable HTTP transport — 45 tools (boards, cards, card history, lanes, sizes, labels, comments, attachments, archive, bulk operations, search, prune, webhooks) |
 
-For the full agent-facing tool reference — connecting a client, every tool, the board model, and the identifier rules — see the [MCP skill](collaboard/SKILL.md), a drop-in `SKILL.md` you can add to an agent harness rather than writing your own from the tool schemas.
+For the full agent-facing tool reference — connecting a client, every tool, the board model, and the identifier rules — see the [MCP skill](collattice/SKILL.md), a drop-in `SKILL.md` you can add to an agent harness rather than writing your own from the tool schemas.
 
 ## Webhooks
 
-Collaboard can POST a structured event to a URL of your choice whenever something happens on a board — a card created, moved, or labeled; a comment posted; a lane reordered; and more, across a [22-event catalog](#event-types) — so an external consumer (a workflow tool, a script, an agent) can react to board activity without polling. Delivery targets are managed as **subscriptions** — you can register more than one, each with its own URL, an optional signing secret, an enabled state, and a selection of which events it wants. For a guided walkthrough — creating a subscription, sending a test delivery, and the recursion guard you need before pointing one at anything that creates cards — see the [Webhooks Integration Guide](integrating-webhooks.md). For the global delivery settings (master switch, timeout, retries, and the private-network security control), see [Host Configuration](../README.md#webhooks).
+Collattice can POST a structured event to a URL of your choice whenever something happens on a board — a card created, moved, or labeled; a comment posted; a lane reordered; and more, across a [22-event catalog](#event-types) — so an external consumer (a workflow tool, a script, an agent) can react to board activity without polling. Delivery targets are managed as **subscriptions** — you can register more than one, each with its own URL, an optional signing secret, an enabled state, and a selection of which events it wants. For a guided walkthrough — creating a subscription, sending a test delivery, and the recursion guard you need before pointing one at anything that creates cards — see the [Webhooks Integration Guide](integrating-webhooks.md). For the global delivery settings (master switch, timeout, retries, and the private-network security control), see [Host Configuration](../README.md#webhooks).
 
 Every webhook endpoint below requires an administrator-level key — either the **Administrator** or the **AgentAdministrator** role. A request from any other role receives `403`.
 
@@ -280,7 +280,7 @@ Every webhook endpoint below requires an administrator-level key — either the 
 
 ```json
 {
-  "url": "https://automation.example.com/collaboard-hook",
+  "url": "https://automation.example.com/collattice-hook",
   "events": ["card.created", "card.moved"],
   "secret": "a-long-random-shared-secret",
   "enabled": true,
@@ -306,7 +306,7 @@ Every webhook endpoint below requires an administrator-level key — either the 
 {
   "id": "8f1c…",
   "name": "automation prod",
-  "url": "https://automation.example.com/collaboard-hook",
+  "url": "https://automation.example.com/collattice-hook",
   "enabled": true,
   "events": ["card.created", "card.moved"],
   "signed": true,
@@ -372,7 +372,7 @@ Each `deliveries` item:
 
 ### Event types
 
-A subscription receives an event only when its `events` selection includes that event type (or the wildcard `"*"`). Collaboard emits a **22-event catalog** covering the full board-scoped lifecycle, grouped into six families. The same catalog — with display labels and descriptions for a selection UI — is served by `GET /webhooks/event-types`.
+A subscription receives an event only when its `events` selection includes that event type (or the wildcard `"*"`). Collattice emits a **22-event catalog** covering the full board-scoped lifecycle, grouped into six families. The same catalog — with display labels and descriptions for a selection UI — is served by `GET /webhooks/event-types`.
 
 | Family | Event | Fires when |
 |--------|-------|------------|
@@ -417,7 +417,7 @@ Every event is a JSON object with a shared envelope and a per-event `data` block
   "occurredAt": "2026-06-18T16:42:25.770Z",
   "version": "1",
   "boardId": "f6fa6794-4bed-44d0-9656-de8080791302",
-  "boardSlug": "collaboard",
+  "boardSlug": "collattice",
   "actor": { "userId": "52df8c11-2c9a-4d1e-8b3f-7a6e5d4c3b2a", "name": "Bill Wheelock", "role": "Administrator" },
   "data": {
     "card": {
@@ -451,7 +451,7 @@ Every event is a JSON object with a shared envelope and a per-event `data` block
 | `occurredAt` | string (ISO-8601 UTC) | When the fact happened, server-side. Sort on this for ordering — events may arrive out of order. |
 | `version` | string | Contract version, currently `"1"`. New fields may be added within a version; a consumer must ignore unknown fields rather than reject the payload. |
 | `boardId` | string (GUID) | The board the card belongs to. |
-| `boardSlug` | string | The board's slug (e.g. `collaboard`) — the human-readable key to filter on without a lookup. |
+| `boardSlug` | string | The board's slug (e.g. `collattice`) — the human-readable key to filter on without a lookup. |
 | `actor` | object | Who caused the event: `{ userId, name, role }`. `role` is the role **name** (`Administrator`, `HumanUser`, `AgentUser`, `AgentAdministrator`), not a number. This is the field a consumer filters on to avoid an automation loop — see the [integration guide](integrating-webhooks.md). |
 | `data` | object | The per-event payload — see below. |
 

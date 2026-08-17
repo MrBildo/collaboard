@@ -1,14 +1,14 @@
-# Collaboard Workflow & Tips — What We've Figured Out
+# Collattice Workflow & Tips — What We've Figured Out
 
 This is the **opt-in companion** to the factual skill reference,
-[Operating Collaboard via MCP](./collaboard/SKILL.md). That document tells you *how the
+[Operating Collattice via MCP](./collattice/SKILL.md). That document tells you *how the
 machinery works* — the tools, the board model, the identifier rules. This one is
-different: it's *what we've learned* running Collaboard boards for a human-plus-agent
+different: it's *what we've learned* running Collattice boards for a human-plus-agent
 team over many months. Suggestions, not mechanics.
 
 **Feel free to skip this entirely.** If you already have a workflow designed
 elsewhere — your own lane conventions, your own card protocol, your own agent
-harness — none of this is required to operate Collaboard, and adopting someone
+harness — none of this is required to operate Collattice, and adopting someone
 else's process on top of a working one is usually a step backward. Read this only
 if you're starting from a blank board and want a head start, or if you're curious
 how another team uses the same tools.
@@ -29,7 +29,7 @@ rather than a preference.
 
 Every MCP call takes an `authKey`, and that key *is the identity* — card history,
 comments, and the activity record all attribute actions to whoever the key belongs
-to. (See [Authentication](./collaboard/SKILL.md#authentication) in the skill reference.)
+to. (See [Authentication](./collattice/SKILL.md#authentication) in the skill reference.)
 
 Two things follow from that:
 
@@ -71,7 +71,7 @@ project memory file — whatever your harness auto-loads).
 What's worth caching:
 
 - The **board slug and GUID** — so the agent never has to call `get_boards` just to
-  translate a slug. (Recall from the [Identifier Rules](./collaboard/SKILL.md#identifier-rules)
+  translate a slug. (Recall from the [Identifier Rules](./collattice/SKILL.md#identifier-rules)
   that board-level read tools require the GUID, not the slug.)
 - The **lane names and their GUIDs** — the single most-used lookup, since almost
   every card create/move names a lane.
@@ -97,7 +97,7 @@ Two honest caveats so the cache doesn't bite you:
 ## A workflow you can borrow
 
 Below is the lane-and-card rhythm our team settled into. It is **one example**, not
-the right answer. Collaboard imposes no workflow — lanes are just named columns and
+the right answer. Collattice imposes no workflow — lanes are just named columns and
 labels are just tags. If your team thinks in a different pipeline, build that
 instead.
 
@@ -158,14 +158,14 @@ teammate (human or agent) arriving cold can follow it without having been in the
 room. This is doubly true on a shared board where an agent picking up a card may
 have *no* memory of the session that last touched it. The comment is the handoff.
 
-Comments render as Markdown (see [Markdown capabilities](./collaboard/SKILL.md#markdown-capabilities)),
+Comments render as Markdown (see [Markdown capabilities](./collattice/SKILL.md#markdown-capabilities)),
 so use real structure — a short summary line, a list of changes, a "next" line.
 And use **real newlines**: a literal `\n` in the text renders as the characters
 backslash-n, not a line break.
 
 ### Archive is the reversible "delete"
 
-Collaboard's archive freezes a card and hides it from normal views but keeps it
+Collattice's archive freezes a card and hides it from normal views but keeps it
 forever; the MCP deliberately offers no bulk delete. We lean into that: when a card
 is finished or no longer relevant, we **archive** it rather than delete it. Archived
 cards stay searchable (opt them into a search) and fully restorable, so archiving
@@ -183,7 +183,7 @@ emits one board-update event instead of N (connected boards re-render less), and
 hands back a per-card result envelope telling you exactly which cards succeeded and
 which didn't. For archiving by a rule (everything older than a date, everything in a
 lane), `prune_preview` lets you see the match set before `prune` commits. The full
-shapes are in the [Tool Reference](./collaboard/SKILL.md#tool-reference); the habit worth
+shapes are in the [Tool Reference](./collattice/SKILL.md#tool-reference); the habit worth
 forming is *recognizing the 2-or-more-uniform-operations moment and switching tools.*
 
 ### Let the board be the source of truth for state, not your memory
@@ -227,6 +227,6 @@ shared-state cautions apply.
 
 ## That's it
 
-None of this is required to use Collaboard — the [skill reference](./collaboard/SKILL.md)
+None of this is required to use Collattice — the [skill reference](./collattice/SKILL.md)
 is the only document you *need*. This one is a starting point you're free to adopt
 in part, in whole, or not at all. If you've got a workflow that works, keep it.

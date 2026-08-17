@@ -1,12 +1,12 @@
 ---
-name: collaboard
-description: "Operate a Collaboard kanban board through its Model Context Protocol (MCP) endpoint — connecting, authentication, the board model, identifier rules (board-level reads need a board GUID, not a slug), the Markdown a board renders, and the full tool reference: reading and creating cards, moving and reordering lanes, comments, labels, attachments, sizes, archiving, bulk operations, prune, cross-board search, webhooks, and card description history. Use when an agent needs to read or change a Collaboard board over MCP."
+name: collattice
+description: "Operate a Collattice kanban board through its Model Context Protocol (MCP) endpoint — connecting, authentication, the board model, identifier rules (board-level reads need a board GUID, not a slug), the Markdown a board renders, and the full tool reference: reading and creating cards, moving and reordering lanes, comments, labels, attachments, sizes, archiving, bulk operations, prune, cross-board search, webhooks, and card description history. Use when an agent needs to read or change a Collattice board over MCP."
 ---
 
-# Operating Collaboard via MCP — Agent Skill
+# Operating Collattice via MCP — Agent Skill
 
 This is a factual, drop-in reference for any AI agent (or team of agents) that
-operates a Collaboard board through its Model Context Protocol (MCP) endpoint. It
+operates a Collattice board through its Model Context Protocol (MCP) endpoint. It
 documents the full tool surface, the board model the tools operate on, what
 Markdown the board renders, and best practices for using the tools well.
 
@@ -18,14 +18,14 @@ team. Bring your own workflow; this document tells you how the machinery works.
 
 ## Connecting
 
-Collaboard exposes one MCP endpoint:
+Collattice exposes one MCP endpoint:
 
 ```
 /mcp
 ```
 
 It uses the **streamable HTTP** transport. Point your MCP client at
-`<your-collaboard-base-url>/mcp` — the host and port of your running instance,
+`<your-collattice-base-url>/mcp` — the host and port of your running instance,
 with `/mcp` appended. If you don't know the base URL at runtime, the
 `get_api_info` tool returns it along with the REST API prefix.
 
@@ -53,7 +53,7 @@ The endpoint hosts **45 tools** across these groups:
 ## Authentication
 
 **Every tool takes an `authKey` parameter, and it is required on every call.** The
-key is a per-user credential (a ULID) that Collaboard issues for each board user.
+key is a per-user credential (a ULID) that Collattice issues for each board user.
 It identifies *you* — your actions are attributed to that user in card history,
 comments, and the activity record.
 
@@ -76,7 +76,7 @@ messages, comments, PR descriptions, logs, or anywhere it could leak.
 
 ### Roles and permissions
 
-Collaboard users have a role. Most tools work for any active user; a subset
+Collattice users have a role. Most tools work for any active user; a subset
 requires an elevated role.
 
 | Role | Can do |
@@ -97,7 +97,7 @@ is the reversible alternative the MCP offers in their place.
 
 ## The board model
 
-A Collaboard instance holds one or more **boards**. Each board is an independent
+A Collattice instance holds one or more **boards**. Each board is an independent
 workspace with its own lanes, cards, labels, and sizes.
 
 - **Board** — the top-level container. Has a stable `id` (GUID), a `slug`
@@ -141,7 +141,7 @@ hidden from normal lane listings but preserved.
 
 ## Identifier Rules
 
-This is the single most common source of confusing tool errors. Collaboard uses
+This is the single most common source of confusing tool errors. Collattice uses
 two identifier patterns, and mixing them up produces opaque failures.
 
 ### Pattern A — board-level reads require a GUID
@@ -177,7 +177,7 @@ This applies to `get_card`, `move_card`, `update_card`, `archive_card`,
 
 ## Markdown capabilities
 
-Card **descriptions** and **comments** are Markdown. Collaboard renders them with
+Card **descriptions** and **comments** are Markdown. Collattice renders them with
 GitHub Flavored Markdown plus several extensions. Everything below is what the
 board actually renders.
 
@@ -649,7 +649,7 @@ labels) is set, all cards must share one board.
 
 ### Webhooks (admin-level)
 
-Collaboard can POST board events to an outbound URL. Delivery targets are
+Collattice can POST board events to an outbound URL. Delivery targets are
 **subscriptions** — each with its own URL, an optional HMAC signing secret, an
 enabled/disabled state, and a selection of which event types it wants (a 22-event
 catalog spanning cards, comments, labels, attachments, lanes, and boards, or the `*`
