@@ -23,6 +23,13 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
 {
     private readonly CollaboardApiFactory _factory = factory;
 
+    // Lane positions are unique per board, and these tests create lanes on the shared default board,
+    // so they accumulate across the class run. A monotonic counter keeps them distinct by
+    // construction; a random pick eventually collided on the unique (BoardId, Position) index
+    // (birthday paradox), which read as an intermittent CI failure on unchanged code.
+    private static int _nextLanePosition = 50_000;
+    private static int NextLanePosition() => Interlocked.Increment(ref _nextLanePosition);
+
     private HttpClient AdminClient()
     {
         var client = _factory.CreateClient();
@@ -64,7 +71,7 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         var response = await client.PostAsJsonAsync
         (
             $"/api/v1/boards/{_factory.DefaultBoardId}/lanes",
-            new { name = $"RoleGate Lane {Guid.NewGuid():N}", position = Random.Shared.Next(50_000, 100_000) }
+            new { name = $"RoleGate Lane {Guid.NewGuid():N}", position = NextLanePosition() }
         );
 
         // Assert
@@ -79,7 +86,7 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
     public async Task PatchLane_RoleGate(UserRole role, HttpStatusCode expected)
     {
         // Arrange
-        var laneId = await CreateLaneAsAdminAsync("RoleGate Patch Lane", Random.Shared.Next(50_000, 100_000));
+        var laneId = await CreateLaneAsAdminAsync("RoleGate Patch Lane", NextLanePosition());
         var client = await ClientForRoleAsync(role, "patch-lane");
 
         // Act
@@ -101,7 +108,7 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
     public async Task DeleteLane_RoleGate(UserRole role, HttpStatusCode expected)
     {
         // Arrange
-        var laneId = await CreateLaneAsAdminAsync("RoleGate Delete Lane", Random.Shared.Next(50_000, 100_000));
+        var laneId = await CreateLaneAsAdminAsync("RoleGate Delete Lane", NextLanePosition());
         var client = await ClientForRoleAsync(role, "delete-lane");
 
         // Act
