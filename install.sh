@@ -26,7 +26,7 @@ detect_platform() {
 }
 
 PLATFORM="$(detect_platform)"
-ARTIFACT_NAME="collaboard-${PLATFORM}"
+ARTIFACT_NAME="collattice-${PLATFORM}"
 
 echo "Detected platform: ${PLATFORM}"
 echo "Install directory: ${INSTALL_DIR}"
@@ -62,7 +62,7 @@ tar xzf "${TEMP_DIR}/${ARTIFACT_NAME}.tar.gz" -C "$TEMP_EXTRACT"
 mkdir -p "$INSTALL_DIR"
 
 # Copy new files, preserving data/ and appsettings.json (the operator-editable config —
-# smart-merged below via Collaboard.Api --merge-appsettings, #235).
+# smart-merged below via Collabot.Collattice.Api --merge-appsettings, #235).
 for item in "$TEMP_EXTRACT"/*; do
     name="$(basename "$item")"
     # Skip data directory (contains the database)
@@ -75,22 +75,22 @@ for item in "$TEMP_EXTRACT"/*; do
 done
 
 # Make executable
-chmod +x "${INSTALL_DIR}/Collaboard.Api"
+chmod +x "${INSTALL_DIR}/Collabot.Collattice.Api"
 
 # appsettings.json: smart-merge on upgrade, seed on first install (#235).
 #
 # First install: copy the archive's shipped appsettings.json into place AND seed the
 # sidecar baseline (appsettings.shipped.json) so the next upgrade has a reference for
 # distinguishing operator-edited keys from untouched defaults. Then seed an absolute
-# ConnectionStrings:Board into appsettings.json (Collaboard requires it; no default).
+# ConnectionStrings:Board into appsettings.json (Collattice requires it; no default).
 #
-# Upgrade: invoke `Collaboard.Api --merge-appsettings <shipped> <ondisk> --baseline
+# Upgrade: invoke `Collabot.Collattice.Api --merge-appsettings <shipped> <ondisk> --baseline
 # <baseline>` to perform the three-way merge. The binary owns the merge logic so the
 # same shape runs on every platform without duplicating JSON-handling code.
 SHIPPED_SRC="${TEMP_EXTRACT}/appsettings.json"
 APPSETTINGS_DST="${INSTALL_DIR}/appsettings.json"
 BASELINE_DST="${INSTALL_DIR}/appsettings.shipped.json"
-COLLABOARD_BIN="${INSTALL_DIR}/Collaboard.Api"
+COLLATTICE_BIN="${INSTALL_DIR}/Collabot.Collattice.Api"
 DB_PATH="${INSTALL_DIR}/data/collaboard.db"
 
 if [ ! -f "${APPSETTINGS_DST}" ]; then
@@ -100,7 +100,7 @@ if [ ! -f "${APPSETTINGS_DST}" ]; then
     cp "${SHIPPED_SRC}" "${BASELINE_DST}"
     echo "Seeded ${APPSETTINGS_DST} and ${BASELINE_DST} from shipped defaults"
 
-    # Seed the absolute ConnectionStrings:Board into appsettings.json. Collaboard requires
+    # Seed the absolute ConnectionStrings:Board into appsettings.json. Collattice requires
     # this key with no default and does not derive a path from the working or binary
     # directory. Prefer python3 (always present on macOS, near-universal on modern Linux);
     # fall back to awk against the known shape when python3 is unavailable.
@@ -181,7 +181,7 @@ else
     # Every skip path inside the subcommand is loud + non-zero exit (#235 C-4 / AC-3),
     # so a failure here surfaces; `set -e` aborts the installer rather than silently
     # leaving an unmerged appsettings.json behind.
-    "${COLLABOARD_BIN}" --merge-appsettings "${SHIPPED_SRC}" "${APPSETTINGS_DST}" --baseline "${BASELINE_DST}"
+    "${COLLATTICE_BIN}" --merge-appsettings "${SHIPPED_SRC}" "${APPSETTINGS_DST}" --baseline "${BASELINE_DST}"
     echo "Smart-merged ${APPSETTINGS_DST} (operator edits preserved, new shipped keys added)"
 fi
 
@@ -189,7 +189,7 @@ fi
 rm -rf "$TEMP_DIR"
 
 echo
-echo "Collaboard installed to ${INSTALL_DIR}"
+echo "Collattice installed to ${INSTALL_DIR}"
 echo
 
 # Suggest adding to PATH
@@ -201,13 +201,13 @@ case "$SHELL_NAME" in
 esac
 
 if [[ ":$PATH:" != *":${INSTALL_DIR}:"* ]]; then
-    echo "To add Collaboard to your PATH, run:"
+    echo "To add Collattice to your PATH, run:"
     echo "  echo 'export PATH=\"${INSTALL_DIR}:\$PATH\"' >> ${RC_FILE}"
     echo "  source ${RC_FILE}"
     echo
 fi
 
-echo "To start Collaboard:"
-echo "  ${INSTALL_DIR}/Collaboard.Api"
+echo "To start Collattice:"
+echo "  ${INSTALL_DIR}/Collabot.Collattice.Api"
 echo
 echo "Then open http://localhost:8080 in your browser."

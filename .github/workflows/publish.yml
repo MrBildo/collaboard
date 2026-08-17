@@ -48,24 +48,24 @@ jobs:
       matrix:
         include:
           - rid: win-x64
-            artifact: collaboard-win-x64
-            bin: Collaboard.Api.exe
+            artifact: collattice-win-x64
+            bin: Collabot.Collattice.Api.exe
             ext: zip
           - rid: osx-arm64
-            artifact: collaboard-osx-arm64
-            bin: Collaboard.Api
+            artifact: collattice-osx-arm64
+            bin: Collabot.Collattice.Api
             ext: tar.gz
           - rid: osx-x64
-            artifact: collaboard-osx-x64
-            bin: Collaboard.Api
+            artifact: collattice-osx-x64
+            bin: Collabot.Collattice.Api
             ext: tar.gz
           - rid: linux-x64
-            artifact: collaboard-linux-x64
-            bin: Collaboard.Api
+            artifact: collattice-linux-x64
+            bin: Collabot.Collattice.Api
             ext: tar.gz
           - rid: linux-arm64
-            artifact: collaboard-linux-arm64
-            bin: Collaboard.Api
+            artifact: collattice-linux-arm64
+            bin: Collabot.Collattice.Api
             ext: tar.gz
 
     steps:
@@ -83,10 +83,10 @@ jobs:
 
       # CI validation
       - name: Restore backend
-        run: dotnet restore backend/Collaboard.sln
+        run: dotnet restore backend/Collabot.Collattice.sln
 
       - name: Build backend
-        run: dotnet build backend/Collaboard.sln --no-restore
+        run: dotnet build backend/Collabot.Collattice.sln --no-restore
 
       - name: Test backend
         run: dotnet test backend/ --no-build --verbosity normal
@@ -127,16 +127,16 @@ jobs:
 
       - name: Copy frontend to wwwroot
         run: |
-          mkdir -p backend/Collaboard.Api/wwwroot
-          cp -r frontend/dist/* backend/Collaboard.Api/wwwroot/
+          mkdir -p backend/Collabot.Collattice.Api/wwwroot
+          cp -r frontend/dist/* backend/Collabot.Collattice.Api/wwwroot/
 
       # Publish self-contained, non-single-file (directory layout). Self-contained
       # keeps the no-runtime-needed property; dropping single-file removes the
       # runtime native-lib self-extraction step entirely, which is the precondition
-      # that fails under hardened/read-only-cwd hosting (Collaboard #231).
+      # that fails under hardened/read-only-cwd hosting (Collattice #231).
       #
       # The bundled runtime version is not floating: it is pinned by
-      # RuntimeFrameworkVersion in Collaboard.Api.csproj (bumped via
+      # RuntimeFrameworkVersion in Collabot.Collattice.Api.csproj (bumped via
       # scripts/bump-runtime.sh), so a tag rebuilds to the same runtime it shipped.
       - name: Publish
         env:
@@ -144,7 +144,7 @@ jobs:
           RID: ${{ matrix.rid }}
         run: |
           set -euo pipefail
-          dotnet publish backend/Collaboard.Api/Collaboard.Api.csproj \
+          dotnet publish backend/Collabot.Collattice.Api/Collabot.Collattice.Api.csproj \
             -c Release \
             -r "${RID}" \
             --self-contained \
@@ -154,7 +154,7 @@ jobs:
       # Explicit archive contract: an exclusion list (strip known-bad patterns)
       # backed by a top-level allow-list (fail on anything unrecognized).
       #
-      # Collaboard ships a directory-layout self-contained publish (~380 files:
+      # Collattice ships a directory-layout self-contained publish (~380 files:
       # the apphost binary plus the entire .NET runtime as loose DLLs and native
       # libs). A per-FILE allow-list -- the shape Collabhost's single-file publish
       # uses -- is the wrong tool here: enumerating 350+ runtime DLLs is
@@ -197,7 +197,7 @@ jobs:
             "${{ matrix.rid }}"
 
       # Platform-appropriate, FLAT-layout archive. The archive root IS the stage
-      # directory's contents -- no wrapping "collaboard-<rid>/" directory. The
+      # directory's contents -- no wrapping "collattice-<rid>/" directory. The
       # installer scripts (install.sh, install.ps1) and INSTALL.md assume the
       # binary and appsettings.json sit at the extract root. tar -C STAGE . and
       # Compress-Archive "$STAGE/*" both flatten; the verify step locks it.
@@ -240,7 +240,7 @@ jobs:
           bash scripts/verify-archive.sh \
             "${VERIFY_DIR}" \
             "${{ matrix.bin }}" \
-            "Collaboard.Api"
+            "Collabot.Collattice.Api"
 
       # Per-archive SHA-256 sidecar. Portable `sha256sum -c`-compatible format
       # (one line: "<hash>  <archive>"). Runners are ubuntu-latest, so sha256sum

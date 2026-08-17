@@ -8,7 +8,7 @@ name: Install smoke
 # missing files, broken health, broken startup — before operators do.
 #
 # Linux-x64 only by design. Collabhost runs the multi-platform / QEMU shape
-# (install-integration.yml); Collaboard's posture is "smallest durable smoke
+# (install-integration.yml); Collattice's posture is "smallest durable smoke
 # that catches what an operator would hit first." Scope expansion is its own
 # card.
 #
@@ -86,23 +86,23 @@ jobs:
           cd "$RUNNER_TEMP/dl"
           gh release download "$VERSION" \
             --repo "${{ github.repository }}" \
-            --pattern 'collaboard-linux-x64.tar.gz'
+            --pattern 'collattice-linux-x64.tar.gz'
           ls -la
 
       - name: Extract archive
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/install"
-          tar -xzf "$RUNNER_TEMP/dl/collaboard-linux-x64.tar.gz" \
+          tar -xzf "$RUNNER_TEMP/dl/collattice-linux-x64.tar.gz" \
             -C "$RUNNER_TEMP/install"
           ls -la "$RUNNER_TEMP/install"
           # Archives are FLAT (#237): the binary sits at the extract root, no
-          # wrapping collaboard-linux-x64/ directory. Assert the binary at the
+          # wrapping collattice-linux-x64/ directory. Assert the binary at the
           # root and pin the install dir to the extract root. (Before #282 this
           # step asserted a wrapping directory the flat-layout flip had removed,
           # which silently failed every release-time smoke run -- the exact
           # publish-time-only blind spot #282 closes.)
-          test -x "$RUNNER_TEMP/install/Collaboard.Api"
+          test -x "$RUNNER_TEMP/install/Collabot.Collattice.Api"
           echo "INSTALL_DIR=$RUNNER_TEMP/install" >> "$GITHUB_ENV"
 
       - name: Launch binary (hosted-separately shape)
@@ -121,7 +121,7 @@ jobs:
           cd "$INSTALL_DIR"
           # Launch in background, capture stdout+stderr, record PID for
           # teardown.
-          ./Collaboard.Api > "$RUNNER_TEMP/api.log" 2>&1 &
+          ./Collabot.Collattice.Api > "$RUNNER_TEMP/api.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/api.pid"
           echo "Launched PID $(cat "$RUNNER_TEMP/api.pid")"
 

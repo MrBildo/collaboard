@@ -2,7 +2,7 @@ $ErrorActionPreference = 'Stop'
 
 $Repo = 'MrBildo/collaboard'
 $InstallDir = Join-Path $env:LOCALAPPDATA 'Collaboard'
-$ArtifactName = 'collaboard-win-x64'
+$ArtifactName = 'collattice-win-x64'
 
 Write-Host "Install directory: $InstallDir"
 Write-Host
@@ -28,7 +28,7 @@ Invoke-WebRequest -Uri $downloadUrl -OutFile $tempFile -UseBasicParsing
 
 # Extract to temp location first, then merge (preserving data/ and operator config)
 Write-Host "Extracting to $InstallDir..."
-$tempExtract = Join-Path ([IO.Path]::GetTempPath()) 'collaboard-extract'
+$tempExtract = Join-Path ([IO.Path]::GetTempPath()) 'collattice-extract'
 if (Test-Path $tempExtract) {
     Remove-Item $tempExtract -Recurse -Force
 }
@@ -48,7 +48,7 @@ if (-not (Test-Path $InstallDir)) {
 }
 
 # Copy new files over existing, preserving data/ and appsettings.json (the operator-editable
-# config — smart-merged below via Collaboard.Api --merge-appsettings, #235).
+# config — smart-merged below via Collabot.Collattice.Api --merge-appsettings, #235).
 Get-ChildItem $sourceDir | ForEach-Object {
     $dest = Join-Path $InstallDir $_.Name
     # Skip data directory (contains the database)
@@ -66,14 +66,14 @@ Get-ChildItem $sourceDir | ForEach-Object {
 # First install: copy the archive's shipped appsettings.json into place AND seed the
 # sidecar baseline (appsettings.shipped.json) so the next upgrade has a reference for
 # distinguishing operator-edited keys from untouched defaults. Then seed an absolute
-# ConnectionStrings:Board into appsettings.json (Collaboard requires it; no default).
+# ConnectionStrings:Board into appsettings.json (Collattice requires it; no default).
 #
-# Upgrade: invoke `Collaboard.Api.exe --merge-appsettings <shipped> <ondisk> --baseline
+# Upgrade: invoke `Collabot.Collattice.Api.exe --merge-appsettings <shipped> <ondisk> --baseline
 # <baseline>` to perform the three-way merge.
 $shippedSrc = Join-Path $sourceDir 'appsettings.json'
 $appsettingsDst = Join-Path $InstallDir 'appsettings.json'
 $baselineDst = Join-Path $InstallDir 'appsettings.shipped.json'
-$collaboardBin = Join-Path $InstallDir 'Collaboard.Api.exe'
+$collatticeBin = Join-Path $InstallDir 'Collabot.Collattice.Api.exe'
 $dbPath = Join-Path $InstallDir 'data\collaboard.db'
 
 if (-not (Test-Path $appsettingsDst)) {
@@ -83,7 +83,7 @@ if (-not (Test-Path $appsettingsDst)) {
     Copy-Item -Path $shippedSrc -Destination $baselineDst -Force
     Write-Host "Seeded $appsettingsDst and $baselineDst from shipped defaults"
 
-    # Seed the absolute ConnectionStrings:Board into appsettings.json. Collaboard requires
+    # Seed the absolute ConnectionStrings:Board into appsettings.json. Collattice requires
     # this key with no default. PowerShell's native ConvertFrom-Json / ConvertTo-Json
     # handles this without the python3/awk fallback chain the bash installer needs.
     try {
@@ -108,7 +108,7 @@ else {
     # Every skip path inside the subcommand is loud + non-zero exit (#235 C-4 / AC-3),
     # so a failure here surfaces and $ErrorActionPreference = 'Stop' aborts the installer
     # rather than silently leaving an unmerged appsettings.json behind.
-    & $collaboardBin --merge-appsettings $shippedSrc $appsettingsDst --baseline $baselineDst
+    & $collatticeBin --merge-appsettings $shippedSrc $appsettingsDst --baseline $baselineDst
     if ($LASTEXITCODE -ne 0) {
         Write-Error "merge-appsettings failed with exit code $LASTEXITCODE"
         exit $LASTEXITCODE
@@ -122,18 +122,18 @@ Remove-Item $tempExtract -Recurse -Force
 Remove-Item $tempFile -Force
 
 Write-Host
-Write-Host "Collaboard installed to $InstallDir"
+Write-Host "Collattice installed to $InstallDir"
 Write-Host
 
 # Suggest adding to PATH
 $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
 if ($userPath -notlike "*$InstallDir*") {
-    Write-Host 'To add Collaboard to your PATH, run:'
+    Write-Host 'To add Collattice to your PATH, run:'
     Write-Host "  [Environment]::SetEnvironmentVariable('Path', `"$InstallDir;`$env:Path`", 'User')"
     Write-Host
 }
 
-Write-Host 'To start Collaboard:'
-Write-Host "  & '$InstallDir\Collaboard.Api.exe'"
+Write-Host 'To start Collattice:'
+Write-Host "  & '$InstallDir\Collabot.Collattice.Api.exe'"
 Write-Host
 Write-Host 'Then open http://localhost:8080 in your browser.'

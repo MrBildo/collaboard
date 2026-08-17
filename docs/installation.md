@@ -22,11 +22,11 @@ Download the latest release for your platform from [GitHub Releases](https://git
 
 | Platform | Artifact |
 |----------|----------|
-| Windows 64-bit | `collaboard-win-x64.zip` |
-| macOS Apple Silicon | `collaboard-osx-arm64.tar.gz` |
-| macOS Intel | `collaboard-osx-x64.tar.gz` |
-| Linux 64-bit | `collaboard-linux-x64.tar.gz` |
-| Linux ARM64 | `collaboard-linux-arm64.tar.gz` |
+| Windows 64-bit | `collattice-win-x64.zip` |
+| macOS Apple Silicon | `collattice-osx-arm64.tar.gz` |
+| macOS Intel | `collattice-osx-x64.tar.gz` |
+| Linux 64-bit | `collattice-linux-x64.tar.gz` |
+| Linux ARM64 | `collattice-linux-arm64.tar.gz` |
 
 Extract the archive. Before the first run, edit `appsettings.json` next to the
 executable to set an absolute database path — Collaboard requires
