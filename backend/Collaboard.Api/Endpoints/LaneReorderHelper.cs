@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Collaboard.Api.Endpoints;
 
-// Card #277: shared renumber for whole-board lane reordering, wrapped by both
+// Shared renumber for whole-board lane reordering, wrapped by both
 // the REST endpoint (POST /boards/{boardId}/lanes/reorder) and the MCP tool
 // (reorder_lanes). The client states intent (the complete left-to-right order
 // of the board's non-archive lanes); the server owns all position math.

@@ -6,7 +6,7 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// The single sanctioned /mcp transport test (#251, per the #206 backend testing convention).
+// The single sanctioned /mcp transport test.
 // Every other MCP test invokes the tool class directly and never touches the transport — so an
 // SDK bump that silently drops the tool surface leaves them all green. This test drives a real
 // MCP client over the /mcp HTTP transport to assert the wires are connected: the server boots and
@@ -19,12 +19,12 @@ public class McpTransportSmokeTests(CollaboardApiFactory factory) : IClassFixtur
     // The full tool surface (SystemTools + Board/Card/Archive/Comment/Attachment/Label/Lane/Size/
     // Prune/BulkCard/Search/Webhook). The exact count is the tripwire: an SDK bump that silently
     // drops tools trips it. Adding a tool is expected to bump this by hand — that one-line edit is
-    // the intended signal. #269 added update_comment (CommentTools) and search_cards (SearchTools):
+    // the intended signal. update_comment (CommentTools) and search_cards (SearchTools) added:
     // 35 -> 37.
-    // #277 added reorder_lanes (LaneTools): 37 -> 38.
-    // #308 added reorder_sizes (SizeTools): 38 -> 39.
-    // #326 added WebhookTools (create/list/update/delete/test_webhook): 39 -> 44.
-    // #357 added get_card_history (HistoryTools): 44 -> 45.
+    // reorder_lanes (LaneTools) added: 37 -> 38.
+    // reorder_sizes (SizeTools) added: 38 -> 39.
+    // WebhookTools (create/list/update/delete/test_webhook) added: 39 -> 44.
+    // get_card_history (HistoryTools) added: 44 -> 45.
     private const int _expectedToolCount = 45;
 
     private readonly CollaboardApiFactory _factory = factory;

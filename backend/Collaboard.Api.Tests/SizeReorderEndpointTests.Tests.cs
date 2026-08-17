@@ -7,8 +7,8 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// Card #306: REST tests for whole-board size reordering
-// (POST /boards/{boardId}/sizes/reorder), mirroring the lane reorder (#277).
+// REST tests for whole-board size reordering
+// (POST /boards/{boardId}/sizes/reorder), mirroring the lane reorder.
 // Each test creates a fresh board so it owns the exact size set the board was
 // seeded with (S/M/L/XL at ordinals 0..3), then drives the reorder over the
 // wire. The load-bearing case is the swap: reversing two adjacent sizes forces

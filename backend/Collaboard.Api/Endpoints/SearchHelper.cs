@@ -15,7 +15,7 @@ internal static class SearchHelper
 
         var term = search.Trim();
 
-        // #123 — exact card number lookup
+        // exact card number lookup
         if (term.StartsWith('#') && long.TryParse(term[1..], CultureInfo.InvariantCulture, out var cardNumber))
         {
             return query.Where(c => c.Number == cardNumber);
@@ -45,7 +45,7 @@ internal static class SearchHelper
             .Replace("[", "\\[", StringComparison.Ordinal);
 
     // Cross-board card search shared by the REST GET /search/cards endpoint and the
-    // MCP search_cards tool (#269). Both surfaces must return the identical
+    // MCP search_cards tool. Both surfaces must return the identical
     // board-grouped CardSummary shape — keeping the logic here is the same
     // anti-drift discipline that routes both surfaces through CardSummaryBuilder.
     // The boardId param only affects result ordering (priority board first); it does
@@ -79,7 +79,7 @@ internal static class SearchHelper
 
         // The priority board's own archive lanes — used to keep archived current-board
         // cards out of the top priority bucket so they can't consume the limit budget
-        // ahead of non-archived matches (#276 Bug 2).
+        // ahead of non-archived matches.
         var priorityArchiveLaneIds = boardId is null
             ? []
             : allArchiveLanes
@@ -96,7 +96,7 @@ internal static class SearchHelper
         }
 
         // Prioritize BEFORE the cut so the limit budget goes to the current board's
-        // non-archived matches first (#276). Without this, the Take ran against a
+        // non-archived matches first. Without this, the Take ran against a
         // board-GUID-sorted list and could drop current-board matches before the
         // priority reorder ever saw them. The OrderBy sorts the current board's
         // non-archived cards into the first bucket and everything else — other boards
@@ -122,7 +122,7 @@ internal static class SearchHelper
         var cardBoardMap = cards.ToDictionary(c => c.Id, c => c.BoardId);
 
         // One shared projection across surfaces — the builder owns sizes, labels,
-        // counts, archive flag, and the latest-comment enrichment (#274). Keeping
+        // counts, archive flag, and the latest-comment enrichment. Keeping
         // search on the builder avoids a second CardSummary projection drifting.
         var summaries = await CardSummaryBuilder.BuildAsync(db, cards, ct);
 

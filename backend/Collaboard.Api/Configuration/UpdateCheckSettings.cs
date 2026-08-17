@@ -4,7 +4,7 @@ public class UpdateCheckSettings
 {
     public const string SectionName = "UpdateCheck";
 
-    // The kill switch for outbound update checks (#303). A self-hosted product making silent
+    // The kill switch for outbound update checks. A self-hosted product making silent
     // outbound calls is a trust
     // liability unless the operator can turn it off — set UpdateCheck__Enabled=false and the
     // hosted service never starts, no GitHub egress ever happens, and the status endpoint
@@ -19,10 +19,10 @@ public class UpdateCheckSettings
     public int IntervalHours { get; init; } = 8;
 
     // The GitHub repository whose /releases/latest is the source of truth for "latest"
-    // (#303 §2A — A1). This is the same repo publish.yml cuts releases against, so there is
+    // This is the same repo publish.yml cuts releases against, so there is
     // no new artifact to maintain and no new drift class. "owner/name" form. Overridable via
     // UpdateCheck__Repository. Note: this does NOT enable mirror routing — api.github.com is
-    // fixed (the mirror/Source seam is deferred to spec §4 A2). The real air-gap kill switch
+    // fixed (the mirror/Source seam is deferred). The real air-gap kill switch
     // is UpdateCheck__Enabled=false, which prevents all outbound egress.
     public string Repository { get; init; } = "MrBildo/collaboard";
 }

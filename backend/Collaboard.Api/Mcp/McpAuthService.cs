@@ -21,7 +21,7 @@ public class McpAuthService(IUserResolver resolver)
         return (user, null);
     }
 
-    // Card #243 Phase 2: admin-level role check for MCP tools.
+    // Admin-level role check for MCP tools.
     // Both Administrator and AgentAdministrator are admin-level on MCP;
     // strict-Administrator-only operations (board delete, prune-delete,
     // user CRUD) are intentionally absent from the MCP surface entirely,
@@ -43,7 +43,7 @@ public class McpAuthService(IUserResolver resolver)
         return (user, null);
     }
 
-    // Card #243 Phase 2: the own-or-admin checks in CommentTools and
+    // The own-or-admin checks in CommentTools and
     // AttachmentTools widen from "Administrator" to "Administrator or
     // AgentAdministrator." Centralized here so future admin-level call
     // sites stay consistent.

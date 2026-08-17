@@ -11,7 +11,7 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// Card #243 Phase 3: the 11 new admin-level MCP tools (lane/label/size CRUD +
+// The 11 new admin-level MCP tools (lane/label/size CRUD +
 // board create/update). Each tool gates via McpAuthService.RequireAdminLevelAsync,
 // which admits Administrator and AgentAdministrator but rejects HumanUser and
 // AgentUser. This file exercises:

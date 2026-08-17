@@ -9,7 +9,7 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// #274 — get_cards carries a latestComment projection (author, isFromAdmin, timestamp, preview)
+// get_cards carries a latestComment projection (author, isFromAdmin, timestamp, preview)
 // on both surfaces (REST GET /boards/{boardId}/cards and the MCP get_cards tool), so a fresh
 // operator comment is visible in a lane-scan without a second per-card fetch.
 public class LatestCommentProjectionTests(CollaboardApiFactory factory) : IClassFixture<CollaboardApiFactory>

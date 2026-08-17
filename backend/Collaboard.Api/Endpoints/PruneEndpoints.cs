@@ -66,7 +66,7 @@ internal static class PruneEndpoints
             var action = string.IsNullOrEmpty(request.Action) ? "archive" : request.Action;
 
             // AgentAdministrator is blocked from the destructive delete action.
-            // Bulk delete is named in card #243's exclusion list; only Administrator may invoke it.
+            // Bulk delete is deliberately excluded from the widened roles; only Administrator may invoke it.
             if (action == "delete" && http.CurrentUser().Role == UserRole.AgentAdministrator)
             {
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
@@ -82,7 +82,7 @@ internal static class PruneEndpoints
                     return Results.BadRequest(archiveError);
                 }
 
-                // card.archived per pruned card — N webhook events, one SSE bell. (#329.)
+                // card.archived per pruned card — N webhook events, one SSE bell.
                 foreach (var archived in await WebhookEventFactory.BuildCardArchivedBatchAsync(db, archivedCards, http.CurrentUser(), ct))
                 {
                     webhookSink.Enqueue(archived);
