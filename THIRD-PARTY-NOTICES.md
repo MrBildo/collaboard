@@ -151,7 +151,7 @@ Shipped as managed assemblies alongside the executable.
 - `Polly.RateLimiting` 8.4.2 — BSD-3-Clause — Copyright (c) 2024, App vNext
 - `SQLitePCLRaw.bundle_e_sqlite3` 2.1.11 — Apache-2.0 — Copyright 2014-2024 SourceGear, LLC
 - `SQLitePCLRaw.core` 2.1.11 — Apache-2.0 — Copyright 2014-2024 SourceGear, LLC
-- `SQLitePCLRaw.lib.e_sqlite3` 2.1.11 — Apache-2.0 — Copyright 2014-2024 SourceGear, LLC
+- `SQLitePCLRaw.lib.e_sqlite3` 2.1.13 — Apache-2.0 — Copyright 2014-2024 SourceGear, LLC
 - `SQLitePCLRaw.provider.e_sqlite3` 2.1.11 — Apache-2.0 — Copyright 2014-2024 SourceGear, LLC
 - `Ulid` 1.4.1 — MIT — © Cysharp, Inc.
 
