@@ -3,7 +3,7 @@ using Microsoft.Extensions.Options;
 
 namespace Collaboard.Api.Hosting.UpdateCheck;
 
-// Polls the latest-version source on a timer and refreshes the server-side cache (#303 §3/§5).
+// Polls the latest-version source on a timer and refreshes the server-side cache.
 // One egress per instance per cadence regardless of how many browsers/tabs are connected —
 // the concurrency profile of the board makes per-client polling wrong, so the fact (identical
 // for every client of one instance) is fetched once here. When UpdateCheck:Enabled is false
@@ -61,7 +61,7 @@ internal sealed class UpdateCheckService
         {
             var latest = await _source.GetLatestAsync(cancellationToken);
 
-            // Fail-quiet (#303 §3): a failed poll returns null and leaves the last good cached
+            // Fail-quiet: a failed poll returns null and leaves the last good cached
             // value in place. The absence of a fresh result is the correct degraded state, not
             // an error to surface.
             if (latest is not null)

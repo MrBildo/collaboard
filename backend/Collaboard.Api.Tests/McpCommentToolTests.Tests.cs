@@ -10,8 +10,8 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// Card #263 added contentMarkdown as the canonical body param for add_comment.
-// Card #272 removed the deprecated `content` alias — contentMarkdown is now the sole
+// contentMarkdown is the canonical body param for add_comment.
+// The deprecated `content` alias was removed — contentMarkdown is now the sole
 // required param. These tests pin the canonical path and the empty-input guard.
 public class McpCommentToolTests(CollaboardApiFactory factory) : IClassFixture<CollaboardApiFactory>, IDisposable
 {

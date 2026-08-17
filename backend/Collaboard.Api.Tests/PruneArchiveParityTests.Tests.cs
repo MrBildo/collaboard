@@ -11,8 +11,8 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// Cross-surface parity tests for the prune archive-loop (#267 D6, #206 testing
-// convention). REST POST /boards/{id}/prune (archive action) and the MCP prune tool
+// Cross-surface parity tests for the prune archive-loop.
+// REST POST /boards/{id}/prune (archive action) and the MCP prune tool
 // now route through the shared PruneArchiveHelper, so the same filter must archive
 // the same cards on both surfaces, and the no-archive-lane failure must be reported
 // the same way (REST 400, MCP "Error: ..." string).

@@ -10,7 +10,7 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// Card #243 Phase 2: the two existing MCP own-or-admin role checks
+// The two existing MCP own-or-admin role checks
 // (delete_comment, delete_attachment) widen from "own-or-Administrator" to
 // "own-or-Administrator-or-AgentAdministrator." This file exercises the role
 // matrix at each site:
@@ -124,9 +124,7 @@ public class McpOwnOrAdminWideningTests(CollaboardApiFactory factory) : IClassFi
         return attachment.Id;
     }
 
-    // ---------------------------------------------------------------------
     // delete_comment
-    // ---------------------------------------------------------------------
 
     [Theory]
     [InlineData(UserRole.Administrator)]
@@ -187,9 +185,7 @@ public class McpOwnOrAdminWideningTests(CollaboardApiFactory factory) : IClassFi
         (await db.Comments.FindAsync(commentId)).ShouldNotBeNull();
     }
 
-    // ---------------------------------------------------------------------
     // delete_attachment
-    // ---------------------------------------------------------------------
 
     [Theory]
     [InlineData(UserRole.Administrator)]

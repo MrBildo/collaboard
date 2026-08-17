@@ -14,8 +14,6 @@ public class BoardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
 
     private static JsonSerializerOptions JsonOptions => TestAuthHelper.JsonOptions;
 
-    // --- Composite board view tests (boards/{boardId}/board) ---
-
     [Fact]
     public async Task GetBoard_AsAdmin_Returns200WithLanesAndEmptyCards()
     {
@@ -150,8 +148,6 @@ public class BoardEndpointTests(CollaboardApiFactory factory) : IClassFixture<Co
 
         found.ShouldBeTrue("Created card was not found in the board response.");
     }
-
-    // --- Board CRUD tests ---
 
     [Fact]
     public async Task ListBoards_AsAdmin_ReturnsAtLeastOne()

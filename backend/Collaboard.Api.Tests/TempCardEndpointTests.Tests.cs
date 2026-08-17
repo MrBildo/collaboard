@@ -351,7 +351,7 @@ public class TempCardEndpointTests(CollaboardApiFactory factory) : IClassFixture
         idProp.GetGuid().ShouldNotBe(Guid.Empty);
     }
 
-    // The three tests below exercise the shared BuildCardAsync path introduced by #249.
+    // The three tests below exercise the shared BuildCardAsync path.
     // Standard-create tests already cover name/lane/label validation via CardEndpointTests;
     // these confirm the temp-create path routes through the same logic identically.
 

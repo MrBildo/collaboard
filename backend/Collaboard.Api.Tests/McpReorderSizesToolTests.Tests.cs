@@ -11,13 +11,13 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// Card #308: the reorder_sizes MCP tool. The tool is a thin wrapper over the
-// same SizeReorderHelper the REST endpoint uses (#306), so this file focuses on
+// The reorder_sizes MCP tool. The tool is a thin wrapper over the
+// same SizeReorderHelper the REST endpoint uses, so this file focuses on
 // the MCP-specific surface (CSV parsing, the admin-level role gate, the
 // "Error: …" loud-failure shape) plus the two correctness properties that
 // matter on both surfaces: the swap persists under the unique (BoardId, Ordinal)
 // index, and a stale/mismatched set is rejected with no mutation. Mirrors
-// McpReorderLanesToolTests (#277) exactly, adapted for sizes.
+// McpReorderLanesToolTests exactly, adapted for sizes.
 public class McpReorderSizesToolTests(CollaboardApiFactory factory) : IClassFixture<CollaboardApiFactory>, IDisposable
 {
     private readonly CollaboardApiFactory _factory = factory;

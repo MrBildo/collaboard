@@ -16,8 +16,6 @@ public class ArchiveEndpointTests(CollaboardApiFactory factory) : IClassFixture<
 
     private static JsonSerializerOptions JsonOptions => TestAuthHelper.JsonOptions;
 
-    // --- Archive ---
-
     [Fact]
     public async Task ArchiveCard_ExcludedFromDefaultListing_VisibleWithIncludeArchived()
     {
@@ -45,8 +43,6 @@ public class ArchiveEndpointTests(CollaboardApiFactory factory) : IClassFixture<
         archivedPaged.Items.ShouldContain(c => c.GetProperty("id").GetGuid() == cardId);
     }
 
-    // --- Restore ---
-
     [Fact]
     public async Task RestoreCard_BackInTargetLaneAtPosition0()
     {
@@ -70,8 +66,6 @@ public class ArchiveEndpointTests(CollaboardApiFactory factory) : IClassFixture<
         detail.GetProperty("isArchived").GetBoolean().ShouldBeFalse();
     }
 
-    // --- Error: archive already-archived card ---
-
     [Fact]
     public async Task ArchiveAlreadyArchivedCard_Returns400()
     {
@@ -88,8 +82,6 @@ public class ArchiveEndpointTests(CollaboardApiFactory factory) : IClassFixture<
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
-    // --- Error: restore non-archived card ---
-
     [Fact]
     public async Task RestoreNonArchivedCard_Returns400()
     {
@@ -104,8 +96,6 @@ public class ArchiveEndpointTests(CollaboardApiFactory factory) : IClassFixture<
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
-
-    // --- Error: restore to archive lane ---
 
     [Fact]
     public async Task RestoreToArchiveLane_Returns400()
@@ -125,8 +115,6 @@ public class ArchiveEndpointTests(CollaboardApiFactory factory) : IClassFixture<
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
-    // --- isArchived in card detail ---
-
     [Fact]
     public async Task GetCardDetail_ShowsIsArchivedTrue_WhenArchived()
     {
@@ -144,8 +132,6 @@ public class ArchiveEndpointTests(CollaboardApiFactory factory) : IClassFixture<
         var detail = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         detail.GetProperty("isArchived").GetBoolean().ShouldBeTrue();
     }
-
-    // --- isArchived in card listing ---
 
     [Fact]
     public async Task GetCards_IsArchivedFieldAppears_InListingResponse()
@@ -177,8 +163,6 @@ public class ArchiveEndpointTests(CollaboardApiFactory factory) : IClassFixture<
         archivedCard.GetProperty("isArchived").GetBoolean().ShouldBeTrue();
     }
 
-    // --- Error: restore to nonexistent lane ---
-
     [Fact]
     public async Task RestoreToNonexistentLane_Returns404()
     {
@@ -194,8 +178,6 @@ public class ArchiveEndpointTests(CollaboardApiFactory factory) : IClassFixture<
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
-
-    // --- Helpers ---
 
     private async Task<Guid> GetFirstLaneIdAsync()
         => await TestDataHelper.GetFirstLaneIdAsync(_client, _factory.DefaultBoardId);

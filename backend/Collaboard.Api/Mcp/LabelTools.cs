@@ -35,7 +35,7 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
         return JsonSerializer.Serialize(labels, JsonSerializerOptions.Web);
     }
 
-    // Card #243 Phase 3: admin-level label CRUD. Mirrors the REST surface in
+    // Admin-level label CRUD. Mirrors the REST surface in
     // LabelEndpoints.cs (POST/PATCH/DELETE /boards/{boardId}/labels). All three
     // gate via RequireAdminLevelAsync.
     [McpServerTool(Name = "create_label", Destructive = false)]
@@ -80,7 +80,7 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
         db.Labels.Add(label);
         await db.SaveChangesAsync(ct);
 
-        // label.created — REST/MCP emit the identical event through the shared factory. (#329.)
+        // label.created — REST/MCP emit the identical event through the shared factory.
         await WebhookEventFactory.PublishLabelCreatedAsync(db, broadcaster, label, user!, ct);
         return JsonSerializer.Serialize(label, JsonSerializerOptions.Web);
     }
@@ -125,7 +125,7 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
 
         await db.SaveChangesAsync(ct);
 
-        // label.updated — REST/MCP emit the identical event through the shared factory. (#329.)
+        // label.updated — REST/MCP emit the identical event through the shared factory.
         await WebhookEventFactory.PublishLabelUpdatedAsync(db, broadcaster, label, user!, ct);
         return JsonSerializer.Serialize(label, JsonSerializerOptions.Web);
     }
@@ -156,7 +156,7 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
         db.Labels.Remove(label);
         await db.SaveChangesAsync(ct);
 
-        // label.deleted — published from the captured label after the row is gone. (#329.)
+        // label.deleted — published from the captured label after the row is gone.
         await WebhookEventFactory.PublishLabelDeletedAsync(db, broadcaster, label, user!, ct);
         return "Label deleted.";
     }
@@ -225,7 +225,7 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
         db.CardLabels.Add(new CardLabel { CardId = card.Id, LabelId = resolvedLabelId!.Value });
         await db.SaveChangesAsync(ct);
 
-        // card.labeled — REST/MCP emit the identical event through the shared factory. (#329.)
+        // card.labeled — REST/MCP emit the identical event through the shared factory.
         await WebhookEventFactory.PublishCardLabeledAsync(db, broadcaster, card, label, user!, ct);
         return "Label added successfully.";
     }
@@ -282,13 +282,13 @@ public sealed class LabelTools(BoardDbContext db, McpAuthService auth, BoardEven
         }
 
         // Resolve the label resource for the event BEFORE removing the association (the Label
-        // row itself persists; only the card↔label join is removed). (#329.)
+        // row itself persists; only the card↔label join is removed).
         var label = await db.Labels.FindAsync([resolvedLabelId!.Value], ct);
 
         db.CardLabels.Remove(cardLabel);
         await db.SaveChangesAsync(ct);
 
-        // card.unlabeled — REST/MCP emit the identical event through the shared factory. (#329.)
+        // card.unlabeled — REST/MCP emit the identical event through the shared factory.
         if (label is not null)
         {
             await WebhookEventFactory.PublishCardUnlabeledAsync(db, broadcaster, card, label, user!, ct);

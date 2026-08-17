@@ -9,10 +9,10 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// Cross-surface parity tests for board create (#268 drift backstop, #206 testing
-// convention). REST POST /boards and the MCP create_board tool independently
+// Cross-surface parity tests for board create.
+// REST POST /boards and the MCP create_board tool independently
 // re-encode the shared create rules — name-required and slug-uniqueness — and both
-// route the seed through BoardSeeder.Seed (the #158 audit's P3 de-dup). These tests
+// route the seed through BoardSeeder.Seed. These tests
 // feed the same invalid input to both surfaces and assert both reject identically.
 public class BoardCreateParityTests(CollaboardApiFactory factory) : IClassFixture<CollaboardApiFactory>, IDisposable
 {

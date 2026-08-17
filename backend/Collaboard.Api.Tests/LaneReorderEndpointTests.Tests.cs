@@ -8,7 +8,7 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// Card #277: REST sibling for whole-board lane reordering
+// REST sibling for whole-board lane reordering
 // (POST /boards/{boardId}/lanes/reorder). Each test builds a fresh board so it
 // owns the exact non-archive lane set, then drives the reorder over the wire.
 // The load-bearing case is the swap: reversing two adjacent lanes forces an

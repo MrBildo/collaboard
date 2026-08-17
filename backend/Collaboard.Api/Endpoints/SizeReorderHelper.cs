@@ -3,9 +3,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Collaboard.Api.Endpoints;
 
-// Card #306: shared renumber for whole-board size reordering, wrapped by the
+// Shared renumber for whole-board size reordering, wrapped by the
 // REST endpoint (POST /boards/{boardId}/sizes/reorder). Mirrors the lane
-// reorder (#277, LaneReorderHelper): the client states intent (the complete
+// reorder (LaneReorderHelper): the client states intent (the complete
 // desired order of the board's sizes); the server owns all ordinal math.
 //
 // The hard part is the DB-level unique index on (BoardId, Ordinal)

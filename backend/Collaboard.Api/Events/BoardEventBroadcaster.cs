@@ -48,14 +48,14 @@ public class BoardEventBroadcaster(IWebhookSink webhookSink)
 
     public void PublishBoardUpdated(Guid boardId) => PublishToBoard(boardId, "board-updated");
 
-    // The typed fan-out path (#320). Raised by the eight converted card-mutation
+    // The typed fan-out path. Raised by the eight converted card-mutation
     // call-sites through the shared WebhookEventFactory. Two projections:
     //   1. SSE — DOWNSAMPLE to the existing thin signal. The wire stays byte-for-byte
     //      `event: board-updated\ndata: {}` (PublishToBoard writes the identical string
     //      the unconverted sites emit). The browser consumer sees no change — the
     //      safety property that protects the working SSE consumer.
     //   2. Webhook — full fidelity. Hand the enriched event to the sink, which the
-    //      Phase 2 dispatcher drains. Dark deployments still enqueue; the dispatcher
+    //      dispatcher drains. Dark deployments still enqueue; the dispatcher
     //      no-ops when no endpoint is configured.
     public void Publish(BoardEvent boardEvent)
     {
@@ -66,7 +66,7 @@ public class BoardEventBroadcaster(IWebhookSink webhookSink)
         _webhookSink.Enqueue(boardEvent);
     }
 
-    // The multi-axis co-fire path (#329). A single user action (PATCH /cards, update_card)
+    // The multi-axis co-fire path. A single user action (PATCH /cards, update_card)
     // can change several axes at once — content, lane, labels — and must raise a webhook
     // event PER changed axis while ringing EXACTLY ONE SSE bell. Calling Publish per event
     // would ring N bells and break the browser-safety coalesce property (the SSE wire must

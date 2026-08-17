@@ -8,9 +8,9 @@ using Shouldly;
 
 namespace Collaboard.Api.Tests;
 
-// Role-gate matrix coverage for the AgentAdministrator role (card #243, Phase 1).
+// Role-gate matrix coverage for the AgentAdministrator role.
 //
-// Role-gate behavior for card #243, Phase 1 — see the umbrella card for the per-endpoint disposition table.
+// Role-gate behavior: admin-level endpoints widen to AgentAdministrator; strict-admin endpoints stay Administrator-only.
 //
 // Each widened endpoint is exercised with three role classes:
 //   - Administrator         → expected success (status quo)
@@ -53,9 +53,7 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         return client;
     }
 
-    // ---------------------------------------------------------------------
     // Lanes — POST, PATCH, DELETE all widen to AdminOrAgentAdmin.
-    // ---------------------------------------------------------------------
 
     [Theory]
     [InlineData(UserRole.Administrator, HttpStatusCode.Created)]
@@ -118,9 +116,7 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         response.StatusCode.ShouldBe(expected);
     }
 
-    // ---------------------------------------------------------------------
     // Labels — POST, PATCH, DELETE all widen to AdminOrAgentAdmin.
-    // ---------------------------------------------------------------------
 
     [Theory]
     [InlineData(UserRole.Administrator, HttpStatusCode.Created)]
@@ -183,9 +179,7 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         response.StatusCode.ShouldBe(expected);
     }
 
-    // ---------------------------------------------------------------------
     // Sizes — POST, PATCH, DELETE all widen to AdminOrAgentAdmin.
-    // ---------------------------------------------------------------------
 
     [Theory]
     [InlineData(UserRole.Administrator, HttpStatusCode.Created)]
@@ -248,9 +242,7 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         response.StatusCode.ShouldBe(expected);
     }
 
-    // ---------------------------------------------------------------------
     // Boards — POST and PATCH widen; DELETE stays strict.
-    // ---------------------------------------------------------------------
 
     [Theory]
     [InlineData(UserRole.Administrator, HttpStatusCode.Created)]
@@ -313,9 +305,7 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
-    // ---------------------------------------------------------------------
     // Prune — preview + action=archive widen; action=delete stays Administrator-only.
-    // ---------------------------------------------------------------------
 
     [Theory]
     [InlineData(UserRole.Administrator, HttpStatusCode.OK)]
@@ -360,7 +350,7 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
     }
 
     // action=delete is rejected in-body for AgentAdministrator (the only
-    // in-body role check the design admits — see PruneEndpoints.cs for the enforcement and card #243 for the rationale).
+    // in-body role check the design admits — see PruneEndpoints.cs for the enforcement).
     [Fact]
     public async Task PruneDelete_AsAgentAdministrator_Returns403()
     {
@@ -395,9 +385,7 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
-    // ---------------------------------------------------------------------
     // Users — all admin user endpoints stay strict; AgentAdministrator is 403.
-    // ---------------------------------------------------------------------
 
     [Fact]
     public async Task PostUser_AsAgentAdministrator_Returns403()
@@ -479,11 +467,9 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
-    // ---------------------------------------------------------------------
-    // Moderation — DELETE comment/attachment is own-or-admin-level (card #266).
+    // Moderation — DELETE comment/attachment is own-or-admin-level.
     // AgentAdministrator may delete another user's content over REST, matching
     // the MCP delete_comment / delete_attachment tools. Plain non-owners cannot.
-    // ---------------------------------------------------------------------
 
     // Admin-level roles can delete a comment they did not author.
     [Theory]
@@ -553,9 +539,7 @@ public class AgentAdminRoleGateTests(CollaboardApiFactory factory) : IClassFixtu
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
-    // ---------------------------------------------------------------------
     // Helpers
-    // ---------------------------------------------------------------------
 
     private async Task<Guid> CreateLaneAsAdminAsync(string namePrefix, int position)
     {

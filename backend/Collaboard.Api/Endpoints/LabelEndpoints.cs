@@ -48,7 +48,7 @@ internal static class LabelEndpoints
             db.Labels.Add(label);
             await db.SaveChangesAsync(ct);
 
-            // label.created — same single board bell, plus one webhook event. (#329.)
+            // label.created — same single board bell, plus one webhook event.
             await WebhookEventFactory.PublishLabelCreatedAsync(db, broadcaster, label, http.CurrentUser(), ct);
             return Results.Created($"/api/v1/boards/{boardId}/labels/{label.Id}", label);
         }).RequireAdminOrAgentAdmin();
@@ -78,7 +78,7 @@ internal static class LabelEndpoints
 
             await db.SaveChangesAsync(ct);
 
-            // label.updated — same single board bell, plus one webhook event. (#329.)
+            // label.updated — same single board bell, plus one webhook event.
             await WebhookEventFactory.PublishLabelUpdatedAsync(db, broadcaster, label, http.CurrentUser(), ct);
             return Results.Ok(label);
         }).RequireAdminOrAgentAdmin();
@@ -96,7 +96,7 @@ internal static class LabelEndpoints
             db.Labels.Remove(label);
             await db.SaveChangesAsync(ct);
 
-            // label.deleted — published from the captured label after the row is gone. (#329.)
+            // label.deleted — published from the captured label after the row is gone.
             await WebhookEventFactory.PublishLabelDeletedAsync(db, broadcaster, label, http.CurrentUser(), ct);
             return Results.NoContent();
         }).RequireAdminOrAgentAdmin();
@@ -154,7 +154,7 @@ internal static class LabelEndpoints
             await db.SaveChangesAsync(ct);
 
             // card.labeled — the card's label-set changed; the label resource is embedded so a
-            // consumer knows which label without a follow-up fetch. Same SSE bell. (#329.)
+            // consumer knows which label without a follow-up fetch. Same SSE bell.
             await WebhookEventFactory.PublishCardLabeledAsync(db, broadcaster, card, label, http.CurrentUser(), ct);
             return Results.Created($"/api/v1/cards/{id}/labels/{labelId}", cardLabel);
         }).RequireAuth();
@@ -179,7 +179,7 @@ internal static class LabelEndpoints
             await db.SaveChangesAsync(ct);
 
             // card.unlabeled — the label row itself persists (only the card↔label association
-            // is removed), so the embedded label resource is still resolvable. (#329.)
+            // is removed), so the embedded label resource is still resolvable.
             if (card is not null && label is not null)
             {
                 await WebhookEventFactory.PublishCardUnlabeledAsync(db, broadcaster, card, label, http.CurrentUser(), ct);
