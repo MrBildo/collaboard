@@ -1,7 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Collattice"><rect width="64" height="64" rx="14" fill="#101725"/><g transform="translate(32 32) scale(0.78) rotate(45) translate(-32 -32)">
-<rect x="9" y="19.5" width="46" height="9" rx="4.5" fill="#ff9900"/>
-<rect x="9" y="35.5" width="46" height="9" rx="4.5" fill="#ff9900"/>
-<rect x="19.5" y="9" width="9" height="46" rx="4.5" fill="#00a2d6"/>
-<rect x="35.5" y="9" width="9" height="46" rx="4.5" fill="#00a2d6"/>
-<rect x="17" y="35.5" width="14" height="9" rx="4.5" fill="#ff9900"/>
-<rect x="33" y="19.5" width="14" height="9" rx="4.5" fill="#ff9900"/></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Collattice"><rect width="64" height="64" rx="14" fill="#101725"/><g transform="translate(32 32) scale(2.7) translate(-16.00 -31.40)"><path d="M13.500,25.400 H18.500 A5.500,5.500 0 0 1 24.000,30.900 V31.900 A5.500,5.500 0 0 1 18.500,37.400 H13.500 A5.500,5.500 0 0 1 8.000,31.900 V30.900 A5.500,5.500 0 0 1 13.500,25.400 Z M10.900,32.000 A2.150,2.150 0 1 0 15.200,32.000 A2.150,2.150 0 1 0 10.900,32.000 Z M16.800,32.000 A2.150,2.150 0 1 0 21.100,32.000 A2.150,2.150 0 1 0 16.800,32.000 Z" fill="#e1e5ea" fill-rule="evenodd"/></g></svg>
