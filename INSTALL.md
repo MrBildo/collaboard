@@ -23,7 +23,7 @@ If you used the one-line installer (see [Installation Guide](docs/installation.m
    // appsettings.json
    {
      "ConnectionStrings": {
-       "Board": "Data Source=/absolute/path/to/data/collaboard.db"
+       "Board": "Data Source=/absolute/path/to/data/collattice.db"
      }
    }
    ```
@@ -34,7 +34,7 @@ If you used the one-line installer (see [Installation Guide](docs/installation.m
    // appsettings.json
    {
      "ConnectionStrings": {
-       "Board": "Data Source=C:\\collaboard\\data\\collaboard.db"
+       "Board": "Data Source=C:\\collattice\\data\\collattice.db"
      }
    }
    ```
@@ -84,7 +84,7 @@ double-underscore (`__`) separator; there is no application-specific prefix:
 ```bash
 export Urls=http://0.0.0.0:9090
 export Admin__AuthKey=my-secret-key
-export ConnectionStrings__Board="Data Source=/var/data/collaboard.db"
+export ConnectionStrings__Board="Data Source=/var/data/collattice.db"
 ```
 
 Environment variables win over `appsettings.json`.
@@ -93,18 +93,23 @@ Environment variables win over `appsettings.json`.
 
 - The SQLite database path is **required** configuration — `ConnectionStrings:Board`
   must be set to an absolute path. The installer writes this into `appsettings.json`
-  (pointing at `<install-dir>/data/collaboard.db`); if you run the binary without the
+  (pointing at `<install-dir>/data/collattice.db` for a fresh install); if you run the binary without the
   installer, set it yourself before first run or startup fails loud with the missing
   key named.
 - The database file and its parent directory are created automatically on first run
 - Schema migrations run automatically on startup
 - The database file is backed up automatically before applying new migrations
-- Backups are saved as `collaboard.db.bak-{timestamp}` in the same directory
-- The database file (`collaboard.db`) and the default install directory
-  (`~/.collaboard`, `%LOCALAPPDATA%\Collaboard`, `/var/lib/collaboard`) keep their
-  previous name in this release — deliberately, not a leftover. Renaming them safely
-  needs a data-migration step that lands in a later release; the app, binary, and
-  release archive are all named Collattice.
+- Backups are saved next to the database as `<db-filename>.bak-{timestamp}` (e.g.
+  `collattice.db.bak-{timestamp}` for a fresh install)
+- **Fresh installs use Collattice-named locations; existing installs keep their
+  earlier names.** A brand-new install places the install directory and database
+  under the Collattice name — `~/.collattice` (macOS/Linux) or
+  `%LOCALAPPDATA%\Collattice` (Windows), with `data/collattice.db` inside. An install
+  already present under the earlier name (`~/.collaboard`, `%LOCALAPPDATA%\Collaboard`,
+  `collaboard.db`) is **detected by the installer and kept exactly where it is** — no
+  data is moved, so upgrading in place is safe. Migrating an existing install onto the
+  new names is a deliberate, separate step that lands in a later release; the app,
+  binary, and release archive are already named Collattice.
 
 ## Hosted separately (Portal + API)
 
@@ -128,7 +133,7 @@ Run the same `Collabot.Collattice.Api` binary you would for the LAN shape, but f
     ]
   },
   "ConnectionStrings": {
-    "Board": "Data Source=/srv/collaboard/data/collaboard.db"
+    "Board": "Data Source=/srv/collattice/data/collattice.db"
   }
 }
 ```
@@ -140,7 +145,7 @@ export Hosting__ServeSpa=false
 export Hosting__ListenAddress=127.0.0.1
 export Hosting__ListenPort=5000
 export Cors__AllowedOrigins__0=https://collattice.example.com
-export ConnectionStrings__Board="Data Source=/srv/collaboard/data/collaboard.db"
+export ConnectionStrings__Board="Data Source=/srv/collattice/data/collattice.db"
 ```
 
 Notes:

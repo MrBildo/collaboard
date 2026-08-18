@@ -6,22 +6,25 @@
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/MrBildo/collattice/main/install.sh | bash
-~/.collaboard/Collabot.Collattice.Api
+~/.collattice/Collabot.Collattice.Api
 ```
 
 ### Windows (PowerShell)
 
 ```powershell
 irm https://raw.githubusercontent.com/MrBildo/collattice/main/install.ps1 | iex
-& "$env:LOCALAPPDATA\Collaboard\Collabot.Collattice.Api.exe"
+& "$env:LOCALAPPDATA\Collattice\Collabot.Collattice.Api.exe"
 ```
 
-> **A note on the install paths.** The install directory (`~/.collaboard` on
-> macOS/Linux, `%LOCALAPPDATA%\Collaboard` on Windows) and the database file
-> (`collaboard.db`) keep their previous name in this release — that is deliberate,
-> not a typo. Renaming them safely needs a data-migration step, which lands in a
-> later release. Everything else — the app, the binary, and the download — is
-> Collattice.
+> **A note on the install paths — fresh vs. existing.** A fresh install places the
+> install directory and database under the Collattice name: `~/.collattice`
+> (macOS/Linux) or `%LOCALAPPDATA%\Collattice` (Windows), with `collattice.db` inside.
+> An install already present under the earlier name (`~/.collaboard`,
+> `%LOCALAPPDATA%\Collaboard`, `collaboard.db`) is detected by the installer and kept
+> exactly where it is — no data is moved, so upgrading in place is safe. Migrating an
+> existing install onto the new names lands in a later release. The commands above
+> show the fresh-install location; if you are upgrading an existing install, run the
+> binary from your existing directory instead.
 
 ## Manual Download
 
@@ -44,7 +47,7 @@ directory (the one-line installers above do this for you):
 // appsettings.json
 {
   "ConnectionStrings": {
-    "Board": "Data Source=/absolute/path/to/data/collaboard.db"
+    "Board": "Data Source=/absolute/path/to/data/collattice.db"
   }
 }
 ```

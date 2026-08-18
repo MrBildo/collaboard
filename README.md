@@ -58,14 +58,14 @@ If you're building an AI harness, agent framework, or multi-agent system that ne
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/MrBildo/collattice/main/install.sh | bash
-~/.collaboard/Collabot.Collattice.Api
+~/.collattice/Collabot.Collattice.Api
 ```
 
 ### Windows (PowerShell)
 
 ```powershell
 irm https://raw.githubusercontent.com/MrBildo/collattice/main/install.ps1 | iex
-& "$env:LOCALAPPDATA\Collaboard\Collabot.Collattice.Api.exe"
+& "$env:LOCALAPPDATA\Collattice\Collabot.Collattice.Api.exe"
 ```
 
 Open **http://localhost:8080** in your browser. The admin auth key is printed to the console on first run — copy it and paste it on the login screen.
@@ -166,15 +166,18 @@ the next upgrade:
 // appsettings.json
 {
   "ConnectionStrings": {
-    "Board": "Data Source=/srv/collaboard/data/collaboard.db"
+    "Board": "Data Source=/srv/collattice/data/collattice.db"
   }
 }
 ```
 
-> The database file (`collaboard.db`) and the default install directory
-> (`~/.collaboard`, `%LOCALAPPDATA%\Collaboard`) keep their earlier `collaboard`
-> name in this release — deliberately, not a leftover. Renaming them safely needs a
-> data-migration step that lands in a later release.
+> **Fresh installs use Collattice-named locations; existing installs keep their
+> earlier names.** A fresh install places the install directory and database under the
+> Collattice name — `~/.collattice` (macOS/Linux) or `%LOCALAPPDATA%\Collattice`
+> (Windows), with `collattice.db` inside. An install already present under the earlier
+> name (`~/.collaboard`, `%LOCALAPPDATA%\Collaboard`, `collaboard.db`) is detected by
+> the installer and kept exactly where it is — no data is moved, so upgrading in place
+> is safe. Migrating an existing install onto the new names lands in a later release.
 
 ### Full Settings Reference
 
