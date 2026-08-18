@@ -236,3 +236,25 @@ jobs:
             "${VERIFY_DIR}" \
             "${BIN}" \
             "Collabot.Collattice.Api"
+
+  # Fresh-vs-existing install-location detection is the safety-critical property of
+  # the fresh-install naming change: a fresh install must use the current
+  # (Collattice) location, while an install already present under the earlier name
+  # must be detected and kept in place -- so a fresh install can never land beside
+  # and orphan an operator's real database. The installers' --dry-run resolves the
+  # target location and exits without downloading or touching the filesystem, so
+  # these tests exercise the real detection code paths hermetically: no network, no
+  # published release, and therefore runnable here in PR CI (unlike the post-publish
+  # install-smoke, which proves the full upgrade-in-place flow against a real
+  # release). Both installers are covered because the detection lives in each.
+  installer-detection:
+    name: Installer path detection
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: install.sh detection (bash)
+        run: bash scripts/test-installer-detection.sh install.sh
+      - name: install.ps1 detection (pwsh)
+        shell: pwsh
+        run: ./scripts/test-installer-detection.ps1 ./install.ps1

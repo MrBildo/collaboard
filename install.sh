@@ -2,7 +2,36 @@
 set -euo pipefail
 
 REPO="MrBildo/collattice"
-INSTALL_DIR="${HOME}/.collaboard"
+
+# Fresh vs. existing install detection. A brand-new install uses the current
+# (Collattice) directory and database name. An install already present under the
+# earlier name is detected and kept exactly where it is -- its data never moves, so
+# a fresh install can never land beside and orphan an operator's real database.
+# Migrating an existing install onto the new name is a separate, later step.
+OLD_INSTALL_DIR="${HOME}/.collaboard"
+NEW_INSTALL_DIR="${HOME}/.collattice"
+
+if [ -d "${OLD_INSTALL_DIR}" ] && { [ -f "${OLD_INSTALL_DIR}/appsettings.json" ] || [ -f "${OLD_INSTALL_DIR}/data/collaboard.db" ]; }; then
+    INSTALL_DIR="${OLD_INSTALL_DIR}"
+    DB_FILENAME="collaboard.db"
+    INSTALL_KIND="existing"
+else
+    INSTALL_DIR="${NEW_INSTALL_DIR}"
+    DB_FILENAME="collattice.db"
+    INSTALL_KIND="fresh"
+fi
+
+DB_PATH="${INSTALL_DIR}/data/${DB_FILENAME}"
+
+# --dry-run: report the resolved install directory and database path, then exit
+# without downloading or touching the filesystem -- so an operator (or CI) can
+# confirm up front which location an install would use (fresh vs. detected-existing).
+if [ "${1:-}" = "--dry-run" ]; then
+    echo "install-kind: ${INSTALL_KIND}"
+    echo "install-dir: ${INSTALL_DIR}"
+    echo "db-path: ${DB_PATH}"
+    exit 0
+fi
 
 # Detect platform and architecture
 detect_platform() {
@@ -30,6 +59,9 @@ ARTIFACT_NAME="collattice-${PLATFORM}"
 
 echo "Detected platform: ${PLATFORM}"
 echo "Install directory: ${INSTALL_DIR}"
+if [ "${INSTALL_KIND}" = "existing" ]; then
+    echo "Existing installation detected; keeping it in place, no data moved."
+fi
 echo
 
 # Get latest release tag from GitHub API
@@ -91,7 +123,6 @@ SHIPPED_SRC="${TEMP_EXTRACT}/appsettings.json"
 APPSETTINGS_DST="${INSTALL_DIR}/appsettings.json"
 BASELINE_DST="${INSTALL_DIR}/appsettings.shipped.json"
 COLLATTICE_BIN="${INSTALL_DIR}/Collabot.Collattice.Api"
-DB_PATH="${INSTALL_DIR}/data/collaboard.db"
 
 if [ ! -f "${APPSETTINGS_DST}" ]; then
     # First install — copy shipped → appsettings.json AND seed the baseline sidecar

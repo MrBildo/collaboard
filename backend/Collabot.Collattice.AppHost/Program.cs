@@ -5,7 +5,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 // input" for the dev run: an absolute path anchored on the AppHost's binary
 // directory (stable per build, independent of the cwd `aspire start` is invoked
 // from) so the dev database location does not depend on where the CLI was run.
-var devDataPath = Path.Combine(AppContext.BaseDirectory, "data", "collaboard.db");
+var devDataPath = Path.Combine(AppContext.BaseDirectory, "data", "collattice.db");
 
 var api = builder.AddProject<Projects.Collabot_Collattice_Api>("api")
     .WithEnvironment("ConnectionStrings__Board", $"Data Source={devDataPath}")

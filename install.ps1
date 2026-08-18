@@ -1,10 +1,47 @@
 $ErrorActionPreference = 'Stop'
 
+# Detected from $args (not a param block) so the `irm ... | iex` install path,
+# which cannot forward named parameters, is unaffected.
+$DryRun = ($args -contains '-DryRun') -or ($args -contains '--dry-run')
+
 $Repo = 'MrBildo/collattice'
-$InstallDir = Join-Path $env:LOCALAPPDATA 'Collaboard'
 $ArtifactName = 'collattice-win-x64'
 
+# Fresh vs. existing install detection. A brand-new install uses the current
+# (Collattice) directory and database name. An install already present under the
+# earlier name is detected and kept exactly where it is -- its data never moves, so
+# a fresh install can never land beside and orphan an operator's real database.
+# Migrating an existing install onto the new name is a separate, later step.
+$oldInstallDir = Join-Path $env:LOCALAPPDATA 'Collaboard'
+$newInstallDir = Join-Path $env:LOCALAPPDATA 'Collattice'
+
+if ((Test-Path $oldInstallDir) -and ((Test-Path (Join-Path $oldInstallDir 'appsettings.json')) -or (Test-Path (Join-Path (Join-Path $oldInstallDir 'data') 'collaboard.db')))) {
+    $InstallDir = $oldInstallDir
+    $DbFileName = 'collaboard.db'
+    $InstallKind = 'existing'
+}
+else {
+    $InstallDir = $newInstallDir
+    $DbFileName = 'collattice.db'
+    $InstallKind = 'fresh'
+}
+
+$dbPath = Join-Path (Join-Path $InstallDir 'data') $DbFileName
+
+# -DryRun: report the resolved install directory and database path, then exit
+# without downloading or touching the filesystem -- so an operator (or CI) can
+# confirm up front which location an install would use (fresh vs. detected-existing).
+if ($DryRun) {
+    Write-Host "install-kind: $InstallKind"
+    Write-Host "install-dir: $InstallDir"
+    Write-Host "db-path: $dbPath"
+    exit 0
+}
+
 Write-Host "Install directory: $InstallDir"
+if ($InstallKind -eq 'existing') {
+    Write-Host 'Existing installation detected; keeping it in place, no data moved.'
+}
 Write-Host
 
 # Get latest release tag
@@ -74,7 +111,6 @@ $shippedSrc = Join-Path $sourceDir 'appsettings.json'
 $appsettingsDst = Join-Path $InstallDir 'appsettings.json'
 $baselineDst = Join-Path $InstallDir 'appsettings.shipped.json'
 $collatticeBin = Join-Path $InstallDir 'Collabot.Collattice.Api.exe'
-$dbPath = Join-Path $InstallDir 'data\collaboard.db'
 
 if (-not (Test-Path $appsettingsDst)) {
     # First install — copy shipped → appsettings.json AND seed the baseline sidecar

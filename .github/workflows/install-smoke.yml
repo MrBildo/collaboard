@@ -114,7 +114,7 @@ jobs:
           Hosting__ServeSpa: 'false'
           Hosting__ListenAddress: '127.0.0.1'
           Hosting__ListenPort: '8080'
-          ConnectionStrings__Board: 'Data Source=${{ runner.temp }}/smoke-data/collaboard.db'
+          ConnectionStrings__Board: 'Data Source=${{ runner.temp }}/smoke-data/collattice.db'
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/smoke-data"
@@ -176,3 +176,61 @@ jobs:
             echo "--- last 50 lines of API log ---"
             tail -n 50 "$RUNNER_TEMP/api.log" || true
           fi
+
+  # Prove the load-bearing safety property of the fresh-install naming change
+  # end-to-end: an operator whose install is already present under the earlier name,
+  # running the current installer, keeps their database exactly where it is and
+  # untouched -- the installer must NOT create a fresh Collattice install beside it
+  # and orphan real data. This is the post-publish complement to the PR-CI
+  # installer-detection job (which proves location detection hermetically via
+  # --dry-run); here the REAL install.sh downloads and installs the published
+  # release over a seeded existing install, exercising the full download + merge
+  # path, and we assert the old location was kept, no new Collattice directory was
+  # created, and the database bytes are byte-identical afterward.
+  upgrade-in-place:
+    name: Upgrade-in-place over existing install (linux-x64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'release')
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Seed an existing old-path install
+        run: |
+          set -euo pipefail
+          fakehome="$RUNNER_TEMP/fakehome"
+          old="$fakehome/.collaboard"
+          mkdir -p "$old/data"
+          # Baseline sidecar = what shipped last time (the repo's shipped defaults).
+          cp backend/Collabot.Collattice.Api/appsettings.json "$old/appsettings.shipped.json"
+          # Operator's on-disk config = shipped defaults plus an operator-pinned
+          # ConnectionStrings:Board at the OLD path (what an existing install carries);
+          # the merge must preserve it.
+          python3 -c "import json,sys; d=json.load(open(sys.argv[1])); d['ConnectionStrings']={'Board': f'Data Source={sys.argv[2]}/data/collaboard.db'}; json.dump(d, open(sys.argv[3],'w'), indent=2)" \
+            "$old/appsettings.shipped.json" "$old" "$old/appsettings.json"
+          # Sentinel database bytes -- must be byte-identical after the installer runs.
+          head -c 4096 /dev/urandom > "$old/data/collaboard.db"
+          sha256sum "$old/data/collaboard.db" | awk '{ print $1 }' > "$RUNNER_TEMP/db.sha.before"
+          echo "FAKEHOME=$fakehome" >> "$GITHUB_ENV"
+
+      - name: Run the real installer over the existing install
+        run: HOME="$FAKEHOME" bash install.sh
+
+      - name: Assert existing install kept in place, data untouched
+        run: |
+          set -euo pipefail
+          old="$FAKEHOME/.collaboard"
+          new="$FAKEHOME/.collattice"
+          test -d "$old" || { echo "old install dir vanished" >&2; exit 1; }
+          if [ -e "$new" ]; then
+            echo "installer created a fresh Collattice dir beside the existing install" >&2
+            exit 1
+          fi
+          after="$(sha256sum "$old/data/collaboard.db" | awk '{ print $1 }')"
+          before="$(cat "$RUNNER_TEMP/db.sha.before")"
+          test "$after" = "$before" || { echo "database bytes changed (before=$before after=$after)" >&2; exit 1; }
+          grep -q 'data/collaboard.db' "$old/appsettings.json" || { echo "operator DB path not preserved by merge" >&2; exit 1; }
+          echo "upgrade-in-place: existing install kept, data byte-identical, connection string preserved"

@@ -92,8 +92,8 @@ builder.Services.AddCors(options =>
 // manual-download user can fix it in one step.
 static string ExampleDbConnectionString() =>
     OperatingSystem.IsWindows()
-        ? @"Data Source=C:\collaboard\data\collaboard.db"
-        : "Data Source=/var/lib/collaboard/collaboard.db";
+        ? @"Data Source=C:\collattice\data\collattice.db"
+        : "Data Source=/var/lib/collattice/collattice.db";
 
 static string ConfigRemedy()
 {
