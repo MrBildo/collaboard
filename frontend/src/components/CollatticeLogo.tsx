@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 
-// Collattice brand lockup: the bot + kanban mark (card #424) beside the Space Grotesk wordmark whose
+// Collattice brand lockup: the bot + kanban mark beside the Space Grotesk wordmark whose
 // "tt" is woven. The bot head and the wordmark letters use `currentColor` so they follow the theme
 // foreground; the mark's ring, kanban cards, person, and the woven "tt" strands carry fixed brand
 // colours. The bot's eyes are knockout — cut out of the head (evenodd), so whatever surface sits behind
