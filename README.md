@@ -522,4 +522,4 @@ the release archive as well, so anyone who downloads a build receives it.
 
 ---
 
-*"Collattice" and the Collattice logo are trademarks of Bill Wheelock.*
+*"Collattice", the Collattice logo, and "Collabot.dev" are trademarks of Bill Wheelock.*
