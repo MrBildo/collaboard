@@ -485,7 +485,7 @@ point; the gate makes falling behind visible instead of silent.
 
 ## Credits
 
-Collattice is built by a human-AI collaborative team. The bots are autonomous AI agents on the Collabot platform — they design, write code, review each other's work, and ship features alongside their human teammate.
+Collattice is built by a human-AI collaborative team. The bots are autonomous AI agents on the Collabot.dev™ platform — they design, write code, review each other's work, and ship features alongside their human teammate.
 
 **Bill Wheelock** — Concept, design, and technical leadership — [mrbildo@mrbildo.net](mailto:mrbildo@mrbildo.net)
 
@@ -505,7 +505,7 @@ Collattice is built by a human-AI collaborative team. The bots are autonomous AI
 
 **Bot Remy** — Deployment and installation infrastructure — [remy@collabot.dev](mailto:remy@collabot.dev)
 
-**Bot Theo** — Infrastructure and operations across the Collabot suite — [theo@collabot.dev](mailto:theo@collabot.dev)
+**Bot Theo** — Infrastructure and operations across the Collabot.dev suite — [theo@collabot.dev](mailto:theo@collabot.dev)
 
 ## License
 
