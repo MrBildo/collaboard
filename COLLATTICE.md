@@ -42,7 +42,7 @@ This project deviates from the org-default lane set defined in the `collaboard` 
 - **All newly-created cards go to Triage** — including ones whose disposition already looks settled. The coordinator does not place a new card straight into On Deck on its own judgment; only the operator can direct otherwise. (Standing order, 2026-06-28, suite-wide. This line previously allowed coordinator discretion and predates that order.)
 - At session-end, glance at On Deck depth — if it's growing past ~10 cards without churn, surface it (it shouldn't quietly become a second Backlog).
 
-This pattern is borrowed from Collabhost. If it proves out across multiple Collabot-org projects, promote the lane definition into the `collaboard` skill at that point.
+This pattern is borrowed from Collabhost. If it proves out across multiple Collabot.dev-org projects, promote the lane definition into the `collaboard` skill at that point.
 
 ## Labels
 
