@@ -193,7 +193,6 @@ Compiled into the JavaScript served from `wwwroot`.
 - `@radix-ui/react-use-layout-effect` 1.1.1 — MIT — Copyright (c) 2022 WorkOS
 - `@radix-ui/react-use-previous` 1.1.1 — MIT — Copyright (c) 2022 WorkOS
 - `@radix-ui/react-use-size` 1.1.1 — MIT — Copyright (c) 2022 WorkOS
-- `@remix-run/router` 1.23.2 — MIT — Copyright (c) React Training LLC 2015-2019
 - `@sindresorhus/is` 4.6.0 — MIT — Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
 - `@tanstack/query-core` 5.90.20 — MIT — Copyright (c) 2021-present Tanner Linsley
 - `@tanstack/query-persist-client-core` 5.92.1 — MIT — Copyright (c) 2021-present Tanner Linsley
@@ -317,8 +316,7 @@ Compiled into the JavaScript served from `wwwroot`.
 - `react` 18.3.1 — MIT — Copyright (c) Facebook, Inc. and its affiliates.
 - `react-dom` 18.3.1 — MIT — Copyright (c) Facebook, Inc. and its affiliates.
 - `react-markdown` 9.1.0 — MIT — Copyright (c) Espen Hovlandsdal
-- `react-router` 6.30.3 — MIT — Copyright (c) React Training LLC 2015-2019
-- `react-router-dom` 6.30.3 — MIT — Copyright (c) React Training LLC 2015-2019
+- `react-router` 7.18.2 — MIT — Copyright (c) React Training LLC 2015-2019
 - `rehype-external-links` 3.0.0 — MIT — Copyright (c) 2016 Titus Wormer <tituswormer@gmail.com>
 - `rehype-highlight` 7.0.2 — MIT — Copyright (c) Titus Wormer <tituswormer@gmail.com>
 - `rehype-raw` 7.0.0 — MIT — Copyright (c) 2016 Titus Wormer <tituswormer@gmail.com>
