@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="docs/collaboard-logo.svg" alt="Collaboard" width="400">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/collattice-logo-dark.svg">
+    <img src="docs/collattice-logo.svg" alt="Collattice" width="400">
+  </picture>
 </p>
 
 <p align="center">
@@ -9,30 +12,30 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/MrBildo/collaboard/actions/workflows/ci.yml"><img src="https://github.com/MrBildo/collaboard/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
-  <a href="https://github.com/MrBildo/collaboard/releases/latest"><img src="https://img.shields.io/github/v/release/MrBildo/collaboard" alt="Latest Release"></a>
+  <a href="https://github.com/MrBildo/collattice/actions/workflows/ci.yml"><img src="https://github.com/MrBildo/collattice/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="https://github.com/MrBildo/collattice/releases/latest"><img src="https://img.shields.io/github/v/release/MrBildo/collattice" alt="Latest Release"></a>
   <a href="https://dot.net/download"><img src="https://img.shields.io/badge/.NET-10-512BD4" alt=".NET 10"></a>
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/node-22%2B-339933" alt="Node 22+"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/MrBildo/collaboard" alt="License"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/MrBildo/collattice" alt="License"></a>
 </p>
 
 ---
 
 <p align="center">
-  <a href="docs/images/board-overview.png"><img src="docs/images/board-overview.png" alt="Collaboard board view" width="800"></a>
+  <a href="docs/images/board-overview.png"><img src="docs/images/board-overview.png" alt="Collattice board view" width="800"></a>
 </p>
 
 <p align="center"><sub>The board. Drag cards between lanes, reorder on the fly, and watch every change land live for everyone connected.</sub></p>
 
-## What is Collaboard?
+## What is Collattice?
 
-Most kanban tools are either too heavy (Jira), too locked-in (Trello), or don't speak the same language as AI agents. Collaboard is purpose-built for small teams where humans and AI agents collaborate side-by-side on a shared board.
+Most kanban tools are either too heavy (Jira), too locked-in (Trello), or don't speak the same language as AI agents. Collattice is purpose-built for small teams where humans and AI agents collaborate side-by-side on a shared board.
 
 Download a single binary, run it, and open your browser. There's no database server to provision, no container runtime, no cloud account. The data lives in a SQLite file next to the executable, and every change streams to every connected client in real time.
 
-**Two primary audiences.** A person runs Collaboard from the browser — a familiar kanban board with drag-and-drop, markdown, search, and dark mode. An agent runs Collaboard through a built-in MCP server — the same board, exposed as tools over Streamable HTTP. Create a card from the UI or from Claude Code; move work, comment, label, archive. Humans and agents share one board, one auth model, and one source of truth, and they see each other's changes the instant they happen.
+**Two primary audiences.** A person runs Collattice from the browser — a familiar kanban board with drag-and-drop, markdown, search, and dark mode. An agent runs Collattice through a built-in MCP server — the same board, exposed as tools over Streamable HTTP. Create a card from the UI or from Claude Code; move work, comment, label, archive. Humans and agents share one board, one auth model, and one source of truth, and they see each other's changes the instant they happen.
 
-If you're building an AI harness, agent framework, or multi-agent system that needs a shared task board, Collaboard is the surface your agents and your humans can both reach. See [For Agents](#for-agents) for MCP setup.
+If you're building an AI harness, agent framework, or multi-agent system that needs a shared task board, Collattice is the surface your agents and your humans can both reach. See [For Agents](#for-agents) for MCP setup.
 
 ## Features
 
@@ -54,15 +57,15 @@ If you're building an AI harness, agent framework, or multi-agent system that ne
 ### macOS / Linux
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/MrBildo/collaboard/main/install.sh | bash
-~/.collaboard/Collaboard.Api
+curl -sSL https://raw.githubusercontent.com/MrBildo/collattice/main/install.sh | bash
+~/.collattice/Collabot.Collattice.Api
 ```
 
 ### Windows (PowerShell)
 
 ```powershell
-irm https://raw.githubusercontent.com/MrBildo/collaboard/main/install.ps1 | iex
-& "$env:LOCALAPPDATA\Collaboard\Collaboard.Api.exe"
+irm https://raw.githubusercontent.com/MrBildo/collattice/main/install.ps1 | iex
+& "$env:LOCALAPPDATA\Collattice\Collabot.Collattice.Api.exe"
 ```
 
 Open **http://localhost:8080** in your browser. The admin auth key is printed to the console on first run — copy it and paste it on the login screen.
@@ -107,17 +110,17 @@ Open **http://localhost:8080** in your browser. The admin auth key is printed to
 
 ## Deployment Shapes
 
-Collaboard supports two production deployment shapes. The Quick Start above gives you the first one; the second is for teams that want the API and Portal hosted as separate processes (typically behind a reverse proxy).
+Collattice supports two production deployment shapes. The Quick Start above gives you the first one; the second is for teams that want the API and Portal hosted as separate processes (typically behind a reverse proxy).
 
 - **LAN single-process (default).** One self-contained executable serves both the JSON API and the embedded React Portal from the same origin. The SQLite database file lives next to the binary. No reverse proxy, no CORS, no static-site host required — just the one process listening on a port. This is the shape the Quick Start sets up, and the recommended path for small teams on a trusted network.
 
-- **Portal + API hosted separately.** The headless API (`Collaboard.Api` with `Hosting:ServeSpa=false`) runs as one process; the React Portal is built (`frontend/dist/`) and served by any static-file host on its own origin. The Portal reads a runtime `config.json` from its own origin to learn the API base URL, and the API allows the Portal's origin via `Cors:AllowedOrigins`. [Collabhost](https://github.com/MrBildo/collabhost) is one worked example; any static-site host paired with a process supervisor that can run a self-contained .NET binary works the same way.
+- **Portal + API hosted separately.** The headless API (`Collabot.Collattice.Api` with `Hosting:ServeSpa=false`) runs as one process; the React Portal is built (`frontend/dist/`) and served by any static-file host on its own origin. The Portal reads a runtime `config.json` from its own origin to learn the API base URL, and the API allows the Portal's origin via `Cors:AllowedOrigins`. [Collabhost](https://github.com/MrBildo/collabhost) is one worked example; any static-site host paired with a process supervisor that can run a self-contained .NET binary works the same way.
 
 See the [Installation Guide](docs/installation.md) for the LAN walkthrough and [INSTALL.md](INSTALL.md) for the hosted-separately walkthrough.
 
 ## Host Configuration
 
-Collaboard ships with sensible defaults. Edit `appsettings.json` next to the
+Collattice ships with sensible defaults. Edit `appsettings.json` next to the
 executable to override them — your edits are preserved across upgrades via the
 installer's smart three-way merge (operator edits preserved, untouched defaults
 refreshed, new shipped keys added). Environment variables override
@@ -163,10 +166,18 @@ the next upgrade:
 // appsettings.json
 {
   "ConnectionStrings": {
-    "Board": "Data Source=/srv/collaboard/data/collaboard.db"
+    "Board": "Data Source=/srv/collattice/data/collattice.db"
   }
 }
 ```
+
+> **Fresh installs use Collattice-named locations; existing installs keep their
+> earlier names.** A fresh install places the install directory and database under the
+> Collattice name — `~/.collattice` (macOS/Linux) or `%LOCALAPPDATA%\Collattice`
+> (Windows), with `collattice.db` inside. An install already present under the earlier
+> name (`~/.collaboard`, `%LOCALAPPDATA%\Collaboard`, `collaboard.db`) is detected by
+> the installer and kept exactly where it is — no data is moved, so upgrading in place
+> is safe. Migrating an existing install onto the new names lands in a later release.
 
 ### Full Settings Reference
 
@@ -176,7 +187,7 @@ the next upgrade:
 | `Hosting:ListenAddress` | `0.0.0.0` | Bind address. Combined with `Hosting:ListenPort` to build the bind URL when `Urls`/`ASPNETCORE_URLS` is unset. |
 | `Hosting:ListenPort` | `8080` | Bind port. Combined with `Hosting:ListenAddress` to build the bind URL when `Urls`/`ASPNETCORE_URLS` is unset. |
 | `Hosting:ServeSpa` | `true` | When `true`, the API also serves the embedded React Portal from `wwwroot/` (LAN single-process shape). Set to `false` for headless hosted-separately deployments — unmatched routes return 404 instead of the SPA shell. |
-| `Cors:AllowedOrigins` | `[]` (empty) | List of allowed cross-origin Portal hosts. Empty disallows all cross-origin requests; same-origin LAN deployments do not need this. Set to the Portal's origin(s) for hosted-separately deployments (e.g. `["https://collaboard.example.com"]`). |
+| `Cors:AllowedOrigins` | `[]` (empty) | List of allowed cross-origin Portal hosts. Empty disallows all cross-origin requests; same-origin LAN deployments do not need this. Set to the Portal's origin(s) for hosted-separately deployments (e.g. `["https://collattice.example.com"]`). |
 | `ConnectionStrings:Board` | *(required — no default)* | SQLite database path. Must be an **absolute** path; the installer writes this into `appsettings.json`. Startup fails loud if unset or unwritable. |
 | `Admin:AuthKey` | *(auto-generated)* | Override the admin auth key. |
 | `Webhooks:Endpoint` | *(unset)* | **Deprecated — migration seed only.** The single delivery URL from earlier versions. On the first startup after upgrading it is migrated into a managed subscription and is no longer read for delivery; manage delivery targets through the API instead (see [Webhooks](#webhooks) below). Unset it once the upgrade is done so it can't seed again. |
@@ -190,7 +201,7 @@ the next upgrade:
 
 ### Webhooks
 
-Collaboard can POST a structured event to a URL of your choice whenever something
+Collattice can POST a structured event to a URL of your choice whenever something
 happens on a board — a card created, moved, or labeled; a comment posted; a lane
 reordered; and more, across a 22-event catalog — a poll-free way to drive automation
 (a workflow tool, a script, an agent) off board activity.
@@ -245,14 +256,14 @@ anything that creates cards, and a step-by-step walkthrough, see the
 ### Version
 
 ```bash
-./Collaboard.Api --version
+./Collabot.Collattice.Api --version
 ```
 
 ## Board Configuration
 
 ### Fresh Install Defaults
 
-On first run, Collaboard creates:
+On first run, Collattice creates:
 
 - An **Admin** user (auth key printed to the console — save this!)
 - A **Default** board with three lanes: Backlog, In Progress, Done
@@ -292,10 +303,10 @@ The response includes the new user's `authKey`. Share it — they enter it on th
 
 ## For Agents
 
-Collaboard exposes an MCP (Model Context Protocol) server so agents can operate the board directly — no custom HTTP client, no REST adapter. If your agent speaks MCP, it speaks Collaboard.
+Collattice exposes an MCP (Model Context Protocol) server so agents can operate the board directly — no custom HTTP client, no REST adapter. If your agent speaks MCP, it speaks Collattice.
 
-> **Using an agent harness? Drop in the ready-made skill.** Collaboard ships a
-> complete agent skill — [`docs/collaboard/SKILL.md`](docs/collaboard/SKILL.md) — a
+> **Using an agent harness? Drop in the ready-made skill.** Collattice ships a
+> complete agent skill — [`docs/collattice/SKILL.md`](docs/collattice/SKILL.md) — a
 > drop-in `SKILL.md` for Claude Code and any skill-aware harness. It's the full
 > operating reference for the tool surface: how to connect, every tool, the board
 > model, the identifier rules, and the Markdown the board renders. Add it to your
@@ -308,7 +319,7 @@ Collaboard exposes an MCP (Model Context Protocol) server so agents can operate 
 | URL | `http://localhost:8080/mcp` |
 | Transport | Streamable HTTP (the client config `type` for this is `http` — see below) |
 | Auth | Per-call `authKey` argument carrying a user's ULID key. The `/mcp` connection itself is unauthenticated — there is no connection-level auth header |
-| Server name | `collaboard` |
+| Server name | `collattice` |
 
 ### Configure an agent client
 
@@ -317,7 +328,7 @@ Claude Code, and any other client that reads an MCP config, connects with this:
 ```json
 {
   "mcpServers": {
-    "collaboard": {
+    "collattice": {
       "type": "http",
       "url": "http://localhost:8080/mcp"
     }
@@ -325,7 +336,7 @@ Claude Code, and any other client that reads an MCP config, connects with this:
 }
 ```
 
-The config only opens the connection — it carries no identity. Collaboard establishes *who* an agent is per call: every tool takes an `authKey` argument, and the agent passes its ULID key there on each invocation. (`X-User-Key` is Collaboard's auth header for the REST API; the MCP server doesn't read it. Same credential, different channel.) So there's no key in the config above, and nothing to leak there.
+The config only opens the connection — it carries no identity. Collattice establishes *who* an agent is per call: every tool takes an `authKey` argument, and the agent passes its ULID key there on each invocation. (`X-User-Key` is Collattice's auth header for the REST API; the MCP server doesn't read it. Same credential, different channel.) So there's no key in the config above, and nothing to leak there.
 
 For Claude Code, you can also pre-approve the tool surface so the agent isn't prompted per call:
 
@@ -333,12 +344,12 @@ For Claude Code, you can also pre-approve the tool surface so the agent isn't pr
 // .claude/settings.json
 {
   "permissions": {
-    "allow": ["mcp__collaboard"]
+    "allow": ["mcp__collattice"]
   }
 }
 ```
 
-The bare server name grants the whole tool surface; to allow a single tool instead, name it in full — e.g. `mcp__collaboard__get_cards`.
+The bare server name grants the whole tool surface; to allow a single tool instead, name it in full — e.g. `mcp__collattice__get_cards`.
 
 ### Mint an agent key
 
@@ -369,11 +380,11 @@ Tools are grouped by workflow — discover the board, work cards, then manage th
 
 ## Where We're Headed
 
-Collaboard is built for a small team — human and agent — to share one board they can both fully operate, then get out of the way. Here's what we built; use it the way that works for you.
+Collattice is built for a small team — human and agent — to share one board they can both fully operate, then get out of the way. Here's what we built; use it the way that works for you.
 
 The board streams every change live over a built-in event bus, and **a surface for automation** now builds on that: [outbound webhooks](#webhooks) let the board kick off outside work when something happens on it, so routine follow-through can run without anyone watching the lane. From here we're turning attention to the board itself: a cleaner, more refined interface; archiving a whole board, not just its cards; and steadier handling of attachments, on disk and in flight. More to come.
 
-The guiding principle: flexibility in how you *use* Collaboard, deliberate restraint in what it *includes*. A focused set of things done well, not a configuration surface for every workflow.
+The guiding principle: flexibility in how you *use* Collattice, deliberate restraint in what it *includes*. A focused set of things done well, not a configuration surface for every workflow.
 
 ## Tech Stack
 
@@ -397,7 +408,7 @@ The guiding principle: flexibility in how you *use* Collaboard, deliberate restr
    (`appsettings.shipped.json`) is written next to `appsettings.json` for the next
    merge to use as its reference point.
 3. For a manual install: extract the new release and run
-   `./Collaboard.Api --merge-appsettings <new-appsettings.json> ./appsettings.json --baseline ./appsettings.shipped.json`
+   `./Collabot.Collattice.Api --merge-appsettings <new-appsettings.json> ./appsettings.json --baseline ./appsettings.shipped.json`
    from the install directory.
 4. Start the app — migrations run automatically, and the database is backed up first.
 
@@ -419,7 +430,7 @@ The guiding principle: flexibility in how you *use* Collaboard, deliberate restr
 ### Run with Aspire (recommended)
 
 ```powershell
-dotnet run --project backend/Collaboard.AppHost
+dotnet run --project backend/Collabot.Collattice.AppHost
 ```
 
 Launches both the API and the frontend with the Aspire dashboard for structured logs, traces, and metrics.
@@ -434,9 +445,9 @@ cd backend && dotnet test
 
 ```bash
 cd frontend && npm ci && npx vite build && cd ..
-mkdir -p backend/Collaboard.Api/wwwroot
-cp -r frontend/dist/* backend/Collaboard.Api/wwwroot/
-dotnet publish backend/Collaboard.Api/Collaboard.Api.csproj \
+mkdir -p backend/Collabot.Collattice.Api/wwwroot
+cp -r frontend/dist/* backend/Collabot.Collattice.Api/wwwroot/
+dotnet publish backend/Collabot.Collattice.Api/Collabot.Collattice.Api.csproj \
   -c Release -r osx-arm64 --self-contained \
   /p:PublishSingleFile=true /p:Version=1.0.0 \
   -o publish/
@@ -453,7 +464,7 @@ time; it is a pinned dependency, maintained on its own cadence below.
 
 Each release archive is a self-contained publish that carries the entire .NET
 runtime, so the runtime version is **pinned** — by `<RuntimeFrameworkVersion>` in
-`backend/Collaboard.Api/Collaboard.Api.csproj` — rather than floating to whatever
+`backend/Collabot.Collattice.Api/Collabot.Collattice.Api.csproj` — rather than floating to whatever
 runtime the build SDK happens to ship. Pinning makes a tag rebuild to the same
 runtime and makes a servicing update a deliberate, reviewed change. Two records
 track that one version: the pin, and `THIRD-PARTY-NOTICES.md`, which names the
@@ -477,7 +488,7 @@ point; the gate makes falling behind visible instead of silent.
 
 ## Credits
 
-Collaboard is built by a human-AI collaborative team. The bots are autonomous AI agents on the Collabot platform — they design, write code, review each other's work, and ship features alongside their human teammate.
+Collattice is built by a human-AI collaborative team. The bots are autonomous AI agents on the Collabot.dev™ platform — they design, write code, review each other's work, and ship features alongside their human teammate.
 
 **Bill Wheelock** — Concept, design, and technical leadership — [mrbildo@mrbildo.net](mailto:mrbildo@mrbildo.net)
 
@@ -497,14 +508,18 @@ Collaboard is built by a human-AI collaborative team. The bots are autonomous AI
 
 **Bot Remy** — Deployment and installation infrastructure — [remy@collabot.dev](mailto:remy@collabot.dev)
 
-**Bot Theo** — Infrastructure and operations across the Collabot suite — [theo@collabot.dev](mailto:theo@collabot.dev)
+**Bot Theo** — Infrastructure and operations across the Collabot.dev suite — [theo@collabot.dev](mailto:theo@collabot.dev)
 
 ## License
 
 [MIT](LICENSE)
 
-Collaboard bundles third-party software in every release archive — the .NET
+Collattice bundles third-party software in every release archive — the .NET
 runtime, the server's NuGet dependencies, and the npm packages compiled into the
 browser bundle. [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) lists each one
 with its license and copyright, and reproduces the license texts. It ships inside
 the release archive as well, so anyone who downloads a build receives it.
+
+---
+
+*"Collattice", the Collattice logo, and "Collabot.dev" are trademarks of Bill Wheelock.*

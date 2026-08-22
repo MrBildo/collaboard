@@ -1,6 +1,6 @@
 # Integrating with Webhooks
 
-Collaboard can POST a structured event to a URL you choose whenever something
+Collattice can POST a structured event to a URL you choose whenever something
 happens on a board — a card **created**, **moved**, or **labeled**; a comment
 posted; a lane reordered; and more, across a 22-event catalog. That turns board
 activity into a signal an external system can act on — a workflow automation tool,
@@ -79,7 +79,7 @@ curl -X POST http://localhost:8080/api/v1/webhooks/subscriptions \
   -H "X-User-Key: <admin-auth-key>" \
   -H "Content-Type: application/json" \
   -d '{
-        "url": "https://automation.example.com/collaboard-hook",
+        "url": "https://automation.example.com/collattice-hook",
         "events": ["card.created", "card.moved"],
         "name": "automation prod"
       }'
@@ -101,7 +101,7 @@ write-only — accepted on create or update, never read back.
 
 ### Private and internal targets are blocked by default
 
-For safety, Collaboard blocks webhook deliveries to private and internal network
+For safety, Collattice blocks webhook deliveries to private and internal network
 addresses — loopback, LAN ranges, link-local, and the like. A URL that resolves to one
 of those is rejected when you create the subscription; and a target that resolves
 publicly at create time but to an internal address at delivery time is blocked at the
@@ -252,7 +252,7 @@ A `card.created` POST body looks like this (the full contract is in the
   "occurredAt": "2026-06-18T16:42:25.770Z",
   "version": "1",
   "boardId": "f6fa6794-4bed-44d0-9656-de8080791302",
-  "boardSlug": "collaboard",
+  "boardSlug": "collattice",
   "actor": { "userId": "52df8c11-...", "name": "Bill Wheelock", "role": "Administrator" },
   "data": {
     "card": { "number": 321, "name": "Investigate flaky test", "laneId": "b7c8...", "position": 0, "...": "..." },
@@ -273,7 +273,7 @@ A few things worth knowing so you don't misread a payload:
   Don't treat those zeros as a bug or a sign the payload is incomplete.
 
 - **A draft card does not fire until it's finalized.** When someone composes a card
-  interactively, Collaboard holds a temporary draft until they commit it. The
+  interactively, Collattice holds a temporary draft until they commit it. The
   `card.created` event fires on finalize, not while the draft is being typed — so an
   in-progress compose that gets cancelled never produces an event. You only ever see
   real, committed cards.
@@ -281,7 +281,7 @@ A few things worth knowing so you don't misread a payload:
 - **Ignore fields you don't recognize.** Within `version: "1"`, new fields may be
   *added* to the payload over time. Your consumer must tolerate that — parse leniently
   and ignore unknown fields. A strict-schema deserializer configured to reject any key
-  it wasn't told about will break the first time Collaboard adds a field, even though
+  it wasn't told about will break the first time Collattice adds a field, even though
   nothing about the contract you depend on changed. (If a change is ever *breaking*,
   the `version` value bumps — so you can branch on it.)
 
@@ -299,10 +299,10 @@ A few things worth knowing so you don't misread a payload:
 ## Verifying the signature (optional)
 
 If a subscription has a `secret`, every delivery to it is signed so your endpoint can
-confirm it really came from Collaboard. The signature rides in a header:
+confirm it really came from Collattice. The signature rides in a header:
 
 ```
-X-Collaboard-Signature: sha256=<hex-lowercase-digest>
+X-Collattice-Signature: sha256=<hex-lowercase-digest>
 ```
 
 The digest is HMAC-SHA256 over the **exact raw bytes of the request body**, keyed by
@@ -354,7 +354,7 @@ which is exactly the thing a fire-and-forget integration otherwise hides.
 **The retry behavior.** A failed delivery is retried up to `Webhooks:MaxAttempts`
 times (default 3): the first try is immediate, then a short backoff before each
 retry (roughly the `Webhooks:RetryBackoffBase` wait, growing for later retries, with
-a little jitter). After the final attempt fails, Collaboard records the failure and
+a little jitter). After the final attempt fails, Collattice records the failure and
 logs it at a level the operator can see — so a permanently dead endpoint is loud, not
 a black hole.
 
@@ -363,7 +363,7 @@ a black hole.
 > to be delivered, that event is simply dropped — and because it never reached the
 > attempt stage, it leaves **no `Failed` row**. It's gone with no trace in the log. So
 > don't treat the delivery log as a guaranteed ledger of everything that ever
-> happened; treat it as the record of everything Collaboard *attempted to deliver*.
+> happened; treat it as the record of everything Collattice *attempted to deliver*.
 > In practice a dropped-across-restart event is rare and recoverable while you're at a
 > small scale (the card it was about is sitting right there on the board), so this is
 > an acceptable trade-off — but it's worth knowing before you build something that
@@ -388,6 +388,6 @@ a small server, a script, an AI agent — nothing here is specific to one produc
 5. Create or move a card to see a real event land, then point the subscription at the
    work you actually mean.
 
-That's the whole shape: Collaboard emits the fact, your tool decides what to do with
+That's the whole shape: Collattice emits the fact, your tool decides what to do with
 it, and the recursion guard keeps an automation that creates cards from chasing its
 own tail.

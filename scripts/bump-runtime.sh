@@ -4,7 +4,7 @@
 #
 # Why this exists. The self-contained publish bundles the entire .NET runtime into
 # every release archive, so the version is pinned (RuntimeFrameworkVersion in
-# Collaboard.Api.csproj) rather than floating: a rebuild from a given source
+# Collabot.Collattice.Api.csproj) rather than floating: a rebuild from a given source
 # revision then reproduces the same runtime, and a servicing update is a deliberate
 # change the team makes rather than one the SDK makes for it. But the pin and the
 # notices file are two records of the same fact -- the notices file names the
@@ -49,7 +49,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-CSPROJ="${REPO_ROOT}/backend/Collaboard.Api/Collaboard.Api.csproj"
+CSPROJ="${REPO_ROOT}/backend/Collabot.Collattice.Api/Collabot.Collattice.Api.csproj"
 NOTICES="${REPO_ROOT}/THIRD-PARTY-NOTICES.md"
 FRONTEND_DIR="${REPO_ROOT}/frontend"
 GENERATE="${SCRIPT_DIR}/generate-third-party-notices.sh"
@@ -131,7 +131,7 @@ dotnet publish "${CSPROJ}" \
   --nologo \
   -o "${PUBLISH_DIR}"
 
-DEPS_JSON="${PUBLISH_DIR}/Collaboard.Api.deps.json"
+DEPS_JSON="${PUBLISH_DIR}/Collabot.Collattice.Api.deps.json"
 [[ -f "${DEPS_JSON}" ]] || { echo "bump-runtime: publish produced no ${DEPS_JSON}." >&2; exit 1; }
 
 echo "bump-runtime: regenerating the notices inventory..."

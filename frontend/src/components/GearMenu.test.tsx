@@ -72,7 +72,7 @@ describe('GearMenu update indicator', () => {
     await user.click(screen.getByRole('button'));
     await user.click(await screen.findByLabelText('Dismiss update reminder'));
 
-    expect(localStorage.getItem('collaboard-dismissed-update')).toBe('1.17.0');
+    expect(localStorage.getItem('collattice-dismissed-update')).toBe('1.17.0');
     expect(screen.queryByLabelText('Update available')).not.toBeInTheDocument();
 
     // A newer version than the dismissed one re-shows the dot.
@@ -81,7 +81,7 @@ describe('GearMenu update indicator', () => {
   });
 
   test('a previously-dismissed version stays hidden across mounts', () => {
-    localStorage.setItem('collaboard-dismissed-update', '1.17.0');
+    localStorage.setItem('collattice-dismissed-update', '1.17.0');
 
     render(<GearMenu {...baseProps} versionStatus={statusWithUpdate('1.17.0')} />);
 

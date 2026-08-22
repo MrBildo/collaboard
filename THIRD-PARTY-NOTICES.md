@@ -1,9 +1,9 @@
 # Third-Party Notices
 
-Collaboard itself is distributed under the MIT License; see `LICENSE`.
+Collattice itself is distributed under the MIT License; see `LICENSE`.
 
-A Collaboard release archive is not only Collaboard. It carries the .NET runtime,
-the compiled libraries Collaboard depends on, and a browser bundle into which the
+A Collattice release archive is not only Collabot.Collattice. It carries the .NET runtime,
+the compiled libraries Collattice depends on, and a browser bundle into which the
 frontend's dependencies have been compiled. Everything in this document is
 redistributed to you as part of that archive, under the licenses recorded below.
 
@@ -30,7 +30,7 @@ It is derived from what the build actually produces, not from what the project
 declares it depends on. The two are genuinely different, and the difference is the
 reason this file is generated rather than written by hand:
 
-- The **server** components come from `Collaboard.Api.deps.json`, the dependency
+- The **server** components come from `Collabot.Collattice.Api.deps.json`, the dependency
   manifest `dotnet publish` emits beside the executable. It is the same manifest
   the runtime itself loads assemblies from, so it cannot disagree with what ships.
   One thing it does not record is the native launcher — the executable an
@@ -104,7 +104,7 @@ Redistributed in full by the self-contained publish.
 - `Microsoft.AspNetCore.App.Runtime` 10.0.11 — MIT — Copyright (c) .NET Foundation and Contributors
 - `Microsoft.NETCore.App.Runtime` 10.0.11 — MIT — Copyright (c) .NET Foundation and Contributors
 - `Microsoft.NETCore.App.Host` — MIT — Copyright (c) .NET Foundation and Contributors
-  Shipped as the `Collaboard.Api` executable (`Collaboard.Api.exe` on Windows): the
+  Shipped as the `Collabot.Collattice.Api` executable (`Collabot.Collattice.Api.exe` on Windows): the
   .NET SDK's native launcher, patched with the application name. It comes from
   the SDK's app-host pack rather than from a package reference, which is why
   `deps.json` does not record it and why no version is listed for it here.
@@ -471,7 +471,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ## Dual-licensed component: DOMPurify
 
 `dompurify` is offered by its authors under either the Mozilla Public License 2.0
-or the Apache License 2.0. Collaboard receives and redistributes it under the
+or the Apache License 2.0. Collattice receives and redistributes it under the
 **Apache License 2.0**, whose full text appears below. The alternative MPL-2.0
 terms remain available from the project at https://github.com/cure53/DOMPurify.
 

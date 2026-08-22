@@ -39,8 +39,8 @@ notices-sourcemaps/
 # Aspire local state
 .aspire/
 
-# Collaboard app
-backend/Collaboard.Api/wwwroot/
+# Collattice app
+backend/Collabot.Collattice.Api/wwwroot/
 *.db
 *.db-shm
 *.db-wal
@@ -53,7 +53,7 @@ data/
 
 # Secrets / env
 backend/**/Properties/launchSettings.json
-!backend/Collaboard.AppHost/Properties/launchSettings.json
+!backend/Collabot.Collattice.AppHost/Properties/launchSettings.json
 backend/**/appsettings.Development.json
 # Smart-merge baseline sidecar (#235). Runtime artifact written by the installer
 # next to appsettings.json; never in the source tree, never committed.

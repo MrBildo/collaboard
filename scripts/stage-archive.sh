@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Shared archive STAGING — the single source of truth for what gets stripped
-# from, and added to, a Collaboard release archive before packaging. Paired with
+# from, and added to, a Collattice release archive before packaging. Paired with
 # verify-archive.sh: stage produces the archive, verify asserts the contract.
 # Both the release publish workflow and the PR-CI contract check call this, so
 # the exclusion list (the other half of the contract) cannot drift either. (#282)
@@ -9,14 +9,14 @@
 #   stage-archive.sh <publish-dir> <stage-dir> <bin-name> <rid>
 #     <publish-dir>  the `dotnet publish` output directory
 #     <stage-dir>    where the staged (stripped + augmented) tree is built
-#     <bin-name>     apphost binary name (Collaboard.Api.exe | Collaboard.Api)
+#     <bin-name>     apphost binary name (Collabot.Collattice.Api.exe | Collabot.Collattice.Api)
 #     <rid>          runtime identifier (win-x64, linux-x64, ...) — drives chmod
 #
 # Excluded (and why):
 #   *.pdb                              debug symbols — not shipped
 #   *.xml                              XML doc files (Api/ServiceDefaults) — not shipped
 #   appsettings.Development.json       dev-only config — never ships to operators
-#   *.staticwebassets.endpoints.json   MapStaticAssets manifest. Collaboard serves
+#   *.staticwebassets.endpoints.json   MapStaticAssets manifest. Collattice serves
 #                                      wwwroot via UseStaticFiles + MapFallbackToFile,
 #                                      NOT MapStaticAssets, so this manifest is unused
 #                                      at runtime. This is the exact SDK-drift file the

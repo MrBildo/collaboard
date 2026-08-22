@@ -16,16 +16,16 @@ jobs:
         with:
           dotnet-version: '10.0.x'
       - name: Restore
-        run: dotnet restore backend/Collaboard.sln
+        run: dotnet restore backend/Collabot.Collattice.sln
       - name: Format
         # --severity error: the gate enforces exactly the editorconfig's :error
         # rules (the errors-or-quiet model the analyzer adoption is built on).
         # Default severity (warn) would also fail on the deferred warning-level
         # nudges, which belong to the separate recurring suggestion-resolution
         # gate, not this gate (#208).
-        run: dotnet format backend/Collaboard.sln --verify-no-changes --no-restore --severity error
+        run: dotnet format backend/Collabot.Collattice.sln --verify-no-changes --no-restore --severity error
       - name: Build
-        run: dotnet build backend/Collaboard.sln --no-restore --no-incremental
+        run: dotnet build backend/Collabot.Collattice.sln --no-restore --no-incremental
       - name: Test
         run: dotnet test backend/ --no-build --verbosity normal
 
@@ -79,8 +79,8 @@ jobs:
     timeout-minutes: 20
     env:
       RID: win-x64
-      ARTIFACT: collaboard-win-x64
-      BIN: Collaboard.Api.exe
+      ARTIFACT: collattice-win-x64
+      BIN: Collabot.Collattice.Api.exe
     steps:
       - uses: actions/checkout@v5
 
@@ -144,13 +144,13 @@ jobs:
 
       - name: Copy frontend to wwwroot
         run: |
-          mkdir -p backend/Collaboard.Api/wwwroot
-          cp -r frontend/dist/* backend/Collaboard.Api/wwwroot/
+          mkdir -p backend/Collabot.Collattice.Api/wwwroot
+          cp -r frontend/dist/* backend/Collabot.Collattice.Api/wwwroot/
 
       - name: Publish (win-x64, self-contained)
         run: |
           set -euo pipefail
-          dotnet publish backend/Collaboard.Api/Collaboard.Api.csproj \
+          dotnet publish backend/Collabot.Collattice.Api/Collabot.Collattice.Api.csproj \
             -c Release \
             -r "${RID}" \
             --self-contained \
@@ -169,7 +169,7 @@ jobs:
       # the whole check -- fetch, parse, compare -- rather than deferring it to a
       # release the way a publish-only step would.
       #
-      # The build pins the runtime (RuntimeFrameworkVersion in Collaboard.Api.csproj),
+      # The build pins the runtime (RuntimeFrameworkVersion in Collabot.Collattice.Api.csproj),
       # so a rebuild from a given source revision reproduces the same runtime and a
       # servicing update is a deliberate, reviewed change rather than one that lands
       # silently. This check reads what the publish ACTUALLY bundled (deps.json, not
@@ -178,7 +178,7 @@ jobs:
       - name: Check .NET runtime currency
         run: |
           bash scripts/check-runtime-currency.sh \
-            "publish/${ARTIFACT}/Collaboard.Api.deps.json"
+            "publish/${ARTIFACT}/Collabot.Collattice.Api.deps.json"
 
       # Re-derive the third-party component inventory from what this build
       # actually produced -- the publish dependency manifest for the server side,
@@ -203,7 +203,7 @@ jobs:
         run: |
           bash scripts/generate-third-party-notices.sh \
             --check THIRD-PARTY-NOTICES.md \
-            "publish/${ARTIFACT}/Collaboard.Api.deps.json" \
+            "publish/${ARTIFACT}/Collabot.Collattice.Api.deps.json" \
             frontend \
             notices-sourcemaps
 
@@ -235,4 +235,26 @@ jobs:
           bash scripts/verify-archive.sh \
             "${VERIFY_DIR}" \
             "${BIN}" \
-            "Collaboard.Api"
+            "Collabot.Collattice.Api"
+
+  # Fresh-vs-existing install-location detection is the safety-critical property of
+  # the fresh-install naming change: a fresh install must use the current
+  # (Collattice) location, while an install already present under the earlier name
+  # must be detected and kept in place -- so a fresh install can never land beside
+  # and orphan an operator's real database. The installers' --dry-run resolves the
+  # target location and exits without downloading or touching the filesystem, so
+  # these tests exercise the real detection code paths hermetically: no network, no
+  # published release, and therefore runnable here in PR CI (unlike the post-publish
+  # install-smoke, which proves the full upgrade-in-place flow against a real
+  # release). Both installers are covered because the detection lives in each.
+  installer-detection:
+    name: Installer path detection
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: install.sh detection (bash)
+        run: bash scripts/test-installer-detection.sh install.sh
+      - name: install.ps1 detection (pwsh)
+        shell: pwsh
+        run: ./scripts/test-installer-detection.ps1 ./install.ps1

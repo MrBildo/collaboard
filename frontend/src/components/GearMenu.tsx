@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils';
 // Per-version dismissal: the operator dismisses a specific available version, not all
 // future updates. The dot reappears when a newer version than the dismissed one is detected,
 // because the dismissed value is an exact string match against the current `latest`.
-const DISMISSED_VERSION_KEY = 'collaboard-dismissed-update';
+const DISMISSED_VERSION_KEY = 'collattice-dismissed-update';
 
 function getDismissedVersion(): string | null {
   if (typeof window === 'undefined') return null;
@@ -45,12 +45,12 @@ function roleBadgeClassName(role: Role): string {
 
 function getStoredTheme(): 'light' | 'dark' {
   if (typeof window === 'undefined') return 'light';
-  return (localStorage.getItem('collaboard-theme') as 'light' | 'dark') ?? 'light';
+  return (localStorage.getItem('collattice-theme') as 'light' | 'dark') ?? 'light';
 }
 
 function applyTheme(theme: 'light' | 'dark') {
   document.documentElement.setAttribute('data-theme', theme);
-  localStorage.setItem('collaboard-theme', theme);
+  localStorage.setItem('collattice-theme', theme);
 }
 
 type GearMenuProps = {
@@ -196,7 +196,7 @@ export function GearMenu({
         <DropdownMenuItem
           onClick={() =>
             window.open(
-              'https://github.com/MrBildo/collaboard/blob/main/docs/user-guide.md',
+              'https://github.com/MrBildo/collattice/blob/main/docs/user-guide.md',
               '_blank',
               'noopener,noreferrer',
             )

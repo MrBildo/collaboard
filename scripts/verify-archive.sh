@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Shared archive-contract verification — the single source of truth for what a
-# shipped Collaboard release archive must (and must not) contain. Both the
+# shipped Collattice release archive must (and must not) contain. Both the
 # release publish workflow (.github/workflows/publish.yml) and the PR-CI
 # contract check (.github/workflows/ci.yml) call this script, so the contract
 # they enforce CANNOT drift from each other. (#282)
@@ -14,8 +14,8 @@
 # Usage:
 #   verify-archive.sh <verify-dir> <bin-name> <app-base-name>
 #     <verify-dir>      directory the archive was extracted into
-#     <bin-name>        apphost binary name (Collaboard.Api.exe | Collaboard.Api)
-#     <app-base-name>   assembly base name (Collaboard.Api) -> <base>.deps.json etc.
+#     <bin-name>        apphost binary name (Collabot.Collattice.Api.exe | Collabot.Collattice.Api)
+#     <app-base-name>   assembly base name (Collabot.Collattice.Api) -> <base>.deps.json etc.
 #
 # Asserts:
 #   (1) flat layout      — no wrapping "<artifact>/" directory at the root

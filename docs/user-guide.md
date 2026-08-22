@@ -1,11 +1,11 @@
-# Collaboard User Guide
+# Collattice User Guide
 
-Welcome to Collaboard — a lightweight kanban board for small teams where people and
+Welcome to Collattice — a lightweight kanban board for small teams where people and
 AI agents work side by side on the same board. This guide is for the **person at the
 keyboard**: everything you can do from the browser, organized by what you actually
 do with it.
 
-If you haven't installed Collaboard yet, start with the
+If you haven't installed Collattice yet, start with the
 [Installation Guide](installation.md). If you're setting up an **AI agent** to use
 the board, the human guide stops being the right map — see
 [For Agents](#for-agents-and-automation) near the end, which points you at the
@@ -40,14 +40,14 @@ agent-facing docs.
 
 ## Signing in
 
-Collaboard identifies you by an **auth key** — a long string unique to your account.
+Collattice identifies you by an **auth key** — a long string unique to your account.
 There are no passwords and no email sign-up. Your key *is* your identity: every card
 you create, every comment you write, and every move you make is attributed to you.
 
-When you open Collaboard you'll see a sign-in screen. Paste your auth key into the
+When you open Collattice you'll see a sign-in screen. Paste your auth key into the
 box and select **Log In**.
 
-- **Where your key comes from.** If you're the person who installed Collaboard, your
+- **Where your key comes from.** If you're the person who installed Collattice, your
   admin key is printed to the console the first time the app starts — copy it from
   there. If someone else runs the board, ask them to create an account for you; they
   hand you a key to paste in.
@@ -72,7 +72,7 @@ or remove them to match how your team works.
 
 Across the top is the header:
 
-- The **Collaboard logo** (top-left).
+- The **Collattice logo** (top-left).
 - The **board name** — or, if you have more than one board, a **board switcher**
   dropdown for hopping between them.
 - The **search box** in the middle — find any card across every board (see
@@ -133,13 +133,13 @@ From here you can change everything about the card:
   at each revision, and who changed it.
 
 Your edits aren't saved until you select **Save** at the bottom of the panel. If you
-try to close the panel with unsaved changes, Collaboard asks before discarding them.
+try to close the panel with unsaved changes, Collattice asks before discarding them.
 Select **Close** (or press **Escape**) to dismiss the panel.
 
 The **‹** and **›** arrows on the sides of the panel step to the previous and next
 card without closing it — handy for reviewing a lane card by card.
 
-> **Someone edited this card while you had it open?** Collaboard handles that
+> **Someone edited this card while you had it open?** Collattice handles that
 > gracefully. Fields you *haven't* touched update live to match the latest value.
 > Fields you *are* editing aren't overwritten — instead a banner near **Save** tells
 > you who changed what (for example, *"Marcus changed the description"*), and a marker
@@ -270,7 +270,7 @@ presentational tags work, but scripts and unsafe content are stripped.
 
 ## Real-time collaboration
 
-Collaboard is **live**. Every change — a card moved, a comment posted, a label
+Collattice is **live**. Every change — a card moved, a comment posted, a label
 added, a lane reordered — streams to everyone connected to the board the instant it
 happens. There's no refresh button to hunt for and no "someone else changed this,
 reload?" dialog.
@@ -289,7 +289,7 @@ while you're looking at the board, you see it move.
 
 ## Multiple boards
 
-One Collaboard instance can run **as many boards as you like** — for example, a board
+One Collattice instance can run **as many boards as you like** — for example, a board
 per project, per team, or per workstream. Each board is fully independent: its own
 lanes, cards, labels, and sizes, and its own card numbering (every board starts at
 `#1`).
@@ -318,7 +318,7 @@ derived from the board's name, so the links stay legible.
 
 ## Light and dark themes
 
-Collaboard ships with **light** and **dark** themes. Open the **gear menu** (⚙) and
+Collattice ships with **light** and **dark** themes. Open the **gear menu** (⚙) and
 select **Dark mode** / **Light mode** to switch.
 
 ![Dark mode](images/dark-mode.png)
@@ -378,7 +378,7 @@ can change*, not *which boards you can see*.
 
 ## For agents and automation
 
-Collaboard isn't only for people. It has a built-in **MCP (Model Context Protocol)**
+Collattice isn't only for people. It has a built-in **MCP (Model Context Protocol)**
 server, so an AI agent can operate the board directly — create cards, move work,
 comment, label, search, and manage attachments — through the same board you're
 looking at. Humans and agents share one board and see each other's changes live.
@@ -386,7 +386,7 @@ looking at. Humans and agents share one board and see each other's changes live.
 If you're setting up an agent, this user guide isn't the right reference. Use these
 instead:
 
-- **[Operating Collaboard via MCP](collaboard/SKILL.md)** — the complete, factual reference
+- **[Operating Collattice via MCP](collattice/SKILL.md)** — the complete, factual reference
   for the agent tool surface: how to connect, every tool, the board model, the
   identifier rules, and the Markdown the board renders. This is the document an agent
   needs.
@@ -399,8 +399,8 @@ connecting a client like Claude Code.
 
 ### Webhooks
 
-Collaboard can also call **out** to other systems. An administrator can point a
-**webhook** at any URL, and Collaboard POSTs a structured event to it whenever
+Collattice can also call **out** to other systems. An administrator can point a
+**webhook** at any URL, and Collattice POSTs a structured event to it whenever
 something happens on a board — a card created or moved, a comment posted, a label
 changed, and more. It's how you wire the board into an automation tool, a script, or
 an agent without anyone watching the lane.

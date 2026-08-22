@@ -2,7 +2,7 @@
 # Checks the .NET runtime a self-contained publish is about to bundle against the
 # current .NET servicing release, and fails if we would ship one that is behind.
 #
-# Why this exists. A self-contained Collaboard archive carries the entire .NET
+# Why this exists. A self-contained Collattice archive carries the entire .NET
 # runtime inside it -- hundreds of libraries, the largest single body of code in
 # every archive. So when a runtime security patch ships, an operator does not get
 # it from their own machine; they get whatever we packaged. We own that patch
@@ -11,7 +11,7 @@
 # the runtime pack the publish BUNDLES, so the runtime sits outside every other
 # check we run.
 #
-# The build PINS the runtime (RuntimeFrameworkVersion in Collaboard.Api.csproj)
+# The build PINS the runtime (RuntimeFrameworkVersion in Collabot.Collattice.Api.csproj)
 # rather than floating to whatever the build SDK ships, so a rebuild from a given
 # source revision reproduces the same runtime and a servicing update is a
 # deliberate, reviewed change. That makes staying current a choice the team makes
@@ -28,7 +28,7 @@
 # Usage:
 #   check-runtime-currency.sh <deps-json>
 #     <deps-json>  a self-contained publish's dependency manifest
-#                  (Collaboard.Api.deps.json). The bundled runtime pack version is
+#                  (Collabot.Collattice.Api.deps.json). The bundled runtime pack version is
 #                  read from here.
 #
 # Exit 0 when the bundled runtime is current (equal to, or ahead of, the published
@@ -180,7 +180,7 @@ if [[ "${verdict}" == "behind" ]]; then
   echo "Because the archive bundles the runtime, operators receive whatever we package" >&2
   echo "-- they cannot patch it themselves. Bump the pin to the current release with" >&2
   echo "  scripts/bump-runtime.sh ${LATEST}" >&2
-  echo "which rewrites <RuntimeFrameworkVersion> in Collaboard.Api.csproj and regenerates" >&2
+  echo "which rewrites <RuntimeFrameworkVersion> in Collabot.Collattice.Api.csproj and regenerates" >&2
   echo "THIRD-PARTY-NOTICES.md together, then open that one-commit PR." >&2
   exit 1
 fi

@@ -13,12 +13,12 @@ function ensureMermaidInitialized() {
         background: 'hsl(222, 18%, 15%)',
         mainBkg: 'hsl(222, 18%, 15%)',
 
-        // Primary nodes — Collaboard cyan
+        // Primary nodes — Collattice cyan
         primaryColor: 'hsl(195, 90%, 20%)',
         primaryTextColor: 'hsl(195, 90%, 85%)',
         primaryBorderColor: 'hsl(195, 90%, 55%)',
 
-        // Secondary nodes — Collaboard amber/accent
+        // Secondary nodes — Collattice amber/accent
         secondaryColor: 'hsl(36, 60%, 18%)',
         secondaryTextColor: 'hsl(36, 100%, 75%)',
         secondaryBorderColor: 'hsl(36, 100%, 55%)',
