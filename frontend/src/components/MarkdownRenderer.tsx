@@ -1,6 +1,7 @@
 import {
   createContext,
   isValidElement,
+  memo,
   useContext,
   useMemo,
   type ComponentPropsWithoutRef,
@@ -174,7 +175,17 @@ const markdownComponents: Components = {
 
 type RemarkPlugins = NonNullable<Options['remarkPlugins']>;
 
-export function MarkdownRenderer({
+// Memoized because the card detail view mounts one renderer per comment plus one
+// for the description, while every keystroke in the title / description / comment
+// inputs re-renders their shared parent. react-markdown re-runs its whole
+// remark→rehype→highlight parse on every render, so without this each keystroke
+// re-parses every mounted block — a cost that grows with the card's comment count
+// and description size. Across a keystroke the props are referentially stable (the
+// markdown string is unchanged, and the autolink set / preview map are memoized on
+// the board-data cache), so the default shallow comparison skips the re-parse when
+// the content is unchanged and still re-renders when the text — or the board data
+// the previews derive from — actually changes.
+export const MarkdownRenderer = memo(function MarkdownRenderer({
   children,
   boardSlug,
   cardNumbers,
@@ -207,4 +218,4 @@ export function MarkdownRenderer({
       </DiagramsSuppressedContext.Provider>
     </CardPreviewsContext.Provider>
   );
-}
+});
