@@ -16,9 +16,9 @@ internal static class SizeEndpoints
                 : Results.Ok(await db.CardSizes.Where(x => x.BoardId == boardId).OrderBy(x => x.Ordinal).ToListAsync()))
             .RequireAuth();
 
-        group.MapPost("/boards/{boardId:guid}/sizes", async (BoardDbContext db, Guid boardId, CreateSizeRequest request, BoardEventBroadcaster broadcaster) =>
+        group.MapPost("/boards/{boardId:guid}/sizes", async (BoardDbContext db, HttpContext http, Guid boardId, CreateSizeRequest request, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
         {
-            if (!await db.Boards.AnyAsync(x => x.Id == boardId))
+            if (!await db.Boards.AnyAsync(x => x.Id == boardId, ct))
             {
                 return Results.NotFound();
             }
@@ -29,15 +29,17 @@ internal static class SizeEndpoints
             }
 
             var ordinal = request.Ordinal ?? 0;
-            if (!request.Ordinal.HasValue && await db.CardSizes.AnyAsync(x => x.BoardId == boardId))
+            if (!request.Ordinal.HasValue && await db.CardSizes.AnyAsync(x => x.BoardId == boardId, ct))
             {
-                ordinal = await db.CardSizes.Where(x => x.BoardId == boardId).MaxAsync(x => x.Ordinal) + 1;
+                ordinal = await db.CardSizes.Where(x => x.BoardId == boardId).MaxAsync(x => x.Ordinal, ct) + 1;
             }
 
             var size = new CardSize { Id = Guid.NewGuid(), BoardId = boardId, Name = request.Name, Ordinal = ordinal };
             db.CardSizes.Add(size);
-            await db.SaveChangesAsync();
-            broadcaster.PublishBoardUpdated(boardId);
+            await db.SaveChangesAsync(ct);
+
+            // size.created — same single board bell, plus one webhook event.
+            await WebhookEventFactory.PublishSizeCreatedAsync(db, broadcaster, size, http.CurrentUser(), ct);
             return Results.Created($"/api/v1/sizes/{size.Id}", size);
         }).RequireAdminOrAgentAdmin();
 
@@ -45,7 +47,7 @@ internal static class SizeEndpoints
         // order of the board's sizes; server owns all ordinal math (two-phase
         // renumber under the unique (BoardId, Ordinal) index — see
         // SizeReorderHelper). Mirrors the lane reorder.
-        group.MapPost("/boards/{boardId:guid}/sizes/reorder", async (BoardDbContext db, Guid boardId, ReorderSizesRequest request, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
+        group.MapPost("/boards/{boardId:guid}/sizes/reorder", async (BoardDbContext db, HttpContext http, Guid boardId, ReorderSizesRequest request, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
         {
             if (!await db.Boards.AnyAsync(x => x.Id == boardId, ct))
             {
@@ -59,7 +61,10 @@ internal static class SizeEndpoints
             }
 
             var ordered = await SizeReorderHelper.ReorderAsync(db, sizes!, request.SizeIds!, ct);
-            broadcaster.PublishBoardUpdated(boardId);
+
+            // size.reordered — ONE event carrying the board's full new order (never N), same single
+            // board bell the reorder always rang.
+            await WebhookEventFactory.PublishSizeReorderedAsync(db, broadcaster, boardId, http.CurrentUser(), ct);
             return Results.Ok(ordered);
         }).RequireAdminOrAgentAdmin();
 
@@ -70,32 +75,39 @@ internal static class SizeEndpoints
             return size is null ? Results.NotFound() : Results.Ok(size);
         }).RequireAuth();
 
-        group.MapDelete("/sizes/{id:guid}", async (BoardDbContext db, Guid id, BoardEventBroadcaster broadcaster) =>
+        group.MapDelete("/sizes/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
         {
-            var size = await db.CardSizes.FindAsync(id);
+            var size = await db.CardSizes.FindAsync([id], ct);
             if (size is null)
             {
                 return Results.NotFound();
             }
 
-            if (await db.Cards.AnyAsync(x => x.SizeId == id))
+            if (await db.Cards.AnyAsync(x => x.SizeId == id, ct))
             {
                 return Results.Conflict("Size is in use by cards.");
             }
 
             db.CardSizes.Remove(size);
-            await db.SaveChangesAsync();
-            broadcaster.PublishBoardUpdated(size.BoardId);
+            await db.SaveChangesAsync(ct);
+
+            // size.deleted — published from the captured size after the row is gone; the board still
+            // exists, so the slug resolves.
+            await WebhookEventFactory.PublishSizeDeletedAsync(db, broadcaster, size, http.CurrentUser(), ct);
             return Results.NoContent();
         }).RequireAdminOrAgentAdmin();
 
-        group.MapPatch("/sizes/{id:guid}", async (BoardDbContext db, Guid id, UpdateSizeRequest request, BoardEventBroadcaster broadcaster) =>
+        group.MapPatch("/sizes/{id:guid}", async (BoardDbContext db, HttpContext http, Guid id, UpdateSizeRequest request, BoardEventBroadcaster broadcaster, CancellationToken ct) =>
         {
-            var size = await db.CardSizes.FindAsync(id);
+            var size = await db.CardSizes.FindAsync([id], ct);
             if (size is null)
             {
                 return Results.NotFound();
             }
+
+            // Capture the pre-mutation values for the per-axis no-op guard.
+            var oldName = size.Name;
+            var oldOrdinal = size.Ordinal;
 
             if (request.Name is not null)
             {
@@ -110,7 +122,7 @@ internal static class SizeEndpoints
             if (request.Ordinal is not null)
             {
                 var newOrd = request.Ordinal.Value;
-                if (await db.CardSizes.AnyAsync(x => x.BoardId == size.BoardId && x.Ordinal == newOrd && x.Id != id))
+                if (await db.CardSizes.AnyAsync(x => x.BoardId == size.BoardId && x.Ordinal == newOrd && x.Id != id, ct))
                 {
                     return Results.Conflict("Ordinal already taken by another size.");
                 }
@@ -118,8 +130,16 @@ internal static class SizeEndpoints
                 size.Ordinal = newOrd;
             }
 
-            await db.SaveChangesAsync();
-            broadcaster.PublishBoardUpdated(size.BoardId);
+            await db.SaveChangesAsync(ct);
+
+            // Split by axis: a name change → size.renamed; an ordinal change → size.reordered
+            // (the board's full new order). Both can co-fire from one PATCH; PublishCoalesced rings
+            // EXACTLY ONE SSE bell (byte-for-byte unchanged) and enqueues one webhook per changed axis.
+            var nameChanged = request.Name is not null && request.Name != oldName;
+            var ordinalChanged = request.Ordinal is not null && request.Ordinal.Value != oldOrdinal;
+
+            var events = await WebhookEventFactory.BuildSizeUpdateEventsAsync(db, size, http.CurrentUser(), nameChanged, ordinalChanged, ct);
+            broadcaster.PublishCoalesced(size.BoardId, events);
             return Results.Ok(size);
         }).RequireAdminOrAgentAdmin();
 

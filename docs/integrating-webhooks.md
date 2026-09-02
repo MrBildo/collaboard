@@ -2,7 +2,7 @@
 
 Collattice can POST a structured event to a URL you choose whenever something
 happens on a board — a card **created**, **moved**, or **labeled**; a comment
-posted; a lane reordered; and more, across a 23-event catalog. That turns board
+posted; a lane reordered; and more, across the board-event catalog. That turns board
 activity into a signal an external system can act on — a workflow automation tool,
 a small script, an AI agent — without polling the API or holding a connection open.
 
@@ -21,7 +21,7 @@ looks wrong. It also covers the one rule you should read **before** you point a 
 at anything that creates cards — the recursion guard.
 
 For the exact field-by-field contract (the envelope, every payload shape, the
-headers, the signing scheme), the **full 23-event catalog**, and the complete list of
+headers, the signing scheme), the **full event catalog**, and the complete list of
 management endpoints, see the [API Reference](api-reference.md#webhooks). For the host
 settings, see [Host Configuration](../README.md#webhooks).
 
@@ -147,8 +147,8 @@ to a setup tool. To see the subscriptions themselves, `GET /api/v1/webhooks/subs
 
 ## Choosing which events
 
-Each subscription names the events it wants in its `events` list. There are 23 event
-types, covering the board-scoped lifecycle, grouped into six families:
+Each subscription names the events it wants in its `events` list. The event types cover
+the board-scoped lifecycle, grouped into families:
 
 - **Cards** — `card.created`, `card.moved`, `card.updated`, `card.archived`,
   `card.restored`, `card.deleted`, `card.labeled`, `card.unlabeled`.
@@ -156,6 +156,7 @@ types, covering the board-scoped lifecycle, grouped into six families:
 - **Labels** — `label.created`, `label.updated`, `label.deleted`.
 - **Attachments** — `attachment.created`, `attachment.deleted`.
 - **Lanes** — `lane.created`, `lane.renamed`, `lane.reordered`, `lane.deleted`.
+- **Sizes** — `size.created`, `size.renamed`, `size.reordered`, `size.deleted`.
 - **Boards** — `board.created`, `board.renamed`, `board.deleted`.
 
 The admin screen's create/edit dialog lets you tick these by family; over the API and

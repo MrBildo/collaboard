@@ -63,6 +63,17 @@ public static class WebhookEventTypes
     public const string LaneReordered = "lane.reordered";
     public const string LaneDeleted = "lane.deleted";
 
+    // The card-size lifecycle on a board — structurally a twin of the lane family. A size carries
+    // only a name and an ordinal, so the two mutations are rename and reorder (not a generic
+    // .updated). size.reordered carries the board's FULL new order and fires from BOTH the bulk
+    // reorder and a single-size ordinal move; a single update_size changing name AND ordinal
+    // co-fires size.renamed + size.reordered. size.deleted carries the size's state at occurrence
+    // (the row is gone after).
+    public const string SizeCreated = "size.created";
+    public const string SizeRenamed = "size.renamed";
+    public const string SizeReordered = "size.reordered";
+    public const string SizeDeleted = "size.deleted";
+
     // The board lifecycle. Board PATCH only changes the name (the slug is immutable), so the rename is
     // a distinct event, not a generic .updated. These are WEBHOOK-ONLY: board CRUD has no SSE
     // broadcast today, so emitting them must not ring a new board bell — they go straight to the
@@ -107,6 +118,10 @@ public static class WebhookEventTypes
         LaneRenamed,
         LaneReordered,
         LaneDeleted,
+        SizeCreated,
+        SizeRenamed,
+        SizeReordered,
+        SizeDeleted,
         BoardCreated,
         BoardRenamed,
         BoardDeleted,

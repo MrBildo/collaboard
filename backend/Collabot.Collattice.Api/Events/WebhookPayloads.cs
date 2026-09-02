@@ -133,6 +133,25 @@ public sealed record WebhookLaneOrderEntry(Guid Id, string Name, int Position);
 
 public sealed record WebhookLaneReorderedData(IReadOnlyList<WebhookLaneOrderEntry> Lanes);
 
+// The size-family payloads — structurally a twin of the lane family. size.created / size.renamed /
+// size.deleted carry the single card-size resource (the envelope's boardId/boardSlug identify the
+// board). size.deleted carries the size's state at occurrence (the row is gone after the delete).
+public sealed record WebhookSizeData(Guid Id, Guid BoardId, string Name, int Ordinal);
+
+public sealed record WebhookSizeCreatedData(WebhookSizeData Size);
+
+public sealed record WebhookSizeRenamedData(WebhookSizeData Size);
+
+public sealed record WebhookSizeDeletedData(WebhookSizeData Size);
+
+// size.reordered carries the board's FULL new order — both the bulk reorder_sizes path and a
+// single-size update_size ordinal move emit this same shape, so a consumer gets the resulting size
+// order directly with no reconstruction. Each entry is {id, name, ordinal}; the boardId is on the
+// envelope (all entries share it), so it is not repeated per size.
+public sealed record WebhookSizeOrderEntry(Guid Id, string Name, int Ordinal);
+
+public sealed record WebhookSizeReorderedData(IReadOnlyList<WebhookSizeOrderEntry> Sizes);
+
 // The board-family payloads. board.created / board.renamed / board.deleted carry the board
 // resource. The envelope's boardId/boardSlug ARE this board; the embedded resource adds the name (and
 // slug for completeness). board.deleted references a now-deleted board (state at occurrence).
