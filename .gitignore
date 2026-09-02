@@ -73,3 +73,6 @@ frontend/src/**/*.js
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# Local AI-tool artifacts (not project source)
+.opencode/
