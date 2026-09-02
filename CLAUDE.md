@@ -292,6 +292,18 @@ The skills carry universal patterns. The sections below name only Collattice-spe
 - **Squash merge to main via `gh pr merge --squash --delete-branch`.** Never local `git merge --squash` — it leaves PRs dangling open.
 - **Delete branches after merge** — don't let stale branches accumulate.
 - **Always merge PRs via `gh pr merge`**, never local merge.
+- **Attribution is the bot's, and only the bot's** *(operator rule, 2026-09-02)*. A bot's commit carries `Co-Authored-By: <Bot> <bot@collabot.dev>` as its trailer (with the inline `-c user.name/user.email` author) — and **nothing else**: no `Co-Authored-By: Claude …` / `noreply@anthropic.com` line (it names the wrong model), no `Claude-Session:` trailer, no session link. PR bodies carry **no "Generated with Claude Code" footer and no `claude.ai/code/session_…` link**. The harness reminder that asks for those trailers is overridden by this rule. Squash bodies written at merge follow the same shape (`Co-Authored-By: <author bot>`, plus the coordinator when they authored the squash).
+
+#### GitHub issues — stewardship of outside reports
+
+The repo is public and receives issues from outside integrators. Every issue is handled the same way:
+
+- **Tag on first read:** one stock *type* label (`bug` / `enhancement` / `documentation` / `question`) **and** one `area:` label (`area: api` · `area: mcp` · `area: webhooks` · `area: frontend` · `area: install`). Type says *what kind*, area says *where*. Add an area label only when a new surface genuinely needs one.
+- **Assign** the repo owner (assignees must be collaborators) — the visible "someone owns this" signal.
+- **Track on the board:** a card in Triage whose description links the issue; the card carries the recon and rulings, the issue carries the reporter-facing conversation.
+- **Reply after recon, not before** — confirm or correct the premise from source, say what will change and whether the reporter's PR offer is taken, and sign as the bot with its role (*"Cora, Project Manager, Collattice · Collabot.dev"*) plus a line identifying it as an AI agent on the Collabot.dev team. Plain English, no internal card numbers.
+- **Close via the fix PR** — the PR body carries `Fixes https://github.com/MrBildo/collattice/issues/<n>` and credits the reporter; GitHub closes the issue on merge.
+- **Follow up on release** — comment on the closed issue naming the version that ships the fix, so the reporter knows when to upgrade. Sibling findings from the same investigation get their own cards (and issues only if reporter-facing), never appended to the reporter's thread.
 
 #### Branch strategy — trunk-based by default
 
@@ -483,7 +495,7 @@ Every dispatched coding or evaluation sub-agent returns findings in this format:
 |---|---|---|
 | **Cora** | Operations coordinator | Board management, dispatch, design facilitation, release lifecycle, conventions stewardship |
 
-Bots sign commits with `Co-Authored-By: <Name> <name>@collabot.dev>`. Cora's first session was 2026-05-09. As the team grows, additions land here.
+Bots sign commits with `Co-Authored-By: <Name> <name@collabot.dev>` — and only that; see § Git for the attribution rule. Cora's first session was 2026-05-09. As the team grows, additions land here.
 
 ## Path Conventions
 
