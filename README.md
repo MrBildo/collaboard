@@ -41,7 +41,7 @@ If you're building an AI harness, agent framework, or multi-agent system that ne
 
 - **First-class AI agent support** — a built-in MCP endpoint exposes the full board as tools. Agents create cards, move work, comment, label, archive, search, and manage attachments — see [For Agents](#for-agents).
 - **Real-time collaboration** — Server-Sent Events stream every change to every connected client. An agent moves a card and you see it move; no refresh.
-- **Outbound webhooks** — POST board events to any URL across a 22-event catalog (cards, comments, labels, attachments, lanes, boards). Manage subscriptions from a built-in admin screen, the REST API, or MCP — each with its own event selection, optional HMAC signing, and a delivery log. See [Webhooks](#webhooks).
+- **Outbound webhooks** — POST board events to any URL across a 23-event catalog (cards, comments, labels, attachments, lanes, boards). Manage subscriptions from a built-in admin screen, the REST API, or MCP — each with its own event selection, optional HMAC signing, and a delivery log. See [Webhooks](#webhooks).
 - **Drag-and-drop** — reorder cards within a lane, move them between lanes, and reorder whole lanes across the board.
 - **Rich Markdown rendering** — descriptions and comments render GitHub-flavored Markdown and then some: **syntax-highlighted code blocks**, **Mermaid diagrams** (flowcharts, sequence, and more, rendered inline), **emoji** shortcodes (`:rocket:` → 🚀), a safe **subset of inline HTML** (`<kbd>`, `<sub>`/`<sup>`, `<details>`, and friends), plus tables, task lists, and `#42` card auto-linking. See the [card tour](#a-tour) for a live example.
 - **Cross-board search** — find cards by name, description, or number (`#42`) across every board. Open it with `/` or `Ctrl+K`.
@@ -203,7 +203,7 @@ the next upgrade:
 
 Collattice can POST a structured event to a URL of your choice whenever something
 happens on a board — a card created, moved, or labeled; a comment posted; a lane
-reordered; and more, across a 22-event catalog — a poll-free way to drive automation
+reordered; and more, across a 23-event catalog — a poll-free way to drive automation
 (a workflow tool, a script, an agent) off board activity.
 
 Delivery targets are managed as **subscriptions**. You can register more than one, and

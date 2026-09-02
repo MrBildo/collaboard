@@ -132,6 +132,7 @@ internal static class CardEndpoints
             var oldName = card.Name;
             var oldDescription = card.DescriptionMarkdown;
             var oldSizeId = card.SizeId;
+            var oldPosition = card.Position;
 
             // Snapshot the pre-write last-editor/last-edit too, before this request overwrites them
             // below — the approximate collision signal reads them to tell whether someone else was
@@ -166,11 +167,11 @@ internal static class CardEndpoints
                 card.SizeId = newSizeId;
             }
 
-            // card.moved fires only when the PATCH actually changes the lane (the
-            // coverage rule: a name/size/label-only update raises no move event). This
-            // site mutates LaneId/Position INLINE (it does not route through
-            // MoveCardToLaneAsync), so the source lane/position must be snapshotted before
-            // the mutation below. Resolved only on a real lane change.
+            // This block handles a lane change; a within-lane position change is handled after the
+            // position mutation below. A name/size/label-only update raises no move event. This
+            // site mutates LaneId/Position INLINE (it does not route through MoveCardToLaneAsync),
+            // so the source lane/position must be snapshotted before the mutation. Resolved only on
+            // a real lane change.
             Lane? moveFromLane = null;
             Lane? moveToLane = null;
             var moveFromPosition = 0;
@@ -213,6 +214,20 @@ internal static class CardEndpoints
             if (request.Position is not null)
             {
                 card.Position = request.Position.Value;
+            }
+
+            // Within-lane movement is a move: an explicit position change with no lane change emits
+            // card.moved with equal from/to lane ids, so a position-only edit is reported the same as
+            // a within-lane reorder. Guarded on a real position change (a same-value position is a
+            // no-op). The lane-change block above already set the move for a genuine lane change; this
+            // covers the position-only case. Scoped to an explicit request.Position so re-asserting
+            // the current lane without a position (which reshuffles to the lane's end) stays silent.
+            if (moveToLane is null && request.Position is not null && card.Position != oldPosition)
+            {
+                var currentLane = await db.Lanes.FindAsync([card.LaneId], ct);
+                moveFromLane = currentLane;
+                moveToLane = currentLane;
+                moveFromPosition = oldPosition;
             }
 
             // Label diff captured for card.labeled / card.unlabeled (one event per
@@ -365,15 +380,16 @@ internal static class CardEndpoints
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
 
-            var lane = await db.Lanes.FindAsync([card.LaneId], ct);
+            // Build the card.deleted event while the card still exists — the fat summary enriches by
+            // querying the card id, so building after the Remove would blank labels/counts. Publish
+            // (SSE bell + webhook) only after the row is gone. This replaces the bare SSE bell the
+            // delete used to ring.
+            var deletedEvent = await WebhookEventFactory.BuildCardDeletedAsync(db, card, user, ct);
 
             db.Cards.Remove(card);
             await db.SaveChangesAsync(ct);
 
-            if (lane is not null)
-            {
-                broadcaster.PublishBoardUpdated(lane.BoardId);
-            }
+            broadcaster.Publish(deletedEvent);
 
             return Results.NoContent();
         }).RequireRole(UserRole.Administrator, UserRole.HumanUser);

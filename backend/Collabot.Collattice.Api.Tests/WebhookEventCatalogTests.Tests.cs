@@ -22,11 +22,11 @@ public sealed class WebhookEventCatalogTests
         WebhookEventCatalog.Types.ShouldBe(WebhookEventTypes.All, ignoreOrder: true);
 
     [Fact]
-    public void Catalog_ContainsAll22Events()
+    public void Catalog_ContainsAll23Events()
     {
         var count = WebhookEventCatalog.Groups.Sum(group => group.Events.Count);
 
-        count.ShouldBe(22);
+        count.ShouldBe(23);
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public sealed class WebhookEventCatalogTests
             .SelectMany(group => group.GetProperty("events").EnumerateArray())
             .Select(descriptor => descriptor.GetProperty("type").GetString()!)
             .ToList();
-        types.Count.ShouldBe(22);
+        types.Count.ShouldBe(23);
         types.ShouldBe(WebhookEventTypes.All, ignoreOrder: true);
 
         // Each descriptor carries the display metadata the picker renders.

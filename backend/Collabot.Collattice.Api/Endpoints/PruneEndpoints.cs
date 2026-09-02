@@ -95,8 +95,19 @@ internal static class PruneEndpoints
             else
             {
                 var cards = await query.ToListAsync(ct);
+
+                // card.deleted per pruned card — built BEFORE RemoveRange (the fat summary enriches
+                // by querying the card ids, so building after the delete would blank them). N webhook
+                // events, one SSE bell — mirroring the prune-archive path above.
+                var deletedEvents = await WebhookEventFactory.BuildCardDeletedBatchAsync(db, cards, http.CurrentUser(), ct);
+
                 db.Cards.RemoveRange(cards);
                 await db.SaveChangesAsync(ct);
+
+                foreach (var deleted in deletedEvents)
+                {
+                    webhookSink.Enqueue(deleted);
+                }
 
                 broadcaster.PublishBoardUpdated(boardId);
 

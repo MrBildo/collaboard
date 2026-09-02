@@ -9,9 +9,9 @@ namespace Collabot.Collattice.Api.Events;
 //
 // Each family was added to this class and its `All` set as its emit-site was wired — so the
 // invariant `selectable ≡ deliverable` holds at every step (an operator can only select an event
-// type that actually delivers). The lane and board families CLOSE the catalog: every board-scoped
-// event the project raises is now both emitted and selectable. (User-account events are
-// intentionally out of scope.)
+// type that actually delivers). The catalog grows as new board facts earn an event; do NOT
+// re-assert it as "complete" (card.deleted was added after the initial families, and more may
+// follow). User-account events are intentionally out of scope.
 public static class WebhookEventTypes
 {
     public const string CardCreated = "card.created";
@@ -19,6 +19,12 @@ public static class WebhookEventTypes
     public const string CardUpdated = "card.updated";
     public const string CardArchived = "card.archived";
     public const string CardRestored = "card.restored";
+
+    // A card is hard-deleted (irreversible) — distinct from card.archived, which is the reversible
+    // "left the board" transition. Fires from REST DELETE /cards/{id} and the admin prune delete.
+    // Carries the card's state at occurrence (the row is gone after); see the outside report that
+    // surfaced the gap: https://github.com/MrBildo/collattice/issues/402
+    public const string CardDeleted = "card.deleted";
 
     // The card is the subject — the automation cares "this card was labeled X", consistent with
     // every other card.* event. (Distinct from a future label.* resource lifecycle: here the label
@@ -77,9 +83,8 @@ public static class WebhookEventTypes
     // "ping" idiom an integrator recognizes cold.
     public const string Ping = "webhook.ping";
 
-    // The selectable board-event types — what subscription event-selection validates against. The
-    // lane and board families CLOSE the catalog: this is the full set. Ordinal because
-    // event-type identifiers are exact ASCII tokens.
+    // The selectable board-event types — what subscription event-selection validates against.
+    // Ordinal because event-type identifiers are exact ASCII tokens.
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
         CardCreated,
@@ -87,6 +92,7 @@ public static class WebhookEventTypes
         CardUpdated,
         CardArchived,
         CardRestored,
+        CardDeleted,
         CardLabeled,
         CardUnlabeled,
         CommentCreated,

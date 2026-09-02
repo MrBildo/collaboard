@@ -651,7 +651,7 @@ labels) is set, all cards must share one board.
 
 Collattice can POST board events to an outbound URL. Delivery targets are
 **subscriptions** — each with its own URL, an optional HMAC signing secret, an
-enabled/disabled state, and a selection of which event types it wants (a 22-event
+enabled/disabled state, and a selection of which event types it wants (a 23-event
 catalog spanning cards, comments, labels, attachments, lanes, and boards, or the `*`
 wildcard for all of them). These tools manage subscriptions; they are **all
 admin-level**. The secret is **write-only** — you set it here, but no read ever returns

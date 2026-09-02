@@ -2,7 +2,7 @@
 
 Collattice can POST a structured event to a URL you choose whenever something
 happens on a board — a card **created**, **moved**, or **labeled**; a comment
-posted; a lane reordered; and more, across a 22-event catalog. That turns board
+posted; a lane reordered; and more, across a 23-event catalog. That turns board
 activity into a signal an external system can act on — a workflow automation tool,
 a small script, an AI agent — without polling the API or holding a connection open.
 
@@ -21,7 +21,7 @@ looks wrong. It also covers the one rule you should read **before** you point a 
 at anything that creates cards — the recursion guard.
 
 For the exact field-by-field contract (the envelope, every payload shape, the
-headers, the signing scheme), the **full 22-event catalog**, and the complete list of
+headers, the signing scheme), the **full 23-event catalog**, and the complete list of
 management endpoints, see the [API Reference](api-reference.md#webhooks). For the host
 settings, see [Host Configuration](../README.md#webhooks).
 
@@ -147,11 +147,11 @@ to a setup tool. To see the subscriptions themselves, `GET /api/v1/webhooks/subs
 
 ## Choosing which events
 
-Each subscription names the events it wants in its `events` list. There are 22 event
-types, covering the full board-scoped lifecycle, grouped into six families:
+Each subscription names the events it wants in its `events` list. There are 23 event
+types, covering the board-scoped lifecycle, grouped into six families:
 
 - **Cards** — `card.created`, `card.moved`, `card.updated`, `card.archived`,
-  `card.restored`, `card.labeled`, `card.unlabeled`.
+  `card.restored`, `card.deleted`, `card.labeled`, `card.unlabeled`.
 - **Comments** — `comment.created`, `comment.updated`, `comment.deleted`.
 - **Labels** — `label.created`, `label.updated`, `label.deleted`.
 - **Attachments** — `attachment.created`, `attachment.deleted`.
@@ -162,7 +162,7 @@ The admin screen's create/edit dialog lets you tick these by family; over the AP
 MCP you pass the exact type strings. For the payload each one carries, see the
 [event catalog in the API Reference](api-reference.md#event-types).
 
-![The 22-event picker in the create-subscription dialog](images/webhooks-event-picker.png)
+![The event picker in the create-subscription dialog](images/webhooks-event-picker.png)
 
 List the exact types you want (`["card.created"]`, or several), or use the single wildcard
 `"*"` to receive **every** event type — including any added in future versions:
