@@ -76,6 +76,17 @@ public static class WebhookEventCatalog
         ),
         new WebhookEventGroup
         (
+            "size",
+            "Sizes",
+            [
+                new WebhookEventDescriptor(WebhookEventTypes.SizeCreated, "A card size is created on a board."),
+                new WebhookEventDescriptor(WebhookEventTypes.SizeRenamed, "A card size is renamed."),
+                new WebhookEventDescriptor(WebhookEventTypes.SizeReordered, "A board's card sizes are reordered."),
+                new WebhookEventDescriptor(WebhookEventTypes.SizeDeleted, "A card size is deleted from a board."),
+            ]
+        ),
+        new WebhookEventGroup
+        (
             "board",
             "Boards",
             [

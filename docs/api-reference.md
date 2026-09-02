@@ -261,7 +261,7 @@ For the full agent-facing tool reference — connecting a client, every tool, th
 
 ## Webhooks
 
-Collattice can POST a structured event to a URL of your choice whenever something happens on a board — a card created, moved, or labeled; a comment posted; a lane reordered; and more, across a [22-event catalog](#event-types) — so an external consumer (a workflow tool, a script, an agent) can react to board activity without polling. Delivery targets are managed as **subscriptions** — you can register more than one, each with its own URL, an optional signing secret, an enabled state, and a selection of which events it wants. For a guided walkthrough — creating a subscription, sending a test delivery, and the recursion guard you need before pointing one at anything that creates cards — see the [Webhooks Integration Guide](integrating-webhooks.md). For the global delivery settings (master switch, timeout, retries, and the private-network security control), see [Host Configuration](../README.md#webhooks).
+Collattice can POST a structured event to a URL of your choice whenever something happens on a board — a card created, moved, or labeled; a comment posted; a lane reordered; and more, across the [board-event catalog](#event-types) — so an external consumer (a workflow tool, a script, an agent) can react to board activity without polling. Delivery targets are managed as **subscriptions** — you can register more than one, each with its own URL, an optional signing secret, an enabled state, and a selection of which events it wants. For a guided walkthrough — creating a subscription, sending a test delivery, and the recursion guard you need before pointing one at anything that creates cards — see the [Webhooks Integration Guide](integrating-webhooks.md). For the global delivery settings (master switch, timeout, retries, and the private-network security control), see [Host Configuration](../README.md#webhooks).
 
 Every webhook endpoint below requires an administrator-level key — either the **Administrator** or the **AgentAdministrator** role. A request from any other role receives `403`.
 
@@ -372,7 +372,7 @@ Each `deliveries` item:
 
 ### Event types
 
-A subscription receives an event only when its `events` selection includes that event type (or the wildcard `"*"`). Collattice emits a **23-event catalog** covering the board-scoped lifecycle, grouped into six families. The same catalog — with display labels and descriptions for a selection UI — is served by `GET /webhooks/event-types`.
+A subscription receives an event only when its `events` selection includes that event type (or the wildcard `"*"`). Collattice emits an event catalog covering the board-scoped lifecycle, grouped into families. The same catalog — with display labels and descriptions for a selection UI — is served by `GET /webhooks/event-types`.
 
 | Family | Event | Fires when |
 |--------|-------|------------|
@@ -396,6 +396,10 @@ A subscription receives an event only when its `events` selection includes that 
 | | `lane.renamed` | A lane is renamed. |
 | | `lane.reordered` | A board's lanes are reordered. |
 | | `lane.deleted` | A lane is deleted from a board. |
+| Sizes | `size.created` | A card size is created on a board. |
+| | `size.renamed` | A card size is renamed. |
+| | `size.reordered` | A board's card sizes are reordered. |
+| | `size.deleted` | A card size is deleted from a board. |
 | Boards | `board.created` | A board is created. |
 | | `board.renamed` | A board is renamed. |
 | | `board.deleted` | A board is deleted. |
@@ -403,7 +407,7 @@ A subscription receives an event only when its `events` selection includes that 
 Two coverage rules are worth knowing:
 
 - **Multi-axis edits co-fire.** A single `PATCH /cards/{id}` / `update_card` / `bulk_update_cards` that changes more than one thing emits one event per axis — a call that renames a card **and** moves it **and** changes its labels emits `card.updated` **+** `card.moved` **+** `card.labeled` / `card.unlabeled`. An unchanged axis emits nothing.
-- **One `lane.reordered` per reorder.** Reordering a board's lanes emits a single `lane.reordered` carrying the board's full new order — never one event per lane. Both the bulk reorder and a single-lane position move emit this same shape.
+- **One `lane.reordered` / `size.reordered` per reorder.** Reordering a board's lanes emits a single `lane.reordered` carrying the board's full new order — never one event per lane. Both the bulk reorder and a single-lane position move emit this same shape. Card sizes behave identically: a reorder emits one `size.reordered` with the board's full new size order.
 
 `webhook.ping` is a separate event type that exists only for the [test-delivery endpoint](#managing-subscriptions): board activity never produces it, and a subscription can't select it.
 
@@ -533,6 +537,23 @@ The comment is the changed resource; the card rides as a thin `{ id, number }` r
   ```
 
   Both the bulk reorder and a single-lane position move emit this same full-order shape, so a consumer gets the resulting order directly with no reconstruction.
+
+#### Size events
+
+- **`size.created`, `size.renamed`, `size.deleted`** — `{ size }`, where `size` is `{ id, boardId, name, ordinal }`. `size.deleted` carries the size's state at occurrence.
+- **`size.reordered`** — `{ sizes }`, the board's **full new order**, each entry `{ id, name, ordinal }`:
+
+  ```json
+  "data": {
+    "sizes": [
+      { "id": "…", "name": "S", "ordinal": 0 },
+      { "id": "…", "name": "M", "ordinal": 1 },
+      { "id": "…", "name": "L", "ordinal": 2 }
+    ]
+  }
+  ```
+
+  Both the bulk reorder and a single-size ordinal move emit this same full-order shape, so a consumer gets the resulting size order directly with no reconstruction.
 
 #### Board events
 

@@ -26,7 +26,7 @@ public sealed class SizeTools(BoardDbContext db, McpAuthService auth, BoardEvent
         CancellationToken ct = default
     )
     {
-        var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
+        var (user, error) = await auth.RequireAdminLevelAsync(authKey, ct);
         if (error is not null)
         {
             return error;
@@ -51,7 +51,9 @@ public sealed class SizeTools(BoardDbContext db, McpAuthService auth, BoardEvent
         var size = new CardSize { Id = Guid.NewGuid(), BoardId = boardId, Name = name, Ordinal = resolvedOrdinal };
         db.CardSizes.Add(size);
         await db.SaveChangesAsync(ct);
-        broadcaster.PublishBoardUpdated(boardId);
+
+        // size.created — REST/MCP emit the identical event through the shared factory.
+        await WebhookEventFactory.PublishSizeCreatedAsync(db, broadcaster, size, user!, ct);
         return JsonSerializer.Serialize(size, JsonSerializerOptions.Web);
     }
 
@@ -66,7 +68,7 @@ public sealed class SizeTools(BoardDbContext db, McpAuthService auth, BoardEvent
         CancellationToken ct = default
     )
     {
-        var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
+        var (user, error) = await auth.RequireAdminLevelAsync(authKey, ct);
         if (error is not null)
         {
             return error;
@@ -77,6 +79,10 @@ public sealed class SizeTools(BoardDbContext db, McpAuthService auth, BoardEvent
         {
             return "Error: Size not found.";
         }
+
+        // Capture the pre-mutation values for the per-axis no-op guard.
+        var oldName = size.Name;
+        var oldOrdinal = size.Ordinal;
 
         if (name is not null)
         {
@@ -100,7 +106,14 @@ public sealed class SizeTools(BoardDbContext db, McpAuthService auth, BoardEvent
         }
 
         await db.SaveChangesAsync(ct);
-        broadcaster.PublishBoardUpdated(size.BoardId);
+
+        // Split by axis: name → size.renamed; ordinal → size.reordered (board's full new order).
+        // Co-fire through PublishCoalesced — one SSE bell, identical to the REST PATCH.
+        var nameChanged = name is not null && name != oldName;
+        var ordinalChanged = ordinal is not null && ordinal.Value != oldOrdinal;
+
+        var events = await WebhookEventFactory.BuildSizeUpdateEventsAsync(db, size, user!, nameChanged, ordinalChanged, ct);
+        broadcaster.PublishCoalesced(size.BoardId, events);
         return JsonSerializer.Serialize(size, JsonSerializerOptions.Web);
     }
 
@@ -113,7 +126,7 @@ public sealed class SizeTools(BoardDbContext db, McpAuthService auth, BoardEvent
         CancellationToken ct = default
     )
     {
-        var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
+        var (user, error) = await auth.RequireAdminLevelAsync(authKey, ct);
         if (error is not null)
         {
             return error;
@@ -130,10 +143,12 @@ public sealed class SizeTools(BoardDbContext db, McpAuthService auth, BoardEvent
             return "Error: Size is in use by cards.";
         }
 
-        var boardId = size.BoardId;
         db.CardSizes.Remove(size);
         await db.SaveChangesAsync(ct);
-        broadcaster.PublishBoardUpdated(boardId);
+
+        // size.deleted — published from the captured size after the row is gone; REST/MCP identical
+        // through the shared factory.
+        await WebhookEventFactory.PublishSizeDeletedAsync(db, broadcaster, size, user!, ct);
         return "Size deleted.";
     }
 
@@ -147,7 +162,7 @@ public sealed class SizeTools(BoardDbContext db, McpAuthService auth, BoardEvent
         CancellationToken ct = default
     )
     {
-        var (_, error) = await auth.RequireAdminLevelAsync(authKey, ct);
+        var (user, error) = await auth.RequireAdminLevelAsync(authKey, ct);
         if (error is not null)
         {
             return error;
@@ -177,7 +192,10 @@ public sealed class SizeTools(BoardDbContext db, McpAuthService auth, BoardEvent
         }
 
         var ordered = await SizeReorderHelper.ReorderAsync(db, sizes!, ids, ct);
-        broadcaster.PublishBoardUpdated(boardId);
+
+        // size.reordered — ONE event carrying the board's full new order (never N), same single board
+        // bell the reorder always rang, identical to the REST reorder.
+        await WebhookEventFactory.PublishSizeReorderedAsync(db, broadcaster, boardId, user!, ct);
         return JsonSerializer.Serialize(ordered, JsonSerializerOptions.Web);
     }
 }

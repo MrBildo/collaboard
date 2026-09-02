@@ -61,6 +61,10 @@ public sealed class WebhookEventTypesTests
                 WebhookEventTypes.LaneRenamed,
                 WebhookEventTypes.LaneReordered,
                 WebhookEventTypes.LaneDeleted,
+                WebhookEventTypes.SizeCreated,
+                WebhookEventTypes.SizeRenamed,
+                WebhookEventTypes.SizeReordered,
+                WebhookEventTypes.SizeDeleted,
                 WebhookEventTypes.BoardCreated,
                 WebhookEventTypes.BoardRenamed,
                 WebhookEventTypes.BoardDeleted,
@@ -73,6 +77,7 @@ public sealed class WebhookEventTypesTests
         WebhookEventTypes.IsValidSelection(WebhookEventTypes.CardCreated).ShouldBeTrue();
         WebhookEventTypes.IsValidSelection(WebhookEventTypes.CommentCreated).ShouldBeTrue();
         WebhookEventTypes.IsValidSelection(WebhookEventTypes.LaneReordered).ShouldBeTrue();
+        WebhookEventTypes.IsValidSelection(WebhookEventTypes.SizeReordered).ShouldBeTrue();
         WebhookEventTypes.IsValidSelection(WebhookEventTypes.BoardCreated).ShouldBeTrue();
         WebhookEventTypes.IsValidSelection(WebhookEventTypes.CardDeleted).ShouldBeTrue();
         WebhookEventTypes.IsValidSelection(WebhookEventTypes.Wildcard).ShouldBeTrue();

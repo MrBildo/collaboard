@@ -533,6 +533,117 @@ internal static class WebhookEventFactory
         return events;
     }
 
+    // ── Size-family emit helpers ──────────────────────────────────────────
+    //
+    // A structural twin of the lane family. size.created / size.deleted are single-axis lifecycle
+    // events: the same single board bell the size CRUD sites always rang, plus one webhook event
+    // (broadcaster.Publish). size.reordered carries the board's FULL new order and fires from BOTH the
+    // bulk reorder (alone, via PublishSizeReorderedAsync) and a single-size update_size ordinal move
+    // (in the co-fire set, via PublishCoalesced). update_size can change name AND ordinal in one call:
+    // it co-fires size.renamed + size.reordered through PublishCoalesced (one bell, one webhook event
+    // per changed axis), mirroring the lane co-fire discipline. size.deleted is published from the
+    // captured size after the row is gone. The SSE wire stays byte-for-byte unchanged — exactly one
+    // bell per call. Unlike lanes there is no archive sentinel: every size is reorderable, so the
+    // reorder query has no exclusion.
+
+    public static async Task PublishSizeCreatedAsync
+    (
+        BoardDbContext db,
+        BoardEventBroadcaster broadcaster,
+        CardSize size,
+        BoardUser actor,
+        CancellationToken ct
+    )
+    {
+        var boardEvent = await BuildSizeLifecycleEventAsync(db, WebhookEventTypes.SizeCreated, size, actor, s => new WebhookSizeCreatedData(s), ct);
+        broadcaster.Publish(boardEvent);
+    }
+
+    public static async Task PublishSizeDeletedAsync
+    (
+        BoardDbContext db,
+        BoardEventBroadcaster broadcaster,
+        CardSize size,
+        BoardUser actor,
+        CancellationToken ct
+    )
+    {
+        var boardEvent = await BuildSizeLifecycleEventAsync(db, WebhookEventTypes.SizeDeleted, size, actor, s => new WebhookSizeDeletedData(s), ct);
+        broadcaster.Publish(boardEvent);
+    }
+
+    public static async Task PublishSizeReorderedAsync
+    (
+        BoardDbContext db,
+        BoardEventBroadcaster broadcaster,
+        Guid boardId,
+        BoardUser actor,
+        CancellationToken ct
+    )
+    {
+        var boardEvent = await BuildSizeReorderedAsync(db, boardId, actor, ct);
+        broadcaster.Publish(boardEvent);
+    }
+
+    public static Task<BoardEvent> BuildSizeRenamedAsync
+    (
+        BoardDbContext db,
+        CardSize size,
+        BoardUser actor,
+        CancellationToken ct
+    ) =>
+        BuildSizeLifecycleEventAsync(db, WebhookEventTypes.SizeRenamed, size, actor, s => new WebhookSizeRenamedData(s), ct);
+
+    // The board's full new order, re-queried post-save so BOTH triggers (bulk reorder and single-size
+    // move) emit the IDENTICAL shape by construction. Off the request hot path and a handful of rows,
+    // so the extra query is free.
+    public static async Task<BoardEvent> BuildSizeReorderedAsync
+    (
+        BoardDbContext db,
+        Guid boardId,
+        BoardUser actor,
+        CancellationToken ct
+    )
+    {
+        var boardSlug = await ResolveBoardSlugAsync(db, boardId, ct);
+        var sizes = await db.CardSizes
+            .Where(s => s.BoardId == boardId)
+            .OrderBy(s => s.Ordinal)
+                .Select(s => new WebhookSizeOrderEntry(s.Id, s.Name, s.Ordinal))
+                    .ToListAsync(ct);
+
+        return BuildEvent(WebhookEventTypes.SizeReordered, boardId, boardSlug, actor, new WebhookSizeReorderedData(sizes));
+    }
+
+    // The update_size co-fire assembly — the shared REST/MCP seam so PATCH /sizes and update_size emit
+    // the IDENTICAL event set for the same change by construction. One event per CHANGED axis: a name
+    // change → size.renamed; an ordinal change → size.reordered (full new order). The caller rings
+    // exactly one SSE bell via PublishCoalesced (even when the list is empty — an all-no-op PATCH).
+    public static async Task<List<BoardEvent>> BuildSizeUpdateEventsAsync
+    (
+        BoardDbContext db,
+        CardSize size,
+        BoardUser actor,
+        bool nameChanged,
+        bool ordinalChanged,
+        CancellationToken ct
+    )
+    {
+        List<BoardEvent> events = [];
+
+        if (nameChanged)
+        {
+            events.Add(await BuildSizeRenamedAsync(db, size, actor, ct));
+        }
+
+        if (ordinalChanged)
+        {
+            events.Add(await BuildSizeReorderedAsync(db, size.BoardId, actor, ct));
+        }
+
+        return events;
+    }
+
     // ── Board-family emit helpers — WEBHOOK-ONLY ───────────────────────────
     //
     // STRUCTURALLY NOVEL: board CRUD has no SSE broadcast today. These emit STRAIGHT to the sink and
@@ -565,6 +676,23 @@ internal static class WebhookEventFactory
         var laneData = new WebhookLaneData(lane.Id, lane.BoardId, lane.Name, lane.Position);
 
         return BuildEvent(eventType, lane.BoardId, boardSlug, actor, dataFactory(laneData));
+    }
+
+    // The size-lifecycle core: resolves the board slug and projects the single card-size resource.
+    private static async Task<BoardEvent> BuildSizeLifecycleEventAsync
+    (
+        BoardDbContext db,
+        string eventType,
+        CardSize size,
+        BoardUser actor,
+        Func<WebhookSizeData, object> dataFactory,
+        CancellationToken ct
+    )
+    {
+        var boardSlug = await ResolveBoardSlugAsync(db, size.BoardId, ct);
+        var sizeData = new WebhookSizeData(size.Id, size.BoardId, size.Name, size.Ordinal);
+
+        return BuildEvent(eventType, size.BoardId, boardSlug, actor, dataFactory(sizeData));
     }
 
     // The board-event core: the envelope's board IS the subject, so no DB query — the entity carries
