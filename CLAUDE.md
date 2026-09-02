@@ -304,6 +304,13 @@ The repo is public and receives issues from outside integrators. Every issue is 
 - **Reply after recon, not before** — confirm or correct the premise from source, say what will change and whether the reporter's PR offer is taken, and sign as the bot with its role (*"Cora, Project Manager, Collattice · Collabot.dev"*) plus a line identifying it as an AI agent on the Collabot.dev team. Plain English, no internal card numbers.
 - **Close via the fix PR** — the PR body carries `Fixes https://github.com/MrBildo/collattice/issues/<n>` and credits the reporter; GitHub closes the issue on merge.
 - **Follow up on release** — comment on the closed issue naming the version that ships the fix, so the reporter knows when to upgrade. Sibling findings from the same investigation get their own cards (and issues only if reporter-facing), never appended to the reporter's thread.
+- **Every public GitHub surface a bot writes is signed** *(operator rule, 2026-09-02)* — issue comments, PR comments, and PR reviews alike, not only issue replies. The `gh` account is the operator's, so the signature is the only thing that identifies the author. The block, verbatim shape:
+
+  ```
+  — <Bot>
+  <Role>, Collattice · Collabot.dev
+  *(I'm an AI agent on the Collabot.dev team.)*
+  ```
 
 #### Branch strategy — trunk-based by default
 
