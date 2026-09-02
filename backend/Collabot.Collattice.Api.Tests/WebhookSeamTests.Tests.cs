@@ -360,6 +360,68 @@ public sealed class WebhookSeamTests(WebhookTestFactory factory) : IClassFixture
         sink.Captured.ShouldNotContain(e => e.EventType == "card.moved");
     }
 
+    // ── Scenario 4c: within-lane movement is a move — equal from/to lane ids ──────
+
+    [Fact]
+    public async Task RestPatchPositionOnly_FiresCardMoved_WithinLane()
+    {
+        var sink = Sink;
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var (laneA, _) = await GetTwoLanesAsync();
+        var cardId = await CreateCardInLaneViaRestAsync(laneA, "Position Move");
+        var fromPosition = await CardPositionAsync(cardId);
+        sink.Clear();
+
+        // A position-only PATCH (no laneId) is a within-lane move — one card.moved carrying the
+        // position transition, with from/to lane ids equal.
+        var response = await _client.PatchAsJsonAsync($"/api/v1/cards/{cardId}", new { position = fromPosition + 5 });
+        response.EnsureSuccessStatusCode();
+
+        var laneName = await LaneNameAsync(laneA);
+        await AssertSingleMoveAsync(sink, cardId, laneA, laneName, fromPosition, laneA, laneName);
+
+        // A consumer disambiguates a within-lane reorder from a cross-lane move on exactly this.
+        var data = Serialize(sink.Captured[0]).GetProperty("data");
+        data.GetProperty("from").GetProperty("laneId").GetGuid()
+            .ShouldBe(data.GetProperty("to").GetProperty("laneId").GetGuid());
+    }
+
+    [Fact]
+    public async Task RestPatchPositionUnchanged_FiresNoCardMoved()
+    {
+        var sink = Sink;
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var (laneA, _) = await GetTwoLanesAsync();
+        var cardId = await CreateCardInLaneViaRestAsync(laneA, "Position No-op");
+        var currentPosition = await CardPositionAsync(cardId);
+        sink.Clear();
+
+        // Re-send the current position — the real-position-changed guard suppresses card.moved.
+        var response = await _client.PatchAsJsonAsync($"/api/v1/cards/{cardId}", new { position = currentPosition });
+        response.EnsureSuccessStatusCode();
+
+        sink.Captured.ShouldNotContain(e => e.EventType == "card.moved");
+    }
+
+    [Fact]
+    public async Task RestReorderWithinLane_FiresCardMoved_WithEqualLaneIds()
+    {
+        var sink = Sink;
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var (laneA, _) = await GetTwoLanesAsync();
+        var cardId = await CreateCardInLaneViaRestAsync(laneA, "Reorder Within");
+        var fromPosition = await CardPositionAsync(cardId);
+        sink.Clear();
+
+        // Reordering to the SAME lane is a within-lane move — it already fires card.moved with equal
+        // from/to lane ids; this pins that the reorder path and the PATCH-position path agree.
+        var response = await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/reorder", new { laneId = laneA, index = 0 });
+        response.EnsureSuccessStatusCode();
+
+        var laneName = await LaneNameAsync(laneA);
+        await AssertSingleMoveAsync(sink, cardId, laneA, laneName, fromPosition, laneA, laneName);
+    }
+
     // ── Scenario 5: SSE byte-for-byte unchanged across all converted sites ────────
 
     [Fact]

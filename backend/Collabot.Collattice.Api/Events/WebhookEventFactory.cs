@@ -161,6 +161,20 @@ internal static class WebhookEventFactory
         broadcaster.Publish(boardEvent);
     }
 
+    // card.deleted is BUILT here but NOT published — the caller must build it while the card row
+    // still exists (the fat CardSummary enriches by querying the card id, so a build after the
+    // Remove would return blank labels/counts), then Remove the card, save, and publish. Both
+    // delete surfaces (REST DELETE /cards/{id} and prune delete) use the build-then-delete-then-
+    // publish ordering.
+    public static Task<BoardEvent> BuildCardDeletedAsync
+    (
+        BoardDbContext db,
+        CardItem card,
+        BoardUser actor,
+        CancellationToken ct
+    ) =>
+        BuildCardSummaryEventAsync(db, WebhookEventTypes.CardDeleted, card, actor, (summary, laneName) => new WebhookCardDeletedData(ForDeleted(summary), laneName), ct);
+
     public static async Task PublishCardLabeledAsync
     (
         BoardDbContext db,
@@ -212,6 +226,18 @@ internal static class WebhookEventFactory
         CancellationToken ct
     ) =>
         BuildCardSummaryEventBatchAsync(db, WebhookEventTypes.CardRestored, cards, actor, (summary, laneName) => new WebhookCardRestoredData(summary, laneName), ct);
+
+    // The batch build for the prune delete path — built BEFORE RemoveRange (same reason as the
+    // single delete). The caller enqueues each event to the sink and rings one bell per board (the
+    // prune coalesce contract), mirroring the prune-archive path.
+    public static Task<List<BoardEvent>> BuildCardDeletedBatchAsync
+    (
+        BoardDbContext db,
+        IReadOnlyList<CardItem> cards,
+        BoardUser actor,
+        CancellationToken ct
+    ) =>
+        BuildCardSummaryEventBatchAsync(db, WebhookEventTypes.CardDeleted, cards, actor, (summary, laneName) => new WebhookCardDeletedData(ForDeleted(summary), laneName), ct);
 
     // The multi-axis co-fire assembly — the shared REST/MCP seam so PATCH /cards and
     // update_card emit the IDENTICAL event set for the same change by construction (the
@@ -734,6 +760,13 @@ internal static class WebhookEventFactory
     // implementation detail, so card.archived blanks the embedded summary's lane id (it drops off the
     // wire — see CardSummary.LaneId). laneName + isArchived carry the state a consumer needs.
     private static CardSummary ForArchived(CardSummary summary) => summary with { LaneId = default };
+
+    // Delete is allowed on an archived card, so a deleted card MAY be sitting in the hidden archive
+    // lane — blank its internal lane GUID exactly as card.archived does, but only in that case. A
+    // normal (non-archived) deleted card keeps its real laneId, so the blanking is conditional on
+    // IsArchived (unlike card.archived, which blanks unconditionally).
+    private static CardSummary ForDeleted(CardSummary summary) =>
+        summary.IsArchived ? ForArchived(summary) : summary;
 
     private static async Task<string> ResolveBoardSlugAsync(BoardDbContext db, Guid boardId, CancellationToken ct) =>
         await db.Boards

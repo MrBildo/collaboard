@@ -372,15 +372,16 @@ Each `deliveries` item:
 
 ### Event types
 
-A subscription receives an event only when its `events` selection includes that event type (or the wildcard `"*"`). Collattice emits a **22-event catalog** covering the full board-scoped lifecycle, grouped into six families. The same catalog — with display labels and descriptions for a selection UI — is served by `GET /webhooks/event-types`.
+A subscription receives an event only when its `events` selection includes that event type (or the wildcard `"*"`). Collattice emits a **23-event catalog** covering the board-scoped lifecycle, grouped into six families. The same catalog — with display labels and descriptions for a selection UI — is served by `GET /webhooks/event-types`.
 
 | Family | Event | Fires when |
 |--------|-------|------------|
 | Cards | `card.created` | A card first comes into existence — via REST `POST /boards/{boardId}/cards`, MCP `create_card`, or when an interactive draft card is finalized. A draft (temp) card does **not** fire until it is finalized. |
-| | `card.moved` | A card's lane changes through any successful non-archive mutation — the dedicated reorder/move paths, a `PATCH /cards/{id}` or `update_card` that sets `laneId`, or `bulk_update_cards` (one event per moved card). A change that doesn't move the card fires no `card.moved`. Archiving and restoring do **not** fire `card.moved` (they fire `card.archived` / `card.restored`). |
+| | `card.moved` | A card moves to a different lane **or position** through any successful non-archive mutation — the dedicated reorder/move paths, a `PATCH /cards/{id}` that sets `laneId` or `position`, an `update_card` that sets `laneId`, or `bulk_update_cards` (one event per moved card). A within-lane move carries equal `from`/`to` lane ids. A `PATCH` that changes the position to the same value fires no `card.moved`. Archiving and restoring do **not** fire `card.moved` (they fire `card.archived` / `card.restored`). |
 | | `card.updated` | A card's name, description, or size changes. |
 | | `card.archived` | A card is archived. |
 | | `card.restored` | A card is restored from the archive. |
+| | `card.deleted` | A card is hard-deleted (irreversible) — via REST `DELETE /cards/{id}` (an archived card can be deleted too) or the admin prune with `action: "delete"` (one event per deleted card). Distinct from `card.archived`, which is the reversible "left the board" transition. Deleting a whole board does not fire per-card `card.deleted` — its archived cards are covered by `board.deleted`. |
 | | `card.labeled` | A label is added to a card (one event per label). |
 | | `card.unlabeled` | A label is removed from a card (one event per label). |
 | Comments | `comment.created` | A comment is added to a card. |
@@ -461,7 +462,7 @@ The `data` block differs per family. The envelope above is identical for every e
 
 The card family embeds the full card (the same `CardSummary` shape the REST card endpoints return) under `card`, plus the resolved `laneName` — `CardSummary` is GUID-keyed and carries no lane name, so the event resolves it for you.
 
-- **`card.created`, `card.updated`, `card.archived`, `card.restored`** — `{ card, laneName }`. The card reflects state *at the moment of the event*: a freshly created card has `commentCount: 0`, `attachmentCount: 0`, and `latestComment: null` — correct, not a missing value. `card.archived` / `card.restored` carry the card as it sits in the archive lane (or its restored target lane).
+- **`card.created`, `card.updated`, `card.archived`, `card.restored`, `card.deleted`** — `{ card, laneName }`. The card reflects state *at the moment of the event*: a freshly created card has `commentCount: 0`, `attachmentCount: 0`, and `latestComment: null` — correct, not a missing value. `card.archived` / `card.restored` carry the card as it sits in the archive lane (or its restored target lane). `card.deleted` carries the card as it was just before removal (fully enriched — its labels and counts are the state at deletion); if the deleted card was archived, its `laneId` is omitted (the internal archive-lane GUID), exactly as `card.archived` does, with `isArchived: true` and `laneName` carrying the state.
 - **`card.moved`** — `{ card, laneName, from, to }`, with the transition:
 
   ```json
@@ -473,7 +474,7 @@ The card family embeds the full card (the same `CardSummary` shape the REST card
   }
   ```
 
-  The lane change is the point of `card.moved`. `from`/`to` carry both the lane (id + name) and the position the card left and landed at.
+  `card.moved` covers both a cross-lane move and a within-lane position change. `from`/`to` carry both the lane (id + name) and the position the card left and landed at — for a within-lane move the two `laneId`s are equal and only the position differs.
 - **`card.labeled`, `card.unlabeled`** — `{ card, laneName, label }`, where `label` is `{ id, name, color }` (color is nullable). The label that was added or removed is embedded so a consumer knows *which* one without a second fetch. One event per label.
 
 #### Comment events

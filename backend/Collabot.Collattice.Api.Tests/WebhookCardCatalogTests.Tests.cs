@@ -366,6 +366,131 @@ public sealed class WebhookCardCatalogTests(WebhookTestFactory factory) : IClass
         sink.Captured.ShouldAllBe(e => e.EventType == "card.archived");
     }
 
+    // ── card.deleted — the two silent delete surfaces (REST delete + prune delete) ──
+
+    [Fact]
+    public async Task RestDeleteCard_FiresCardDeleted_FatSummaryBuiltBeforeDelete()
+    {
+        var sink = Sink;
+        var (laneA, _) = await GetTwoLanesAsync();
+        var cardId = await CreateCardInLaneViaRestAsync(laneA, "Doomed");
+        var labelId = await SeedLabelAsync("delete-label", "#654321");
+        (await _client.PostAsJsonAsync($"/api/v1/cards/{cardId}/labels", new { labelId })).EnsureSuccessStatusCode();
+        sink.Clear();
+
+        var response = await _client.DeleteAsync($"/api/v1/cards/{cardId}");
+        response.EnsureSuccessStatusCode();
+
+        sink.Captured.Select(e => e.EventType).ShouldBe(["card.deleted"]);
+
+        // The fat summary is state-at-occurrence, built BEFORE the row is removed — so the label it
+        // carried is present (a build-after-delete would enrich a now-deleted row and blank it). The
+        // card was not archived, so its real laneId rides.
+        var card = Serialize(sink.Captured[0]).GetProperty("data").GetProperty("card");
+        card.GetProperty("isArchived").GetBoolean().ShouldBeFalse();
+        card.GetProperty("laneId").GetGuid().ShouldBe(laneA);
+        card.GetProperty("labels")
+            .EnumerateArray()
+                .Select(l => l.GetProperty("id").GetGuid())
+                    .ShouldContain(labelId);
+    }
+
+    [Fact]
+    public async Task RestDeleteArchivedCard_FiresCardDeleted_BlanksArchiveLaneGuid()
+    {
+        var sink = Sink;
+        var (laneA, _) = await GetTwoLanesAsync();
+        var cardId = await CreateCardInLaneViaRestAsync(laneA, "Archived then deleted");
+        (await _client.PostAsync($"/api/v1/cards/{cardId}/archive", null)).EnsureSuccessStatusCode();
+        sink.Clear();
+
+        // Delete is allowed on an archived card. Its lane is the hidden archive lane, so the internal
+        // GUID is blanked exactly as card.archived does — isArchived + laneName carry the state.
+        var response = await _client.DeleteAsync($"/api/v1/cards/{cardId}");
+        response.EnsureSuccessStatusCode();
+
+        sink.Captured.Select(e => e.EventType).ShouldBe(["card.deleted"]);
+        var data = Serialize(sink.Captured[0]).GetProperty("data");
+        var card = data.GetProperty("card");
+        card.GetProperty("isArchived").GetBoolean().ShouldBeTrue();
+        card.TryGetProperty("laneId", out _).ShouldBeFalse("card.deleted of an archived card must not leak the archive-lane GUID");
+        data.GetProperty("laneName").GetString().ShouldNotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task RestPruneDelete_FiresOneCardDeletedPerCard()
+    {
+        var sink = Sink;
+        var lane = await CreateEmptyLaneAsync("Prune Delete Lane");
+        var tools = CreateCardTools();
+        await CreateCardViaMcpAsync(tools, lane, "Prune Del 1");
+        await CreateCardViaMcpAsync(tools, lane, "Prune Del 2");
+        sink.Clear();
+
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+        var response = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/prune", new
+        {
+            laneIds = new[] { lane },
+            action = "delete",
+        });
+        response.EnsureSuccessStatusCode();
+
+        sink.Captured.Count.ShouldBe(2);
+        sink.Captured.ShouldAllBe(e => e.EventType == "card.deleted");
+    }
+
+    [Fact]
+    public async Task TempCancel_FiresNoCardDeleted()
+    {
+        var sink = Sink;
+        var (laneA, _) = await GetTwoLanesAsync();
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        var tempResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{_factory.DefaultBoardId}/cards/temp", new { name = "Temp doomed", laneId = laneA });
+        tempResponse.EnsureSuccessStatusCode();
+        var tempId = (await tempResponse.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions)).GetProperty("id").GetGuid();
+        sink.Clear();
+
+        // A temp card never fired card.created (that fires on finalize), so cancelling it fires no
+        // card.deleted — a delete for something that never announced its existence is incoherent.
+        (await _client.PostAsync($"/api/v1/cards/{tempId}/cancel", null)).EnsureSuccessStatusCode();
+
+        sink.Captured.ShouldNotContain(e => e.EventType == "card.deleted");
+    }
+
+    [Fact]
+    public async Task BoardDelete_CascadingArchivedCard_FiresBoardDeleted_NotCardDeleted()
+    {
+        var sink = Sink;
+        TestAuthHelper.SetAdminAuth(_client, _factory);
+
+        // A board delete requires zero non-archive lanes, so the only card rows it removes are
+        // archived ones — that cascade is covered by board.deleted, deliberately NOT a per-card
+        // card.deleted. Build a fresh board, archive a card into its hidden archive lane, drop the
+        // now-empty regular lane, then delete the board.
+        var boardResponse = await _client.PostAsJsonAsync("/api/v1/boards", new { name = $"Cascade {Guid.NewGuid():N}" });
+        boardResponse.EnsureSuccessStatusCode();
+        var boardId = (await boardResponse.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions)).GetProperty("id").GetGuid();
+
+        var laneResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{boardId}/lanes", new { name = "Work", position = 0 });
+        laneResponse.EnsureSuccessStatusCode();
+        var laneId = (await laneResponse.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions)).GetProperty("id").GetGuid();
+
+        var cardResponse = await _client.PostAsJsonAsync($"/api/v1/boards/{boardId}/cards", new { name = "To cascade", laneId });
+        cardResponse.EnsureSuccessStatusCode();
+        var cardId = (await cardResponse.Content.ReadFromJsonAsync<JsonElement>(TestAuthHelper.JsonOptions)).GetProperty("id").GetGuid();
+
+        (await _client.PostAsync($"/api/v1/cards/{cardId}/archive", null)).EnsureSuccessStatusCode();
+        (await _client.DeleteAsync($"/api/v1/lanes/{laneId}")).EnsureSuccessStatusCode();
+        sink.Clear();
+
+        var deleteResponse = await _client.DeleteAsync($"/api/v1/boards/{boardId}");
+        deleteResponse.EnsureSuccessStatusCode();
+
+        sink.Captured.Select(e => e.EventType).ShouldContain("board.deleted");
+        sink.Captured.ShouldNotContain(e => e.EventType == "card.deleted");
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────────
 
     private CardTools CreateCardTools()

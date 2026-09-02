@@ -33,11 +33,12 @@ public sealed class WebhookEventTypesTests
         }
     }
 
-    // The catalog is now COMPLETE: the lane and board families close it. All board-scoped
-    // events the project raises are both emitted and selectable. (User-account events are out of
-    // scope; Ping and the Wildcard sentinel are deliverable-only / not event types.)
+    // Pins the exact selectable board-event set, so any addition or removal is a deliberate,
+    // reviewed change (update this list and the catalog together). Not a completeness claim — the
+    // catalog grows as new board facts earn an event. (User-account events are out of scope; Ping
+    // and the Wildcard sentinel are deliverable-only / not event types.)
     [Fact]
-    public void M2_All_ContainsTheFullCatalog() =>
+    public void All_ContainsExactlyTheSelectableEventSet() =>
         WebhookEventTypes.All.ShouldBe(
             [
                 WebhookEventTypes.CardCreated,
@@ -45,6 +46,7 @@ public sealed class WebhookEventTypesTests
                 WebhookEventTypes.CardUpdated,
                 WebhookEventTypes.CardArchived,
                 WebhookEventTypes.CardRestored,
+                WebhookEventTypes.CardDeleted,
                 WebhookEventTypes.CardLabeled,
                 WebhookEventTypes.CardUnlabeled,
                 WebhookEventTypes.CommentCreated,
@@ -70,8 +72,9 @@ public sealed class WebhookEventTypesTests
     {
         WebhookEventTypes.IsValidSelection(WebhookEventTypes.CardCreated).ShouldBeTrue();
         WebhookEventTypes.IsValidSelection(WebhookEventTypes.CommentCreated).ShouldBeTrue();
-        WebhookEventTypes.IsValidSelection(WebhookEventTypes.LaneReordered).ShouldBeTrue();   // catalog now closed
-        WebhookEventTypes.IsValidSelection(WebhookEventTypes.BoardCreated).ShouldBeTrue();    // catalog now closed
+        WebhookEventTypes.IsValidSelection(WebhookEventTypes.LaneReordered).ShouldBeTrue();
+        WebhookEventTypes.IsValidSelection(WebhookEventTypes.BoardCreated).ShouldBeTrue();
+        WebhookEventTypes.IsValidSelection(WebhookEventTypes.CardDeleted).ShouldBeTrue();
         WebhookEventTypes.IsValidSelection(WebhookEventTypes.Wildcard).ShouldBeTrue();
         WebhookEventTypes.IsValidSelection("user.created").ShouldBeFalse();   // user-account events are out of scope
         WebhookEventTypes.IsValidSelection("nonsense").ShouldBeFalse();

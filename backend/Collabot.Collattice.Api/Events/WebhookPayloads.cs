@@ -25,10 +25,10 @@ public sealed record WebhookCardMovedData
     WebhookLaneRef To
 );
 
-// The from/to transition on card.moved. The lane change is the load-bearing axis (an
-// automation wired to "card entered Ready → assign"); position is the incidental
-// intra-lane ordinal, retained because the snapshot-before-mutate discipline keeps it
-// cheap. `from` is captured BEFORE the move mutates the card.
+// The from/to transition on card.moved. A cross-lane move changes the lane (an automation wired to
+// "card entered Ready → assign"); a within-lane move changes only the position and carries equal
+// from/to lane ids — the position is the axis that moved. `from` is captured BEFORE the move mutates
+// the card.
 public sealed record WebhookLaneRef(Guid LaneId, string LaneName, int Position);
 
 // The card-family payloads. Each embeds the fat CardSummary directly (no
@@ -41,6 +41,12 @@ public sealed record WebhookCardUpdatedData(CardSummary Card, string LaneName);
 public sealed record WebhookCardArchivedData(CardSummary Card, string LaneName);
 
 public sealed record WebhookCardRestoredData(CardSummary Card, string LaneName);
+
+// card.deleted carries the card's state at occurrence — built BEFORE the row is removed, so the
+// fat summary is fully enriched (labels, counts) rather than blank. A card can be hard-deleted
+// while archived, so when the deleted card was archived its lane is the hidden archive lane and its
+// GUID is blanked exactly as card.archived does; a normal delete keeps its real laneId.
+public sealed record WebhookCardDeletedData(CardSummary Card, string LaneName);
 
 // card.labeled / card.unlabeled embed the label resource the card's label-set changed by,
 // so a consumer knows WHICH label without a second fetch. One event per label add/remove.
